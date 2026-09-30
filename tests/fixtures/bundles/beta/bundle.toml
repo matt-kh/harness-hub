@@ -1,0 +1,15 @@
+# Fixture bundle: any_of (needs alpha or delta), deprecated hook_rules alias, agents only.
+[bundle]
+name = "beta"
+schema_version = 1
+summary = "Fixture beta: any_of group, deprecated hook_rules key"
+depends_on = ["core"]
+any_of = [["alpha", "delta"]]
+stability = "experimental"
+
+[provides]
+hook_rules = ["guard.d/15-beta.sh"]
+rules = ["rules/05-beta.md"]
+
+[uninstall]
+keeps = []

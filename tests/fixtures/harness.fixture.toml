@@ -1,0 +1,19 @@
+# Fixture config for the unit tests: fixture bundles only (see tests/fixtures/bundles).
+schema_version = 1
+
+[identity]
+email = "you@example.com"
+
+[hub]
+bundles = ["core", "alpha", "beta"]
+providers = ["claude", "gemini", "copilot", "codex", "opencode"]
+
+[alpha]
+host = "alpha.example.com"
+
+[trust]
+source_control = ["github.com/octocat/*"]
+domains = ["example.com"]
+
+[providers.claude]
+settings = { env = { CLAUDE_CODE_SUBAGENT_MODEL = "opus" } }

@@ -1,0 +1,6 @@
+# The smallest useful harness: the guard, credential and git rules, core agents; Claude Code.
+[profile]
+name = "minimal"
+summary = "core only, Claude Code"
+bundles = ["core"]
+providers = ["claude"]

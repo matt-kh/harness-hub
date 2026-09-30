@@ -1,0 +1,2 @@
+[core]
+default_branch_re = "^(master|main)$"

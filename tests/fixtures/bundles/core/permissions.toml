@@ -1,0 +1,4 @@
+[permissions]
+allow = ["Bash(demo status:*)", "Bash(jq:*)"]
+ask = ["Bash(demo write:*)"]
+deny = ["Read(~/.config/demo/**)"]

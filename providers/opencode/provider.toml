@@ -1,0 +1,31 @@
+# OpenCode and Kilo (Kilo reads the same locations). Skills + instructions only in v1.
+[provider]
+name = "opencode"
+summary = "OpenCode / Kilo"
+binary = "opencode"
+version_cmd = "opencode --version"
+version_regex = '([0-9]+\.[0-9]+\.[0-9]+)'
+min_version = "0.1.0"
+home = "~/.config/opencode"
+verified = "verify on install (written to the published spec, 2026-09)"
+docs = "docs/providers/opencode.md"
+
+[targets]
+instructions = { path = "~/.config/opencode/AGENTS.md", mode = "managed-block" }
+skills       = { path = "~/.agents/skills/<name>", mode = "dir", note = "the cross-tool Agent Skills location, also read by Kilo" }
+agents       = { mode = "inline", note = "agent bodies become sections of AGENTS.md" }
+settings     = { mode = "unsupported" }
+hooks        = { mode = "unsupported", note = "no command hook" }
+permissions  = { mode = "unsupported" }
+trust        = { mode = "unsupported" }
+mcp          = { mode = "unsupported", note = "configure MCP in opencode.json by hand for now" }
+
+[capabilities]
+hook_enforced = false
+permissions = "none"
+ask = false
+skills = "native"
+agents = "inlined"
+mcp = "none"
+instructions = "native"
+notes = "advisory only: no hook, no permission lists"

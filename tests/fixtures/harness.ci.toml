@@ -1,0 +1,34 @@
+# CI / smoke-test configuration: public placeholders only (example.com, octocat, PROJ-123).
+# Used by tests/smoke/*.sh: ./bootstrap --bundles core --providers claude --yes --offline --config <this>
+schema_version = 1
+
+[identity]
+email = "you@example.com"
+
+[hub]
+bundles = ["core"]
+providers = ["claude"]
+
+[core]
+ticket_example = "PROJ-123"
+
+[github]
+host = "github.com"
+login = "octocat"
+
+[gitlab]
+host = "gitlab.example.com"
+
+[jira]
+url = "https://jira.example.com"
+
+[google]
+domain = "example.com"
+
+[trust]
+source_control = ["github.com/octocat/*"]
+domains = ["example.com"]
+notes = "CI smoke configuration."
+
+[providers.claude]
+settings = { env = { CLAUDE_CODE_SUBAGENT_MODEL = "opus" } }

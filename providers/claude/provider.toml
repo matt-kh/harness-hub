@@ -1,0 +1,44 @@
+# Claude Code (Anthropic). Verified locally against Claude Code 2.1.x (2026-09-30).
+[provider]
+name = "claude"
+summary = "Claude Code CLI"
+binary = "claude"
+version_cmd = "claude --version"
+version_regex = '([0-9]+\.[0-9]+\.[0-9]+)'
+min_version = "2.0.0"
+home = "~/.claude"
+verified = "Claude Code 2.1.x, 2026-09-30 (local)"
+docs = "docs/providers/claude.md"
+
+[targets]
+instructions = { path = "~/.claude/CLAUDE.md", mode = "managed-block" }
+skills       = { path = "~/.claude/skills/<name>", mode = "dir" }
+agents       = { path = "~/.claude/agents/<name>.md", mode = "file" }
+permissions  = { mode = "settings", key = "permissions" }
+trust        = { mode = "settings", key = "autoMode.environment" }
+mcp          = { mode = "json-merge", path = "~/.claude.json", key = "mcpServers", entry = { type = "stdio" } }
+
+[targets.settings]
+path = "~/.claude/settings.json"
+mode = "json-merge"
+owner_keys = ["hooks", "permissions", "env", "autoMode"]
+sort_arrays = ["permissions.allow", "permissions.ask", "permissions.deny"]
+exclusive = [["permissions.allow", "permissions.ask", "permissions.deny"]]
+
+[targets.hooks]
+path = "~/.claude/hooks"
+mode = "dir"
+event = "PreToolUse"
+matcher = "Bash"
+shim = ""                      # Claude speaks the guard's neutral envelope natively
+register = "settings"
+entry = '{"matcher": "{matcher}", "hooks": [{"type": "command", "command": "{command}"}]}'
+
+[capabilities]
+hook_enforced = true
+permissions = "native"
+ask = true
+skills = "native"
+agents = "native"
+mcp = "native"
+instructions = "native"

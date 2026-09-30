@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# harness — launcher for the harness-hub engine (lib/harness, python stdlib only).
+#
+# Locates HARNESS_HOME (the directory that contains bin/harness, following symlinks such as
+# ~/.local/bin/harness), checks the runtime prerequisites and hands over to
+# `python3 -m harness`. Must parse under bash 3.2 (macOS /bin/bash): no mapfile, no
+# associative arrays, no readlink -f.
+set -u
+
+# Resolve this script through symlinks without GNU readlink -f.
+src=${BASH_SOURCE[0]}
+while [ -L "$src" ]; do
+  dir=$(cd -P "$(dirname "$src")" && pwd)
+  src=$(readlink "$src")
+  case "$src" in /*) ;; *) src="$dir/$src" ;; esac
+done
+self_home=$(cd -P "$(dirname "$src")/.." && pwd)
+HARNESS_HOME=${HARNESS_HOME:-$self_home}
+export HARNESS_HOME
+
+die() { printf 'harness: %s\n' "$*" >&2; exit 127; }
+
+# python3 >= 3.9 (HARNESS_PYTHON overrides the interpreter)
+py=${HARNESS_PYTHON:-python3}
+command -v "$py" >/dev/null 2>&1 || die "python3 not found (need >= 3.9; macOS: xcode-select --install, Linux: your package manager)"
+"$py" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 9) else 1)' 2>/dev/null \
+  || die "python3 >= 3.9 required (found $("$py" -c 'import sys; print(sys.version.split()[0])' 2>/dev/null || echo unknown))"
+
+# jq (the guard hook and provider shims need it) and git (upgrade, init --git, docs)
+if [ "${HARNESS_SKIP_PREREQS:-}" != 1 ]; then
+  command -v jq  >/dev/null 2>&1 || die "jq not found (the guard hook fails closed without it): https://jqlang.org/download/"
+  command -v git >/dev/null 2>&1 || die "git not found"
+fi
+
+PYTHONPATH="$HARNESS_HOME/lib${PYTHONPATH:+:$PYTHONPATH}"
+export PYTHONPATH
+exec "$py" -m harness "$@"

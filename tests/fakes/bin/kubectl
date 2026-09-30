@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Fake kubectl for CI smoke tests: deterministic output, no network, no state.
+case "${1:-} ${2:-}" in
+  "--version "*|"version --client"*|"version "*) echo "Client Version: v1.31.0" ;;
+  "config get-contexts") echo "CURRENT   NAME          CLUSTER       AUTHINFO   NAMESPACE"; echo "*         dev-cluster   dev-cluster   octocat" ;;
+  *) echo "fake kubectl: $*" ;;
+esac
+exit 0

@@ -1,0 +1,47 @@
+# Fixture bundle: depends on core, conflicts with gamma, ships a skill fragment and MCP.
+[bundle]
+name = "alpha"
+schema_version = "1"
+summary = "Fixture alpha: skill fragment, MCP server with env_files, required config"
+depends_on = ["core"]
+conflicts_with = ["gamma"]
+stability = "beta"
+
+[requires.config."alpha.host"]
+type = "string"
+required = true
+pattern = '^[a-z0-9.-]+$'
+description = "Alpha host."
+example = "alpha.example.com"
+
+[requires.config."alpha.mcp_enabled"]
+type = "boolean"
+default = true
+description = "Register the alpha MCP server."
+
+[provides]
+rules = ["rules/40-alpha.md"]
+skill_fragments = ["skill-fragments/demo/**"]
+guard_rules = ["guard.d/40-alpha.sh"]
+mcp = "mcp.toml"
+env = { ALPHA_HOST = "{{ alpha.host }}" }
+
+[[manual_steps]]
+id = "alpha-auth"
+title = "Authenticate alpha"
+once_per = "machine"
+needs = []
+minutes = 1
+why = "Needed."
+how = "Run `alpha login {{ alpha.host }}`."
+[manual_steps.verify]
+cmd = "false"
+expect = { exit = 0 }
+
+[[doctor_checks]]
+id = "alpha-auth"
+severity = "fail"
+cmd = "exit 3"
+expect = { exit = 0 }
+timeout = 5
+fix = "alpha-auth"

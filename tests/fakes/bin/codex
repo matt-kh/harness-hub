@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Fake codex for CI smoke tests: deterministic output, no network, no state.
+case "${1:-}" in
+  --version) echo "codex-cli 0.50.0" ;;
+  *) echo "fake codex: $*" ;;
+esac
+exit 0

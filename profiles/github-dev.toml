@@ -1,0 +1,6 @@
+# A developer on GitHub: gh + PR workflow, GitHub Issues as the tracker.
+[profile]
+name = "github-dev"
+summary = "GitHub SCM + Issues, ticket workflow, Claude Code"
+bundles = ["core", "github", "ticket-workflow"]
+providers = ["claude"]

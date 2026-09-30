@@ -1,0 +1,441 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/matt-kh/harness-hub/schema/harness-config.schema.json",
+  "title": "harness-hub configuration (local/harness.toml)",
+  "description": "Base schema. Every bundle's [requires.config] entries are compiled into it at lint/validate time (marked with x-bundle). Secrets never live in this file.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Configuration schema version. Bumped only with a CHANGELOG Migration entry."
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Who you are. Used in attribution hints, OAuth hints and SSH key comments.",
+      "properties": {
+        "email": {
+          "type": "string",
+          "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$",
+          "description": "Your work email address.",
+          "examples": [
+            "you@example.com"
+          ]
+        },
+        "name": {
+          "type": "string",
+          "description": "Display name (optional)."
+        }
+      }
+    },
+    "hub": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Which bundles and providers the hub renders.",
+      "properties": {
+        "bundles": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$"
+          },
+          "uniqueItems": true,
+          "description": "Active bundles. Dependencies (depends_on) are added automatically.",
+          "examples": [
+            [
+              "core",
+              "github"
+            ]
+          ]
+        },
+        "providers": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$"
+          },
+          "uniqueItems": true,
+          "description": "Agent providers to render into.",
+          "examples": [
+            [
+              "claude"
+            ]
+          ]
+        },
+        "profile": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*$",
+          "description": "Named selection from profiles/<name>.toml; explicit bundles/providers lists win."
+        },
+        "bundle_paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Extra directories containing bundles (relative to the config file). <config dir>/bundles is always searched."
+        }
+      }
+    },
+    "core": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Governance defaults shared by every bundle.",
+      "properties": {
+        "default_branch_re": {
+          "type": "string",
+          "description": "Regex of default branches. Direct pushes to them are refused by the guard (repos can opt in to a prompt instead).",
+          "default": "^(master|main)$"
+        },
+        "ticket_example": {
+          "type": "string",
+          "description": "Example ticket key used in guard reasons and docs.",
+          "default": "PROJ-123"
+        },
+        "model_policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Model aliases rendered into agent front-matter: planning agents vs execution agents.",
+          "properties": {
+            "plan": {
+              "type": "string"
+            },
+            "execute": {
+              "type": "string"
+            }
+          },
+          "default": {
+            "plan": "fable",
+            "execute": "opus"
+          }
+        },
+        "agent_labels": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Provenance labels marking tickets/MRs/issues as agent-owned.",
+          "properties": {
+            "worked": {
+              "type": "string"
+            },
+            "created": {
+              "type": "string"
+            },
+            "drafted": {
+              "type": "string"
+            }
+          },
+          "default": {
+            "worked": "agent-worked",
+            "created": "agent-created",
+            "drafted": "agent-drafted"
+          }
+        },
+        "agent_label_re": {
+          "type": "string",
+          "description": "Regex matching any agent provenance label.",
+          "default": "^agent-"
+        }
+      }
+    },
+    "gitlab": {
+      "type": "object",
+      "additionalProperties": false,
+      "x-bundle": "gitlab",
+      "properties": {
+        "host": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9.-]+(:[0-9]+)?$",
+          "description": "GitLab host name (no scheme).",
+          "examples": [
+            "gitlab.example.com"
+          ]
+        },
+        "personal_repo_re": {
+          "type": "string",
+          "description": "Regex on the repo top-level path where a default-branch push prompts instead of being refused.",
+          "default": ""
+        }
+      }
+    },
+    "github": {
+      "type": "object",
+      "additionalProperties": false,
+      "x-bundle": "github",
+      "properties": {
+        "host": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9.-]+$",
+          "description": "github.com or your GHES host.",
+          "default": "github.com"
+        },
+        "login": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9-]+$",
+          "description": "Your GitHub login.",
+          "examples": [
+            "octocat"
+          ]
+        }
+      }
+    },
+    "jira": {
+      "type": "object",
+      "additionalProperties": false,
+      "x-bundle": "jira",
+      "properties": {
+        "url": {
+          "type": "string",
+          "pattern": "^https?://",
+          "description": "Base URL of your Jira instance.",
+          "examples": [
+            "https://jira.example.com"
+          ]
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "server",
+            "cloud"
+          ],
+          "description": "Jira flavour. Only server (Server/Data Center) is implemented.",
+          "default": "server"
+        },
+        "link_types": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Issue link type names agents may use.",
+          "default": [
+            "relates",
+            "blocks",
+            "issue split"
+          ]
+        },
+        "fields": {
+          "type": "object",
+          "description": "Custom field ids per project (from `jira fields PROJ`): [jira.fields.PROJ] name = \"customfield_NNNNN\". Flat name = id entries apply to every project.",
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^customfield_[0-9]+$"
+              },
+              {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string",
+                  "pattern": "^customfield_[0-9]+$"
+                }
+              }
+            ]
+          }
+        },
+        "issue_types": {
+          "type": "array",
+          "description": "Optional per-org issue type rules for create-ticket.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "standalone": {
+                "type": "boolean"
+              },
+              "requires": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "projects": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": []
+        },
+        "mcp": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Register the read-only Jira MCP server.",
+              "default": true
+            }
+          }
+        }
+      }
+    },
+    "k8s": {
+      "type": "object",
+      "additionalProperties": false,
+      "x-bundle": "k8s",
+      "properties": {
+        "prod_re": {
+          "type": "string",
+          "description": "Regex marking production contexts/namespaces.",
+          "default": "(^|[-_./:])(prod|production)([-_./:]|$)"
+        },
+        "gitops_root": {
+          "type": "string",
+          "description": "Local checkout of your GitOps repository.",
+          "examples": [
+            "~/dev/gitops"
+          ]
+        },
+        "gitops_repo_match": {
+          "type": "string",
+          "description": "Substring identifying the GitOps repo in remotes/paths.",
+          "examples": [
+            "gitops"
+          ]
+        },
+        "clusters_doc": {
+          "type": "string",
+          "description": "Private cluster reference document (inside local/).",
+          "examples": [
+            "local/bundles/acme/references/clusters.md"
+          ]
+        },
+        "broken_contexts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Kube contexts known to be unusable (skipped, documented).",
+          "default": []
+        },
+        "known_broken_contexts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "deprecated": true,
+          "x-replaced-by": "k8s.broken_contexts"
+        }
+      }
+    },
+    "google": {
+      "type": "object",
+      "additionalProperties": false,
+      "x-bundle": "gdoc",
+      "properties": {
+        "domain": {
+          "type": "string",
+          "pattern": "^[a-z0-9.-]+\\.[a-z]{2,}$",
+          "description": "Your Google Workspace domain.",
+          "examples": [
+            "example.com"
+          ]
+        }
+      }
+    },
+    "trust": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Trust boundary facts, rendered into Claude Code autoMode.environment.",
+      "properties": {
+        "source_control": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Trusted source-control scopes, e.g. github.com/octocat/*.",
+          "default": []
+        },
+        "domains": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Trusted internal domains.",
+          "default": []
+        },
+        "buckets": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Trusted storage buckets.",
+          "default": []
+        },
+        "notes": {
+          "type": "string",
+          "description": "Free text rendered under 'User-specific' (one line per line).",
+          "default": ""
+        },
+        "environment": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Raw autoMode.environment lines. When non-empty they are used verbatim instead of the generated lines.",
+          "default": []
+        }
+      }
+    },
+    "providers": {
+      "type": "object",
+      "description": "Per-provider options, keyed by provider name.",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "ask_as": {
+            "type": "string",
+            "enum": [
+              "deny",
+              "allow"
+            ],
+            "description": "Providers without an 'ask' decision map guard asks to this.",
+            "default": "deny"
+          },
+          "settings": {
+            "type": "object",
+            "description": "Extra keys deep-merged into the provider's settings target (only under its owner_keys), e.g. { env = { CLAUDE_CODE_SUBAGENT_MODEL = \"opus\" } }."
+          }
+        }
+      }
+    },
+    "doctor": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "warn_only": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Doctor check ids downgraded from FAIL to WARN.",
+          "default": []
+        }
+      }
+    },
+    "kubernetes": {
+      "type": "object",
+      "deprecated": true,
+      "x-replaced-by": "k8s",
+      "description": "Renamed to [k8s]."
+    },
+    "harness": {
+      "type": "object",
+      "deprecated": true,
+      "x-replaced-by": "hub",
+      "description": "Renamed to [hub]."
+    }
+  }
+}

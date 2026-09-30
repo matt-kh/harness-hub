@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Fake gh for CI smoke tests: deterministic output, no network, no state.
+case "${1:-} ${2:-}" in
+  "--version "*) echo "gh version 2.101.0 (2026-09-15)"; echo "https://github.com/cli/cli/releases/tag/v2.101.0" ;;
+  "auth status") echo "github.com"; echo "  ✓ Logged in to github.com account octocat (keyring)" ;;
+  *) echo "fake gh: $*" ;;
+esac
+exit 0

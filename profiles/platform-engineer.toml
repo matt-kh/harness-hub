@@ -1,0 +1,6 @@
+# Everything: both SCMs, Jira, read-only Kubernetes, Google Workspace; Claude + Gemini.
+[profile]
+name = "platform-engineer"
+summary = "GitLab + GitHub + Jira + k8s + gdoc, Claude Code and Gemini CLI"
+bundles = ["core", "gitlab", "github", "jira", "ticket-workflow", "k8s", "gdoc"]
+providers = ["claude", "gemini"]

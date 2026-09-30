@@ -1,0 +1,6 @@
+# A developer on self-hosted GitLab with Jira Server as the tracker.
+[profile]
+name = "gitlab-jira"
+summary = "GitLab MRs + Jira tickets, ticket workflow, Claude Code"
+bundles = ["core", "gitlab", "jira", "ticket-workflow"]
+providers = ["claude"]

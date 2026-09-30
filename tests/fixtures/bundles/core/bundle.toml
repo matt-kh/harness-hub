@@ -1,0 +1,87 @@
+# Fixture bundle: a tiny stand-in for bundles/core so the engine can be tested alone.
+[bundle]
+name = "core"
+schema_version = "1"
+summary = "Fixture core: guard engine, one rule, one skill, one agent"
+description = """
+Exercises rules, skills, agents, guard sections, permissions, env, bin links,
+manual steps and doctor checks.
+"""
+depends_on = []
+recommends = ["beta"]
+tags = ["fixture"]
+owners = ["@octocat"]
+docs = "docs/bundles/core.md"
+stability = "stable"
+
+[requires.binaries.bash]
+min_version = "3.2"
+version_cmd = "bash --version"
+version_regex = 'version ([0-9.]+)'
+why = "guard and scripts"
+
+[requires.binaries.jq]
+min_version = "1.5"
+version_cmd = "jq --version"
+version_regex = 'jq-([0-9.]+)'
+why = "guard parses hook JSON with jq"
+
+[requires.config."core.ticket_example"]
+type = "string"
+default = "PROJ-123"
+description = "Example ticket key."
+
+[requires.config."core.greeting"]
+type = "string"
+default = "hello {{ identity.email }}"
+description = "Templated default resolved after layering."
+
+[requires.secrets.demo_token]
+where = "~/.config/demo/token"
+written_by = "demo login"
+mode = "0600"
+description = "Never read by the harness."
+
+[provides]
+rules = ["rules/10-core.md"]
+skills = ["skills/demo"]
+agents = ["agents/planner.md"]
+guard_rules = ["guard.d/20-core.sh"]
+permissions = "permissions.toml"
+bin = [{ name = "demo", target = "skills/demo/scripts/demo.sh" }, "bin/core-tool.sh"]
+env = { FIX_TICKET = "{{ core.ticket_example }}", FIX_LABEL = "agent-worked" }
+
+[[manual_steps]]
+id = "demo-login"
+title = "Log in to demo"
+once_per = "account"
+needs = ["browser"]
+minutes = 2
+why = "The demo tool needs a token only you can create."
+how = """
+Run `demo login --host {{ core.ticket_example }}` in a terminal.
+"""
+[manual_steps.verify]
+cmd = "true"
+expect = { exit = 0 }
+unblocks = ["core-ok"]
+
+[[doctor_checks]]
+id = "core-ok"
+severity = "fail"
+cmd = "echo core fine"
+expect = { exit = 0, stdout_regex = "fine" }
+timeout = 5
+offline_skip = false
+fix = "demo-login"
+
+[[doctor_checks]]
+id = "core-online"
+severity = "warn"
+cmd = "true"
+offline_skip = true
+fix = "echo run a literal command"
+
+[uninstall]
+keeps = ["~/.config/demo/**"]
+notes = "Fixture."

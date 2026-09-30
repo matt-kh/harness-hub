@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Fake glab for CI smoke tests: deterministic output, no network, no state.
+case "${1:-} ${2:-}" in
+  "--version "*|"version "*) echo "glab 1.115.0 (fake)" ;;
+  "auth status") echo "gitlab.example.com"; echo "  ✓ Logged in to gitlab.example.com as octocat" >&2 ;;
+  *) echo "fake glab: $*" ;;
+esac
+exit 0

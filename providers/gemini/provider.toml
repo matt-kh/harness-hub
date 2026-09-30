@@ -1,0 +1,43 @@
+# Gemini CLI (Google). Written to the published hooks/skills spec; verify on install.
+[provider]
+name = "gemini"
+summary = "Gemini CLI"
+binary = "gemini"
+version_cmd = "gemini --version"
+version_regex = '([0-9]+\.[0-9]+\.[0-9]+)'
+min_version = "0.26.0"
+home = "~/.gemini"
+verified = "verify on install (written to the published spec, 2026-09)"
+docs = "docs/providers/gemini.md"
+
+[targets]
+instructions = { path = "~/.gemini/GEMINI.md", mode = "managed-block" }
+skills       = { path = "~/.gemini/skills/<name>", mode = "dir" }
+agents       = { mode = "inline", note = "no sub-agent files; agent bodies become sections of GEMINI.md" }
+permissions  = { mode = "unsupported", note = "permission lists are not translated; the guard hook enforces shell rules" }
+trust        = { mode = "unsupported" }
+mcp          = { mode = "json-merge", path = "~/.gemini/settings.json", key = "mcpServers" }
+
+[targets.settings]
+path = "~/.gemini/settings.json"
+mode = "json-merge"
+owner_keys = ["hooks", "mcpServers"]
+
+[targets.hooks]
+path = "~/.gemini/hooks"
+mode = "dir"
+event = "BeforeTool"
+matcher = "run_shell_command"
+shim = "shim.sh"
+register = "settings"
+entry = '{"matcher": "{matcher}", "hooks": [{"type": "command", "name": "harness-guard", "command": "{command}", "timeout": 20000}]}'
+
+[capabilities]
+hook_enforced = true
+permissions = "advisory"
+ask = false
+skills = "native"
+agents = "inlined"
+mcp = "native"
+instructions = "native"
+notes = "no 'ask' decision: guard asks map to [providers.gemini].ask_as (default deny)"

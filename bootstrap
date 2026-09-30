@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# bootstrap — first-run entry point for a fresh clone:
+#   git clone <this repo> ~/harness-hub && ~/harness-hub/bootstrap
+# Equivalent to `bin/harness bootstrap "$@"` (see `bin/harness bootstrap --help`).
+set -u
+here=$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+exec bash "$here/bin/harness" bootstrap "$@"

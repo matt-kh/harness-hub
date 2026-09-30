@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/matt-kh/harness-hub/schema/provider.schema.json",
+  "title": "harness-hub provider adapter (providers/<name>/provider.toml)",
+  "description": "Declarative description of where each artifact goes for one agent product. The engine has no provider-specific code: everything a provider needs is expressed here.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["provider", "targets", "capabilities"],
+  "properties": {
+    "provider": {
+      "type": "object", "additionalProperties": false,
+      "required": ["name", "home"],
+      "properties": {
+        "name": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
+        "summary": {"type": "string"},
+        "binary": {"type": "string", "description": "Executable probed by doctor and the bootstrap picker."},
+        "version_cmd": {"type": "string"},
+        "version_regex": {"type": "string"},
+        "min_version": {"type": "string"},
+        "home": {"type": "string", "description": "Provider home; holds .harness-state.json."},
+        "verified": {"type": "string", "description": "Version and date this adapter was verified against, or 'verify on install'."},
+        "docs": {"type": "string"}
+      }
+    },
+    "targets": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "instructions": {"$ref": "#/$defs/instructions"},
+        "skills": {"$ref": "#/$defs/skills"},
+        "agents": {"$ref": "#/$defs/agents"},
+        "settings": {"$ref": "#/$defs/settings"},
+        "hooks": {"$ref": "#/$defs/hooks"},
+        "permissions": {"$ref": "#/$defs/into_settings"},
+        "trust": {"$ref": "#/$defs/into_settings"},
+        "mcp": {"$ref": "#/$defs/mcp"}
+      }
+    },
+    "capabilities": {
+      "type": "object", "additionalProperties": false,
+      "required": ["hook_enforced"],
+      "properties": {
+        "hook_enforced": {"type": "boolean", "description": "The guard runs as a blocking pre-tool hook."},
+        "permissions": {"type": "string", "enum": ["native", "partial", "advisory", "none"]},
+        "ask": {"type": "boolean", "description": "The hook protocol has an 'ask the user' decision."},
+        "skills": {"type": "string", "enum": ["native", "none"]},
+        "agents": {"type": "string", "enum": ["native", "inlined", "none"]},
+        "mcp": {"type": "string", "enum": ["native", "none"]},
+        "instructions": {"type": "string", "enum": ["native", "none"]},
+        "notes": {"type": "string"}
+      }
+    }
+  },
+  "$defs": {
+    "path": {"type": "string", "pattern": "^~/"},
+    "unsupported": {
+      "type": "object", "additionalProperties": false, "required": ["mode"],
+      "properties": {"mode": {"const": "unsupported"}, "note": {"type": "string"}}
+    },
+    "instructions": {
+      "anyOf": [
+        {"$ref": "#/$defs/unsupported"},
+        {"type": "object", "additionalProperties": false, "required": ["path", "mode"],
+         "properties": {"path": {"$ref": "#/$defs/path"}, "mode": {"const": "managed-block"}, "note": {"type": "string"}}}
+      ]
+    },
+    "skills": {
+      "anyOf": [
+        {"$ref": "#/$defs/unsupported"},
+        {"type": "object", "additionalProperties": false, "required": ["path", "mode"],
+         "properties": {
+           "path": {"type": "string", "pattern": "^~/.*<name>"}, "mode": {"const": "dir"}, "note": {"type": "string"},
+           "register": {"type": "object", "additionalProperties": false, "required": ["path", "mode", "table"],
+             "description": "Also list every rendered skill in a managed block of a TOML config file (Codex).",
+             "properties": {"path": {"$ref": "#/$defs/path"}, "mode": {"const": "toml-block"}, "table": {"type": "string"}}}
+         }}
+      ]
+    },
+    "agents": {
+      "anyOf": [
+        {"$ref": "#/$defs/unsupported"},
+        {"type": "object", "additionalProperties": false, "required": ["mode"],
+         "properties": {"mode": {"const": "inline"}, "note": {"type": "string"}}},
+        {"type": "object", "additionalProperties": false, "required": ["path", "mode"],
+         "properties": {"path": {"type": "string", "pattern": "^~/.*<name>"}, "mode": {"const": "file"}, "note": {"type": "string"}}}
+      ]
+    },
+    "settings": {
+      "anyOf": [
+        {"$ref": "#/$defs/unsupported"},
+        {"type": "object", "additionalProperties": false, "required": ["path", "mode", "owner_keys"],
+         "properties": {
+           "path": {"$ref": "#/$defs/path"}, "mode": {"const": "json-merge"},
+           "owner_keys": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+           "sort_arrays": {"type": "array", "items": {"type": "string"}, "description": "Dotted paths of arrays kept sorted (deterministic permission lists)."},
+           "exclusive": {"type": "array", "items": {"type": "array", "items": {"type": "string"}}, "description": "Groups of arrays an item may appear in only once (allow/ask/deny); the user's placement wins."},
+           "note": {"type": "string"}
+         }}
+      ]
+    },
+    "hooks": {
+      "anyOf": [
+        {"$ref": "#/$defs/unsupported"},
+        {"type": "object", "additionalProperties": false, "required": ["path", "mode", "event"],
+         "properties": {
+           "path": {"$ref": "#/$defs/path"}, "mode": {"const": "dir"},
+           "event": {"type": "string"}, "matcher": {"type": "string"},
+           "shim": {"type": "string", "description": "File in providers/<name>/ copied next to guard-bash.sh; empty = the provider speaks the neutral envelope."},
+           "register": {"type": "string", "enum": ["settings", "file"], "description": "settings: merge the entry into the settings target at hooks.<event>; file: write register_path."},
+           "register_path": {"$ref": "#/$defs/path"},
+           "entry": {"type": "string", "description": "JSON template; {command}, {matcher} and {event} are replaced."},
+           "note": {"type": "string"}
+         }}
+      ]
+    },
+    "into_settings": {
+      "anyOf": [
+        {"$ref": "#/$defs/unsupported"},
+        {"type": "object", "additionalProperties": false, "required": ["mode", "key"],
+         "properties": {"mode": {"const": "settings"}, "key": {"type": "string"}, "note": {"type": "string"}}}
+      ]
+    },
+    "mcp": {
+      "anyOf": [
+        {"$ref": "#/$defs/unsupported"},
+        {"type": "object", "additionalProperties": false, "required": ["path", "mode"],
+         "properties": {
+           "path": {"$ref": "#/$defs/path"},
+           "mode": {"enum": ["json-merge", "toml-block"]},
+           "key": {"type": "string", "description": "json-merge: object holding servers by name (mcpServers)."},
+           "table": {"type": "string", "description": "toml-block: table prefix (mcp_servers)."},
+           "entry": {"type": "object", "description": "Static fields added to every server entry (e.g. type = \"stdio\")."},
+           "note": {"type": "string"}
+         }}
+      ]
+    }
+  }
+}

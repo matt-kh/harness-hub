@@ -1,0 +1,6 @@
+[servers.alpha]
+command = "uvx"
+args = ["alpha-mcp", "--read-only"]
+env = { ALPHA_URL = "https://{{ alpha.host }}" }
+env_files = { ALPHA_TOKEN = "~/.config/alpha/token" }
+when = "alpha.mcp_enabled"

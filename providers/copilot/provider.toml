@@ -1,0 +1,39 @@
+# GitHub Copilot CLI. Written to the published hooks/skills spec; verify on install.
+[provider]
+name = "copilot"
+summary = "GitHub Copilot CLI"
+binary = "copilot"
+version_cmd = "copilot --version"
+version_regex = '([0-9]+\.[0-9]+\.[0-9]+)'
+min_version = "0.0.1"
+home = "~/.copilot"
+verified = "verify on install (written to the published spec, 2026-09)"
+docs = "docs/providers/copilot.md"
+
+[targets]
+instructions = { path = "~/.copilot/copilot-instructions.md", mode = "managed-block" }
+skills       = { path = "~/.copilot/skills/<name>", mode = "dir" }
+agents       = { path = "~/.copilot/agents/<name>.md", mode = "file" }
+settings     = { mode = "unsupported", note = "no settings file is merged; hooks and MCP have their own files" }
+permissions  = { mode = "unsupported", note = "use copilot --allow-tool/--deny-tool flags; the guard hook enforces shell rules" }
+trust        = { mode = "unsupported" }
+mcp          = { mode = "json-merge", path = "~/.copilot/mcp-config.json", key = "mcpServers", entry = { type = "local", tools = ["*"] } }
+
+[targets.hooks]
+path = "~/.copilot/hooks"
+mode = "dir"
+event = "preToolUse"
+shim = "shim.sh"
+register = "file"
+register_path = "~/.copilot/hooks/harness.json"
+entry = '{"version": 1, "hooks": {"preToolUse": [{"type": "command", "bash": "{command}", "timeoutSec": 10}]}}'
+
+[capabilities]
+hook_enforced = true
+permissions = "advisory"
+ask = false
+skills = "native"
+agents = "native"
+mcp = "native"
+instructions = "native"
+notes = "no 'ask' decision: guard asks map to [providers.copilot].ask_as (default deny)"

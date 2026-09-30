@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/matt-kh/harness-hub/schema/bundle.schema.json",
+  "title": "harness-hub bundle manifest (bundles/<name>/bundle.toml)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["bundle"],
+  "properties": {
+    "bundle": {
+      "type": "object", "additionalProperties": false,
+      "required": ["name", "summary"],
+      "properties": {
+        "name": {"$ref": "#/$defs/name"},
+        "schema_version": {"type": ["string", "integer"], "enum": ["1", 1], "description": "Manifest schema version."},
+        "summary": {"type": "string", "description": "One line shown in pickers and docs."},
+        "description": {"type": "string"},
+        "depends_on": {"$ref": "#/$defs/names", "description": "Bundles that are activated automatically with this one."},
+        "recommends": {"$ref": "#/$defs/names", "description": "Bundles suggested (never auto-added outside bootstrap prompts)."},
+        "conflicts_with": {"$ref": "#/$defs/names"},
+        "any_of": {
+          "description": "At least one bundle of every group must be active. A flat list is one group.",
+          "anyOf": [
+            {"type": "array", "items": {"$ref": "#/$defs/names"}},
+            {"$ref": "#/$defs/names"}
+          ]
+        },
+        "tags": {"type": "array", "items": {"type": "string"}},
+        "owners": {"type": "array", "items": {"type": "string"}},
+        "docs": {"type": "string"},
+        "stability": {"type": "string", "enum": ["stable", "beta", "experimental", "deprecated"]},
+        "private": {"type": "boolean", "description": "True for org bundles under local/bundles (excluded from public docs)."}
+      }
+    },
+    "requires": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "binaries": {"type": "object", "additionalProperties": {"$ref": "#/$defs/binary"}},
+        "config": {"type": "object", "propertyNames": {"pattern": "^[a-z][a-z0-9_]*(\\.[A-Za-z0-9_]+)+$"}, "additionalProperties": {"$ref": "#/$defs/config_key"}},
+        "secrets": {"type": "object", "additionalProperties": {"$ref": "#/$defs/secret"}}
+      }
+    },
+    "provides": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "rules": {"$ref": "#/$defs/paths"},
+        "skills": {"$ref": "#/$defs/paths"},
+        "skill_fragments": {"$ref": "#/$defs/paths"},
+        "agents": {"$ref": "#/$defs/paths"},
+        "guard_rules": {"$ref": "#/$defs/paths"},
+        "hook_rules": {"$ref": "#/$defs/paths", "deprecated": true, "x-replaced-by": "provides.guard_rules"},
+        "permissions": {"type": "string"},
+        "mcp": {"type": "string"},
+        "bin": {"type": "array", "items": {"anyOf": [
+          {"type": "string"},
+          {"type": "object", "additionalProperties": false, "required": ["name", "target"],
+           "properties": {"name": {"type": "string", "pattern": "^[A-Za-z0-9._-]+$"}, "target": {"type": "string"}}}
+        ]}},
+        "env": {"type": "object", "propertyNames": {"pattern": "^[A-Z_][A-Z0-9_]*$"}, "additionalProperties": {"type": ["string", "integer", "boolean"]}}
+      }
+    },
+    "manual_steps": {"type": "array", "items": {"$ref": "#/$defs/manual_step"}},
+    "doctor_checks": {"type": "array", "items": {"$ref": "#/$defs/doctor_check"}},
+    "uninstall": {
+      "type": "object", "additionalProperties": false,
+      "properties": {"keeps": {"type": "array", "items": {"type": "string"}}, "notes": {"type": "string"}}
+    }
+  },
+  "$defs": {
+    "name": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
+    "names": {"type": "array", "items": {"$ref": "#/$defs/name"}, "uniqueItems": true},
+    "paths": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
+    "expect": {
+      "type": "object", "additionalProperties": false,
+      "properties": {"exit": {"type": "integer"}, "stdout_regex": {"type": "string"}}
+    },
+    "binary": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "min_version": {"type": "string"},
+        "version_cmd": {"type": "string"},
+        "version_regex": {"type": "string"},
+        "install": {"type": "string", "description": "Tool id for `harness install` (tools/<id>.lock.json or install/<id>.sh)."},
+        "optional": {"type": "boolean"},
+        "why": {"type": "string"},
+        "providers": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "config_key": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "type": {"type": "string", "enum": ["string", "integer", "number", "boolean", "array", "object"]},
+        "description": {"type": "string"},
+        "default": {},
+        "required": {"type": "boolean"},
+        "pattern": {"type": "string"},
+        "enum": {"type": "array"},
+        "items": {"anyOf": [{"type": "string", "enum": ["string", "integer", "number", "boolean", "object"]}, {"type": "object"}]},
+        "minimum": {"type": "number"},
+        "maximum": {"type": "number"},
+        "example": {},
+        "examples": {"type": "array"},
+        "deprecated": {"type": "boolean"},
+        "replaced_by": {"type": "string"},
+        "schema": {"type": "object", "description": "Raw JSON-Schema fragment merged into the compiled property (escape hatch)."}
+      }
+    },
+    "secret": {
+      "type": "object", "additionalProperties": false, "required": ["where"],
+      "properties": {
+        "where": {"type": "string"}, "written_by": {"type": "string"}, "mode": {"type": "string", "pattern": "^0?[0-7]{3}$"},
+        "description": {"type": "string"}, "rotate": {"type": "string"}
+      }
+    },
+    "verify": {
+      "type": "object", "additionalProperties": false, "required": ["cmd"],
+      "properties": {"cmd": {"type": "string"}, "expect": {"$ref": "#/$defs/expect"}, "timeout": {"type": "number", "minimum": 1}, "unblocks": {"type": "array", "items": {"type": "string"}}}
+    },
+    "manual_step": {
+      "type": "object", "additionalProperties": false, "required": ["id", "title", "how"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "title": {"type": "string"},
+        "once_per": {"type": "string", "enum": ["machine", "account", "org"]},
+        "needs": {"type": "array", "items": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"}},
+        "minutes": {"type": "integer", "minimum": 0},
+        "why": {"type": "string"},
+        "how": {"type": "string"},
+        "verify": {"$ref": "#/$defs/verify"},
+        "unblocks": {"type": "array", "items": {"type": "string"}},
+        "providers": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "doctor_check": {
+      "type": "object", "additionalProperties": false, "required": ["id"],
+      "oneOf": [{"required": ["cmd"]}, {"required": ["script"]}],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "title": {"type": "string"},
+        "severity": {"type": "string", "enum": ["fail", "warn"]},
+        "cmd": {"type": "string"},
+        "script": {"type": "string"},
+        "expect": {"$ref": "#/$defs/expect"},
+        "timeout": {"type": "number", "minimum": 1},
+        "offline_skip": {"type": "boolean"},
+        "fix": {"type": "string", "description": "A manual_steps id of this bundle, or a literal command."},
+        "providers": {"type": "array", "items": {"type": "string"}}
+      }
+    }
+  }
+}

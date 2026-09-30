@@ -1,0 +1,36 @@
+# OpenAI Codex CLI. Written to the published config spec; verify on install.
+# No pre-tool command hook is wired in v1: the guard is ADVISORY on Codex.
+[provider]
+name = "codex"
+summary = "OpenAI Codex CLI"
+binary = "codex"
+version_cmd = "codex --version"
+version_regex = '([0-9]+\.[0-9]+\.[0-9]+)'
+min_version = "0.1.0"
+home = "~/.codex"
+verified = "verify on install (written to the published spec, 2026-09)"
+docs = "docs/providers/codex.md"
+
+[targets]
+instructions = { path = "~/.codex/AGENTS.md", mode = "managed-block" }
+agents       = { mode = "inline", note = "agent bodies become sections of AGENTS.md" }
+settings     = { mode = "unsupported", note = "config.toml is only touched through managed TOML blocks" }
+hooks        = { mode = "unsupported", note = "no verified pre-tool hook contract; rely on approval policy + instructions" }
+permissions  = { mode = "unsupported", note = "use approval_policy / sandbox_mode in config.toml" }
+trust        = { mode = "unsupported" }
+mcp          = { mode = "toml-block", path = "~/.codex/config.toml", table = "mcp_servers" }
+
+[targets.skills]
+path = "~/.codex/skills/<name>"
+mode = "dir"
+register = { path = "~/.codex/config.toml", mode = "toml-block", table = "skills" }
+
+[capabilities]
+hook_enforced = false
+permissions = "advisory"
+ask = false
+skills = "native"
+agents = "inlined"
+mcp = "native"
+instructions = "native"
+notes = "guard rules are advisory (instructions only); prefer a strict approval_policy"
