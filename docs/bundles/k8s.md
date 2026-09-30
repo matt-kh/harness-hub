@@ -30,4 +30,135 @@ Config: `k8s.prod_re` (regex marking prod contexts/namespaces), `k8s.gitops_root
 | Output shows `[redacted]` where you need a value | Secret redaction | read the value yourself; agents never see it |
 
 <!-- generated:begin source=bundles/k8s/bundle.toml -->
+## Summary
+
+Read-only Kubernetes client (k8s CLI + skill), triage / audit / architect agents, kubeconfig and Secret guards
+
+Ships the stdlib `k8s` CLI (contexts, health, pod, workload, events, capacity, argocd, helm,
+secret-keys, redact, promql, certs, audit — every call with an explicit --context and a request
+timeout), its skill and references, the k8s-triage / k8s-auditor (execution model) and
+infra-architect (planning model, design only) agents, and guard sections 10 + 25: kubeconfig
+reads and edits deny, Secret data output denies unless piped through `k8s redact`, cluster /
+release / GitOps / IaC mutations and exec-class commands ask with `context=… [PROD]` in the
+reason. Mutations are always handed to the human.
+
+- **Depends on:** `core`
+- **Stability:** stable
+
+## Requirements
+
+### Binaries
+
+| binary | min version | install | optional | why |
+|---|---|---|---|---|
+| `helm` | 3.10.0 |  | yes | Release status / history for `k8s helm` and `k8s health`. |
+| `kubectl` | 1.25.0 |  | no | Every k8s CLI call shells out to kubectl --context C --request-timeout=Ts. |
+| `python3` | 3.9 |  | no | The k8s CLI is stdlib python. |
+
+### Configuration
+
+| key | type | required | default | description |
+|---|---|---|---|---|
+| `k8s.broken_contexts` | array | no | `[]` | Contexts known to be broken (Unauthorized, TLS SAN mismatch); documentation for the org notes and doctor, never used to skip a context silently. |
+| `k8s.clusters_doc` | string | no | `"~/.local/state/harness/k8s/clusters.md"` | File `k8s contexts --write` regenerates (a relative path is under HARNESS_HOME, e.g. a private bundle's references/). K8S_CLUSTERS_MD. |
+| `k8s.gitops_repo_match` | string | no | `""` | Substring of an Application's repoURL that marks it as that checkout. Empty = the basename of k8s.gitops_root. K8S_GITOPS_REPO_MATCH. |
+| `k8s.gitops_root` | string | no | `""` | Local checkout of your GitOps repo; `k8s argocd` maps spec.source.path into it. Empty = the local-path check is skipped. K8S_GITOPS_ROOT. |
+| `k8s.prod_re` | string | no | `"(^\|[-_./:])(prod\|production)([-_./:]\|$)"` | Case-insensitive ERE on context and namespace names marking production ([PROD] banner; remediations become suggestions only). K8S_PROD_RE. |
+
+### Secrets (never in harness.toml)
+
+| id | where | written by | mode | rotate |
+|---|---|---|---|---|
+| `kubeconfig` | `~/.kube/config` | human / cluster admins (kubeconfig merge) | 0600 |  |
+
+## Manual steps
+
+<a id="install-kubectl"></a>
+
+### install-kubectl — Install kubectl (and helm)
+
+*once per machine · needs nothing but a terminal · ~3 min*
+
+**Why:** The k8s CLI is a thin, read-only layer over kubectl and helm.
+
+**How:**
+
+- kubectl: https://kubernetes.io/docs/tasks/tools/ — pick a client within one or two minors of
+  your servers (a newer client prints a harmless skew WARNING on stderr).
+- helm 3: `curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash`
+  or `brew install helm`.
+Both go into `~/.local/bin` or any directory on PATH.
+
+**Verify:** `kubectl version --client` (exit 0)
+
+<a id="kubeconfig-contexts"></a>
+
+### kubeconfig-contexts — Merge your clusters' kubeconfig contexts (human-managed)
+
+*once per machine · needs admin · ~10 min*
+
+**Why:** Agents never read, switch or edit the kubeconfig; every command passes --context explicitly, so each cluster needs a context you created.
+
+**How:**
+
+1. Get a kubeconfig per cluster from its admins (RKE2/k3s: `/etc/rancher/*/…yaml` with the
+   server address fixed; EKS: `aws eks update-kubeconfig --name <cluster> --alias <ctx>` run by
+   YOU, never by the agent).
+2. Merge: `KUBECONFIG=~/.kube/config:new.yaml kubectl config view --flatten > /tmp/merged &&
+   install -m 600 /tmp/merged ~/.kube/config && rm /tmp/merged new.yaml`.
+3. Give contexts stable, meaningful names (`kubectl config rename-context old new`) — prod ones
+   should match `k8s.prod_re` (default: a `prod`/`production` segment).
+4. `k8s contexts --md` shows reachability; list known-broken ones in `k8s.broken_contexts`.
+
+**Verify:** `kubectl config get-contexts -o name | grep -q .` (exit 0)
+
+<a id="clusters-doc"></a>
+
+### clusters-doc — Generate the clusters doc
+
+*once per machine · needs nothing but a terminal · ~1 min*
+
+**Why:** The skill and agents read it to orient; it is generated, never hand-edited.
+
+**How:**
+
+Run `k8s contexts --write` (probes every context in parallel and writes `{{ k8s.clusters_doc }}`). Re-run after adding or fixing contexts.
+
+**Verify:** `test -s {{ k8s.clusters_doc }}` (exit 0)
+
+<a id="gitops-checkout"></a>
+
+### gitops-checkout — Clone your GitOps repo and set k8s.gitops_root (optional)
+
+*once per machine · needs nothing but a terminal · ~2 min*
+
+**Why:** `k8s argocd` and the agents map an Application's spec.source.path to local files to explain drift; without a checkout that check is skipped.
+
+**How:**
+
+`git clone <your gitops repo> ~/dev/<name>`, then in `local/harness.toml`:
+```
+[k8s]
+gitops_root = "~/dev/<name>"
+gitops_repo_match = "<substring of the repoURL>"   # optional, defaults to the directory name
+```
+and `harness apply`.
+
+**Verify:** `true` (exit 0)
+
+## Doctor checks
+
+| id | severity | offline | fix |
+|---|---|---|---|
+| `kubectl-binary` | fail | runs | [install-kubectl](#install-kubectl) |
+| `helm-binary` | warn | runs | [install-kubectl](#install-kubectl) |
+| `k8s-cli` | fail | runs | `harness apply` |
+| `kube-contexts` | warn | runs | [kubeconfig-contexts](#kubeconfig-contexts) |
+| `clusters-doc` | warn | runs | [clusters-doc](#clusters-doc) |
+
+## Uninstall
+
+Kept on uninstall: `~/.kube/**`
+
+The kubeconfig and the generated clusters doc are yours; uninstall removes only the rendered skill, agents, rules and guard sections.
 <!-- generated:end -->

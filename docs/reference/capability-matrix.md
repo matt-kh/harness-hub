@@ -10,4 +10,13 @@ Per-provider details and quirks: [claude](../providers/claude.md), [gemini](../p
 What the tiers mean for security: [SECURITY.md](../../SECURITY.md#what-the-guard-covers-per-provider).
 
 <!-- generated:begin source=providers/*/provider.toml -->
+| capability | claude | codex | copilot | gemini | opencode |
+|---|---|---|---|---|---|
+| guard hook | enforced | advisory | enforced | enforced | advisory |
+| ask decision | native | - | mapped (ask_as) | mapped (ask_as) | - |
+| permission lists | native | advisory | advisory | advisory | none |
+| instructions | native | native | native | native | native |
+| skills | native | native | native | native | native |
+| agents | native | inlined | native | inlined | inlined |
+| mcp | native | native | native | native | none |
 <!-- generated:end -->

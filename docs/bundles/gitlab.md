@@ -33,4 +33,126 @@ asks instead of denying). Git remotes stay SSH.
 | An empty pipeline list on the main MR of a stack | `rules: changes:` skip MRs without file changes | expected for an empty stack root |
 
 <!-- generated:begin source=bundles/gitlab/bundle.toml -->
+## Summary
+
+GitLab via glab: MR-based workflow, agent-label write gates, stacked-MR rules, Jira closing-keyword deny
+
+Wires `glab` into the guard: MR creates are promptless (sub MRs must target the ticket branch),
+edits to agent-labelled MRs are promptless, human MRs ask, merge/approve and other team-visible
+actions ask, `glab api` writes ask. Closing keywords with a ticket key (`Closes KEY`) are denied
+in commits, MR text and API payloads because GitLab's Jira integration would transition the
+ticket (section 40). Adds the GitLab section of the instructions and glab read permissions.
+
+- **Depends on:** `core`
+- **Recommends:** `jira`, `ticket-workflow`
+- **Stability:** stable
+
+## Requirements
+
+### Binaries
+
+| binary | min version | install | optional | why |
+|---|---|---|---|---|
+| `glab` | 1.40.0 |  | no | MR reads, gated MR writes, auth status; the work-ticket GitLab preflight. |
+| `ssh` | 0 |  | yes | git remotes stay SSH; glab never gets git credentials. |
+
+### Configuration
+
+| key | type | required | default | description |
+|---|---|---|---|---|
+| `gitlab.host` | string | yes |  | Your GitLab host (self-managed hostname or gitlab.com). Used for auth, the instructions and work-ticket provider detection. |
+| `gitlab.hosts_re` | string | no | `""` | Optional regex of extra GitLab hosts for work-ticket provider detection (HARNESS_GITLAB_HOSTS_RE). Empty = gitlab.host plus any host containing 'gitlab'. |
+| `gitlab.personal_repo_re` | string | no | `""` | Regex on a repo's top-level path; where it matches, a push to the default branch asks instead of denying (personal repos). Repos can also set WORK_TICKET_ALLOW_DEFAULT_PUSH_RE themselves. |
+
+### Secrets (never in harness.toml)
+
+| id | where | written by | mode | rotate |
+|---|---|---|---|---|
+| `glab_token` | `~/.config/glab-cli/config.yml` | glab auth login | 0600 | docs/runbooks/rotate-gitlab-token.md |
+
+## Manual steps
+
+<a id="install-glab"></a>
+
+### install-glab — Install the GitLab CLI (glab)
+
+*once per machine · needs nothing but a terminal · ~2 min*
+
+**Why:** The guard, the instructions and /work-ticket drive GitLab through glab.
+
+**How:**
+
+- macOS: `brew install glab`
+- Debian/Ubuntu/WSL: download the `.deb` for your arch from
+  https://gitlab.com/gitlab-org/cli/-/releases and `sudo apt-get install ./glab_*.deb`
+- No root: extract the release tarball's `bin/glab` into `~/.local/bin/`.
+Minimum version 1.40.
+
+**Verify:** `glab --version` (exit 0)
+
+<a id="glab-auth"></a>
+
+### glab-auth — Authenticate glab to {{ gitlab.host }}
+
+*once per account · needs browser · ~3 min*
+
+**Why:** Agents never run `glab auth login`; the token is yours and stays in ~/.config/glab-cli/config.yml.
+
+**How:**
+
+1. Create a personal access token: https://{{ gitlab.host }}/-/user_settings/personal_access_tokens
+   (older GitLab: **Preferences → Access Tokens**) with scopes `api` and `read_user`, an expiry
+   date you will remember.
+2. In a terminal (inside Claude Code type `! ` first):
+   `glab auth login --hostname {{ gitlab.host }}` → choose **Token**, paste it; git protocol **SSH**.
+3. Self-managed GitLab with a private CA: `glab config set skip_tls_verify false --host {{ gitlab.host }}`
+   stays false — add the CA to the system trust store instead.
+
+**Verify:** `glab auth status --hostname {{ gitlab.host }}` (exit 0)
+
+<a id="gitlab-ssh-key"></a>
+
+### gitlab-ssh-key — Register an SSH key with {{ gitlab.host }}
+
+*once per machine · needs browser · ~2 min*
+
+**Why:** Clones and pushes use SSH remotes; the token is only for the API.
+
+**How:**
+
+`ssh-keygen -t ed25519 -C "{{ identity.email }}" -f ~/.ssh/id_ed25519` (skip if you have one), then
+https://{{ gitlab.host }}/-/user_settings/ssh_keys → **Add new key** → paste `~/.ssh/id_ed25519.pub`.
+
+**Verify:** `ssh -o BatchMode=yes -o ConnectTimeout=10 -T git@{{ gitlab.host }} 2>&1 | grep -qi 'welcome to gitlab'` (exit 0)
+
+<a id="gitlab-agent-labels"></a>
+
+### gitlab-agent-labels — Create the agent-* labels in the groups you work in (optional)
+
+*once per org · needs nothing but a terminal · ~2 min*
+
+**Why:** Promptless MR edits are keyed on an agent-* label; group-level labels avoid creating them per project.
+
+**How:**
+
+Per project the agent may create them itself (`glab label create -n {{ core.agent_labels.worked }}` is
+promptless). Group owners can instead add `{{ core.agent_labels.worked }}`, `{{ core.agent_labels.created }}`
+and `{{ core.agent_labels.drafted }}` once under **Group → Manage → Labels**.
+
+**Verify:** `true` (exit 0)
+
+## Doctor checks
+
+| id | severity | offline | fix |
+|---|---|---|---|
+| `glab-binary` | fail | runs | [install-glab](#install-glab) |
+| `glab-auth` | fail | skipped | [glab-auth](#glab-auth) |
+| `gitlab-ssh` | warn | skipped | [gitlab-ssh-key](#gitlab-ssh-key) |
+| `glab-token-mode` | warn | runs | `chmod 600 ~/.config/glab-cli/config.yml` |
+
+## Uninstall
+
+Kept on uninstall: `~/.config/glab-cli/**`
+
+glab and its token are yours; uninstall removes only the rendered rules, guard sections and permissions.
 <!-- generated:end -->

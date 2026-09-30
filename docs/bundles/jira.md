@@ -35,4 +35,121 @@ token**, name it after this machine, set an expiry; copy it once into `~/.config
 [runbook](../runbooks/rotate-jira-pat.md).
 
 <!-- generated:begin source=bundles/jira/bundle.toml -->
+## Summary
+
+Jira Server client (jira CLI + skill), read-only jira-mcp server, Jira write governance in the guard
+
+Ships the stdlib `jira` CLI and its skill (read/search/update tickets, sprints, versions,
+transitions, attachments, links), the read-only `mcp-atlassian` server wired with the token
+read from ~/.config/jira at launch (never stored in a provider config), and guard section 70:
+creates need a provenance label, writes to agent-labelled tickets are promptless, writes to
+human tickets ask and their transitions are denied, native links only between agent-labelled
+tickets. Jira Server / Data Center 8.x with personal access tokens; Cloud is not implemented.
+
+- **Depends on:** `core`
+- **Recommends:** `ticket-workflow`, `gitlab`
+- **Stability:** stable
+
+## Requirements
+
+### Binaries
+
+| binary | min version | install | optional | why |
+|---|---|---|---|---|
+| `python3` | 3.9 |  | no | The jira CLI is stdlib python. |
+| `uvx` | 0 |  | yes | Runs the read-only mcp-atlassian server (only when jira.mcp.enabled). |
+
+### Configuration
+
+| key | type | required | default | description |
+|---|---|---|---|---|
+| `jira.fields` | object | no | `{}` | Friendly custom-field names per project, from `jira fields PROJ`: [jira.fields.PROJ] story_points = "customfield_…". Lower-case keys at the top level apply to every project. Used by the jira CLI and create-ticket; ids are never guessed. |
+| `jira.get_exclude` | array | no | `[]` | Friendly field names (from jira.fields) that `jira get` should not surface; they still resolve for set/create. HARNESS_JIRA_GET_EXCLUDE (comma-separated) overrides. |
+| `jira.issue_types` | array | no | `[]` | Optional per-org issue-type rules for create-ticket: [[jira.issue_types]] name, standalone, requires, requires_without_facts, body_field, hint. Empty = generic (Epic requires epic_name). |
+| `jira.kind` | string | no | `"server"` | Jira flavour. Only `server` (Server / Data Center 8.x, PAT bearer auth, plain-text bodies) is implemented. |
+| `jira.link_types` | array | no | `["relates", "blocks", "issue split"]` | Link type names (case-insensitive) the guard permits for `jira link` / `create --link` (HARNESS_JIRA_LINK_TYPES). |
+| `jira.mcp.enabled` | boolean | no | `true` | Register the read-only jira-mcp server (uvx mcp-atlassian, READ_ONLY_MODE=true). |
+| `jira.url` | string | yes |  | Base URL of your Jira Server, no trailing slash. The CLI exits 2 with 'not configured' until it is set. |
+
+### Secrets (never in harness.toml)
+
+| id | where | written by | mode | rotate |
+|---|---|---|---|---|
+| `jira_pat` | `~/.config/jira` | human (Jira profile → Personal Access Tokens) | 0600 | docs/runbooks/rotate-jira-token.md |
+
+## Manual steps
+
+<a id="jira-pat"></a>
+
+### jira-pat — Create a Jira personal access token and store it in ~/.config/jira
+
+*once per account · needs browser · ~3 min*
+
+**Why:** The CLI and the MCP server authenticate with a PAT (Bearer). Agents never create or read it.
+
+**How:**
+
+1. Open {{ jira.url }}/secure/ViewProfile.jspa → **Personal Access Tokens** → **Create token**
+   (Jira Server / Data Center 8.14+). Name it `agent-harness`, set an expiry, **Create**, copy it.
+2. Store it — plain, one line, private (paste when `cat` waits, then Ctrl-D):
+   ```
+   install -d -m 700 ~/.config
+   ( umask 077; cat > ~/.config/jira )
+   chmod 600 ~/.config/jira
+   ```
+3. Check: `jira whoami` prints your account name. Exit 2 means a bad token or an unreachable
+   server (VPN?).
+
+**Verify:** `jira whoami` (exit 0)
+
+<a id="jira-fields"></a>
+
+### jira-fields — Record your projects' custom field ids in harness.toml (optional)
+
+*once per org · needs nothing but a terminal · ~5 min*
+
+**Why:** Friendly field names (`jira set KEY "Story Points" 3`) and create-ticket's Problem Description / Category / Epic Name fields need the org's customfield ids; nothing is guessed.
+
+**How:**
+
+For each project you work in: `jira fields PROJ` lists `customfield_… -> Name`. Copy the ones
+you use into `local/harness.toml`:
+```
+[jira.fields.PROJ]
+story_points = "customfield_…"
+epic_link = "customfield_…"
+problem_description = "customfield_…"
+```
+then `harness apply`. Org admins can ship the table in the org overlay (`harness init --from`).
+
+**Verify:** `true` (exit 0)
+
+<a id="install-uv"></a>
+
+### install-uv — Install uv (for the read-only jira-mcp server)
+
+*once per machine · needs nothing but a terminal · ~1 min*
+
+**Why:** jira-mcp runs `uvx mcp-atlassian`. Skip this and set jira.mcp.enabled = false if you only want the CLI.
+
+**How:**
+
+`curl -LsSf https://astral.sh/uv/install.sh | sh` (or `brew install uv`, or `pipx install uv`), then open a new shell.
+
+**Verify:** `uvx --version` (exit 0)
+
+## Doctor checks
+
+| id | severity | offline | fix |
+|---|---|---|---|
+| `jira-cli` | fail | runs | `harness apply` |
+| `jira-token-file` | fail | runs | [jira-pat](#jira-pat) |
+| `jira-auth` | fail | skipped | [jira-pat](#jira-pat) |
+| `uvx` | warn | runs | [install-uv](#install-uv) |
+
+## Uninstall
+
+Kept on uninstall: `~/.config/jira`
+
+The token file is yours; revoke it in Jira (profile → Personal Access Tokens) when you leave.
 <!-- generated:end -->

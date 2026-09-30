@@ -34,4 +34,31 @@ follows, not enforcement.
 | `config.toml` parse error after apply | a hand edit broke the fence markers; restore from `~/.local/state/harness/backups/<ts>/` and `harness apply` |
 
 <!-- generated:begin source=providers/codex/provider.toml -->
+**Verified against:** verify on install (written to the published spec, 2026-09)
+
+### Targets
+
+| artifact | path | mode | details |
+|---|---|---|---|
+| instructions | `~/.codex/AGENTS.md` | managed-block |  |
+| skills | `~/.codex/skills/<name>` | dir | registers in ~/.codex/config.toml [[skills]] |
+| agents |  | inline | agent bodies become sections of AGENTS.md |
+| settings |  | unsupported | config.toml is only touched through managed TOML blocks |
+| hooks |  | unsupported | no verified pre-tool hook contract; rely on approval policy + instructions |
+| permissions |  | unsupported | use approval_policy / sandbox_mode in config.toml |
+| trust |  | unsupported |  |
+| mcp | `~/.codex/config.toml` | toml-block | table=mcp_servers |
+
+### Capabilities
+
+| capability | value |
+|---|---|
+| agents | inlined |
+| ask | false |
+| hook_enforced | false |
+| instructions | native |
+| mcp | native |
+| notes | guard rules are advisory (instructions only); prefer a strict approval_policy |
+| permissions | advisory |
+| skills | native |
 <!-- generated:end -->

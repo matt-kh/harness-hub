@@ -29,4 +29,31 @@ same skills and rules.
 | Rules appear twice | see the first quirk above |
 
 <!-- generated:begin source=providers/opencode/provider.toml -->
+**Verified against:** verify on install (written to the published spec, 2026-09)
+
+### Targets
+
+| artifact | path | mode | details |
+|---|---|---|---|
+| instructions | `~/.config/opencode/AGENTS.md` | managed-block |  |
+| skills | `~/.agents/skills/<name>` | dir | the cross-tool Agent Skills location, also read by Kilo |
+| agents |  | inline | agent bodies become sections of AGENTS.md |
+| settings |  | unsupported |  |
+| hooks |  | unsupported | no command hook |
+| permissions |  | unsupported |  |
+| trust |  | unsupported |  |
+| mcp |  | unsupported | configure MCP in opencode.json by hand for now |
+
+### Capabilities
+
+| capability | value |
+|---|---|
+| agents | inlined |
+| ask | false |
+| hook_enforced | false |
+| instructions | native |
+| mcp | none |
+| notes | advisory only: no hook, no permission lists |
+| permissions | none |
+| skills | native |
 <!-- generated:end -->

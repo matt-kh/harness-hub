@@ -39,4 +39,31 @@ Copilot can deny but not ask, so ask decisions follow `[providers.copilot].ask_a
 | Every command denied with a parse error | the CLI changed its hook payload; open a [provider-change issue](https://github.com/matt-kh/harness-hub/issues/new?template=provider-change.yml) with a redacted sample |
 
 <!-- generated:begin source=providers/copilot/provider.toml -->
+**Verified against:** verify on install (written to the published spec, 2026-09)
+
+### Targets
+
+| artifact | path | mode | details |
+|---|---|---|---|
+| instructions | `~/.copilot/copilot-instructions.md` | managed-block |  |
+| skills | `~/.copilot/skills/<name>` | dir |  |
+| agents | `~/.copilot/agents/<name>.md` | file |  |
+| settings |  | unsupported | no settings file is merged; hooks and MCP have their own files |
+| hooks | `~/.copilot/hooks` | dir | event=preToolUse; shim=shim.sh; register=file; register_path=~/.copilot/hooks/harness.json |
+| permissions |  | unsupported | use copilot --allow-tool/--deny-tool flags; the guard hook enforces shell rules |
+| trust |  | unsupported |  |
+| mcp | `~/.copilot/mcp-config.json` | json-merge | key=mcpServers |
+
+### Capabilities
+
+| capability | value |
+|---|---|
+| agents | native |
+| ask | false |
+| hook_enforced | true |
+| instructions | native |
+| mcp | native |
+| notes | no 'ask' decision: guard asks map to [providers.copilot].ask_as (default deny) |
+| permissions | advisory |
+| skills | native |
 <!-- generated:end -->

@@ -48,4 +48,31 @@ The shim translates the envelopes ([ARCHITECTURE §5](../../ARCHITECTURE.md#5-gu
 | `settings.json` edits by Gemini itself show as drift | `harness sync`, then `--adopt` what you want to keep |
 
 <!-- generated:begin source=providers/gemini/provider.toml -->
+**Verified against:** verify on install (written to the published spec, 2026-09)
+
+### Targets
+
+| artifact | path | mode | details |
+|---|---|---|---|
+| instructions | `~/.gemini/GEMINI.md` | managed-block |  |
+| skills | `~/.gemini/skills/<name>` | dir |  |
+| agents |  | inline | no sub-agent files; agent bodies become sections of GEMINI.md |
+| settings | `~/.gemini/settings.json` | json-merge | owner_keys=hooks, mcpServers |
+| hooks | `~/.gemini/hooks` | dir | event=BeforeTool; matcher=run_shell_command; shim=shim.sh; register=settings |
+| permissions |  | unsupported | permission lists are not translated; the guard hook enforces shell rules |
+| trust |  | unsupported |  |
+| mcp | `~/.gemini/settings.json` | json-merge | key=mcpServers |
+
+### Capabilities
+
+| capability | value |
+|---|---|
+| agents | inlined |
+| ask | false |
+| hook_enforced | true |
+| instructions | native |
+| mcp | native |
+| notes | no 'ask' decision: guard asks map to [providers.gemini].ask_as (default deny) |
+| permissions | advisory |
+| skills | native |
 <!-- generated:end -->

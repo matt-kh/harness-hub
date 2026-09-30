@@ -54,4 +54,30 @@ repo cannot lift a user-level deny with its own hook; it sets the override varia
 | A new skill does not appear | restart the session; check `~/.claude/skills/<name>/SKILL.md` exists |
 
 <!-- generated:begin source=providers/claude/provider.toml -->
+**Verified against:** Claude Code 2.1.x, 2026-09-30 (local)
+
+### Targets
+
+| artifact | path | mode | details |
+|---|---|---|---|
+| instructions | `~/.claude/CLAUDE.md` | managed-block |  |
+| skills | `~/.claude/skills/<name>` | dir |  |
+| agents | `~/.claude/agents/<name>.md` | file |  |
+| settings | `~/.claude/settings.json` | json-merge | owner_keys=hooks, permissions, env, autoMode |
+| hooks | `~/.claude/hooks` | dir | event=PreToolUse; matcher=Bash; register=settings |
+| permissions |  | settings | key=permissions |
+| trust |  | settings | key=autoMode.environment |
+| mcp | `~/.claude.json` | json-merge | key=mcpServers |
+
+### Capabilities
+
+| capability | value |
+|---|---|
+| agents | native |
+| ask | true |
+| hook_enforced | true |
+| instructions | native |
+| mcp | native |
+| permissions | native |
+| skills | native |
 <!-- generated:end -->

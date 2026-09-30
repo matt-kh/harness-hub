@@ -41,4 +41,130 @@ Manual steps: `install-gh`, `gh-auth`, `ssh-key`, `agent-labels` (full text belo
 Rotating the token: [runbook](../runbooks/rotate-github-token.md).
 
 <!-- generated:begin source=bundles/github/bundle.toml -->
+## Summary
+
+GitHub CLI, PR-based workflow, GitHub Issues as the tracker, gh governance rules
+
+Installs `gh` (checksum-verified, no sudo), wires the guard rules for gh (token output deny,
+GitHub closing-keyword deny, human-issue state deny, merge/review ask, API writes ask, label
+gate on PR/issue writes, stacked-PR rules) and adds the GitHub section of the instructions and
+the gh read permissions. The ticket-workflow skills drive GitHub Issues → PRs when this bundle
+is active.
+
+- **Depends on:** `core`
+- **Recommends:** `ticket-workflow`
+- **Stability:** stable
+
+## Requirements
+
+### Binaries
+
+| binary | min version | install | optional | why |
+|---|---|---|---|---|
+| `gh` | 2.60.0 | `harness install gh` | no | PR/issue reads, gated writes, auth status; the work-ticket GitHub preflight. |
+| `ssh` | 0 |  | yes | git remotes stay SSH; gh never gets git credentials. |
+
+### Configuration
+
+| key | type | required | default | description |
+|---|---|---|---|---|
+| `github.host` | string | no | `"github.com"` | GitHub host: github.com or your GHES hostname. |
+| `github.login` | string | yes |  | Your GitHub login. Shown in the instructions; repos you own are trusted in the provider's auto-mode trust text. |
+
+### Secrets (never in harness.toml)
+
+| id | where | written by | mode | rotate |
+|---|---|---|---|---|
+| `gh_token` | `~/.config/gh/hosts.yml` | gh auth login | 0600 | docs/runbooks/rotate-github-token.md |
+
+## Manual steps
+
+<a id="install-gh"></a>
+
+### install-gh — Install the GitHub CLI
+
+*once per machine · needs nothing but a terminal · ~1 min*
+
+**Why:** No sudo is assumed; the hub installs a pinned, sha256-verified release into ~/.local/bin.
+
+**How:**
+
+Run: `harness install gh`
+Air-gapped: download `gh_<ver>_<os>_<arch>.tar.gz` (macOS: `.zip`) of the version in
+`tools/gh.lock.json` on a connected machine, then
+`harness install gh --from /path/to/gh_<ver>_<os>_<arch>.tar.gz`.
+Package managers work too (`brew install gh`, the official apt repo) — any gh >= 2.60 on PATH.
+
+**Verify:** `gh --version` (exit 0)
+
+<a id="gh-auth"></a>
+
+### gh-auth — Authenticate gh (browser device flow, PAT fallback)
+
+*once per account · needs browser · ~3 min*
+
+**Why:** Agents never run `gh auth login`; the token is yours and stays in ~/.config/gh/hosts.yml.
+
+**How:**
+
+1. In a terminal (inside Claude Code type `! ` first):
+   `gh auth login --hostname {{ github.host }} --git-protocol ssh --web`
+2. Choose **SSH** as the git protocol, then **Login with a web browser**; copy the one-time code,
+   open the URL, paste it, **Authorize**.
+3. If the device flow fails (SSO, proxy, WSL without a browser): create a classic PAT at
+   https://{{ github.host }}/settings/tokens → **Generate new token (classic)** with scopes
+   `repo`, `read:org`, `workflow`, `admin:public_key`, save it to a file, run
+   `gh auth login --hostname {{ github.host }} --git-protocol ssh --with-token < token.txt`
+   and delete the file.
+4. `gh auth setup-git` is NOT needed — remotes are SSH.
+
+**Verify:** `gh auth status --hostname {{ github.host }}` (exit 0, output matches `Logged in to`)
+
+<a id="ssh-key"></a>
+
+### ssh-key — Register an SSH key with GitHub
+
+*once per machine · needs browser · ~2 min*
+
+**Why:** Clones and pushes use SSH; gh has the admin:public_key scope only so it can upload the key.
+
+**How:**
+
+`ssh-keygen -t ed25519 -C "{{ identity.email }}" -f ~/.ssh/id_ed25519` (accept the defaults; skip
+if you already have a key), then `gh ssh-key add ~/.ssh/id_ed25519.pub --title "$(hostname)"`.
+Without that scope: {{ github.host }} → **Settings → SSH and GPG keys → New SSH key** → paste
+`~/.ssh/id_ed25519.pub`.
+
+**Verify:** `ssh -o BatchMode=yes -o ConnectTimeout=10 -T git@{{ github.host }} 2>&1 | grep -q 'successfully authenticated'` (exit 0)
+
+<a id="agent-labels"></a>
+
+### agent-labels — Create the agent-* labels in repos you will work in (optional, per repo)
+
+*once per org · needs nothing but a terminal · ~1 min*
+
+**Why:** The label gate needs the labels to exist; the skills create them on first use (`gh label create agent-*` is promptless), org-wide defaults avoid even that.
+
+**How:**
+
+Per repo: `gh label create {{ core.agent_labels.worked }} -R owner/repo -c 7057ff -d 'Worked by an AI agent'`
+(and `{{ core.agent_labels.created }}`, `{{ core.agent_labels.drafted }}`). Org admins can add them to the
+organisation's default repository labels instead.
+
+**Verify:** `true` (exit 0)
+
+## Doctor checks
+
+| id | severity | offline | fix |
+|---|---|---|---|
+| `gh-binary` | fail | runs | [install-gh](#install-gh) |
+| `gh-auth` | fail | skipped | [gh-auth](#gh-auth) |
+| `gh-ssh` | warn | skipped | [ssh-key](#ssh-key) |
+| `gh-token-mode` | warn | runs | `chmod 600 ~/.config/gh/hosts.yml` |
+
+## Uninstall
+
+Kept on uninstall: `~/.config/gh/**`
+
+Removes ~/.local/bin/gh only if the hub state records that the hub installed it.
 <!-- generated:end -->

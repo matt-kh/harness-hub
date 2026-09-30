@@ -45,4 +45,154 @@ Never paste the contents of `~/.config/gdoc/client_secret.json` or `token.json` 
 [runbook](../runbooks/rotate-google-oauth.md).
 
 <!-- generated:begin source=bundles/gdoc/bundle.toml -->
+## Summary
+
+gdoc CLI for Google Docs / Drive / Sheets / Gmail with provenance-gated writes; drafts only, never sends
+
+Ships the stdlib `gdoc` CLI and its skill (search, read, export, create, import/append/replace,
+Sheets get/append/update, Gmail search/read/draft), guard section 80 (writes to human files ask,
+`mark` asks always, `api` is GET-only, create and mail draft are promptless) and the Workspace
+section of the instructions. Needs a one-time GCP OAuth **Desktop** client inside your
+Workspace organisation that only a human (sometimes an admin) can create — six manual steps.
+
+- **Depends on:** `core`
+- **Stability:** stable
+
+## Requirements
+
+### Binaries
+
+| binary | min version | install | optional | why |
+|---|---|---|---|---|
+| `python3` | 3.9 |  | no | The gdoc CLI is stdlib python (urllib OAuth + REST). |
+
+### Configuration
+
+| key | type | required | default | description |
+|---|---|---|---|---|
+| `google.domain` | string | yes |  | Your Workspace domain. Sign-in is restricted to it (OAuth `hd`, GDOC_HD) and the GCP project must live inside this organisation for an Internal consent screen. |
+
+### Secrets (never in harness.toml)
+
+| id | where | written by | mode | rotate |
+|---|---|---|---|---|
+| `gdoc_client` | `~/.config/gdoc/client_secret.json` | human (downloaded from the GCP console) | 0600 |  |
+| `gdoc_token` | `~/.config/gdoc/token.json` | gdoc auth login | 0600 | docs/runbooks/rotate-google-oauth.md |
+
+## Manual steps
+
+<a id="gcp-project"></a>
+
+### gcp-project — Create a GCP project inside your organisation
+
+*once per account · needs browser · ~3 min*
+
+**Why:** An **Internal** consent screen (no verification, no test-user cap, refresh tokens that do not expire after 7 days) is only offered to projects inside the {{ google.domain }} organisation.
+
+**How:**
+
+1. https://console.cloud.google.com/projectcreate
+2. **Organisation** must show `{{ google.domain }}` (not "No organisation"). Name: e.g. `agent-harness-gdoc`.
+3. If project creation is disabled for your account, that is an admin gate: ask IT for a project
+   in the org, or for the `roles/resourcemanager.projectCreator` role.
+
+**Verify:** `true` (exit 0)
+
+<a id="enable-apis"></a>
+
+### enable-apis — Enable the Drive, Docs, Sheets and Gmail APIs
+
+*once per account · needs browser · ~2 min*
+
+**Why:** Calls to an API that is not enabled fail with 403 accessNotConfigured (gdoc exit 2).
+
+**How:**
+
+**APIs & Services → Library** → search and **Enable** each: Google Drive API, Google Docs API, Google Sheets API, Gmail API. Wait about a minute after enabling.
+
+**Verify:** `true` (exit 0)
+
+<a id="consent-screen"></a>
+
+### consent-screen — Configure the OAuth consent screen as Internal
+
+*once per account · needs browser · ~2 min*
+
+**Why:** Internal is the reason for step gcp-project: an External app in testing mode expires refresh tokens after 7 days.
+
+**How:**
+
+**APIs & Services → OAuth consent screen** (new console: **Google Auth Platform → Branding / Audience**):
+- Audience **Internal**
+- App name `gdoc (agent-harness)`; support and developer email: {{ identity.email }}
+- Scopes: leave empty — the CLI requests `drive`, `gmail.readonly` and `gmail.compose` at sign-in.
+  There is no send scope: gdoc cannot put mail on the wire.
+
+**Verify:** `true` (exit 0)
+
+<a id="desktop-client"></a>
+
+### desktop-client — Create a Desktop OAuth client and install its JSON
+
+*once per account · needs browser · ~2 min*
+
+**Why:** gdoc uses the installed-app loopback flow; only **Desktop app** clients accept any 127.0.0.1 port. A Web client fails with redirect_uri_mismatch.
+
+**How:**
+
+**APIs & Services → Credentials → Create credentials → OAuth client ID → Application type: Desktop app**,
+name `gdoc`, **Download JSON**. Then:
+```
+install -d -m 700 ~/.config/gdoc
+install -m 600 ~/Downloads/client_secret*.json ~/.config/gdoc/client_secret.json
+gdoc auth status
+```
+
+**Verify:** `test -s ~/.config/gdoc/client_secret.json` (exit 0)
+
+<a id="gdoc-login"></a>
+
+### gdoc-login — Sign in
+
+*once per machine · needs browser · ~1 min*
+
+**Why:** Writes ~/.config/gdoc/token.json; agents cannot do this (browser + Google sign-in).
+
+**How:**
+
+`gdoc auth login --hint {{ identity.email }}` — approve in the browser, then `gdoc whoami`.
+WSL2: the browser may not open by itself; copy the printed URL into your Windows browser (it
+can reach the WSL loopback listener). If it cannot: `gdoc auth login --no-browser`, approve,
+and paste the whole `http://127.0.0.1:…/?state=…&code=…` URL from the address bar at the prompt.
+
+**Verify:** `gdoc whoami` (exit 0)
+
+<a id="admin-trust"></a>
+
+### admin-trust — Admin allow-list (only if sign-in says 'blocked by your administrator')
+
+*once per org · needs admin, browser · ~5 min*
+
+**Why:** Tenants that mark Drive/Gmail as Restricted block unverified internal apps until a Workspace admin trusts them.
+
+**How:**
+
+A Workspace admin: **admin.google.com → Security → Access and data control → API controls → Manage Third-Party App Access → Configure new app → OAuth App Name or Client ID** → paste the client ID from `desktop-client` → scope it to your OU → **Trusted**.
+
+**Verify:** `gdoc whoami` (exit 0)
+
+## Doctor checks
+
+| id | severity | offline | fix |
+|---|---|---|---|
+| `gdoc-cli` | fail | runs | `harness apply` |
+| `gdoc-client` | warn | runs | [desktop-client](#desktop-client) |
+| `gdoc-auth` | warn | skipped | [gdoc-login](#gdoc-login) |
+| `gdoc-modes` | warn | runs | `chmod 700 ~/.config/gdoc && chmod 600 ~/.config/gdoc/*.json` |
+
+## Uninstall
+
+Kept on uninstall: `~/.config/gdoc/**`
+
+Revoke access at https://myaccount.google.com/permissions if you leave the organisation.
 <!-- generated:end -->

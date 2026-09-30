@@ -23,7 +23,7 @@ Decisions documented here (the contract leaves them open):
 * Secret shapes are rejected: a key whose last segment contains ``token``, ``secret``,
   ``password`` or ``bearer`` (unless it ends in ``_file``/``_path`` and holds a path), or any
   string of 30+ token-alphabet characters with high Shannon entropy, or a well-known token
-  prefix (``ghp_``, ``glpat-``, ``xoxb-``, ``AKIA``, JWT ``eyJ``).
+  prefix (``ghp_``, ``glpat-``, ``xoxb-``, ``AKIA``, JWT ``eyJ``).  # gate-allow: documented token prefixes
 """
 from __future__ import annotations
 
@@ -120,7 +120,7 @@ def set_path(d: Dict[str, Any], dotted: str, value: Any) -> None:
 
 _SECRET_KEY = re.compile(r"token|secret|password|passwd|bearer", re.I)
 _PATHY_SUFFIX = re.compile(r"_(file|path)$")
-_TOKEN_PREFIX = re.compile(r"^(ghp_|gho_|ghs_|github_pat_|glpat-|xox[abpr]-|AKIA[0-9A-Z]{12,}|eyJ[A-Za-z0-9_-]{10,}\.)")
+_TOKEN_PREFIX = re.compile(r"^(ghp_|gho_|ghs_|github_pat_|glpat-|xox[abpr]-|AKIA[0-9A-Z]{12,}|eyJ[A-Za-z0-9_-]{10,}\.)")  # gate-allow: detection regex
 _TOKEN_ALPHABET = re.compile(r"^[A-Za-z0-9+/_=-]{30,}$")
 
 

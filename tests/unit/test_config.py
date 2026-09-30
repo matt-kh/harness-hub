@@ -103,7 +103,7 @@ class SecretTest(unittest.TestCase):
         self.assertTrue(C.looks_like_secret_value(tok))
         self.assertTrue(C.looks_like_secret_value("Zx81Kq0Lm2Np4Rt6Vw8Yb1Dc3Fg5Hj7Kl9Mn"))
         for ok in ("(^|[-_./:])(prod|production)([-_./:]|$)", "https://jira.example.com/some/long/path/x1",
-                   "~/dev/platform-gitops-something-long-1", "customfield_20000",
+                   "~/dev/gitops-something-long-1", "customfield_20000",
                    "a-perfectly-ordinary-long-identifier-name", "local/bundles/acme/references/clusters.md"):
             self.assertFalse(C.looks_like_secret_value(ok), ok)
         found = C.secret_findings({"trust": {"notes": "Zx81Kq0Lm2Np4Rt6Vw8Yb1Dc3Fg5Hj7Kl9Mn"}})
