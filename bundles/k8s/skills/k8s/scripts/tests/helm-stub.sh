@@ -17,7 +17,7 @@ emit() {
 ctx=""; rest="$*"
 n=$#
 if [ "$n" -ge 2 ]; then
-  eval "last1=\${$n}"; eval "last2=\${$((n - 1))}"
+  p=$((n - 1)); last1=${!n}; last2=${!p}      # indirect: the last two positional args
   if [ "$last2" = "--kube-context" ]; then
     ctx="$last1"
     rest=$(printf '%s ' "${@:1:$((n - 2))}"); rest="${rest% }"

@@ -28,9 +28,18 @@ jobs:
           python-version: "3.12"
       - name: Install shellcheck
         run: sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
-      - name: shellcheck
+      - name: shellcheck (standalone scripts)
+        # Guard fragments (engine.sh, engine-flush.sh, guard.d/NN-*.sh) are not standalone scripts:
+        # they are checked below as the concatenated guard. Goldens are generated artefacts.
         run: |
-          git ls-files -z -- '*.sh' bin/harness bootstrap | xargs -0 -r shellcheck -S warning
+          git ls-files -z -- '*.sh' bin/harness bootstrap \
+            | grep -zvE '(^|/)guard\.d/[0-9]+-[^/]+\.sh$|(^|/)guard/engine(-flush)?\.sh$|(^|/)tests/golden/' \
+            | xargs -0 -r shellcheck -S warning
+      - name: shellcheck (concatenated guard, all bundles)
+        run: |
+          out="$(mktemp -d)/guard-bash.sh"
+          bash bundles/core/guard/build.sh "$out"
+          shellcheck -S warning "$out"
       - name: bash -n
         run: |
           rc=0
@@ -123,11 +132,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Render twice into fresh homes
+      - name: Render twice with the same fresh home
+        # Same HOME on purpose: hook commands are absolute paths (hooks do not expand ~), so
+        # determinism means repeatability for one home, not identity across homes.
         run: |
-          h1=$(mktemp -d); h2=$(mktemp -d)
-          HOME="$h1" bin/harness render --config "$CI_CONFIG" --out /tmp/r1
-          HOME="$h2" bin/harness render --config "$CI_CONFIG" --out /tmp/r2
+          h=$(mktemp -d)
+          HOME="$h" bin/harness render --config "$CI_CONFIG" --out /tmp/r1
+          HOME="$h" bin/harness render --config "$CI_CONFIG" --out /tmp/r2
       - name: Output is byte-identical
         run: diff -r /tmp/r1 /tmp/r2
 
@@ -151,7 +162,7 @@ jobs:
       - name: Bootstrap from the entry point (temp HOME, fake CLIs)
         if: matrix.script == 'tests/smoke/bootstrap.sh'
         run: |
-          HOME="$(mktemp -d)"; export HOME
+          HOME="$(cd "$(mktemp -d)" && pwd)"; export HOME   # normalised (macOS $TMPDIR ends in /)
           export PATH="$PWD/tests/fakes/bin:$PATH"
           ./bootstrap --bundles core --providers claude --yes --offline --config "$CI_CONFIG"
           bin/harness doctor --offline --config "$CI_CONFIG"

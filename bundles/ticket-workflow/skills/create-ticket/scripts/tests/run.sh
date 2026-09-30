@@ -24,9 +24,8 @@ golden gh-enhancement gh-enhancement "$GF" --provider github
 for bad in bad-summary bad-component; do
   if python3 "$R" --model "$here/fixtures/$bad.json" --facts "$F" --out-dir "$tmp/$bad" --check 2>/dev/null; then echo "FAIL $bad (check should reject)"; fail=1; else echo "PASS $bad rejected"; fi
 done
-for bad in bad-gh-closing; do
-  if python3 "$R" --model "$here/fixtures/$bad.json" --facts "$GF" --out-dir "$tmp/$bad" --check --provider github 2>/dev/null; then echo "FAIL $bad (check should reject)"; fail=1; else echo "PASS $bad rejected"; fi
-done
+bad='bad-gh-closing'
+if python3 "$R" --model "$here/fixtures/$bad.json" --facts "$GF" --out-dir "$tmp/$bad" --check --provider github 2>/dev/null; then echo "FAIL $bad (check should reject)"; fail=1; else echo "PASS $bad rejected"; fi
 # provenance label must be present in every rendered command
 for fx in defect enhancement chore epic swtask; do
   grep -q -- "--field 'labels=\[\"agent-drafted\"" "$tmp/$fx/create.sh" || { echo "FAIL $fx: no agent-drafted label in create.sh"; fail=1; }
@@ -36,15 +35,16 @@ for fx in gh-defect gh-enhancement; do
 done
 # harness config: type rules (jira.issue_types) and field ids (jira.fields); ids are never guessed
 C="$here/fixtures/config-rules.json"
-ok()  { if "$@" >/dev/null 2>"$tmp/cfg.err"; then echo "PASS ${label}"; else echo "FAIL ${label}"; cat "$tmp/cfg.err"; fail=1; fi; }
-nok() { if "$@" >/dev/null 2>"$tmp/cfg.err" || ! grep -qE "$want" "$tmp/cfg.err"; then echo "FAIL ${label}"; cat "$tmp/cfg.err"; fail=1; else echo "PASS ${label}"; fi; }
+# ok LABEL CMD...: CMD must succeed; nok LABEL WANT CMD...: CMD must fail with stderr matching WANT
+ok()  { local label=$1; shift; if "$@" >/dev/null 2>"$tmp/cfg.err"; then echo "PASS ${label}"; else echo "FAIL ${label}"; cat "$tmp/cfg.err"; fail=1; fi; }
+nok() { local label=$1 want=$2; shift 2; if "$@" >/dev/null 2>"$tmp/cfg.err" || ! grep -qE "$want" "$tmp/cfg.err"; then echo "FAIL ${label}"; cat "$tmp/cfg.err"; fail=1; else echo "PASS ${label}"; fi; }
 rt()  { python3 "$R" --model "$here/fixtures/$1.json" --out-dir "$tmp/cfg-$1-$2" --check; }
-label="generic rules: CR without type_of_problem renders"                ok rt cr-no-top a
-label="generic rules: Bug renders standalone"                          ok rt bug a
-label="config rule: CR requires type_of_problem" want="CR requires type_of_problem \(Bug Fix" HARNESS_CONFIG_JSON=$C nok rt cr-no-top b
-label="config rule: Bug is not standalone" want="sub-task type"        HARNESS_CONFIG_JSON=$C nok rt bug b
-label="no facts, no config: unknown field id fails" want="field id for type_of_problem unknown" nok rt defect c
-label="no facts, config ids: renders"                                 HARNESS_CONFIG_JSON=$C ok rt defect d
+ok "generic rules: CR without type_of_problem renders" rt cr-no-top a
+ok "generic rules: Bug renders standalone" rt bug a
+HARNESS_CONFIG_JSON=$C nok "config rule: CR requires type_of_problem" "CR requires type_of_problem \(Bug Fix" rt cr-no-top b
+HARNESS_CONFIG_JSON=$C nok "config rule: Bug is not standalone" "sub-task type" rt bug b
+nok "no facts, no config: unknown field id fails" "field id for type_of_problem unknown" rt defect c
+HARNESS_CONFIG_JSON=$C ok "no facts, config ids: renders" rt defect d
 grep -q "customfield_20103=" "$tmp/cfg-defect-d/create.sh" && grep -q "customfield_20000=" "$tmp/cfg-defect-d/create.sh" \
   && echo "PASS configured field ids reach create.sh" || { echo "FAIL configured field ids reach create.sh"; fail=1; }
 rm -rf "$tmp"; [ $fail -eq 0 ] && echo "all golden tests passed"; exit $fail

@@ -59,6 +59,6 @@ t deny  "gdoc api -d '{}' https://www.googleapis.com/drive/v3/files"
 # ---- harness parameters: without WORK_TICKET_GDOC_PY the guard uses <hooks dir>/../skills/gdoc/scripts/gdoc.py
 lay=$(mktemp -d); mkdir -p "$lay/hooks" "$lay/skills/gdoc/scripts"
 cp "$H" "$lay/hooks/guard-bash.sh"; cp "$STUBS/gdoc-stub.py" "$lay/skills/gdoc/scripts/gdoc.py"
-WORK_TICKET_GDOC_PY= H="$lay/hooks/guard-bash.sh" t allow 'gdoc append AGT1111111111111111111 "text"'
-WORK_TICKET_GDOC_PY= H="$lay/hooks/guard-bash.sh" t ask   'gdoc append HUM1111111111111111111 "text"'
+WORK_TICKET_GDOC_PY='' H="$lay/hooks/guard-bash.sh" t allow 'gdoc append AGT1111111111111111111 "text"'
+WORK_TICKET_GDOC_PY='' H="$lay/hooks/guard-bash.sh" t ask   'gdoc append HUM1111111111111111111 "text"'
 rm -rf "$lay"

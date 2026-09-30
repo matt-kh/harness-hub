@@ -16,7 +16,7 @@ repos:
         exclude: (\.md$|(^|/)tests/(golden|goldens)/)
       - id: detect-private-key
         # redaction tests carry synthetic key headers on purpose
-        exclude: (^|/)tests/(fixtures|golden|goldens)/
+        exclude: (^|/)tests/(fixtures|golden|goldens)/|^bundles/k8s/skills/k8s/scripts/tests/run.sh$
       - id: check-added-large-files
         args: ["--maxkb=512"]
 
@@ -25,6 +25,8 @@ repos:
     hooks:
       - id: shellcheck
         args: ["-S", "warning"]
+        # guard fragments are checked concatenated (CI lint job); goldens are generated
+        exclude: (^|/)guard\.d/[0-9]+-[^/]+\.sh$|(^|/)guard/engine(-flush)?\.sh$|(^|/)tests/golden/
 
   - repo: https://github.com/Yelp/detect-secrets
     rev: v1.5.0

@@ -83,10 +83,10 @@ HARNESS_JIRA_LINK_TYPES_RE='^(relates)$'    tr 'allowed: \^\(relates\)\$' 'jira 
 # without WORK_TICKET_JIRA_PY the guard uses <hooks dir>/../skills/jira/scripts/jira.py
 lay=$(mktemp -d); mkdir -p "$lay/hooks" "$lay/skills/jira/scripts"
 cp "$H" "$lay/hooks/guard-bash.sh"; cp "$STUBS/jira-stub.py" "$lay/skills/jira/scripts/jira.py"
-WORK_TICKET_JIRA_PY= H="$lay/hooks/guard-bash.sh" t allow 'jira comment LBL-1 x'
-WORK_TICKET_JIRA_PY= H="$lay/hooks/guard-bash.sh" t ask   'jira comment HUM-1 x'
+WORK_TICKET_JIRA_PY='' H="$lay/hooks/guard-bash.sh" t allow 'jira comment LBL-1 x'
+WORK_TICKET_JIRA_PY='' H="$lay/hooks/guard-bash.sh" t ask   'jira comment HUM-1 x'
 rm -f "$lay/skills/jira/scripts/jira.py"
-WORK_TICKET_JIRA_PY= H="$lay/hooks/guard-bash.sh" t ask   'jira comment LBL-1 x'   # client missing -> cannot verify -> ask
+WORK_TICKET_JIRA_PY='' H="$lay/hooks/guard-bash.sh" t ask   'jira comment LBL-1 x'   # client missing -> cannot verify -> ask
 rm -rf "$lay"
 # link types as a rendered list (HARNESS_JIRA_LINK_TYPES from jira.link_types); the regex form wins
 HARNESS_JIRA_LINK_TYPES='Relates, Depends (on)' t allow 'jira link LBL-1 "Depends (on)" LBL-2'

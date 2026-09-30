@@ -77,8 +77,8 @@ if printf '%s' "$flat" | grep -qE '\bjira(\.py)?\s+(set|create|transition|upload
       [ -n "$lc" ] || continue
       n_parsed=$((n_parsed+1))
       act=$(printf '%s' "$lc" | awk '{print $4}')
-      lbls=$(printf '%s' "$lc" | cut -d' ' -f5- | tr -d "\"'" | tr ' ,' '\n\n' | grep -v '^$')
-      if [ "$act" = add ] && [ -n "$lbls" ] && ! printf '%s\n' "$lbls" | grep -vqE "$AGENT_LABEL_RE"; then
+      lbl_list=$(printf '%s' "$lc" | cut -d' ' -f5- | tr -d "\"'" | tr ' ,' '\n\n' | grep -v '^$')
+      if [ "$act" = add ] && [ -n "$lbl_list" ] && ! printf '%s\n' "$lbl_list" | grep -vqE "$AGENT_LABEL_RE"; then
         n_free=$((n_free+1))
       fi
     done <<EOF
