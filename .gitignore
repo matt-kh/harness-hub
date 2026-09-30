@@ -1,0 +1,12 @@
+# Private overlay: org config, private bundles, denylists. Never committed to the public hub.
+/local/
+# Engine build products and state
+/build/
+/.state/
+__pycache__/
+*.pyc
+# Editors / OS
+.DS_Store
+*.swp
+*.bak
+*.bak.*

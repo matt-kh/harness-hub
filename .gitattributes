@@ -1,0 +1,6 @@
+* text=auto eol=lf
+*.sh text eol=lf
+bin/harness text eol=lf
+bootstrap text eol=lf
+**/tests/golden/** linguist-generated=true
+**/tests/goldens/** linguist-generated=true
