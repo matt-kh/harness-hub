@@ -164,6 +164,7 @@ LABELED_DECISION="${WORK_TICKET_LABELED_DECISION:-allow}"
 BASE_BRANCH_RE="${WORK_TICKET_BASE_BRANCH_RE:-^(master|main)$}"   # sub MRs must never target these
 ALLOW_DEFAULT_PUSH_RE="${WORK_TICKET_ALLOW_DEFAULT_PUSH_RE:-}"   # repo top-level paths where a default-branch push asks
 ALLOW_TRANSITION="${WORK_TICKET_ALLOW_TRANSITION:-}"            # =1: human-ticket transition asks instead of deny
+# shellcheck disable=SC2034  # declared for the repo contract (header), read by no rule yet
 KEY_IN_BRANCH="${WORK_TICKET_KEY_IN_BRANCH:-}"                  # reserved (no-op today)
 KEY_RE='[A-Z][A-Z0-9_]*-[0-9]+'
 

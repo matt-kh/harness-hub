@@ -312,3 +312,8 @@ bash ≥ 4 features (`mapfile`, `declare -A`) are allowed only behind a `BASH_VE
 that `doctor` reports. Never rely on GNU-only `timeout`, `readlink -f`, `sed -i`, `stat -c`,
 `sha256sum`: use the `hn_timeout`, `hn_realpath`, `hn_sha256` helpers from
 `bundles/core/lib/compat.sh` or python. All python is stdlib and runs on 3.9+.
+Regexes in `sed`/`awk` are POSIX ERE only: BSD sed has no `\s \S \b \w \< \>` (they match the
+literal letter; use `[[:space:]]`, `[^[:alnum:]_]`, …). Brace a variable that is directly followed
+by a non-ASCII character (`"${var}—"`, not `"$var—"`): macOS ctype counts bytes ≥ 0x80 as
+identifier characters, so the unbraced form names another, unset variable. `bundles/core/tests/run.sh`
+checks both.

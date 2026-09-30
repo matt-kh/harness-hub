@@ -48,6 +48,7 @@ rf_provider() {
   esac
 }
 
+# shellcheck disable=SC2034  # rf_load sets globals for the sourcing script (see header), not for this file
 rf_load() {
   root=$(rf_root) || { echo '{"error":"not a git repo"}'; exit 1; }
   host=$(rf_host "$root")

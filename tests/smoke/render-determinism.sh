@@ -4,10 +4,12 @@
 set -eu
 here=$(cd "$(dirname "$0")/../.." && pwd)
 cfg="$here/tests/fixtures/harness.ci.toml"
-tmp=$(mktemp -d "${TMPDIR:-/tmp}/harness-render.XXXXXX")
+# macOS $TMPDIR ends in "/": strip it so no "//" reaches paths the engine normalises
+tmpdir=${TMPDIR:-/tmp}
+tmp=$(mktemp -d "${tmpdir%/}/harness-render.XXXXXX")
 trap 'rm -rf "$tmp"' EXIT
-export HOME="$tmp/home"
-mkdir -p "$HOME"
+mkdir -p "$tmp/home"
+HOME="$(cd "$tmp/home" && pwd)"; export HOME   # normalised: hook commands embed $HOME
 unset XDG_STATE_HOME XDG_DATA_HOME HARNESS_CONFIG 2>/dev/null || true
 all=claude,gemini,copilot,codex,opencode
 "$here/bin/harness" render --config "$cfg" --providers "$all" --out "$tmp/a" > /dev/null

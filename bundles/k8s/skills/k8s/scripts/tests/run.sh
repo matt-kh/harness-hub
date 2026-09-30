@@ -101,6 +101,7 @@ chk() {  # chk <label> <condition-exit>
   cases=$((cases + 1))
   if [ "$1" = 0 ]; then echo "PASS $2"; else echo "FAIL $2"; fail=1; fi
 }
+ck() { local d=$1; shift; "$@"; chk $? "$d"; }  # ck <label> <test...>: run the test, record it
 
 grep -q '\[PROD\]' "$tmp/prod-banner-json.err"; chk $? "prod-cluster banner carries [PROD]"
 grep -q 'context=dev-cluster server=v1.26.15+testr1' "$tmp/health-json.err"
@@ -125,7 +126,7 @@ grep -q 'never printed' "$tmp/secret-keys-json.out"; chk $? "secret-keys states 
 # ------------------------------------------------------------ harness parameters
 K8S_GITOPS_REPO_MATCH=no-such-repo python3 "$CLI" argocd --json > "$tmp/p-match.out" 2>/dev/null
 ! grep -q '"local_path": "HERE\|"local_path": "/' "$tmp/p-match.out"; chk $? "K8S_GITOPS_REPO_MATCH that matches nothing skips the local-path check"
-K8S_GITOPS_ROOT= python3 "$CLI" argocd --json > /dev/null 2> "$tmp/p-noroot.err"
+K8S_GITOPS_ROOT='' python3 "$CLI" argocd --json > /dev/null 2> "$tmp/p-noroot.err"
 grep -q 'k8s.gitops_root not set' "$tmp/p-noroot.err"; chk $? "unset gitops root prints one note and skips the check"
 K8S_CLUSTERS_MD="$tmp/state/clusters.md" python3 "$CLI" contexts --write --json > /dev/null 2>&1
 grep -q '^# Clusters' "$tmp/state/clusters.md"; chk $? "contexts --write writes K8S_CLUSTERS_MD"
@@ -135,7 +136,7 @@ grep -q '\[PROD\]' "$tmp/p-prod.err"; chk $? "k8s.prod_re from the harness confi
 K8S_PROD_RE='^never$' HARNESS_CONFIG_JSON="$tmp/cfg.json" python3 "$CLI" health --json > /dev/null 2> "$tmp/p-env.err"
 ! grep -q '\[PROD\]' "$tmp/p-env.err"; chk $? "K8S_PROD_RE in the environment wins over the config"
 HARNESS_CONFIG_JSON="$tmp/cfg.json" python3 "$CLI" contexts --write --json > /dev/null 2>&1
-[ -s "$tmp/cfg/clusters.md" ]; chk $? "k8s.clusters_doc from the harness config is the --write target"
+ck "k8s.clusters_doc from the harness config is the --write target" [ -s "$tmp/cfg/clusters.md" ]
 
 # usage / unknown command
 python3 "$CLI" > "$tmp/usage.out" 2>&1; rc=$?
@@ -147,11 +148,11 @@ python3 "$CLI" health -h > "$tmp/h.out" 2>&1; rc=$?
 
 # ------------------------------------------------------------------ stub log invariants
 bad=$(grep '^kubectl ' "$STUB_LOG" | grep -v '^kubectl config ' | grep -v -- '--context ' | head -3)
-[ -z "$bad" ]; chk $? "every kubectl call passes --context"
+ck "every kubectl call passes --context" [ -z "$bad" ]
 bad=$(grep '^kubectl ' "$STUB_LOG" | grep -v '^kubectl config ' | grep -v -- '--request-timeout=' | head -3)
-[ -z "$bad" ]; chk $? "every kubectl call passes --request-timeout"
+ck "every kubectl call passes --request-timeout" [ -z "$bad" ]
 bad=$(grep '^helm ' "$STUB_LOG" | grep -v -- '--kube-context ' | head -3)
-[ -z "$bad" ]; chk $? "every helm call passes --kube-context"
+ck "every helm call passes --kube-context" [ -z "$bad" ]
 ! grep -q 'use-context' "$STUB_LOG"; chk $? "no call switches the kubeconfig context"
 ! grep 'secret' "$STUB_LOG" | grep -qE -- '-o[ =]yaml|--output[ =]yaml'; chk $? "no Secret is fetched as yaml"
 ! grep -qE '\b(exec|attach|cp|debug|port-forward|proxy|apply|delete|patch|edit|scale|create)\b' \

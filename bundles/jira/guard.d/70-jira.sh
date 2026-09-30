@@ -39,7 +39,7 @@ if printf '%s' "$flat" | grep -qE '\bjira(\.py)?\s+(set|create|transition|upload
     clause=$(printf '%s' "$flat" | grep -oE '\bjira(\.py)?\s+link\s+[^;&|]*' | head -1)
     lkeys=$(printf '%s' "$clause" | grep -oE "$KEY_RE" | sort -u)
     [ "$(printf '%s\n' "$lkeys" | grep -c .)" -eq 2 ] || deny "jira link needs exactly two distinct literal ticket keys (no \$VARS)"
-    ltype=$(printf '%s' "$clause" | sed -E "s/.*\blink[[:space:]]+${KEY_RE}[[:space:]]+//; s/[[:space:]]+${KEY_RE}.*$//; s/^[\"']//; s/[\"']$//" | tr 'A-Z' 'a-z')
+    ltype=$(printf '%s' "$clause" | sed -E "s/.*(^|[^[:alnum:]_])link[[:space:]]+${KEY_RE}[[:space:]]+//; s/[[:space:]]+${KEY_RE}.*$//; s/^[\"']//; s/[\"']$//" | tr 'A-Z' 'a-z')
     printf '%s' "$ltype" | grep -qE "$LINK_TYPES_RE" || deny "jira link type '$ltype' not permitted (allowed: $LINK_TYPES_RE)"
     for k in $lkeys; do
       lb=$(fetch_labels "$k") || ask "jira link — could not verify labels on $k"
@@ -77,8 +77,8 @@ if printf '%s' "$flat" | grep -qE '\bjira(\.py)?\s+(set|create|transition|upload
       [ -n "$lc" ] || continue
       n_parsed=$((n_parsed+1))
       act=$(printf '%s' "$lc" | awk '{print $4}')
-      lbls=$(printf '%s' "$lc" | cut -d' ' -f5- | tr -d "\"'" | tr ' ,' '\n\n' | grep -v '^$')
-      if [ "$act" = add ] && [ -n "$lbls" ] && ! printf '%s\n' "$lbls" | grep -vqE "$AGENT_LABEL_RE"; then
+      lbl_list=$(printf '%s' "$lc" | cut -d' ' -f5- | tr -d "\"'" | tr ' ,' '\n\n' | grep -v '^$')
+      if [ "$act" = add ] && [ -n "$lbl_list" ] && ! printf '%s\n' "$lbl_list" | grep -vqE "$AGENT_LABEL_RE"; then
         n_free=$((n_free+1))
       fi
     done <<EOF
@@ -106,7 +106,7 @@ EOF
   klist=$(printf '%s' "$keys" | tr '\n' ' ')
 
   if $all_gov; then
-    [ "$LABELED_DECISION" = "allow" ] && allow "jira write to $klist— ticket(s) carry an agent-* label"
+    [ "$LABELED_DECISION" = "allow" ] && allow "jira write to ${klist}— ticket(s) carry an agent-* label"
     ask "jira write to $klist(ticket(s) carry an agent-* label)"
   fi
   $is_transition && [ "$ALLOW_TRANSITION" = 1 ] && ask "jira transition on $klist — human ticket; transition allowed in this repo by WORK_TICKET_ALLOW_TRANSITION=1"

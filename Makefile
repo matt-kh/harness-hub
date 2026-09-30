@@ -25,9 +25,9 @@ docs-generate:
 	@$(HARNESS) docs generate
 
 render-check:
-	@rm -rf $(RENDER_TMP) && mkdir -p $(RENDER_TMP)/h1 $(RENDER_TMP)/h2
-	@HOME=$(RENDER_TMP)/h1 $(HARNESS) render --config $(CI_CONFIG) --out $(RENDER_TMP)/r1
-	@HOME=$(RENDER_TMP)/h2 $(HARNESS) render --config $(CI_CONFIG) --out $(RENDER_TMP)/r2
+	@rm -rf $(RENDER_TMP) && mkdir -p $(RENDER_TMP)/home
+	@HOME=$(RENDER_TMP)/home $(HARNESS) render --config $(CI_CONFIG) --out $(RENDER_TMP)/r1
+	@HOME=$(RENDER_TMP)/home $(HARNESS) render --config $(CI_CONFIG) --out $(RENDER_TMP)/r2
 	@diff -r $(RENDER_TMP)/r1 $(RENDER_TMP)/r2 && echo "render-check: deterministic"
 
 install:

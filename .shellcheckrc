@@ -1,0 +1,4 @@
+# Follow `. file` / `source file` (with `# shellcheck source=` hints resolved next to the
+# sourcing script), so variables set by sourced libraries are known to their callers.
+external-sources=true
+source-path=SCRIPTDIR
