@@ -31,7 +31,7 @@ if printf '%s' "$flat" | grep -qE '\bgit(\s+-C\s+\S+)?\s+push\b'; then
     fi
     printf '%s' "$clause" | grep -qE '\s--(all|mirror|tags)\b' && continue   # handled below / tags only
     pos=(); skip=0
-    for tok in $(printf '%s' "$clause" | sed -E 's/^git(\s+-C\s+\S+)?\s+push\b//'); do
+    for tok in $(printf '%s' "$clause" | sed -E 's/^git([[:space:]]+-C[[:space:]]+[^[:space:]]+)?[[:space:]]+push//'); do
       if [ $skip -eq 1 ]; then skip=0; continue; fi
       case "$tok" in
         -o|--push-option|--repo|--receive-pack|--exec) skip=1 ;;

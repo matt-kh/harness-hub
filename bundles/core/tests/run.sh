@@ -41,6 +41,18 @@ while IFS= read -r f; do
 done < <(find "$bundles" -type f \( -name '*.sh' \) -not -path '*/golden/*' | sort)
 ck "bash -n on every *.sh${bad:+ —$bad}" [ -z "$bad" ]
 
+# 4b. macOS portability traps the Linux job cannot see (guard/test rows are exempt: they quote
+#     commands). BSD sed/awk have no \s \S \b \B \w \W \< \> (they match the literal letter; use
+#     [[:space:]] etc.), and macOS ctype treats bytes >= 0x80 as identifier chars in UTF-8, so
+#     "$var—" names a different, unset variable (set -u aborts): write "${var}—".
+src=$(find "$bundles" -type f -name '*.sh' -not -name tests.sh -not -path '*/tests/*' -not -path '*/golden/*' | sort)
+# shellcheck disable=SC2086
+gnu_esc=$(printf '%s\n' $src | xargs grep -nE '(sed|awk)[^|]*\\[sSbBwW<>]' 2>/dev/null)
+ck "no GNU-only regex escapes in sed/awk${gnu_esc:+ — $gnu_esc}" [ -z "$gnu_esc" ]
+# shellcheck disable=SC2086
+var_mb=$(printf '%s\n' $src | LC_ALL=C xargs grep -nE '\$[A-Za-z_][A-Za-z0-9_]*[^[:print:][:space:]]' 2>/dev/null)
+ck "no \$var directly followed by a non-ASCII byte${var_mb:+ — $var_mb}" [ -z "$var_mb" ]
+
 # 5. compat helpers
 # shellcheck source=../lib/compat.sh
 . "$core/lib/compat.sh"
