@@ -56,9 +56,12 @@ repos:
         pass_filenames: false
         always_run: true
         stages: [pre-commit]
+      # Fast subset only: git opens the SSH connection before pre-push hooks run, and the full
+      # suite (~5 min, guard rows on every bundle) idles it out. CI runs everything; run
+      # `make test` before pushing guard or skill changes.
       - id: harness-test
-        name: harness test (all suites)
-        entry: bin/harness test
+        name: harness test (unit + smoke)
+        entry: bash -c 'bin/harness test unit && bin/harness test smoke'
         language: system
         pass_filenames: false
         always_run: true

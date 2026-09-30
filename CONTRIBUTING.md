@@ -10,8 +10,8 @@ page is the practical loop.
 ```sh
 git clone git@github.com:<you>/harness-hub.git && cd harness-hub
 git config user.email "<id>+<login>@users.noreply.github.com"   # the gate rejects other addresses
-make install        # pre-commit hooks: pre-commit, commit-msg, pre-push
-make test           # bin/harness test — guard rows, engine unit tests, bundle tests
+make install        # pre-commit hooks: pre-commit, commit-msg, pre-push (unit + smoke only)
+make test           # bin/harness test — guard rows, engine unit tests, bundle tests (~5 min; run before pushing guard/skill changes)
 make lint           # bin/harness lint + Markdown link check
 make gate           # private-identifier gate + its self-test
 make docs           # bin/harness docs check (generated regions are current)
