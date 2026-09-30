@@ -1,0 +1,44 @@
+{
+  "apiVersion": "v1",
+  "kind": "List",
+  "items": [
+    {
+      "apiVersion": "argoproj.io/v1alpha1",
+      "kind": "ApplicationSet",
+      "metadata": {
+        "name": "shop-envs",
+        "namespace": "argocd"
+      },
+      "spec": {
+        "generators": [
+          {
+            "git": {
+              "repoURL": "https://gitlab.example.invalid/example-org/gitops.git",
+              "directories": [
+                {
+                  "path": "apps/*/overlays/*"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "status": {
+        "conditions": [
+          {
+            "type": "ResourcesUpToDate",
+            "status": "True"
+          },
+          {
+            "type": "ErrorOccurred",
+            "status": "True",
+            "message": "error generating params: repository not accessible"
+          }
+        ]
+      }
+    }
+  ],
+  "metadata": {
+    "resourceVersion": "1"
+  }
+}

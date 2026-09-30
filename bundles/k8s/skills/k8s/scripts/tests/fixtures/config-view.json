@@ -1,0 +1,84 @@
+{
+  "kind": "Config",
+  "apiVersion": "v1",
+  "preferences": {},
+  "current-context": "dev-cluster",
+  "clusters": [
+    {
+      "name": "dev-cluster",
+      "cluster": {
+        "server": "https://k8s.example.invalid:6443",
+        "insecure-skip-tls-verify": true
+      }
+    },
+    {
+      "name": "prod-cluster",
+      "cluster": {
+        "server": "https://prod.example.invalid:6443",
+        "insecure-skip-tls-verify": true
+      }
+    },
+    {
+      "name": "unreachable",
+      "cluster": {
+        "server": "https://192.0.2.1:6443",
+        "insecure-skip-tls-verify": true
+      }
+    },
+    {
+      "name": "forbidden",
+      "cluster": {
+        "server": "https://rbac.example.invalid:6443",
+        "insecure-skip-tls-verify": true
+      }
+    }
+  ],
+  "users": [
+    {
+      "name": "dev-cluster",
+      "user": {}
+    },
+    {
+      "name": "prod-cluster",
+      "user": {}
+    },
+    {
+      "name": "unreachable",
+      "user": {}
+    },
+    {
+      "name": "forbidden",
+      "user": {}
+    }
+  ],
+  "contexts": [
+    {
+      "name": "dev-cluster",
+      "context": {
+        "cluster": "dev-cluster",
+        "user": "dev-cluster"
+      }
+    },
+    {
+      "name": "prod-cluster",
+      "context": {
+        "cluster": "prod-cluster",
+        "user": "prod-cluster"
+      }
+    },
+    {
+      "name": "unreachable",
+      "context": {
+        "cluster": "unreachable",
+        "user": "unreachable"
+      }
+    },
+    {
+      "name": "forbidden",
+      "context": {
+        "cluster": "forbidden",
+        "user": "forbidden"
+      }
+    }
+  ]
+}

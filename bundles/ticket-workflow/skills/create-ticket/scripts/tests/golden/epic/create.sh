@@ -1,0 +1,1 @@
+jira create PROJ Epic 'Dataset export and audit tooling' --description "$(cat OUT/description.txt)" --field 'labels=["agent-drafted"]' --field 'priority={"name":"Medium"}' --field 'assignee={"name":"jdoe"}' --field 'customfield_21205=Dataset export'

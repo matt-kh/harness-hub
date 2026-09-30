@@ -1,0 +1,22 @@
+# Claude Code permission rules contributed by bundle `core` (merged into settings.json
+# `permissions` by the claude provider; other providers translate what they can).
+# git reads plus every credential-file Read deny (defence in depth: the files stay denied even when the tool's bundle is not installed; the guard's 20-credentials section covers the Bash side).
+
+[permissions]
+allow = [
+  "Bash(git worktree list:*)",
+]
+ask = []
+deny = [
+  "Read(~/.kube/**)",
+  "Read(~/.config/jira)",
+  "Read(~/.config/glab-cli/**)",
+  "Read(~/.config/gdoc/**)",
+  "Read(~/.config/gh/**)",
+  "Read(~/.claude/.credentials.json)",
+  "Read(~/.claude/remote-settings.json)",
+  "Read(~/.aws/**)",
+  "Read(~/.ssh/**)",
+  "Read(**/.env)",
+  "Read(**/.env.*)",
+]

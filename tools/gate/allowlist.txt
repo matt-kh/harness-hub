@@ -14,3 +14,4 @@
 
 ^@email$	^noreply@github\.com$	GitHub web-flow committer on merges and web edits
 ^tools/gate/README\.md$	public:ipv4: 	example of the gate's own output
+^bundles/k8s/skills/k8s/scripts/tests/fixtures/(helm-values-shop\.json|logs-shop-api-0-api\.txt)$	AKIAIOSFODNN7EXAMPLE	redaction fixture: AWS documentation example key the k8s redactor must mask

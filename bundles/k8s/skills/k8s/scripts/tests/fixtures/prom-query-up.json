@@ -1,0 +1,41 @@
+{
+  "status": "success",
+  "data": {
+    "resultType": "vector",
+    "result": [
+      {
+        "metric": {
+          "__name__": "up",
+          "job": "apiserver",
+          "instance": "192.0.2.11:6443"
+        },
+        "value": [
+          1758585600,
+          "1"
+        ]
+      },
+      {
+        "metric": {
+          "__name__": "up",
+          "job": "kubelet",
+          "instance": "192.0.2.12:10250"
+        },
+        "value": [
+          1758585600,
+          "1"
+        ]
+      },
+      {
+        "metric": {
+          "__name__": "up",
+          "job": "node-exporter",
+          "instance": "192.0.2.13:9796"
+        },
+        "value": [
+          1758585600,
+          "0"
+        ]
+      }
+    ]
+  }
+}

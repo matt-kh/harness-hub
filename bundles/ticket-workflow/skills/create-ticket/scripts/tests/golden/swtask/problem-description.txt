@@ -1,0 +1,10 @@
+*Context:* The on-prem registry certificate expires on 2026-10-01.
+
+*Goal:* Registry serves a renewed certificate with no pull failures.
+
+*Acceptance criteria:*
+ # New certificate installed
+ # Nodes pull images without TLS errors
+
+----
+Drafted by Claude Code (create-ticket) for jdoe on 2026-09-09 — review and edit freely.

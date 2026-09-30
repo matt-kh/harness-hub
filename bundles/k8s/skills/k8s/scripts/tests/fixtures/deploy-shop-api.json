@@ -1,0 +1,101 @@
+{
+  "apiVersion": "apps/v1",
+  "kind": "Deployment",
+  "metadata": {
+    "name": "shop-api",
+    "namespace": "shop",
+    "generation": 5,
+    "creationTimestamp": "2026-06-01T09:00:00Z"
+  },
+  "spec": {
+    "replicas": 2,
+    "selector": {
+      "matchLabels": {
+        "app": "shop-api"
+      }
+    },
+    "template": {
+      "metadata": {
+        "labels": {
+          "app": "shop-api"
+        }
+      },
+      "spec": {
+        "containers": [
+          {
+            "name": "api",
+            "image": "registry.example.invalid/shop/api:1.4.2",
+            "imagePullPolicy": "IfNotPresent",
+            "resources": {
+              "requests": {
+                "cpu": "500m",
+                "memory": "1Gi"
+              },
+              "limits": {
+                "cpu": "2",
+                "memory": "4Gi"
+              }
+            },
+            "livenessProbe": {
+              "httpGet": {
+                "path": "/healthz",
+                "port": 8080
+              }
+            },
+            "readinessProbe": {
+              "httpGet": {
+                "path": "/ready",
+                "port": 8080
+              }
+            },
+            "securityContext": {
+              "runAsNonRoot": true,
+              "allowPrivilegeEscalation": false
+            }
+          },
+          {
+            "name": "sidecar",
+            "image": "registry.example.invalid/shop/envoy:1.29",
+            "imagePullPolicy": "IfNotPresent",
+            "resources": {
+              "requests": {
+                "cpu": "100m",
+                "memory": "128Mi"
+              },
+              "limits": {
+                "cpu": "200m",
+                "memory": "256Mi"
+              }
+            },
+            "securityContext": {
+              "runAsNonRoot": true,
+              "allowPrivilegeEscalation": false
+            }
+          }
+        ]
+      }
+    }
+  },
+  "status": {
+    "observedGeneration": 4,
+    "replicas": 2,
+    "readyReplicas": 1,
+    "updatedReplicas": 2,
+    "availableReplicas": 1,
+    "unavailableReplicas": 1,
+    "conditions": [
+      {
+        "type": "Available",
+        "status": "False",
+        "reason": "MinimumReplicasUnavailable",
+        "message": "Deployment does not have minimum availability."
+      },
+      {
+        "type": "Progressing",
+        "status": "True",
+        "reason": "ReplicaSetUpdated",
+        "message": "ReplicaSet \"shop-api-5d8b9c7f4\" is progressing."
+      }
+    ]
+  }
+}

@@ -1,0 +1,10 @@
+# Defaults for bundle `jira`. jira.url has no default: set it in local/harness.toml.
+
+[jira]
+kind = "server"
+link_types = ["relates", "blocks", "issue split"]
+fields = {}
+issue_types = []
+
+[jira.mcp]
+enabled = true

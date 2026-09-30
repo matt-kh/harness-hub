@@ -1,0 +1,7 @@
+2026-09-23T02:10:01Z INFO  starting shop-api 1.4.2
+2026-09-23T02:10:01Z DEBUG db.password=hunter2
+2026-09-23T02:10:01Z DEBUG dsn=postgres://shop:hunter2@pg.shop.example.com:5432/shop
+2026-09-23T02:10:02Z DEBUG bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ2b2x0YSJ9.c2lnbmF0dXJl
+2026-09-23T02:10:02Z DEBUG aws_access_key_id = AKIAIOSFODNN7EXAMPLE
+2026-09-23T02:10:03Z ERROR failed to connect to pg.shop.example.com:5432: connection refused
+2026-09-23T02:10:03Z FATAL exiting with code 1

@@ -1,0 +1,34 @@
+# Claude Code permission rules contributed by bundle `gitlab` (merged into settings.json
+# `permissions` by the claude provider; other providers translate what they can).
+# glab reads allowed, team-visible writes ask (the guard's 40/50 sections gate the rest).
+
+[permissions]
+allow = [
+  "Bash(glab api:*)",
+  "Bash(glab auth status:*)",
+  "Bash(glab ci list:*)",
+  "Bash(glab ci status:*)",
+  "Bash(glab issue list:*)",
+  "Bash(glab issue view:*)",
+  "Bash(glab label list:*)",
+  "Bash(glab mr diff:*)",
+  "Bash(glab mr list:*)",
+  "Bash(glab mr view:*)",
+  "Bash(glab release list:*)",
+  "Bash(glab release view:*)",
+  "Bash(glab repo view:*)",
+]
+ask = [
+  "Bash(glab ci cancel:*)",
+  "Bash(glab ci retry:*)",
+  "Bash(glab ci run:*)",
+  "Bash(glab issue close:*)",
+  "Bash(glab issue create:*)",
+  "Bash(glab issue note:*)",
+  "Bash(glab issue update:*)",
+  "Bash(glab mr approve:*)",
+  "Bash(glab mr merge:*)",
+  "Bash(glab release create:*)",
+  "Bash(glab release delete:*)",
+]
+deny = []

@@ -1,0 +1,21 @@
+# exit=1
+# stderr:
+context=dev-cluster server=v1.26.15+testr1
+# stdout:
+# k8s helm — dev-cluster
+
+## Findings (2)
+
+| sev | kind | ns/name | message |
+|---|---|---|---|
+| crit | HelmRelease | shop/shop | status=failed — timed out waiting for the condition |
+| warn | HelmRelease | default/reportd | status=pending-upgrade — a previous operation may still hold the lock |
+
+## releases
+
+| ns | release | status | chart | appVersion | revision | updated | history | description |
+|---|---|---|---|---|---|---|---|---|
+| shop | shop | failed | shop-2.3.1 | 1.4.2 | 9 | 2026-09-22 08:14:03 | r7 superseded Upgrade complete; r8 superseded Upgrade complete; r9 failed timed out waiting for the condition | timed out waiting for the condition |
+| shop | shop-cache | deployed | redis-19.0.2 | 7.2.4 | 3 | 2026-08-30 11:02:44 |  |  |
+| ingress-nginx | ingress-nginx | deployed | ingress-nginx-4.10.1 | 1.10.1 | 4 | 2026-07-14 05:13:10 |  |  |
+| default | reportd | pending-upgrade | reportd-0.4.0 | 2.0.1 | 2 | 2026-09-20 02:00:00 | r1 deployed Install complete; r2 pending-upgrade Preparing upgrade | Preparing upgrade |

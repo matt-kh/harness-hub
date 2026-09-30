@@ -1,0 +1,10 @@
+{
+  "provider": "github",
+  "me": "jdoe",
+  "project": "jdoe/dotlab",
+  "creatable": true,
+  "can_assign": true,
+  "labels": ["agent-drafted", "agent-worked", "bug", "enhancement", "documentation", "good first issue"],
+  "milestones": ["v0.3", "v0.4"],
+  "templates": [".github/ISSUE_TEMPLATE/bug_report.md"]
+}

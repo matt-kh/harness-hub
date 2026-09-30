@@ -1,0 +1,11 @@
+# MCP servers contributed by bundle `jira`. Secrets are referenced by file only: `env_files`
+# becomes a launcher that reads the file at start, so no token is ever written into a provider
+# config (the engine renders `bash -c 'export VAR="$(cat FILE)"; exec CMD ARGS'`).
+
+[servers.jira-mcp]
+when = "jira.mcp.enabled"
+type = "stdio"
+command = "uvx"
+args = ["mcp-atlassian"]
+env = { JIRA_URL = "{{ jira.url }}", READ_ONLY_MODE = "true" }
+env_files = { JIRA_PERSONAL_TOKEN = "~/.config/jira" }

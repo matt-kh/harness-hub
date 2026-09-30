@@ -1,0 +1,199 @@
+[bundle]
+name = "gdoc"
+schema_version = "1"
+summary = "gdoc CLI for Google Docs / Drive / Sheets / Gmail with provenance-gated writes; drafts only, never sends"
+description = """
+Ships the stdlib `gdoc` CLI and its skill (search, read, export, create, import/append/replace,
+Sheets get/append/update, Gmail search/read/draft), guard section 80 (writes to human files ask,
+`mark` asks always, `api` is GET-only, create and mail draft are promptless) and the Workspace
+section of the instructions. Needs a one-time GCP OAuth **Desktop** client inside your
+Workspace organisation that only a human (sometimes an admin) can create — six manual steps.
+"""
+depends_on = ["core"]
+recommends = []
+conflicts_with = []
+any_of = []
+tags = ["docs", "mail"]
+owners = []
+docs = "docs/bundles/gdoc.md"
+stability = "stable"
+
+[requires.binaries.python3]
+min_version = "3.9"
+version_cmd = "python3 --version"
+version_regex = 'Python ([0-9]+\.[0-9]+)'
+why = "The gdoc CLI is stdlib python (urllib OAuth + REST)."
+
+[requires.config."google.domain"]
+type = "string"
+required = true
+pattern = '^[a-z0-9.-]+\.[a-z]{2,}$'
+description = "Your Workspace domain. Sign-in is restricted to it (OAuth `hd`, GDOC_HD) and the GCP project must live inside this organisation for an Internal consent screen."
+example = "example.com"
+
+[requires.secrets.gdoc_client]
+where = "~/.config/gdoc/client_secret.json"
+written_by = "human (downloaded from the GCP console)"
+mode = "0600"
+description = "OAuth Desktop client. Not a bearer credential on its own; still never printed (`gdoc auth status` reports presence and mode)."
+
+[requires.secrets.gdoc_token]
+where = "~/.config/gdoc/token.json"
+written_by = "gdoc auth login"
+mode = "0600"
+description = "Refresh + access token."
+rotate = "docs/runbooks/rotate-google-oauth.md"
+
+[provides]
+rules = ["rules/80-gdoc.md"]
+skills = ["skills/gdoc"]
+skill_fragments = []
+agents = []
+guard_rules = ["guard.d/80-gdoc.sh"]
+permissions = "permissions.toml"
+mcp = ""
+bin = [{ name = "gdoc", target = "skills/gdoc/scripts/gdoc.py" }]
+
+[provides.env]
+GDOC_HD = "{{ google.domain }}"
+
+[[manual_steps]]
+id = "gcp-project"
+title = "Create a GCP project inside your organisation"
+once_per = "account"
+needs = ["browser"]
+minutes = 3
+why = "An **Internal** consent screen (no verification, no test-user cap, refresh tokens that do not expire after 7 days) is only offered to projects inside the {{ google.domain }} organisation."
+how = """
+1. https://console.cloud.google.com/projectcreate
+2. **Organisation** must show `{{ google.domain }}` (not "No organisation"). Name: e.g. `agent-harness-gdoc`.
+3. If project creation is disabled for your account, that is an admin gate: ask IT for a project
+   in the org, or for the `roles/resourcemanager.projectCreator` role.
+"""
+[manual_steps.verify]
+cmd = "true"
+expect = { exit = 0 }
+
+[[manual_steps]]
+id = "enable-apis"
+title = "Enable the Drive, Docs, Sheets and Gmail APIs"
+once_per = "account"
+needs = ["browser"]
+minutes = 2
+why = "Calls to an API that is not enabled fail with 403 accessNotConfigured (gdoc exit 2)."
+how = "**APIs & Services → Library** → search and **Enable** each: Google Drive API, Google Docs API, Google Sheets API, Gmail API. Wait about a minute after enabling."
+[manual_steps.verify]
+cmd = "true"
+expect = { exit = 0 }
+
+[[manual_steps]]
+id = "consent-screen"
+title = "Configure the OAuth consent screen as Internal"
+once_per = "account"
+needs = ["browser"]
+minutes = 2
+why = "Internal is the reason for step gcp-project: an External app in testing mode expires refresh tokens after 7 days."
+how = """
+**APIs & Services → OAuth consent screen** (new console: **Google Auth Platform → Branding / Audience**):
+- Audience **Internal**
+- App name `gdoc (agent-harness)`; support and developer email: {{ identity.email }}
+- Scopes: leave empty — the CLI requests `drive`, `gmail.readonly` and `gmail.compose` at sign-in.
+  There is no send scope: gdoc cannot put mail on the wire.
+"""
+[manual_steps.verify]
+cmd = "true"
+expect = { exit = 0 }
+
+[[manual_steps]]
+id = "desktop-client"
+title = "Create a Desktop OAuth client and install its JSON"
+once_per = "account"
+needs = ["browser"]
+minutes = 2
+why = "gdoc uses the installed-app loopback flow; only **Desktop app** clients accept any 127.0.0.1 port. A Web client fails with redirect_uri_mismatch."
+how = """
+**APIs & Services → Credentials → Create credentials → OAuth client ID → Application type: Desktop app**,
+name `gdoc`, **Download JSON**. Then:
+```
+install -d -m 700 ~/.config/gdoc
+install -m 600 ~/Downloads/client_secret*.json ~/.config/gdoc/client_secret.json
+gdoc auth status
+```
+"""
+[manual_steps.verify]
+cmd = "test -s ~/.config/gdoc/client_secret.json"
+expect = { exit = 0 }
+unblocks = ["gdoc-client"]
+
+[[manual_steps]]
+id = "gdoc-login"
+title = "Sign in"
+once_per = "machine"
+needs = ["browser"]
+minutes = 1
+why = "Writes ~/.config/gdoc/token.json; agents cannot do this (browser + Google sign-in)."
+how = """
+`gdoc auth login --hint {{ identity.email }}` — approve in the browser, then `gdoc whoami`.
+WSL2: the browser may not open by itself; copy the printed URL into your Windows browser (it
+can reach the WSL loopback listener). If it cannot: `gdoc auth login --no-browser`, approve,
+and paste the whole `http://127.0.0.1:…/?state=…&code=…` URL from the address bar at the prompt.
+"""
+[manual_steps.verify]
+cmd = "gdoc whoami"
+expect = { exit = 0 }
+timeout = 20
+unblocks = ["gdoc-auth"]
+
+[[manual_steps]]
+id = "admin-trust"
+title = "Admin allow-list (only if sign-in says 'blocked by your administrator')"
+once_per = "org"
+needs = ["admin", "browser"]
+minutes = 5
+why = "Tenants that mark Drive/Gmail as Restricted block unverified internal apps until a Workspace admin trusts them."
+how = "A Workspace admin: **admin.google.com → Security → Access and data control → API controls → Manage Third-Party App Access → Configure new app → OAuth App Name or Client ID** → paste the client ID from `desktop-client` → scope it to your OU → **Trusted**."
+[manual_steps.verify]
+cmd = "gdoc whoami"
+expect = { exit = 0 }
+timeout = 20
+
+[[doctor_checks]]
+id = "gdoc-cli"
+title = "gdoc CLI on PATH"
+severity = "fail"
+cmd = "command -v gdoc >/dev/null && gdoc 2>&1 | grep -q 'Commands'"
+expect = { exit = 0 }
+offline_skip = false
+fix = "harness apply"
+
+[[doctor_checks]]
+id = "gdoc-client"
+title = "OAuth Desktop client installed"
+severity = "warn"
+cmd = "test -s ~/.config/gdoc/client_secret.json"
+expect = { exit = 0 }
+offline_skip = false
+fix = "desktop-client"
+
+[[doctor_checks]]
+id = "gdoc-auth"
+title = "gdoc signed in"
+severity = "warn"
+cmd = "gdoc whoami"
+expect = { exit = 0 }
+timeout = 20
+offline_skip = true
+fix = "gdoc-login"
+
+[[doctor_checks]]
+id = "gdoc-modes"
+title = "~/.config/gdoc is 0700 and its files 0600"
+severity = "warn"
+cmd = "d=~/.config/gdoc; m() { stat -c %a \"$1\" 2>/dev/null || stat -f %Lp \"$1\"; }; test ! -e \"$d\" || { [ \"$(m \"$d\")\" = 700 ] && for f in \"$d\"/*.json; do [ -e \"$f\" ] || continue; [ \"$(m \"$f\")\" = 600 ] || exit 1; done; }"
+expect = { exit = 0 }
+offline_skip = false
+fix = "chmod 700 ~/.config/gdoc && chmod 600 ~/.config/gdoc/*.json"
+
+[uninstall]
+keeps = ["~/.config/gdoc/**"]
+notes = "Revoke access at https://myaccount.google.com/permissions if you leave the organisation."

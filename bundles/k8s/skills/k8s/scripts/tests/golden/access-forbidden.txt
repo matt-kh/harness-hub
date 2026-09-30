@@ -1,0 +1,5 @@
+# exit=2
+# stderr:
+context=forbidden server=?
+Error from server (Forbidden): pods is forbidden: User "stub" cannot list resource "pods" in API group "" at the cluster scope
+# stdout:

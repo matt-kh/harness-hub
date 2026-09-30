@@ -1,0 +1,11 @@
+*Context:* The serving image still builds on Python 3.10, which leaves security support in 2026.
+
+*Goal:* Serving image builds and passes CI on Python 3.12.
+
+*Acceptance criteria:*
+ # Dockerfile uses a 3.12 base image
+ # CI pipeline green
+ # No runtime warnings on startup
+
+----
+Drafted by Claude Code (create-ticket) for jdoe on 2026-09-09 — review and edit freely.

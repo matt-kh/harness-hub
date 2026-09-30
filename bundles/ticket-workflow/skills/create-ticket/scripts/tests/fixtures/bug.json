@@ -1,0 +1,40 @@
+{
+ "project": "PROJ",
+ "type": "Bug",
+ "class": "defect",
+ "summary": "Filter key is overwritten when editing a filter on Browse Images",
+ "problem": "Editing an existing filter on Browse Images replaces its key with the new value instead of keeping the original key.",
+ "steps": [
+  "Open Browse Images and create a filter with key `lot`",
+  "Click Edit on the filter and change the value only",
+  "Save"
+ ],
+ "actual": "The filter key is replaced by the value text.",
+ "expected": "The key stays `lot`; only the value changes.",
+ "affected_region": "Browse Images > filter editor",
+ "environment": "Chrome 129, on-prem",
+ "affects_versions": [
+  "1.12.0"
+ ],
+ "evidence": [
+  "https://gitlab.example.com/shop/shop-ui/-/issues/12"
+ ],
+ "related": [
+  "PROJ-1280"
+ ],
+ "priority": "Medium",
+ "assignee": "jdoe",
+ "components": [
+  "Web-UI"
+ ],
+ "labels": [],
+ "problem_description_echo": false,
+ "meta": {
+  "drafted_by": "jdoe",
+  "date": "2026-09-09",
+  "sources": {
+   "priority": "default",
+   "assignee": "default"
+  }
+ }
+}

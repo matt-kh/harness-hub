@@ -1,0 +1,67 @@
+# exit=1
+# stderr:
+context=dev-cluster server=v1.26.15+testr1 ns=shop
+# stdout:
+{
+  "context": "dev-cluster",
+  "prod": false,
+  "generated_at": "TIMESTAMP",
+  "command": "events",
+  "findings": [
+    {
+      "severity": "warn",
+      "kind": "Events",
+      "ns": "shop",
+      "name": "",
+      "message": "4 Warning events in the last 8h",
+      "evidence": "BackOff, Unhealthy, FailedScheduling, ProvisioningFailed"
+    }
+  ],
+  "data": {
+    "since": "8h",
+    "by_reason": {
+      "BackOff": 331,
+      "Unhealthy": 55,
+      "FailedScheduling": 18,
+      "ProvisioningFailed": 3
+    },
+    "events": [
+      {
+        "age": "AGE",
+        "type": "Warning",
+        "reason": "BackOff",
+        "ns": "shop",
+        "object": "Pod/shop-api-0",
+        "count": 331,
+        "message": "Back-off restarting failed container api in pod shop-api-0_shop"
+      },
+      {
+        "age": "AGE",
+        "type": "Warning",
+        "reason": "FailedScheduling",
+        "ns": "shop",
+        "object": "Pod/shop-trainer-0",
+        "count": 18,
+        "message": "0/3 nodes are available: 3 Insufficient nvidia.com/gpu."
+      },
+      {
+        "age": "AGE",
+        "type": "Warning",
+        "reason": "ProvisioningFailed",
+        "ns": "shop",
+        "object": "PersistentVolumeClaim/shop-models",
+        "count": 3,
+        "message": "failed to provision volume with StorageClass \"nfs-client\""
+      },
+      {
+        "age": "AGE",
+        "type": "Warning",
+        "reason": "Unhealthy",
+        "ns": "shop",
+        "object": "Pod/shop-api-0",
+        "count": 55,
+        "message": "Readiness probe failed: HTTP probe failed with statuscode: 503"
+      }
+    ]
+  }
+}

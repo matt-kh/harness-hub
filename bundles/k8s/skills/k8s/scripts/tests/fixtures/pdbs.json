@@ -1,0 +1,23 @@
+{
+  "apiVersion": "v1",
+  "kind": "List",
+  "items": [
+    {
+      "apiVersion": "policy/v1",
+      "kind": "PodDisruptionBudget",
+      "metadata": {
+        "name": "shop-api",
+        "namespace": "shop"
+      },
+      "status": {
+        "disruptionsAllowed": 0,
+        "currentHealthy": 1,
+        "desiredHealthy": 2,
+        "expectedPods": 2
+      }
+    }
+  ],
+  "metadata": {
+    "resourceVersion": "1"
+  }
+}

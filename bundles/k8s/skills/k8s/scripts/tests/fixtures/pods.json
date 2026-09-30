@@ -1,0 +1,578 @@
+{
+  "apiVersion": "v1",
+  "kind": "List",
+  "items": [
+    {
+      "apiVersion": "v1",
+      "kind": "Pod",
+      "metadata": {
+        "name": "shop-api-0",
+        "namespace": "shop",
+        "labels": {
+          "app": "shop-api"
+        },
+        "creationTimestamp": "2026-09-01T00:00:00Z",
+        "ownerReferences": [
+          {
+            "kind": "ReplicaSet",
+            "name": "shop-api-5d8b9c7f4",
+            "uid": "rs-uid-1"
+          }
+        ]
+      },
+      "spec": {
+        "nodeName": "worker-02",
+        "serviceAccountName": "shop",
+        "containers": [
+          {
+            "name": "api",
+            "image": "registry.example.invalid/shop/api:1.4.2",
+            "imagePullPolicy": "IfNotPresent",
+            "resources": {
+              "requests": {
+                "cpu": "500m",
+                "memory": "1Gi"
+              },
+              "limits": {
+                "cpu": "2",
+                "memory": "4Gi"
+              }
+            },
+            "livenessProbe": {
+              "httpGet": {
+                "path": "/healthz",
+                "port": 8080
+              }
+            },
+            "readinessProbe": {
+              "httpGet": {
+                "path": "/ready",
+                "port": 8080
+              }
+            },
+            "securityContext": {
+              "runAsNonRoot": true,
+              "allowPrivilegeEscalation": false
+            }
+          },
+          {
+            "name": "sidecar",
+            "image": "registry.example.invalid/shop/envoy:1.29",
+            "imagePullPolicy": "IfNotPresent",
+            "resources": {
+              "requests": {
+                "cpu": "100m",
+                "memory": "128Mi"
+              },
+              "limits": {
+                "cpu": "200m",
+                "memory": "256Mi"
+              }
+            },
+            "securityContext": {
+              "runAsNonRoot": true,
+              "allowPrivilegeEscalation": false
+            }
+          }
+        ],
+        "volumes": []
+      },
+      "status": {
+        "phase": "Running",
+        "qosClass": "Burstable",
+        "podIP": "198.51.100.17",
+        "startTime": "2026-09-01T00:00:00Z",
+        "conditions": [
+          {
+            "type": "Initialized",
+            "status": "True"
+          },
+          {
+            "type": "Ready",
+            "status": "False",
+            "reason": "ContainersNotReady",
+            "message": "containers with unready status: [api]"
+          },
+          {
+            "type": "PodScheduled",
+            "status": "True"
+          }
+        ],
+        "containerStatuses": [
+          {
+            "name": "api",
+            "image": "registry.example.invalid/shop/api:1.4.2",
+            "ready": false,
+            "restartCount": 12,
+            "state": {
+              "waiting": {
+                "reason": "CrashLoopBackOff",
+                "message": "back-off 5m0s restarting failed container=api pod=shop-api-0"
+              }
+            },
+            "lastState": {
+              "terminated": {
+                "reason": "Error",
+                "exitCode": 1,
+                "finishedAt": "2026-09-23T00:00:00Z"
+              }
+            }
+          },
+          {
+            "name": "sidecar",
+            "image": "registry.example.invalid/shop/envoy:1.29",
+            "ready": true,
+            "restartCount": 0,
+            "state": {
+              "running": {
+                "startedAt": "2026-09-01T00:00:00Z"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Pod",
+      "metadata": {
+        "name": "shop-api-1",
+        "namespace": "shop",
+        "labels": {
+          "app": "shop-api"
+        },
+        "ownerReferences": [
+          {
+            "kind": "ReplicaSet",
+            "name": "shop-api-5d8b9c7f4"
+          }
+        ]
+      },
+      "spec": {
+        "nodeName": "gpu-node-01",
+        "serviceAccountName": "shop",
+        "containers": [
+          {
+            "name": "api",
+            "image": "registry.example.invalid/shop/api:1.4.2",
+            "imagePullPolicy": "IfNotPresent",
+            "resources": {
+              "requests": {
+                "cpu": "500m",
+                "memory": "1Gi"
+              },
+              "limits": {
+                "cpu": "2",
+                "memory": "4Gi"
+              }
+            },
+            "livenessProbe": {
+              "httpGet": {
+                "path": "/healthz",
+                "port": 8080
+              }
+            },
+            "readinessProbe": {
+              "httpGet": {
+                "path": "/ready",
+                "port": 8080
+              }
+            },
+            "securityContext": {
+              "runAsNonRoot": true,
+              "allowPrivilegeEscalation": false
+            }
+          },
+          {
+            "name": "sidecar",
+            "image": "registry.example.invalid/shop/envoy:1.29",
+            "imagePullPolicy": "IfNotPresent",
+            "resources": {
+              "requests": {
+                "cpu": "100m",
+                "memory": "128Mi"
+              },
+              "limits": {
+                "cpu": "200m",
+                "memory": "256Mi"
+              }
+            },
+            "securityContext": {
+              "runAsNonRoot": true,
+              "allowPrivilegeEscalation": false
+            }
+          }
+        ]
+      },
+      "status": {
+        "phase": "Running",
+        "qosClass": "Burstable",
+        "containerStatuses": [
+          {
+            "name": "api",
+            "image": "registry.example.invalid/shop/api:1.4.2",
+            "ready": true,
+            "restartCount": 0,
+            "state": {
+              "running": {
+                "startedAt": "2026-09-01T00:00:00Z"
+              }
+            }
+          },
+          {
+            "name": "sidecar",
+            "image": "registry.example.invalid/shop/envoy:1.29",
+            "ready": true,
+            "restartCount": 0,
+            "state": {
+              "running": {
+                "startedAt": "2026-09-01T00:00:00Z"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Pod",
+      "metadata": {
+        "name": "shop-trainer-0",
+        "namespace": "shop",
+        "labels": {
+          "app": "shop-trainer"
+        },
+        "ownerReferences": [
+          {
+            "kind": "StatefulSet",
+            "name": "shop-trainer"
+          }
+        ]
+      },
+      "spec": {
+        "serviceAccountName": "shop",
+        "containers": [
+          {
+            "name": "trainer",
+            "image": "registry.example.invalid/shop/trainer:0.9.0",
+            "imagePullPolicy": "IfNotPresent",
+            "resources": {
+              "requests": {
+                "cpu": "4",
+                "memory": "32Gi",
+                "nvidia.com/gpu": "2"
+              },
+              "limits": {
+                "cpu": "8",
+                "memory": "64Gi",
+                "nvidia.com/gpu": "2"
+              }
+            },
+            "livenessProbe": {
+              "httpGet": {
+                "path": "/healthz",
+                "port": 8080
+              }
+            },
+            "readinessProbe": {
+              "httpGet": {
+                "path": "/ready",
+                "port": 8080
+              }
+            },
+            "securityContext": {
+              "runAsNonRoot": true,
+              "allowPrivilegeEscalation": false
+            }
+          }
+        ]
+      },
+      "status": {
+        "phase": "Pending",
+        "conditions": [
+          {
+            "type": "PodScheduled",
+            "status": "False",
+            "reason": "Unschedulable",
+            "message": "0/3 nodes are available: 3 Insufficient nvidia.com/gpu. preemption: 0/3 nodes are available."
+          }
+        ],
+        "containerStatuses": []
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Pod",
+      "metadata": {
+        "name": "shop-cache-0",
+        "namespace": "shop",
+        "labels": {
+          "app": "shop-cache"
+        },
+        "ownerReferences": [
+          {
+            "kind": "StatefulSet",
+            "name": "shop-cache"
+          }
+        ]
+      },
+      "spec": {
+        "nodeName": "worker-02",
+        "serviceAccountName": "shop",
+        "containers": [
+          {
+            "name": "redis",
+            "image": "docker.io/library/redis:7.2",
+            "imagePullPolicy": "IfNotPresent",
+            "resources": {
+              "requests": {
+                "cpu": "200m",
+                "memory": "512Mi"
+              },
+              "limits": {
+                "cpu": "1",
+                "memory": "1Gi"
+              }
+            },
+            "livenessProbe": {
+              "httpGet": {
+                "path": "/healthz",
+                "port": 8080
+              }
+            },
+            "readinessProbe": {
+              "httpGet": {
+                "path": "/ready",
+                "port": 8080
+              }
+            },
+            "securityContext": {
+              "runAsNonRoot": true,
+              "allowPrivilegeEscalation": false
+            }
+          }
+        ]
+      },
+      "status": {
+        "phase": "Running",
+        "qosClass": "Burstable",
+        "containerStatuses": [
+          {
+            "name": "redis",
+            "image": "docker.io/library/redis:7.2",
+            "ready": true,
+            "restartCount": 3,
+            "state": {
+              "running": {
+                "startedAt": "2026-09-01T00:00:00Z"
+              }
+            },
+            "lastState": {
+              "terminated": {
+                "reason": "OOMKilled",
+                "exitCode": 137,
+                "finishedAt": "2026-09-22T10:00:00Z"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Pod",
+      "metadata": {
+        "name": "reportd-7c9f8b6d5-qq2lm",
+        "namespace": "default",
+        "labels": {
+          "app": "reportd"
+        },
+        "ownerReferences": [
+          {
+            "kind": "ReplicaSet",
+            "name": "reportd-7c9f8b6d5"
+          }
+        ]
+      },
+      "spec": {
+        "nodeName": "worker-02",
+        "serviceAccountName": "default",
+        "containers": [
+          {
+            "name": "reportd",
+            "image": "registry.example.invalid/ops/reportd:2.0.1",
+            "imagePullPolicy": "IfNotPresent",
+            "resources": {
+              "requests": {
+                "cpu": "100m",
+                "memory": "128Mi"
+              },
+              "limits": {
+                "cpu": "500m",
+                "memory": "512Mi"
+              }
+            },
+            "livenessProbe": {
+              "httpGet": {
+                "path": "/healthz",
+                "port": 8080
+              }
+            },
+            "readinessProbe": {
+              "httpGet": {
+                "path": "/ready",
+                "port": 8080
+              }
+            },
+            "securityContext": {
+              "runAsNonRoot": true,
+              "allowPrivilegeEscalation": false
+            }
+          }
+        ]
+      },
+      "status": {
+        "phase": "Running",
+        "qosClass": "Burstable",
+        "containerStatuses": [
+          {
+            "name": "reportd",
+            "image": "registry.example.invalid/ops/reportd:2.0.1",
+            "ready": false,
+            "restartCount": 0,
+            "state": {
+              "waiting": {
+                "reason": "ImagePullBackOff",
+                "message": "Back-off pulling image registry.example.invalid/ops/reportd:2.0.1"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Pod",
+      "metadata": {
+        "name": "legacy-agent-hj4kq",
+        "namespace": "ops",
+        "labels": {
+          "app": "legacy-agent"
+        },
+        "ownerReferences": [
+          {
+            "kind": "DaemonSet",
+            "name": "legacy-agent"
+          }
+        ]
+      },
+      "spec": {
+        "nodeName": "gpu-node-01",
+        "hostNetwork": true,
+        "hostPID": true,
+        "serviceAccountName": "default",
+        "volumes": [
+          {
+            "name": "root",
+            "hostPath": {
+              "path": "/"
+            }
+          },
+          {
+            "name": "docker",
+            "hostPath": {
+              "path": "/var/run/docker.sock"
+            }
+          }
+        ],
+        "containers": [
+          {
+            "name": "agent",
+            "image": "docker.io/ops/legacy-agent:latest",
+            "imagePullPolicy": "IfNotPresent",
+            "resources": {},
+            "securityContext": {
+              "privileged": true
+            }
+          }
+        ]
+      },
+      "status": {
+        "phase": "Running",
+        "qosClass": "BestEffort",
+        "containerStatuses": [
+          {
+            "name": "agent",
+            "image": "docker.io/ops/legacy-agent:latest",
+            "ready": true,
+            "restartCount": 0,
+            "state": {
+              "running": {
+                "startedAt": "2026-09-01T00:00:00Z"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Pod",
+      "metadata": {
+        "name": "nightly-report-28991230-5xzcq",
+        "namespace": "ops",
+        "ownerReferences": [
+          {
+            "kind": "Job",
+            "name": "nightly-report-28991230"
+          }
+        ]
+      },
+      "spec": {
+        "nodeName": "worker-02",
+        "serviceAccountName": "reporter",
+        "containers": [
+          {
+            "name": "run",
+            "image": "registry.example.invalid/ops/report:3.1",
+            "imagePullPolicy": "IfNotPresent",
+            "resources": {
+              "requests": {
+                "cpu": "100m",
+                "memory": "256Mi"
+              },
+              "limits": {
+                "cpu": "1",
+                "memory": "1Gi"
+              }
+            },
+            "securityContext": {
+              "runAsNonRoot": true,
+              "allowPrivilegeEscalation": false
+            }
+          }
+        ]
+      },
+      "status": {
+        "phase": "Succeeded",
+        "containerStatuses": [
+          {
+            "name": "run",
+            "image": "registry.example.invalid/ops/report:3.1",
+            "ready": true,
+            "restartCount": 0,
+            "state": {
+              "terminated": {
+                "reason": "Completed",
+                "exitCode": 0
+              }
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "metadata": {
+    "resourceVersion": "1"
+  }
+}

@@ -1,0 +1,72 @@
+# exit=1
+# stderr:
+context=dev-cluster server=v1.26.15+testr1
+# stdout:
+{
+  "context": "dev-cluster",
+  "prod": false,
+  "generated_at": "TIMESTAMP",
+  "command": "helm",
+  "findings": [
+    {
+      "severity": "crit",
+      "kind": "HelmRelease",
+      "ns": "shop",
+      "name": "shop",
+      "message": "status=failed \u2014 timed out waiting for the condition",
+      "evidence": "r7 superseded Upgrade complete; r8 superseded Upgrade complete; r9 failed timed out waiting for the condition"
+    },
+    {
+      "severity": "warn",
+      "kind": "HelmRelease",
+      "ns": "default",
+      "name": "reportd",
+      "message": "status=pending-upgrade \u2014 a previous operation may still hold the lock",
+      "evidence": "r1 deployed Install complete; r2 pending-upgrade Preparing upgrade"
+    }
+  ],
+  "data": {
+    "releases": [
+      {
+        "ns": "shop",
+        "release": "shop",
+        "status": "failed",
+        "chart": "shop-2.3.1",
+        "appVersion": "1.4.2",
+        "revision": "9",
+        "updated": "2026-09-22 08:14:03",
+        "history": "r7 superseded Upgrade complete; r8 superseded Upgrade complete; r9 failed timed out waiting for the condition",
+        "description": "timed out waiting for the condition"
+      },
+      {
+        "ns": "shop",
+        "release": "shop-cache",
+        "status": "deployed",
+        "chart": "redis-19.0.2",
+        "appVersion": "7.2.4",
+        "revision": "3",
+        "updated": "2026-08-30 11:02:44"
+      },
+      {
+        "ns": "ingress-nginx",
+        "release": "ingress-nginx",
+        "status": "deployed",
+        "chart": "ingress-nginx-4.10.1",
+        "appVersion": "1.10.1",
+        "revision": "4",
+        "updated": "2026-07-14 05:13:10"
+      },
+      {
+        "ns": "default",
+        "release": "reportd",
+        "status": "pending-upgrade",
+        "chart": "reportd-0.4.0",
+        "appVersion": "2.0.1",
+        "revision": "2",
+        "updated": "2026-09-20 02:00:00",
+        "history": "r1 deployed Install complete; r2 pending-upgrade Preparing upgrade",
+        "description": "Preparing upgrade"
+      }
+    ]
+  }
+}

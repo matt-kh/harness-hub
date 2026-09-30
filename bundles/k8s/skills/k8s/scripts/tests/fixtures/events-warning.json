@@ -1,0 +1,135 @@
+{
+  "apiVersion": "v1",
+  "kind": "List",
+  "items": [
+    {
+      "apiVersion": "v1",
+      "kind": "Event",
+      "metadata": {
+        "name": "shop-api-0.4",
+        "namespace": "shop",
+        "creationTimestamp": "@@NOW-4m@@"
+      },
+      "involvedObject": {
+        "kind": "Pod",
+        "name": "shop-api-0",
+        "namespace": "shop"
+      },
+      "reason": "BackOff",
+      "type": "Warning",
+      "message": "Back-off restarting failed container api in pod shop-api-0_shop",
+      "count": 331,
+      "firstTimestamp": "@@NOW-124m@@",
+      "lastTimestamp": "@@NOW-4m@@",
+      "eventTime": null
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Event",
+      "metadata": {
+        "name": "shop-trainer-0.9",
+        "namespace": "shop",
+        "creationTimestamp": "@@NOW-9m@@"
+      },
+      "involvedObject": {
+        "kind": "Pod",
+        "name": "shop-trainer-0",
+        "namespace": "shop"
+      },
+      "reason": "FailedScheduling",
+      "type": "Warning",
+      "message": "0/3 nodes are available: 3 Insufficient nvidia.com/gpu.",
+      "count": 18,
+      "firstTimestamp": "@@NOW-129m@@",
+      "lastTimestamp": "@@NOW-9m@@",
+      "eventTime": null
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Event",
+      "metadata": {
+        "name": "reportd-7c9f8b6d5-qq2lm.12",
+        "namespace": "default",
+        "creationTimestamp": "@@NOW-12m@@"
+      },
+      "involvedObject": {
+        "kind": "Pod",
+        "name": "reportd-7c9f8b6d5-qq2lm",
+        "namespace": "default"
+      },
+      "reason": "Failed",
+      "type": "Warning",
+      "message": "Failed to pull image \"registry.example.invalid/ops/reportd:2.0.1\": not found",
+      "count": 7,
+      "firstTimestamp": "@@NOW-132m@@",
+      "lastTimestamp": "@@NOW-12m@@",
+      "eventTime": null
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Event",
+      "metadata": {
+        "name": "shop-models.25",
+        "namespace": "shop",
+        "creationTimestamp": "@@NOW-25m@@"
+      },
+      "involvedObject": {
+        "kind": "PersistentVolumeClaim",
+        "name": "shop-models",
+        "namespace": "shop"
+      },
+      "reason": "ProvisioningFailed",
+      "type": "Warning",
+      "message": "failed to provision volume with StorageClass \"nfs-client\"",
+      "count": 3,
+      "firstTimestamp": "@@NOW-145m@@",
+      "lastTimestamp": "@@NOW-25m@@",
+      "eventTime": null
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Event",
+      "metadata": {
+        "name": "nightly-report-28991231.40",
+        "namespace": "ops",
+        "creationTimestamp": "@@NOW-40m@@"
+      },
+      "involvedObject": {
+        "kind": "Job",
+        "name": "nightly-report-28991231",
+        "namespace": "ops"
+      },
+      "reason": "BackoffLimitExceeded",
+      "type": "Warning",
+      "message": "Job has reached the specified backoff limit",
+      "count": 1,
+      "firstTimestamp": "@@NOW-160m@@",
+      "lastTimestamp": "@@NOW-40m@@",
+      "eventTime": null
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Event",
+      "metadata": {
+        "name": "shop-api-0.400",
+        "namespace": "shop",
+        "creationTimestamp": "@@NOW-400m@@"
+      },
+      "involvedObject": {
+        "kind": "Pod",
+        "name": "shop-api-0",
+        "namespace": "shop"
+      },
+      "reason": "Unhealthy",
+      "type": "Warning",
+      "message": "Readiness probe failed: HTTP probe failed with statuscode: 503",
+      "count": 55,
+      "firstTimestamp": "@@NOW-520m@@",
+      "lastTimestamp": "@@NOW-400m@@",
+      "eventTime": null
+    }
+  ],
+  "metadata": {
+    "resourceVersion": "1"
+  }
+}

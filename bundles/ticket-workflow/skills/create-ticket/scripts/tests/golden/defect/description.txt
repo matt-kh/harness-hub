@@ -1,0 +1,14 @@
+Steps to reproduce:
+Step 1: Open Browse Images and create a filter with key `lot`
+Step 2: Click Edit on the filter and change the value only
+Step 3: Save
+Actual Output: The filter key is replaced by the value text.
+Expected Output: The key stays `lot`; only the value changes.
+
+*Affected Region:* Browse Images > filter editor
+*Environment / Version:* Chrome 129, on-prem, found in 1.12.0
+*Evidence:* [https://gitlab.example.com/shop/shop-ui/-/issues/12]
+*Related:* PROJ-1280
+
+----
+Drafted by Claude Code (create-ticket) for jdoe on 2026-09-09 — review and edit freely.

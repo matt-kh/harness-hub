@@ -1,0 +1,8 @@
+# exit=0
+# stderr:
+# stdout:
+TIMESTAMP INFO  starting shop-api 1.4.2
+TIMESTAMP DEBUG loaded client_secret: ***REDACTED***
+TIMESTAMP INFO  signing key:
+***REDACTED***
+TIMESTAMP ERROR failed to connect to pg.shop.example.com:5432: connection refused

@@ -1,0 +1,28 @@
+{
+  "image": {
+    "repository": "registry.example.invalid/shop/api",
+    "tag": "1.4.2"
+  },
+  "replicaCount": 2,
+  "db": {
+    "host": "pg.shop.example.com",
+    "user": "shop",
+    "password": "s3cr3t-value",
+    "dsn": "postgres://shop:s3cr3t-value@pg.shop.example.com:5432/shop"
+  },
+  "apiKey": "AKIAIOSFODNN7EXAMPLE",
+  "ingress": {
+    "enabled": true,
+    "host": "shop.example.invalid"
+  },
+  "extraEnv": [
+    {
+      "name": "LOG_LEVEL",
+      "value": "debug"
+    },
+    {
+      "name": "SERVICE_TOKEN",
+      "value": "st-9a8b7c6d5e4f"
+    }
+  ]
+}

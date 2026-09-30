@@ -1,0 +1,18 @@
+[
+  {
+    "revision": 1,
+    "updated": "2026-09-01T02:00:00Z",
+    "status": "deployed",
+    "chart": "reportd-0.3.0",
+    "app_version": "2.0.0",
+    "description": "Install complete"
+  },
+  {
+    "revision": 2,
+    "updated": "2026-09-20T02:00:00Z",
+    "status": "pending-upgrade",
+    "chart": "reportd-0.4.0",
+    "app_version": "2.0.1",
+    "description": "Preparing upgrade"
+  }
+]

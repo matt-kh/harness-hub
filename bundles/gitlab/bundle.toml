@@ -1,0 +1,186 @@
+[bundle]
+name = "gitlab"
+schema_version = "1"
+summary = "GitLab via glab: MR-based workflow, agent-label write gates, stacked-MR rules, Jira closing-keyword deny"
+description = """
+Wires `glab` into the guard: MR creates are promptless (sub MRs must target the ticket branch),
+edits to agent-labelled MRs are promptless, human MRs ask, merge/approve and other team-visible
+actions ask, `glab api` writes ask. Closing keywords with a ticket key (`Closes KEY`) are denied
+in commits, MR text and API payloads because GitLab's Jira integration would transition the
+ticket (section 40). Adds the GitLab section of the instructions and glab read permissions.
+"""
+depends_on = ["core"]
+recommends = ["jira", "ticket-workflow"]
+conflicts_with = []
+any_of = []
+tags = ["scm"]
+owners = []
+docs = "docs/bundles/gitlab.md"
+stability = "stable"
+
+[requires.binaries.glab]
+min_version = "1.40.0"
+version_cmd = "glab --version"
+version_regex = 'glab (?:version )?([0-9]+\.[0-9]+\.[0-9]+)'
+why = "MR reads, gated MR writes, auth status; the work-ticket GitLab preflight."
+
+[requires.binaries.ssh]
+min_version = "0"
+version_cmd = "ssh -V"
+optional = true
+why = "git remotes stay SSH; glab never gets git credentials."
+
+[requires.config."gitlab.host"]
+type = "string"
+required = true
+pattern = '^[a-z0-9.-]+(:[0-9]+)?$'
+description = "Your GitLab host (self-managed hostname or gitlab.com). Used for auth, the instructions and work-ticket provider detection."
+example = "gitlab.example.com"
+
+[requires.config."gitlab.personal_repo_re"]
+type = "string"
+default = ""
+description = "Regex on a repo's top-level path; where it matches, a push to the default branch asks instead of denying (personal repos). Repos can also set WORK_TICKET_ALLOW_DEFAULT_PUSH_RE themselves."
+example = '^~/personal/'
+
+[requires.config."gitlab.hosts_re"]
+type = "string"
+default = ""
+description = "Optional regex of extra GitLab hosts for work-ticket provider detection (HARNESS_GITLAB_HOSTS_RE). Empty = gitlab.host plus any host containing 'gitlab'."
+
+[requires.secrets.glab_token]
+where = "~/.config/glab-cli/config.yml"
+written_by = "glab auth login"
+mode = "0600"
+description = "Personal access token stored by glab. The hub never reads it; the guard and the permission rules deny agents reading it."
+rotate = "docs/runbooks/rotate-gitlab-token.md"
+
+[provides]
+rules = ["rules/50-gitlab.md"]
+skills = []
+skill_fragments = []
+agents = []
+guard_rules = ["guard.d/40-gitlab-closing.sh", "guard.d/50-gitlab.sh"]
+permissions = "permissions.toml"
+mcp = ""
+bin = []
+
+[provides.env]
+WORK_TICKET_GLAB = "glab"
+HARNESS_GITLAB_HOST = "{{ gitlab.host }}"
+HARNESS_GITLAB_HOSTS_RE = "{{ gitlab.hosts_re }}"
+WORK_TICKET_ALLOW_DEFAULT_PUSH_RE = "{{ gitlab.personal_repo_re }}"
+
+[[manual_steps]]
+id = "install-glab"
+title = "Install the GitLab CLI (glab)"
+once_per = "machine"
+needs = []
+minutes = 2
+why = "The guard, the instructions and /work-ticket drive GitLab through glab."
+how = """
+- macOS: `brew install glab`
+- Debian/Ubuntu/WSL: download the `.deb` for your arch from
+  https://gitlab.com/gitlab-org/cli/-/releases and `sudo apt-get install ./glab_*.deb`
+- No root: extract the release tarball's `bin/glab` into `~/.local/bin/`.
+Minimum version 1.40.
+"""
+[manual_steps.verify]
+cmd = "glab --version"
+expect = { exit = 0 }
+unblocks = ["glab-binary"]
+
+[[manual_steps]]
+id = "glab-auth"
+title = "Authenticate glab to {{ gitlab.host }}"
+once_per = "account"
+needs = ["browser"]
+minutes = 3
+why = "Agents never run `glab auth login`; the token is yours and stays in ~/.config/glab-cli/config.yml."
+how = """
+1. Create a personal access token: https://{{ gitlab.host }}/-/user_settings/personal_access_tokens
+   (older GitLab: **Preferences → Access Tokens**) with scopes `api` and `read_user`, an expiry
+   date you will remember.
+2. In a terminal (inside Claude Code type `! ` first):
+   `glab auth login --hostname {{ gitlab.host }}` → choose **Token**, paste it; git protocol **SSH**.
+3. Self-managed GitLab with a private CA: `glab config set skip_tls_verify false --host {{ gitlab.host }}`
+   stays false — add the CA to the system trust store instead.
+"""
+[manual_steps.verify]
+cmd = "glab auth status --hostname {{ gitlab.host }}"
+expect = { exit = 0 }
+unblocks = ["glab-auth"]
+
+[[manual_steps]]
+id = "gitlab-ssh-key"
+title = "Register an SSH key with {{ gitlab.host }}"
+once_per = "machine"
+needs = ["browser"]
+minutes = 2
+why = "Clones and pushes use SSH remotes; the token is only for the API."
+how = """
+`ssh-keygen -t ed25519 -C "{{ identity.email }}" -f ~/.ssh/id_ed25519` (skip if you have one), then
+https://{{ gitlab.host }}/-/user_settings/ssh_keys → **Add new key** → paste `~/.ssh/id_ed25519.pub`.
+"""
+[manual_steps.verify]
+cmd = "ssh -o BatchMode=yes -o ConnectTimeout=10 -T git@{{ gitlab.host }} 2>&1 | grep -qi 'welcome to gitlab'"
+expect = { exit = 0 }
+unblocks = ["gitlab-ssh"]
+
+[[manual_steps]]
+id = "gitlab-agent-labels"
+title = "Create the agent-* labels in the groups you work in (optional)"
+once_per = "org"
+needs = []
+minutes = 2
+why = "Promptless MR edits are keyed on an agent-* label; group-level labels avoid creating them per project."
+how = """
+Per project the agent may create them itself (`glab label create -n {{ core.agent_labels.worked }}` is
+promptless). Group owners can instead add `{{ core.agent_labels.worked }}`, `{{ core.agent_labels.created }}`
+and `{{ core.agent_labels.drafted }}` once under **Group → Manage → Labels**.
+"""
+[manual_steps.verify]
+cmd = "true"
+expect = { exit = 0 }
+
+[[doctor_checks]]
+id = "glab-binary"
+title = "glab installed"
+severity = "fail"
+cmd = "glab --version"
+expect = { exit = 0 }
+offline_skip = false
+fix = "install-glab"
+
+[[doctor_checks]]
+id = "glab-auth"
+title = "glab authenticated to {{ gitlab.host }}"
+severity = "fail"
+cmd = "glab auth status --hostname {{ gitlab.host }}"
+expect = { exit = 0 }
+timeout = 15
+offline_skip = true
+fix = "glab-auth"
+
+[[doctor_checks]]
+id = "gitlab-ssh"
+title = "SSH to {{ gitlab.host }} works"
+severity = "warn"
+cmd = "ssh -o BatchMode=yes -o ConnectTimeout=10 -T git@{{ gitlab.host }} 2>&1 | grep -qi 'welcome to gitlab'"
+expect = { exit = 0 }
+timeout = 15
+offline_skip = true
+fix = "gitlab-ssh-key"
+
+[[doctor_checks]]
+id = "glab-token-mode"
+title = "glab config is private (0600)"
+severity = "warn"
+cmd = "test ! -e ~/.config/glab-cli/config.yml || [ \"$(stat -c %a ~/.config/glab-cli/config.yml 2>/dev/null || stat -f %Lp ~/.config/glab-cli/config.yml)\" = 600 ]"
+expect = { exit = 0 }
+offline_skip = false
+fix = "chmod 600 ~/.config/glab-cli/config.yml"
+
+[uninstall]
+keeps = ["~/.config/glab-cli/**"]
+notes = "glab and its token are yours; uninstall removes only the rendered rules, guard sections and permissions."

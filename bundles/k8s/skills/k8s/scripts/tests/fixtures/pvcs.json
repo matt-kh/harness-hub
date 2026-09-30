@@ -1,0 +1,37 @@
+{
+  "apiVersion": "v1",
+  "kind": "List",
+  "items": [
+    {
+      "apiVersion": "v1",
+      "kind": "PersistentVolumeClaim",
+      "metadata": {
+        "name": "shop-models",
+        "namespace": "shop"
+      },
+      "spec": {
+        "storageClassName": "nfs-client"
+      },
+      "status": {
+        "phase": "Pending"
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "PersistentVolumeClaim",
+      "metadata": {
+        "name": "shop-cache-data",
+        "namespace": "shop"
+      },
+      "spec": {
+        "storageClassName": "local-path"
+      },
+      "status": {
+        "phase": "Bound"
+      }
+    }
+  ],
+  "metadata": {
+    "resourceVersion": "1"
+  }
+}

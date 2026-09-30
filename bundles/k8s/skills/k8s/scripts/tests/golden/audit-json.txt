@@ -1,0 +1,195 @@
+# exit=1
+# stderr:
+context=dev-cluster server=v1.26.15+testr1
+# stdout:
+{
+  "context": "dev-cluster",
+  "prod": false,
+  "generated_at": "TIMESTAMP",
+  "command": "audit",
+  "findings": [
+    {
+      "severity": "crit",
+      "kind": "Workload",
+      "ns": "ops",
+      "name": "DaemonSet/legacy-agent",
+      "message": "hostNetwork=true \u2014 shares the node network namespace",
+      "evidence": null
+    },
+    {
+      "severity": "crit",
+      "kind": "Workload",
+      "ns": "ops",
+      "name": "DaemonSet/legacy-agent",
+      "message": "hostPID=true \u2014 sees every process on the node",
+      "evidence": null
+    },
+    {
+      "severity": "crit",
+      "kind": "Workload",
+      "ns": "ops",
+      "name": "DaemonSet/legacy-agent",
+      "message": "mounts hostPath volume(s)",
+      "evidence": "/, /var/run/docker.sock"
+    },
+    {
+      "severity": "crit",
+      "kind": "Workload",
+      "ns": "ops",
+      "name": "DaemonSet/legacy-agent",
+      "message": "container agent runs privileged",
+      "evidence": null
+    },
+    {
+      "severity": "warn",
+      "kind": "Workload",
+      "ns": "default",
+      "name": "Deployment/reportd",
+      "message": "uses the default ServiceAccount with its token automounted",
+      "evidence": null
+    },
+    {
+      "severity": "warn",
+      "kind": "Workload",
+      "ns": "ops",
+      "name": "DaemonSet/legacy-agent",
+      "message": "container agent does not set allowPrivilegeEscalation=false",
+      "evidence": null
+    },
+    {
+      "severity": "warn",
+      "kind": "Workload",
+      "ns": "ops",
+      "name": "DaemonSet/legacy-agent",
+      "message": "container agent has no resource limits",
+      "evidence": null
+    },
+    {
+      "severity": "warn",
+      "kind": "Workload",
+      "ns": "ops",
+      "name": "DaemonSet/legacy-agent",
+      "message": "container agent uses a mutable image tag",
+      "evidence": "docker.io/ops/legacy-agent:latest"
+    },
+    {
+      "severity": "warn",
+      "kind": "Workload",
+      "ns": "ops",
+      "name": "DaemonSet/legacy-agent",
+      "message": "container agent may run as root (runAsNonRoot unset/false)",
+      "evidence": null
+    },
+    {
+      "severity": "warn",
+      "kind": "Workload",
+      "ns": "ops",
+      "name": "DaemonSet/legacy-agent",
+      "message": "uses the default ServiceAccount with its token automounted",
+      "evidence": null
+    },
+    {
+      "severity": "info",
+      "kind": "Namespace",
+      "ns": "ops",
+      "name": "",
+      "message": "no pod-security.kubernetes.io/enforce label (Pod Security Admission not enforced)",
+      "evidence": null
+    },
+    {
+      "severity": "info",
+      "kind": "Namespace",
+      "ns": "shop",
+      "name": "",
+      "message": "no pod-security.kubernetes.io/enforce label (Pod Security Admission not enforced)",
+      "evidence": null
+    },
+    {
+      "severity": "info",
+      "kind": "Workload",
+      "ns": "ops",
+      "name": "CronJob/nightly-report",
+      "message": "container run has no liveness/readiness probe",
+      "evidence": null
+    },
+    {
+      "severity": "info",
+      "kind": "Workload",
+      "ns": "ops",
+      "name": "DaemonSet/legacy-agent",
+      "message": "container agent has no resource requests",
+      "evidence": null
+    },
+    {
+      "severity": "info",
+      "kind": "Workload",
+      "ns": "ops",
+      "name": "DaemonSet/legacy-agent",
+      "message": "container agent has no liveness/readiness probe",
+      "evidence": null
+    },
+    {
+      "severity": "info",
+      "kind": "Workload",
+      "ns": "shop",
+      "name": "Deployment/shop-api",
+      "message": "container sidecar has no liveness/readiness probe",
+      "evidence": null
+    }
+  ],
+  "data": {
+    "workloads_scanned": 6,
+    "workloads": [
+      {
+        "ns": "default",
+        "workload": "Deployment/reportd",
+        "pods": 1,
+        "issues": "default-sa-automount"
+      },
+      {
+        "ns": "ops",
+        "workload": "CronJob/nightly-report",
+        "pods": 1,
+        "issues": "no-probes"
+      },
+      {
+        "ns": "ops",
+        "workload": "DaemonSet/legacy-agent",
+        "pods": 1,
+        "issues": "allowPrivilegeEscalation, default-sa-automount, hostNetwork, hostPID, hostPath, mutable-image, no-limits, no-probes, no-requests, privileged, run-as-root"
+      },
+      {
+        "ns": "shop",
+        "workload": "Deployment/shop-api",
+        "pods": 2,
+        "issues": "no-probes"
+      }
+    ],
+    "namespaces": [
+      {
+        "namespace": "shop",
+        "psa_enforce": "-",
+        "psa_audit": "-",
+        "psa_warn": "-"
+      },
+      {
+        "namespace": "ops",
+        "psa_enforce": "-",
+        "psa_audit": "-",
+        "psa_warn": "-"
+      },
+      {
+        "namespace": "default",
+        "psa_enforce": "baseline",
+        "psa_audit": "-",
+        "psa_warn": "restricted"
+      },
+      {
+        "namespace": "kube-system",
+        "psa_enforce": "-",
+        "psa_audit": "-",
+        "psa_warn": "-"
+      }
+    ]
+  }
+}

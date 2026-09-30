@@ -1,0 +1,59 @@
+# exit=1
+# stderr:
+context=dev-cluster server=v1.26.15+testr1 ns=shop
+# stdout:
+# k8s pod — dev-cluster
+
+## Findings (2)
+
+| sev | kind | ns/name | message |
+|---|---|---|---|
+| crit | Container | shop/shop-api-0/api | CrashLoopBackOff after 12 restarts |
+| warn | Container | shop/shop-api-0/api | last exit code 1 (Error) |
+
+## pod
+
+| key | value |
+|---|---|
+| ns | shop |
+| name | shop-api-0 |
+| phase | Running |
+| node | worker-02 |
+| qos | Burstable |
+| serviceAccount | shop |
+| owner | Deployment/shop-api |
+| startTime | TIMESTAMP |
+| restarts | 12 |
+| podIP | 198.51.100.17 |
+| reason |  |
+| message |  |
+
+## conditions
+
+| type | status | reason | message |
+|---|---|---|---|
+| Initialized | True |  |  |
+| Ready | False | ContainersNotReady | containers with unready status: [api] |
+| PodScheduled | True |  |  |
+
+## containers
+
+| container | state | lastState | restarts | ready | image | pullPolicy | requests | limits | probes |
+|---|---|---|---|---|---|---|---|---|---|
+| api | waiting CrashLoopBackOff | Error exit=1 | 12 | False | registry.example.invalid/shop/api:1.4.2 | IfNotPresent | {"cpu": "500m", "memory": "1Gi"} | {"cpu": "2", "memory": "4Gi"} | liveness,readiness |
+| sidecar | running |  | 0 | True | registry.example.invalid/shop/envoy:1.29 | IfNotPresent | {"cpu": "100m", "memory": "128Mi"} | {"cpu": "200m", "memory": "256Mi"} | none |
+
+## events
+
+| age | type | reason | count | message |
+|---|---|---|---|---|
+| AGE | Warning | BackOff | 331 | Back-off restarting failed container api in pod shop-api-0_shop |
+| AGE | Warning | Unhealthy | 55 | Readiness probe failed: HTTP probe failed with statuscode: 503 |
+
+## logs
+
+| key | value |
+|---|---|
+| api | TIMESTAMP INFO  starting shop-api 1.4.2 ⏎ TIMESTAMP DEBUG db.password=***REDACTED*** ⏎ TIMESTAMP DEBUG dsn=***REDACTED*** ⏎ TIMESTAMP DEBUG bearer ***REDACTED*** ⏎ TIMESTAMP DEBUG aws_access_key_id = ***REDACTED*** ⏎ TIMESTAMP ERROR failed to connect to pg.shop.example.com:5432: connection refused ⏎ TIMESTAMP FATAL exiting with code 1 |
+| api (previous) | TIMESTAMP INFO  starting shop-api 1.4.2 ⏎ TIMESTAMP DEBUG loaded client_secret: ***REDACTED*** ⏎ TIMESTAMP INFO  signing key: ⏎ ***REDACTED*** ⏎ TIMESTAMP ERROR failed to connect to pg.shop.example.com:5432: connection refused |
+| sidecar | [2026-09-23 02:10:01.001][1][info][main] starting envoy ⏎ [2026-09-23 02:10:01.500][1][info][upstream] cluster shop-api added |

@@ -1,0 +1,148 @@
+{
+  "apiVersion": "v1",
+  "kind": "List",
+  "items": [
+    {
+      "apiVersion": "v1",
+      "kind": "Node",
+      "metadata": {
+        "name": "gpu-node-01",
+        "labels": {}
+      },
+      "spec": {},
+      "status": {
+        "allocatable": {
+          "cpu": "24",
+          "memory": "256Gi",
+          "pods": "110",
+          "ephemeral-storage": "200Gi",
+          "nvidia.com/gpu": "8"
+        },
+        "capacity": {
+          "cpu": "24",
+          "memory": "256Gi",
+          "pods": "110",
+          "ephemeral-storage": "200Gi",
+          "nvidia.com/gpu": "8"
+        },
+        "conditions": [
+          {
+            "type": "MemoryPressure",
+            "status": "False"
+          },
+          {
+            "type": "DiskPressure",
+            "status": "False"
+          },
+          {
+            "type": "PIDPressure",
+            "status": "False"
+          },
+          {
+            "type": "Ready",
+            "status": "True",
+            "message": "kubelet is posting ready status"
+          }
+        ],
+        "nodeInfo": {
+          "kubeletVersion": "v1.26.15+testr1"
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Node",
+      "metadata": {
+        "name": "worker-02",
+        "labels": {}
+      },
+      "spec": {},
+      "status": {
+        "allocatable": {
+          "cpu": "8",
+          "memory": "32Gi",
+          "pods": "110",
+          "ephemeral-storage": "200Gi"
+        },
+        "capacity": {
+          "cpu": "8",
+          "memory": "32Gi",
+          "pods": "110",
+          "ephemeral-storage": "200Gi"
+        },
+        "conditions": [
+          {
+            "type": "MemoryPressure",
+            "status": "True"
+          },
+          {
+            "type": "DiskPressure",
+            "status": "False"
+          },
+          {
+            "type": "PIDPressure",
+            "status": "False"
+          },
+          {
+            "type": "Ready",
+            "status": "True",
+            "message": "kubelet is posting ready status"
+          }
+        ],
+        "nodeInfo": {
+          "kubeletVersion": "v1.26.15+testr1"
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Node",
+      "metadata": {
+        "name": "worker-03",
+        "labels": {}
+      },
+      "spec": {
+        "unschedulable": true
+      },
+      "status": {
+        "allocatable": {
+          "cpu": "8",
+          "memory": "32Gi",
+          "pods": "110",
+          "ephemeral-storage": "200Gi"
+        },
+        "capacity": {
+          "cpu": "8",
+          "memory": "32Gi",
+          "pods": "110",
+          "ephemeral-storage": "200Gi"
+        },
+        "conditions": [
+          {
+            "type": "MemoryPressure",
+            "status": "False"
+          },
+          {
+            "type": "DiskPressure",
+            "status": "False"
+          },
+          {
+            "type": "PIDPressure",
+            "status": "False"
+          },
+          {
+            "type": "Ready",
+            "status": "False",
+            "message": "kubelet stopped posting node status"
+          }
+        ],
+        "nodeInfo": {
+          "kubeletVersion": "v1.26.15+testr1"
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "resourceVersion": "1"
+  }
+}

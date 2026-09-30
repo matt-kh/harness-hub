@@ -1,0 +1,213 @@
+[bundle]
+name = "k8s"
+schema_version = "1"
+summary = "Read-only Kubernetes client (k8s CLI + skill), triage / audit / architect agents, kubeconfig and Secret guards"
+description = """
+Ships the stdlib `k8s` CLI (contexts, health, pod, workload, events, capacity, argocd, helm,
+secret-keys, redact, promql, certs, audit — every call with an explicit --context and a request
+timeout), its skill and references, the k8s-triage / k8s-auditor (execution model) and
+infra-architect (planning model, design only) agents, and guard sections 10 + 25: kubeconfig
+reads and edits deny, Secret data output denies unless piped through `k8s redact`, cluster /
+release / GitOps / IaC mutations and exec-class commands ask with `context=… [PROD]` in the
+reason. Mutations are always handed to the human.
+"""
+depends_on = ["core"]
+recommends = []
+conflicts_with = []
+any_of = []
+tags = ["kubernetes", "ops"]
+owners = []
+docs = "docs/bundles/k8s.md"
+stability = "stable"
+
+[requires.binaries.kubectl]
+min_version = "1.25.0"
+version_cmd = "kubectl version --client -o json"
+version_regex = '"gitVersion": "v([0-9]+\.[0-9]+\.[0-9]+)'
+why = "Every k8s CLI call shells out to kubectl --context C --request-timeout=Ts."
+
+[requires.binaries.helm]
+min_version = "3.10.0"
+version_cmd = "helm version --short"
+version_regex = 'v([0-9]+\.[0-9]+\.[0-9]+)'
+optional = true
+why = "Release status / history for `k8s helm` and `k8s health`."
+
+[requires.binaries.python3]
+min_version = "3.9"
+version_cmd = "python3 --version"
+version_regex = 'Python ([0-9]+\.[0-9]+)'
+why = "The k8s CLI is stdlib python."
+
+[requires.config."k8s.prod_re"]
+type = "string"
+default = "(^|[-_./:])(prod|production)([-_./:]|$)"
+description = "Case-insensitive ERE on context and namespace names marking production ([PROD] banner; remediations become suggestions only). K8S_PROD_RE."
+
+[requires.config."k8s.gitops_root"]
+type = "string"
+default = ""
+description = "Local checkout of your GitOps repo; `k8s argocd` maps spec.source.path into it. Empty = the local-path check is skipped. K8S_GITOPS_ROOT."
+example = "~/dev/gitops"
+
+[requires.config."k8s.gitops_repo_match"]
+type = "string"
+default = ""
+description = "Substring of an Application's repoURL that marks it as that checkout. Empty = the basename of k8s.gitops_root. K8S_GITOPS_REPO_MATCH."
+example = "gitops"
+
+[requires.config."k8s.clusters_doc"]
+type = "string"
+default = "~/.local/state/harness/k8s/clusters.md"
+description = "File `k8s contexts --write` regenerates (a relative path is under HARNESS_HOME, e.g. a private bundle's references/). K8S_CLUSTERS_MD."
+
+[requires.config."k8s.broken_contexts"]
+type = "array"
+items = "string"
+default = []
+description = "Contexts known to be broken (Unauthorized, TLS SAN mismatch); documentation for the org notes and doctor, never used to skip a context silently."
+
+[requires.secrets.kubeconfig]
+where = "~/.kube/config"
+written_by = "human / cluster admins (kubeconfig merge)"
+mode = "0600"
+description = "Cluster credentials. Human-managed: the guard and the permission rules deny agents reading or editing it; contexts are listed with `k8s contexts` / `kubectl config get-contexts`."
+
+[provides]
+rules = ["rules/10-k8s.md"]
+skills = ["skills/k8s"]
+skill_fragments = []
+agents = ["agents/k8s-triage.md", "agents/k8s-auditor.md", "agents/infra-architect.md"]
+guard_rules = ["guard.d/10-k8s.sh", "guard.d/25-k8s-rules.sh"]
+permissions = "permissions.toml"
+mcp = ""
+bin = [{ name = "k8s", target = "skills/k8s/scripts/k8s.py" }]
+
+[provides.env]
+K8S_PROD_RE = "{{ k8s.prod_re }}"
+K8S_GITOPS_ROOT = "{{ k8s.gitops_root }}"
+K8S_GITOPS_REPO_MATCH = "{{ k8s.gitops_repo_match }}"
+K8S_CLUSTERS_MD = "{{ k8s.clusters_doc }}"
+
+[[manual_steps]]
+id = "install-kubectl"
+title = "Install kubectl (and helm)"
+once_per = "machine"
+needs = []
+minutes = 3
+why = "The k8s CLI is a thin, read-only layer over kubectl and helm."
+how = """
+- kubectl: https://kubernetes.io/docs/tasks/tools/ — pick a client within one or two minors of
+  your servers (a newer client prints a harmless skew WARNING on stderr).
+- helm 3: `curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash`
+  or `brew install helm`.
+Both go into `~/.local/bin` or any directory on PATH.
+"""
+[manual_steps.verify]
+cmd = "kubectl version --client"
+expect = { exit = 0 }
+unblocks = ["kubectl-binary"]
+
+[[manual_steps]]
+id = "kubeconfig-contexts"
+title = "Merge your clusters' kubeconfig contexts (human-managed)"
+once_per = "machine"
+needs = ["admin"]
+minutes = 10
+why = "Agents never read, switch or edit the kubeconfig; every command passes --context explicitly, so each cluster needs a context you created."
+how = """
+1. Get a kubeconfig per cluster from its admins (RKE2/k3s: `/etc/rancher/*/…yaml` with the
+   server address fixed; EKS: `aws eks update-kubeconfig --name <cluster> --alias <ctx>` run by
+   YOU, never by the agent).
+2. Merge: `KUBECONFIG=~/.kube/config:new.yaml kubectl config view --flatten > /tmp/merged &&
+   install -m 600 /tmp/merged ~/.kube/config && rm /tmp/merged new.yaml`.
+3. Give contexts stable, meaningful names (`kubectl config rename-context old new`) — prod ones
+   should match `k8s.prod_re` (default: a `prod`/`production` segment).
+4. `k8s contexts --md` shows reachability; list known-broken ones in `k8s.broken_contexts`.
+"""
+[manual_steps.verify]
+cmd = "kubectl config get-contexts -o name | grep -q ."
+expect = { exit = 0 }
+unblocks = ["kube-contexts"]
+
+[[manual_steps]]
+id = "clusters-doc"
+title = "Generate the clusters doc"
+once_per = "machine"
+needs = []
+minutes = 1
+why = "The skill and agents read it to orient; it is generated, never hand-edited."
+how = "Run `k8s contexts --write` (probes every context in parallel and writes `{{ k8s.clusters_doc }}`). Re-run after adding or fixing contexts."
+[manual_steps.verify]
+cmd = "test -s {{ k8s.clusters_doc }}"
+expect = { exit = 0 }
+unblocks = ["clusters-doc"]
+
+[[manual_steps]]
+id = "gitops-checkout"
+title = "Clone your GitOps repo and set k8s.gitops_root (optional)"
+once_per = "machine"
+needs = []
+minutes = 2
+why = "`k8s argocd` and the agents map an Application's spec.source.path to local files to explain drift; without a checkout that check is skipped."
+how = """
+`git clone <your gitops repo> ~/dev/<name>`, then in `local/harness.toml`:
+```
+[k8s]
+gitops_root = "~/dev/<name>"
+gitops_repo_match = "<substring of the repoURL>"   # optional, defaults to the directory name
+```
+and `harness apply`.
+"""
+[manual_steps.verify]
+cmd = "true"
+expect = { exit = 0 }
+
+[[doctor_checks]]
+id = "kubectl-binary"
+title = "kubectl installed"
+severity = "fail"
+cmd = "kubectl version --client"
+expect = { exit = 0 }
+offline_skip = false
+fix = "install-kubectl"
+
+[[doctor_checks]]
+id = "helm-binary"
+title = "helm installed"
+severity = "warn"
+cmd = "helm version --short"
+expect = { exit = 0 }
+offline_skip = false
+fix = "install-kubectl"
+
+[[doctor_checks]]
+id = "k8s-cli"
+title = "k8s CLI on PATH"
+severity = "fail"
+cmd = "command -v k8s >/dev/null && k8s health -h >/dev/null"
+expect = { exit = 0 }
+offline_skip = false
+fix = "harness apply"
+
+[[doctor_checks]]
+id = "kube-contexts"
+title = "kubeconfig has at least one context"
+severity = "warn"
+cmd = "kubectl config get-contexts -o name | grep -q ."
+expect = { exit = 0 }
+offline_skip = false
+fix = "kubeconfig-contexts"
+
+[[doctor_checks]]
+id = "clusters-doc"
+title = "clusters doc generated"
+severity = "warn"
+cmd = "test -s {{ k8s.clusters_doc }}"
+expect = { exit = 0 }
+offline_skip = false
+fix = "clusters-doc"
+
+[uninstall]
+keeps = ["~/.kube/**"]
+notes = "The kubeconfig and the generated clusters doc are yours; uninstall removes only the rendered skill, agents, rules and guard sections."

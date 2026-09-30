@@ -1,0 +1,31 @@
+{
+ "jira": {
+  "fields": {
+   "PROJ": {
+    "problem_description": {
+     "id": "customfield_20000"
+    },
+    "type_of_problem": "customfield_20103"
+   }
+  },
+  "issue_types": [
+   {
+    "hint": "Bug Fix | Enhancement",
+    "name": "CR",
+    "requires": [
+     "type_of_problem"
+    ]
+   },
+   {
+    "name": "Bug",
+    "standalone": false
+   },
+   {
+    "name": "Epic",
+    "requires": [
+     "epic_name"
+    ]
+   }
+  ]
+ }
+}

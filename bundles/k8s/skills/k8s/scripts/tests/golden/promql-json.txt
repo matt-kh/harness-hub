@@ -1,0 +1,33 @@
+# exit=0
+# stderr:
+context=dev-cluster server=v1.26.15+testr1
+# stdout:
+{
+  "context": "dev-cluster",
+  "prod": false,
+  "generated_at": "TIMESTAMP",
+  "command": "promql",
+  "findings": [],
+  "data": {
+    "prometheus": "monitoring/rancher-monitoring-prometheus:http-web",
+    "query": "up",
+    "resultType": "vector",
+    "result": [
+      {
+        "metric": "up",
+        "labels": "instance=192.0.2.11:6443, job=apiserver",
+        "value": "1"
+      },
+      {
+        "metric": "up",
+        "labels": "instance=192.0.2.12:10250, job=kubelet",
+        "value": "1"
+      },
+      {
+        "metric": "up",
+        "labels": "instance=192.0.2.13:9796, job=node-exporter",
+        "value": "0"
+      }
+    ]
+  }
+}

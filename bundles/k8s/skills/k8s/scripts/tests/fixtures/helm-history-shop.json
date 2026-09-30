@@ -1,0 +1,26 @@
+[
+  {
+    "revision": 7,
+    "updated": "2026-09-01T08:00:00Z",
+    "status": "superseded",
+    "chart": "shop-2.2.0",
+    "app_version": "1.4.0",
+    "description": "Upgrade complete"
+  },
+  {
+    "revision": 8,
+    "updated": "2026-09-15T08:00:00Z",
+    "status": "superseded",
+    "chart": "shop-2.3.0",
+    "app_version": "1.4.1",
+    "description": "Upgrade complete"
+  },
+  {
+    "revision": 9,
+    "updated": "2026-09-22T08:14:03Z",
+    "status": "failed",
+    "chart": "shop-2.3.1",
+    "app_version": "1.4.2",
+    "description": "timed out waiting for the condition"
+  }
+]

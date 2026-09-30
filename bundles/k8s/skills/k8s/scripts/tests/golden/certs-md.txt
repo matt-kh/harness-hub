@@ -1,0 +1,32 @@
+# exit=1
+# stderr:
+context=dev-cluster server=v1.26.15+testr1
+# stdout:
+# k8s certs — dev-cluster
+
+## Findings (4)
+
+| sev | kind | ns/name | message |
+|---|---|---|---|
+| crit | Certificate | shop/shop-api-tls | expires in DAYS d (TIMESTAMP) |
+| warn | Certificate | ops/ops-ingress-tls | Ready=False order is in state "errored" |
+| warn | CertificateSigningRequest | csr-node-04 | pending approval (signer kubernetes.io/kubelet-serving) |
+| info | Certificate | apiserver | not checked |
+
+## apiserver_cert
+
+insecure-skip-tls-verify — certificate not checked
+
+## csrs
+
+| csr | state | signer | requestor | age |
+|---|---|---|---|---|
+| csr-node-04 | Pending | kubernetes.io/kubelet-serving | system:node:worker-04 | AGE |
+| csr-node-03 | Approved | kubernetes.io/kubelet-serving | system:node:worker-03 | AGE |
+
+## cert_manager
+
+| ns | certificate | ready | notAfter | days_left | renewalTime | secret |
+|---|---|---|---|---|---|---|
+| shop | shop-api-tls | True | TIMESTAMP | 5 | TIMESTAMP | shop-api-tls |
+| ops | ops-ingress-tls | False | TIMESTAMP | 200 | TIMESTAMP | ops-ingress-tls |

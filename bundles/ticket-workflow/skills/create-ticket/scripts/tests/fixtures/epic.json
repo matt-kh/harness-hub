@@ -1,0 +1,7 @@
+{"project":"PROJ","type":"Epic","class":"epic","epic_name":"Dataset export",
+ "summary":"Dataset export and audit tooling",
+ "problem":"Programs need auditable exports of datasets, manifests and labels.","motivation":"Audit requests are handled manually today.",
+ "acceptance":["Manifest export (CSV)","Label export (COCO, YOLO)","Audit log of exports"],
+ "children":["CSV manifest export","Label export formats","Export audit log"],"out_of_scope":["Third-party storage connectors"],
+ "priority":"Medium","assignee":"jdoe","labels":[],
+ "meta":{"drafted_by":"jdoe","date":"2026-09-09","sources":{"priority":"default","assignee":"default"}}}

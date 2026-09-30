@@ -1,0 +1,9 @@
+{"project":"jdoe/dotlab","class":"defect",
+ "summary":"Sync command drops symlinked dotfiles on the second run",
+ "problem":"Running sync twice removes symlinks that the first run created.",
+ "steps":["Run `dotlab sync` on a clean home","Run `dotlab sync` again","List `~/.config`"],
+ "actual":"Symlinks created by the first run are gone.","expected":"The second run is a no-op.",
+ "affected_region":"sync command","environment":"Ubuntu 24.04, WSL2",
+ "affects_versions":["v0.2.1"],"evidence":["https://github.com/jdoe/dotlab/actions/runs/123"],"related":["#12"],
+ "assignee":"@me","labels":[],
+ "meta":{"drafted_by":"jdoe","date":"2026-09-24","sources":{"assignee":"default"}}}

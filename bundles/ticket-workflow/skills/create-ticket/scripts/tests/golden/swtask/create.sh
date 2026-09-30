@@ -1,0 +1,1 @@
+jira create PROJ 'SW Task' 'Rotate the on-prem registry TLS certificate before expiry' --field 'labels=["agent-drafted"]' --field 'priority={"name":"High"}' --field 'assignee={"name":"jdoe"}' --field 'customfield_20205={"value":"Software Upgrade"}' --field customfield_20000="$(cat OUT/problem-description.txt)"

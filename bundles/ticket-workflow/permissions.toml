@@ -1,0 +1,7 @@
+# Bundle `ticket-workflow` adds no permission rules: its skills call the jira / glab / gh CLIs,
+# whose rules come from those bundles, and read-only helper scripts under its skills.
+
+[permissions]
+allow = []
+ask = []
+deny = []

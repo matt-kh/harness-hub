@@ -1,0 +1,117 @@
+{
+  "apiVersion": "v1",
+  "kind": "List",
+  "items": [
+    {
+      "apiVersion": "argoproj.io/v1alpha1",
+      "kind": "Application",
+      "metadata": {
+        "name": "root",
+        "namespace": "argocd"
+      },
+      "spec": {
+        "project": "internal",
+        "destination": {
+          "server": "https://kubernetes.default.svc",
+          "namespace": "shop"
+        },
+        "source": {
+          "repoURL": "https://gitlab.example.invalid/example-org/gitops.git",
+          "path": "projects/internal",
+          "targetRevision": "HEAD"
+        },
+        "syncPolicy": {
+          "automated": {
+            "prune": true,
+            "selfHeal": true
+          }
+        }
+      },
+      "status": {
+        "sync": {
+          "status": "Synced",
+          "revision": "9f1c2ab3de45f6789"
+        },
+        "health": {
+          "status": "Healthy",
+          "message": ""
+        }
+      }
+    },
+    {
+      "apiVersion": "argoproj.io/v1alpha1",
+      "kind": "Application",
+      "metadata": {
+        "name": "shop-api",
+        "namespace": "argocd"
+      },
+      "spec": {
+        "project": "internal",
+        "destination": {
+          "server": "https://kubernetes.default.svc",
+          "namespace": "shop"
+        },
+        "source": {
+          "repoURL": "https://gitlab.example.invalid/example-org/gitops.git",
+          "path": "apps/shop/overlays/dev",
+          "targetRevision": "HEAD"
+        },
+        "syncPolicy": {
+          "automated": {
+            "prune": true,
+            "selfHeal": true
+          }
+        }
+      },
+      "status": {
+        "sync": {
+          "status": "OutOfSync",
+          "revision": "9f1c2ab3de45f6789"
+        },
+        "health": {
+          "status": "Degraded",
+          "message": "Deployment shop-api has 1/2 replicas available"
+        }
+      }
+    },
+    {
+      "apiVersion": "argoproj.io/v1alpha1",
+      "kind": "Application",
+      "metadata": {
+        "name": "shop-cache",
+        "namespace": "argocd"
+      },
+      "spec": {
+        "project": "internal",
+        "destination": {
+          "server": "https://kubernetes.default.svc",
+          "namespace": "shop"
+        },
+        "source": {
+          "repoURL": "https://gitlab.example.invalid/example-org/gitops.git",
+          "path": "apps/shop-cache/overlays/dev",
+          "targetRevision": "HEAD"
+        },
+        "syncPolicy": {
+          "automated": {
+            "prune": true,
+            "selfHeal": true
+          }
+        }
+      },
+      "status": {
+        "sync": {
+          "status": "Synced",
+          "revision": "9f1c2ab3de45f6789"
+        },
+        "health": {
+          "status": "Progressing",
+          "message": ""
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "resourceVersion": "1"
+  }
+}

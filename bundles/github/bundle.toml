@@ -1,0 +1,184 @@
+[bundle]
+name = "github"
+schema_version = "1"
+summary = "GitHub CLI, PR-based workflow, GitHub Issues as the tracker, gh governance rules"
+description = """
+Installs `gh` (checksum-verified, no sudo), wires the guard rules for gh (token output deny,
+GitHub closing-keyword deny, human-issue state deny, merge/review ask, API writes ask, label
+gate on PR/issue writes, stacked-PR rules) and adds the GitHub section of the instructions and
+the gh read permissions. The ticket-workflow skills drive GitHub Issues → PRs when this bundle
+is active.
+"""
+depends_on = ["core"]
+recommends = ["ticket-workflow"]
+conflicts_with = []
+any_of = []
+tags = ["scm", "tracker"]
+owners = []
+docs = "docs/bundles/github.md"
+stability = "stable"
+
+[requires.binaries.gh]
+min_version = "2.60.0"
+version_cmd = "gh --version"
+version_regex = 'gh version ([0-9]+\.[0-9]+\.[0-9]+)'
+install = "gh"
+why = "PR/issue reads, gated writes, auth status; the work-ticket GitHub preflight."
+
+[requires.binaries.ssh]
+min_version = "0"
+version_cmd = "ssh -V"
+optional = true
+why = "git remotes stay SSH; gh never gets git credentials."
+
+[requires.config."github.host"]
+type = "string"
+default = "github.com"
+pattern = '^[a-z0-9.-]+$'
+description = "GitHub host: github.com or your GHES hostname."
+
+[requires.config."github.login"]
+type = "string"
+required = true
+pattern = '^[A-Za-z0-9-]+$'
+description = "Your GitHub login. Shown in the instructions; repos you own are trusted in the provider's auto-mode trust text."
+example = "octocat"
+
+[requires.secrets.gh_token]
+where = "~/.config/gh/hosts.yml"
+written_by = "gh auth login"
+mode = "0600"
+description = "OAuth token / PAT stored by gh. The hub never reads or writes it; the guard denies agents reading it and `gh auth token`."
+rotate = "docs/runbooks/rotate-github-token.md"
+
+[provides]
+rules = ["rules/60-github.md"]
+skills = []
+skill_fragments = []
+agents = []
+guard_rules = ["guard.d/41-github-closing.sh", "guard.d/60-github.sh"]
+permissions = "permissions.toml"
+mcp = ""
+bin = []
+
+[provides.env]
+WORK_TICKET_GH = "gh"
+
+[[manual_steps]]
+id = "install-gh"
+title = "Install the GitHub CLI"
+once_per = "machine"
+needs = []
+minutes = 1
+why = "No sudo is assumed; the hub installs a pinned, sha256-verified release into ~/.local/bin."
+how = """
+Run: `harness install gh`
+Air-gapped: download `gh_<ver>_<os>_<arch>.tar.gz` (macOS: `.zip`) of the version in
+`tools/gh.lock.json` on a connected machine, then
+`harness install gh --from /path/to/gh_<ver>_<os>_<arch>.tar.gz`.
+Package managers work too (`brew install gh`, the official apt repo) — any gh >= 2.60 on PATH.
+"""
+[manual_steps.verify]
+cmd = "gh --version"
+expect = { exit = 0 }
+unblocks = ["gh-binary"]
+
+[[manual_steps]]
+id = "gh-auth"
+title = "Authenticate gh (browser device flow, PAT fallback)"
+once_per = "account"
+needs = ["browser"]
+minutes = 3
+why = "Agents never run `gh auth login`; the token is yours and stays in ~/.config/gh/hosts.yml."
+how = """
+1. In a terminal (inside Claude Code type `! ` first):
+   `gh auth login --hostname {{ github.host }} --git-protocol ssh --web`
+2. Choose **SSH** as the git protocol, then **Login with a web browser**; copy the one-time code,
+   open the URL, paste it, **Authorize**.
+3. If the device flow fails (SSO, proxy, WSL without a browser): create a classic PAT at
+   https://{{ github.host }}/settings/tokens → **Generate new token (classic)** with scopes
+   `repo`, `read:org`, `workflow`, `admin:public_key`, save it to a file, run
+   `gh auth login --hostname {{ github.host }} --git-protocol ssh --with-token < token.txt`
+   and delete the file.
+4. `gh auth setup-git` is NOT needed — remotes are SSH.
+"""
+[manual_steps.verify]
+cmd = "gh auth status --hostname {{ github.host }}"
+expect = { exit = 0, stdout_regex = "Logged in to" }
+unblocks = ["gh-auth"]
+
+[[manual_steps]]
+id = "ssh-key"
+title = "Register an SSH key with GitHub"
+once_per = "machine"
+needs = ["browser"]
+minutes = 2
+why = "Clones and pushes use SSH; gh has the admin:public_key scope only so it can upload the key."
+how = """
+`ssh-keygen -t ed25519 -C "{{ identity.email }}" -f ~/.ssh/id_ed25519` (accept the defaults; skip
+if you already have a key), then `gh ssh-key add ~/.ssh/id_ed25519.pub --title "$(hostname)"`.
+Without that scope: {{ github.host }} → **Settings → SSH and GPG keys → New SSH key** → paste
+`~/.ssh/id_ed25519.pub`.
+"""
+[manual_steps.verify]
+cmd = "ssh -o BatchMode=yes -o ConnectTimeout=10 -T git@{{ github.host }} 2>&1 | grep -q 'successfully authenticated'"
+expect = { exit = 0 }
+unblocks = ["gh-ssh"]
+
+[[manual_steps]]
+id = "agent-labels"
+title = "Create the agent-* labels in repos you will work in (optional, per repo)"
+once_per = "org"
+needs = []
+minutes = 1
+why = "The label gate needs the labels to exist; the skills create them on first use (`gh label create agent-*` is promptless), org-wide defaults avoid even that."
+how = """
+Per repo: `gh label create {{ core.agent_labels.worked }} -R owner/repo -c 7057ff -d 'Worked by an AI agent'`
+(and `{{ core.agent_labels.created }}`, `{{ core.agent_labels.drafted }}`). Org admins can add them to the
+organisation's default repository labels instead.
+"""
+[manual_steps.verify]
+cmd = "true"
+expect = { exit = 0 }
+
+[[doctor_checks]]
+id = "gh-binary"
+title = "gh installed"
+severity = "fail"
+cmd = "gh --version"
+expect = { exit = 0 }
+offline_skip = false
+fix = "install-gh"
+
+[[doctor_checks]]
+id = "gh-auth"
+title = "gh authenticated to {{ github.host }}"
+severity = "fail"
+cmd = "GH_PROMPT_DISABLED=1 GH_NO_UPDATE_NOTIFIER=1 gh auth status --hostname {{ github.host }}"
+expect = { exit = 0, stdout_regex = "Logged in to" }
+timeout = 10
+offline_skip = true
+fix = "gh-auth"
+
+[[doctor_checks]]
+id = "gh-ssh"
+title = "SSH to {{ github.host }} works"
+severity = "warn"
+cmd = "ssh -o BatchMode=yes -o ConnectTimeout=10 -T git@{{ github.host }} 2>&1 | grep -q 'successfully authenticated'"
+expect = { exit = 0 }
+timeout = 15
+offline_skip = true
+fix = "ssh-key"
+
+[[doctor_checks]]
+id = "gh-token-mode"
+title = "gh hosts.yml is private (0600)"
+severity = "warn"
+cmd = "test ! -e ~/.config/gh/hosts.yml || [ \"$(stat -c %a ~/.config/gh/hosts.yml 2>/dev/null || stat -f %Lp ~/.config/gh/hosts.yml)\" = 600 ]"
+expect = { exit = 0 }
+offline_skip = false
+fix = "chmod 600 ~/.config/gh/hosts.yml"
+
+[uninstall]
+keeps = ["~/.config/gh/**"]
+notes = "Removes ~/.local/bin/gh only if the hub state records that the hub installed it."

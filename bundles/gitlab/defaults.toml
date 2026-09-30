@@ -1,0 +1,5 @@
+# Defaults for bundle `gitlab`. gitlab.host has no default: set it in local/harness.toml.
+
+[gitlab]
+personal_repo_re = ""
+hosts_re = ""

@@ -1,0 +1,3 @@
+# Bundle `ticket-workflow` has no config keys of its own. It reads core.agent_labels,
+# core.model_policy and core.ticket_example, plus (when those bundles are active) jira.fields,
+# jira.issue_types, gitlab.host and github.host — each owned by its bundle's defaults.

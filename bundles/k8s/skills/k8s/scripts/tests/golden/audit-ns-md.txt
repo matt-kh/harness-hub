@@ -1,0 +1,28 @@
+# exit=0
+# stderr:
+context=dev-cluster server=v1.26.15+testr1 ns=shop
+# stdout:
+# k8s audit — dev-cluster
+
+## Findings (2)
+
+| sev | kind | ns/name | message |
+|---|---|---|---|
+| info | Namespace | shop | no pod-security.kubernetes.io/enforce label (Pod Security Admission not enforced) |
+| info | Workload | shop/Deployment/shop-api | container sidecar has no liveness/readiness probe |
+
+## workloads_scanned
+
+3
+
+## workloads
+
+| ns | workload | pods | issues |
+|---|---|---|---|
+| shop | Deployment/shop-api | 2 | no-probes |
+
+## namespaces
+
+| namespace | psa_enforce | psa_audit | psa_warn |
+|---|---|---|---|
+| shop | - | - | - |

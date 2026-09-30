@@ -1,0 +1,7 @@
+{"project":"PROJ","type":"Task","class":"chore",
+ "summary":"Upgrade shop-serving base image to Python 3.12",
+ "problem":"The serving image still builds on Python 3.10, which leaves security support in 2026.",
+ "goal":"Serving image builds and passes CI on Python 3.12.",
+ "acceptance":["Dockerfile uses a 3.12 base image","CI pipeline green","No runtime warnings on startup"],
+ "priority":"Low","assignee":"jdoe","components":["shop-serving"],"labels":[],
+ "meta":{"drafted_by":"jdoe","date":"2026-09-09","sources":{"assignee":"default"}}}

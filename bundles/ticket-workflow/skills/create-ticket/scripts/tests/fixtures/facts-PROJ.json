@@ -1,0 +1,335 @@
+{
+  "me": "jdoe",
+  "project": "PROJ",
+  "creatable": true,
+  "can_assign": true,
+  "can_attach": true,
+  "types": [
+    {
+      "name": "CR",
+      "subtask": false,
+      "required": [
+        {
+          "id": "customfield_20103",
+          "name": "Type of Problem",
+          "schema": "option",
+          "allowed": [
+            "Bug Fix",
+            "Enhancement"
+          ]
+        }
+      ],
+      "has_description": true,
+      "has_problem_description": true,
+      "field_ids": {
+        "Summary": "summary",
+        "Issue Type": "issuetype",
+        "Priority": "priority",
+        "Type of Problem": "customfield_20103",
+        "Component/s": "components",
+        "Fix Version/s": "fixVersions",
+        "Area of Investigation": "customfield_20102",
+        "Country": "customfield_20101",
+        "Requestor": "customfield_20302",
+        "Reporter": "reporter",
+        "Developer/s": "customfield_20602",
+        "Due Date": "duedate",
+        "Labels": "labels",
+        "Code Reviewer (SW)": "customfield_20300",
+        "Problem Description": "customfield_20000",
+        "Problem Validation": "customfield_20001",
+        "Testing Solution ( Tester)": "customfield_20400",
+        "Testing Solutions ( Developer)": "customfield_20100",
+        "Attachment": "attachment",
+        "SVN Revision": "customfield_20201",
+        "SVN Link": "customfield_26302",
+        "Detailed Design": "customfield_20202",
+        "Linked Issues": "issuelinks",
+        "Description": "description",
+        "Affects Version/s": "versions",
+        "Epic Link": "customfield_21206",
+        "Sprint": "customfield_21204",
+        "Customer": "customfield_20206",
+        "Watchers": "customfield_21300",
+        "Story Points": "customfield_21202",
+        "Test Plan Reviewer": "customfield_24400",
+        "Assignee": "assignee",
+        "Project": "project"
+      }
+    },
+    {
+      "name": "Defects",
+      "subtask": false,
+      "required": [],
+      "has_description": true,
+      "has_problem_description": true,
+      "field_ids": {
+        "Summary": "summary",
+        "Issue Type": "issuetype",
+        "Priority": "priority",
+        "Fix Version/s": "fixVersions",
+        "Area of Investigation": "customfield_20102",
+        "Labels": "labels",
+        "Country": "customfield_20101",
+        "Reporter": "reporter",
+        "Developer/s": "customfield_20602",
+        "Due Date": "duedate",
+        "Linked Issues": "issuelinks",
+        "Problem Description": "customfield_20000",
+        "Description": "description",
+        "SVN Revision": "customfield_20201",
+        "SVN Link": "customfield_26302",
+        "Detailed Design": "customfield_20202",
+        "Attachment": "attachment",
+        "Units": "customfield_20801",
+        "PercentDone": "customfield_20802",
+        "Affects Version/s": "versions",
+        "Epic Link": "customfield_21206",
+        "Sprint": "customfield_21204",
+        "Watchers": "customfield_21300",
+        "Component/s": "components",
+        "Story Points": "customfield_21202",
+        "Testing Solutions ( Developer)": "customfield_20100",
+        "Template Issue": "customfield_28702",
+        "Assignee": "assignee",
+        "Project": "project"
+      }
+    },
+    {
+      "name": "Bug",
+      "subtask": true,
+      "required": [
+        {
+          "id": "parent",
+          "name": "Parent",
+          "schema": "issuelink",
+          "allowed": []
+        }
+      ],
+      "has_description": true,
+      "has_problem_description": true,
+      "field_ids": {
+        "Summary": "summary",
+        "Issue Type": "issuetype",
+        "Priority": "priority",
+        "Fix Version/s": "fixVersions",
+        "Area of Investigation": "customfield_20102",
+        "Labels": "labels",
+        "Country": "customfield_20101",
+        "Reporter": "reporter",
+        "Developer/s": "customfield_20602",
+        "Due Date": "duedate",
+        "Linked Issues": "issuelinks",
+        "Problem Description": "customfield_20000",
+        "Description": "description",
+        "SVN Revision": "customfield_20201",
+        "SVN Link": "customfield_26302",
+        "Detailed Design": "customfield_20202",
+        "Attachment": "attachment",
+        "Units": "customfield_20801",
+        "PercentDone": "customfield_20802",
+        "Affects Version/s": "versions",
+        "Epic Link": "customfield_21206",
+        "Sprint": "customfield_21204",
+        "Watchers": "customfield_21300",
+        "Component/s": "components",
+        "Story Points": "customfield_21202",
+        "Assignee": "assignee",
+        "Project": "project",
+        "Parent": "parent"
+      }
+    },
+    {
+      "name": "SW Task",
+      "subtask": false,
+      "required": [
+        {
+          "id": "customfield_20205",
+          "name": "Category",
+          "schema": "option",
+          "allowed": [
+            "Software",
+            "Hardware",
+            "Bug Fixing/ Hardware Replacement",
+            "Enhancement",
+            "Software Upgrade"
+          ]
+        }
+      ],
+      "has_description": false,
+      "has_problem_description": true,
+      "field_ids": {
+        "Summary": "summary",
+        "Category": "customfield_20205",
+        "Component/s": "components",
+        "Affects Version/s": "versions",
+        "Fix Version/s": "fixVersions",
+        "Priority": "priority",
+        "Country": "customfield_20101",
+        "Customer": "customfield_20206",
+        "Labels": "labels",
+        "Reporter": "reporter",
+        "Linked Issues": "issuelinks",
+        "Problem Description": "customfield_20000",
+        "Attachment": "attachment",
+        "Area of Investigation": "customfield_20102",
+        "Due Date": "duedate",
+        "Epic Link": "customfield_21206",
+        "Sprint": "customfield_21204",
+        "Watchers": "customfield_21300",
+        "Assignee": "assignee",
+        "Project": "project",
+        "Issue Type": "issuetype"
+      }
+    },
+    {
+      "name": "Epic",
+      "subtask": false,
+      "required": [
+        {
+          "id": "customfield_21205",
+          "name": "Epic Name",
+          "schema": "string",
+          "allowed": []
+        }
+      ],
+      "has_description": true,
+      "has_problem_description": true,
+      "field_ids": {
+        "Epic Name": "customfield_21205",
+        "Summary": "summary",
+        "Issue Type": "issuetype",
+        "Priority": "priority",
+        "Fix Version/s": "fixVersions",
+        "Labels": "labels",
+        "Country": "customfield_20101",
+        "Reporter": "reporter",
+        "Due Date": "duedate",
+        "Linked Issues": "issuelinks",
+        "Problem Description": "customfield_20000",
+        "Description": "description",
+        "SVN Link": "customfield_26302",
+        "Detailed Design": "customfield_20202",
+        "Attachment": "attachment",
+        "Units": "customfield_20801",
+        "PercentDone": "customfield_20802",
+        "Affects Version/s": "versions",
+        "Epic Link": "customfield_21206",
+        "Sprint": "customfield_21204",
+        "Watchers": "customfield_21300",
+        "Component/s": "components",
+        "Testing Solutions ( Developer)": "customfield_20100",
+        "Template Issue": "customfield_28702",
+        "Assignee": "assignee",
+        "Project": "project"
+      }
+    },
+    {
+      "name": "Task",
+      "subtask": false,
+      "required": [],
+      "has_description": true,
+      "has_problem_description": true,
+      "field_ids": {
+        "Summary": "summary",
+        "Issue Type": "issuetype",
+        "Priority": "priority",
+        "Fix Version/s": "fixVersions",
+        "Labels": "labels",
+        "Country": "customfield_20101",
+        "Reporter": "reporter",
+        "Due Date": "duedate",
+        "Linked Issues": "issuelinks",
+        "Problem Description": "customfield_20000",
+        "Description": "description",
+        "SVN Link": "customfield_26302",
+        "Detailed Design": "customfield_20202",
+        "Attachment": "attachment",
+        "Units": "customfield_20801",
+        "PercentDone": "customfield_20802",
+        "Affects Version/s": "versions",
+        "Epic Link": "customfield_21206",
+        "Sprint": "customfield_21204",
+        "Watchers": "customfield_21300",
+        "Component/s": "components",
+        "Story Points": "customfield_21202",
+        "Testing Solutions ( Developer)": "customfield_20100",
+        "Template Issue": "customfield_28702",
+        "Assignee": "assignee",
+        "Project": "project"
+      }
+    }
+  ],
+  "versions_unreleased": [
+    {
+      "name": "1.12.0",
+      "releaseDate": null
+    },
+    {
+      "name": "1.11.2",
+      "releaseDate": null
+    },
+    {
+      "name": "1.11.1",
+      "releaseDate": "2026-05-31"
+    },
+    {
+      "name": "1.11.0",
+      "releaseDate": null
+    },
+    {
+      "name": "1.10.0",
+      "releaseDate": "2026-03-31"
+    },
+    {
+      "name": "1.9.0",
+      "releaseDate": null
+    },
+    {
+      "name": "1.8.0",
+      "releaseDate": null
+    },
+    {
+      "name": "1.7.0",
+      "releaseDate": null
+    },
+    {
+      "name": "1.6.0",
+      "releaseDate": null
+    },
+    {
+      "name": "1.5.0",
+      "releaseDate": "2024-06-01"
+    },
+    {
+      "name": "1.4.0",
+      "releaseDate": null
+    }
+  ],
+  "components": [
+    "Documentation",
+    "Data-IE",
+    "Shop-Backend",
+    "shop-serving",
+    "shop.exe",
+    "Test-Env",
+    "Web-UI"
+  ],
+  "priorities": [
+    "Blocker",
+    "Critical",
+    "High",
+    "Medium",
+    "Low"
+  ],
+  "labels_in_use": [
+    "SkipFromAudit",
+    "ready",
+    "shop-ui",
+    "complete",
+    "hotfix",
+    "on-prem",
+    "ui:5.0.0-team-1.10.0",
+    "test-env"
+  ]
+}

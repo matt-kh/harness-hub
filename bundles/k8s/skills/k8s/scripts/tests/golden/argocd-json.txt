@@ -1,0 +1,109 @@
+# exit=1
+# stderr:
+context=dev-cluster server=v1.26.15+testr1
+# stdout:
+{
+  "context": "dev-cluster",
+  "prod": false,
+  "generated_at": "TIMESTAMP",
+  "command": "argocd",
+  "findings": [
+    {
+      "severity": "crit",
+      "kind": "Application",
+      "ns": "argocd",
+      "name": "shop-api",
+      "message": "health=Degraded sync=OutOfSync",
+      "evidence": "Deployment shop-api has 1/2 replicas available"
+    },
+    {
+      "severity": "warn",
+      "kind": "Application",
+      "ns": "argocd",
+      "name": "shop-cache",
+      "message": "sync=Synced health=Progressing",
+      "evidence": null
+    },
+    {
+      "severity": "warn",
+      "kind": "ApplicationSet",
+      "ns": "argocd",
+      "name": "shop-envs",
+      "message": "ErrorOccurred: error generating params: repository not accessible",
+      "evidence": null
+    },
+    {
+      "severity": "info",
+      "kind": "Application",
+      "ns": "argocd",
+      "name": "shop-api",
+      "message": "source path not found locally under HERE/fixtures/gitops",
+      "evidence": "HERE/fixtures/gitops/apps/shop/overlays/dev"
+    },
+    {
+      "severity": "info",
+      "kind": "Application",
+      "ns": "argocd",
+      "name": "shop-cache",
+      "message": "source path not found locally under HERE/fixtures/gitops",
+      "evidence": "HERE/fixtures/gitops/apps/shop-cache/overlays/dev"
+    }
+  ],
+  "data": {
+    "applications": [
+      {
+        "ns": "argocd",
+        "app": "root",
+        "project": "internal",
+        "sync": "Synced",
+        "health": "Healthy",
+        "revision": "9f1c2ab3de45",
+        "dest": "https://kubernetes.default.svc/shop",
+        "source_path": "projects/internal@HEAD",
+        "local_path": "HERE/fixtures/gitops/projects/internal",
+        "local_path_exists": true
+      },
+      {
+        "ns": "argocd",
+        "app": "shop-api",
+        "project": "internal",
+        "sync": "OutOfSync",
+        "health": "Degraded",
+        "revision": "9f1c2ab3de45",
+        "dest": "https://kubernetes.default.svc/shop",
+        "source_path": "apps/shop/overlays/dev@HEAD",
+        "local_path": "HERE/fixtures/gitops/apps/shop/overlays/dev",
+        "local_path_exists": false
+      },
+      {
+        "ns": "argocd",
+        "app": "shop-cache",
+        "project": "internal",
+        "sync": "Synced",
+        "health": "Progressing",
+        "revision": "9f1c2ab3de45",
+        "dest": "https://kubernetes.default.svc/shop",
+        "source_path": "apps/shop-cache/overlays/dev@HEAD",
+        "local_path": "HERE/fixtures/gitops/apps/shop-cache/overlays/dev",
+        "local_path_exists": false
+      }
+    ],
+    "applicationsets": [
+      {
+        "ns": "argocd",
+        "applicationset": "shop-envs",
+        "generators": 1,
+        "conditions": "ResourcesUpToDate=True, ErrorOccurred=True"
+      }
+    ],
+    "appprojects": [
+      {
+        "ns": "argocd",
+        "project": "internal",
+        "sourceRepos": "https://gitlab.example.invalid/example-org/gitops.git",
+        "destinations": 1
+      }
+    ],
+    "kargo": "CRDs not installed"
+  }
+}

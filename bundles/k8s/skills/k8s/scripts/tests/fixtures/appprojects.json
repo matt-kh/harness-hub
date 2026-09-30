@@ -1,0 +1,28 @@
+{
+  "apiVersion": "v1",
+  "kind": "List",
+  "items": [
+    {
+      "apiVersion": "argoproj.io/v1alpha1",
+      "kind": "AppProject",
+      "metadata": {
+        "name": "internal",
+        "namespace": "argocd"
+      },
+      "spec": {
+        "sourceRepos": [
+          "https://gitlab.example.invalid/example-org/gitops.git"
+        ],
+        "destinations": [
+          {
+            "server": "https://kubernetes.default.svc",
+            "namespace": "*"
+          }
+        ]
+      }
+    }
+  ],
+  "metadata": {
+    "resourceVersion": "1"
+  }
+}

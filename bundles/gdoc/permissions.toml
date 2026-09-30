@@ -1,0 +1,23 @@
+# Claude Code permission rules contributed by bundle `gdoc` (merged into settings.json
+# `permissions` by the claude provider; other providers translate what they can).
+# gdoc reads allowed; writes are decided by the guard's 80-gdoc section.
+
+[permissions]
+allow = [
+  "Bash(gdoc api:*)",
+  "Bash(gdoc auth status:*)",
+  "Bash(gdoc comments:*)",
+  "Bash(gdoc export:*)",
+  "Bash(gdoc get:*)",
+  "Bash(gdoc list:*)",
+  "Bash(gdoc mail get:*)",
+  "Bash(gdoc mail search:*)",
+  "Bash(gdoc meta:*)",
+  "Bash(gdoc search:*)",
+  "Bash(gdoc sheet get:*)",
+  "Bash(gdoc whoami:*)",
+]
+ask = [
+  "Bash(gdoc mail send:*)",
+]
+deny = []

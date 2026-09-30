@@ -1,0 +1,11 @@
+{
+  "name": "shop",
+  "namespace": "shop",
+  "version": 9,
+  "info": {
+    "status": "failed",
+    "first_deployed": "2026-06-01T09:00:00Z",
+    "last_deployed": "2026-09-22T08:14:03Z",
+    "description": "timed out waiting for the condition"
+  }
+}

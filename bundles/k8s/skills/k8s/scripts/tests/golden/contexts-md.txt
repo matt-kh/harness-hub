@@ -1,0 +1,25 @@
+# exit=1
+# stderr:
+context=dev-cluster server=v1.26.15+testr1
+# stdout:
+# k8s contexts — dev-cluster
+
+## Findings (2)
+
+| sev | kind | ns/name | message |
+|---|---|---|---|
+| warn | Context | forbidden | unreachable: Error from server (Forbidden): pods is forbidden: User "stub" cannot list resource "pods" in API group "" at the cluster scope |
+| warn | Context | unreachable | unreachable: Unable to connect to the server: dial tcp 192.0.2.1:6443: i/o timeout |
+
+## contexts
+
+| name | cluster | prod | reachable | server | nodes_ready | nodes_total | error |
+|---|---|---|---|---|---|---|---|
+| dev-cluster | dev-cluster | False | True | v1.26.15+testr1 | 2 | 3 |  |
+| prod-cluster | prod-cluster | True | True | v1.26.15+testr1 | 2 | 3 |  |
+| unreachable | unreachable | False | False |  | 0 | 0 | Unable to connect to the server: dial tcp 192.0.2.1:6443: i/o timeout |
+| forbidden | forbidden | False | False |  | 0 | 0 | Error from server (Forbidden): pods is forbidden: User "stub" cannot list resource "pods" in API group "" at the cluster scope |
+
+## current_context
+
+dev-cluster

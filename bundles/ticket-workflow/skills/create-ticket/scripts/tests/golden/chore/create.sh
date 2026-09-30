@@ -1,0 +1,1 @@
+jira create PROJ Task 'Upgrade shop-serving base image to Python 3.12' --description "$(cat OUT/description.txt)" --field 'labels=["agent-drafted"]' --field 'priority={"name":"Low"}' --field 'assignee={"name":"jdoe"}' --field 'components=[{"name":"shop-serving"}]'

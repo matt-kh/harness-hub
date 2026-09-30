@@ -1,0 +1,7 @@
+{"project":"jdoe/dotlab","class":"enhancement",
+ "summary":"Add a --dry-run flag to the sync command",
+ "problem":"Sync changes files immediately. Fixes #3 once merged.",
+ "goal":"Preview every change sync would make without touching the filesystem.",
+ "acceptance":["`dotlab sync --dry-run` writes nothing"],
+ "assignee":"@me","labels":[],
+ "meta":{"drafted_by":"jdoe","date":"2026-09-24","sources":{}}}

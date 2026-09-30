@@ -1,0 +1,101 @@
+# exit=1
+# stderr:
+context=dev-cluster server=v1.26.15+testr1
+# stdout:
+{
+  "context": "dev-cluster",
+  "prod": false,
+  "generated_at": "TIMESTAMP",
+  "command": "capacity",
+  "findings": [
+    {
+      "severity": "crit",
+      "kind": "Scheduling",
+      "ns": "",
+      "name": "",
+      "message": "1 Pending pod(s) request nvidia.com/gpu",
+      "evidence": "shop-trainer-0"
+    },
+    {
+      "severity": "warn",
+      "kind": "ResourceQuota",
+      "ns": "shop",
+      "name": "shop-quota",
+      "message": "requests.cpu at 95% (19/20)",
+      "evidence": null
+    }
+  ],
+  "data": {
+    "nodes": [
+      {
+        "node": "gpu-node-01",
+        "pods": "2/110",
+        "cpu": "600m/24000m (2%)",
+        "lim_cpu": "2200m",
+        "memory": "1.1Gi/256.0Gi (0%)",
+        "lim_memory": "4.2Gi",
+        "nvidia.com/gpu": "0/8 (0%)",
+        "lim_nvidia.com/gpu": "0",
+        "ephemeral-storage": "0B/200.0Gi (0%)",
+        "lim_ephemeral-storage": "0B",
+        "live": "cpu=8400m mem=112.5Gi"
+      },
+      {
+        "node": "worker-02",
+        "pods": "3/110",
+        "cpu": "900m/8000m (11%)",
+        "lim_cpu": "3700m",
+        "memory": "1.8Gi/32.0Gi (5%)",
+        "lim_memory": "5.8Gi",
+        "nvidia.com/gpu": "0/0 (0%)",
+        "lim_nvidia.com/gpu": "0",
+        "ephemeral-storage": "0B/200.0Gi (0%)",
+        "lim_ephemeral-storage": "0B",
+        "live": "cpu=6200m mem=28.6Gi"
+      },
+      {
+        "node": "worker-03",
+        "pods": "0/110",
+        "cpu": "0m/8000m (0%)",
+        "lim_cpu": "0m",
+        "memory": "0B/32.0Gi (0%)",
+        "lim_memory": "0B",
+        "nvidia.com/gpu": "0/0 (0%)",
+        "lim_nvidia.com/gpu": "0",
+        "ephemeral-storage": "0B/200.0Gi (0%)",
+        "lim_ephemeral-storage": "0B",
+        "live": "cpu=40m mem=878.9Mi"
+      }
+    ],
+    "cluster_totals": {
+      "pods": "5/330",
+      "cpu": "1500m requested / 5900m limits / 40000m allocatable",
+      "memory": "2.9Gi requested / 10.0Gi limits / 320.0Gi allocatable",
+      "nvidia.com/gpu": "0 requested / 0 limits / 8 allocatable",
+      "ephemeral-storage": "0B requested / 0B limits / 600.0Gi allocatable"
+    },
+    "resourcequotas": [
+      {
+        "ns": "shop",
+        "quota": "shop-quota",
+        "resource": "requests.cpu",
+        "used": "19",
+        "hard": "20"
+      },
+      {
+        "ns": "shop",
+        "quota": "shop-quota",
+        "resource": "requests.memory",
+        "used": "34Gi",
+        "hard": "64Gi"
+      },
+      {
+        "ns": "shop",
+        "quota": "shop-quota",
+        "resource": "requests.nvidia.com/gpu",
+        "used": "2",
+        "hard": "4"
+      }
+    ]
+  }
+}

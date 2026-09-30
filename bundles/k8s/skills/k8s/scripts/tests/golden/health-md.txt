@@ -1,0 +1,103 @@
+# exit=1
+# stderr:
+context=dev-cluster server=v1.26.15+testr1
+# stdout:
+# k8s health — dev-cluster
+
+## Findings (17)
+
+| sev | kind | ns/name | message |
+|---|---|---|---|
+| crit | Application | argocd/shop-api | health=Degraded sync=OutOfSync |
+| crit | Certificate | shop/shop-api-tls | expires in DAYS d (TIMESTAMP) |
+| crit | HelmRelease | shop/shop | status=failed (chart shop-2.3.1 rev 9) |
+| crit | Job | ops/nightly-report-28991231 | failed=3 Job has reached the specified backoff limit |
+| crit | Node | worker-03 | NotReady (Ready=False): kubelet stopped posting node status |
+| crit | Pod | shop/shop-trainer-0 | phase=Pending: 0/3 nodes are available: 3 Insufficient nvidia.com/gpu. preemption: 0/3 nodes are available. |
+| warn | Application | argocd/shop-cache | sync=Synced health=Progressing |
+| warn | Certificate | ops/ops-ingress-tls | Ready=False order is in state "errored" |
+| warn | Events | - | 5 Warning events in the last 60 min |
+| warn | HelmRelease | default/reportd | status=pending-upgrade — a previous operation may still hold the lock |
+| warn | Node | worker-02 | MemoryPressure=True |
+| warn | Node | worker-03 | cordoned (unschedulable) |
+| warn | PVC | shop/shop-models | phase=Pending |
+| warn | Pod | default/reportd-7c9f8b6d5-qq2lm | containers not ready |
+| warn | Pod | shop/shop-api-0 | 12 restarts |
+| warn | PodDisruptionBudget | shop/shop-api | disruptionsAllowed=0 — blocks drain/eviction |
+| info | Certificate | apiserver | apiserver certificate not checked |
+
+## server
+
+v1.26.15+testr1
+
+## nodes
+
+| node | ready | pressure | unschedulable | kubelet |
+|---|---|---|---|---|
+| gpu-node-01 | True | - | False | v1.26.15+testr1 |
+| worker-02 | True | MemoryPressure | False | v1.26.15+testr1 |
+| worker-03 | False | - | True | v1.26.15+testr1 |
+
+## problem_pods
+
+| ns | pod | phase | ready | restarts | node | state |
+|---|---|---|---|---|---|---|
+| shop | shop-api-0 | Running | 1/2 | 12 | worker-02 | api=waiting CrashLoopBackOff |
+| shop | shop-trainer-0 | Pending | 0/0 | 0 |  | ok |
+| default | reportd-7c9f8b6d5-qq2lm | Running | 0/1 | 0 | worker-02 | reportd=waiting ImagePullBackOff |
+
+## unbound_pvcs
+
+| ns | pvc | phase | storageClass |
+|---|---|---|---|
+| shop | shop-models | Pending | nfs-client |
+
+## warning_events_60m
+
+| age | ns | object | reason | count | message |
+|---|---|---|---|---|---|
+| AGE | shop | Pod/shop-api-0 | BackOff | 331 | Back-off restarting failed container api in pod shop-api-0_shop |
+| AGE | shop | Pod/shop-trainer-0 | FailedScheduling | 18 | 0/3 nodes are available: 3 Insufficient nvidia.com/gpu. |
+| AGE | default | Pod/reportd-7c9f8b6d5-qq2lm | Failed | 7 | Failed to pull image "registry.example.invalid/ops/reportd:2.0.1": not found |
+| AGE | shop | PersistentVolumeClaim/shop-models | ProvisioningFailed | 3 | failed to provision volume with StorageClass "nfs-client" |
+| AGE | ops | Job/nightly-report-28991231 | BackoffLimitExceeded | 1 | Job has reached the specified backoff limit |
+
+## failed_jobs
+
+| ns | job | failed | reason |
+|---|---|---|---|
+| ops | nightly-report-28991231 | 3 | BackoffLimitExceeded |
+
+## blocking_pdbs
+
+| ns | pdb | healthy | desired | expected |
+|---|---|---|---|---|
+| shop | shop-api | 1 | 2 | 2 |
+
+## argocd_apps
+
+| ns | app | sync | health |
+|---|---|---|---|
+| argocd | root | Synced | Healthy |
+| argocd | shop-api | OutOfSync | Degraded |
+| argocd | shop-cache | Synced | Progressing |
+
+## helm_releases
+
+| ns | release | status | chart | revision |
+|---|---|---|---|---|
+| shop | shop | failed | shop-2.3.1 | 9 |
+| shop | shop-cache | deployed | redis-19.0.2 | 3 |
+| ingress-nginx | ingress-nginx | deployed | ingress-nginx-4.10.1 | 4 |
+| default | reportd | pending-upgrade | reportd-0.4.0 | 2 |
+
+## certificates
+
+| ns | certificate | ready | notAfter | renewalTime |
+|---|---|---|---|---|
+| shop | shop-api-tls | True | TIMESTAMP | TIMESTAMP |
+| ops | ops-ingress-tls | False | TIMESTAMP | TIMESTAMP |
+
+## apiserver_cert
+
+insecure-skip-tls-verify — certificate not checked

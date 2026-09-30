@@ -1,0 +1,195 @@
+[bundle]
+name = "jira"
+schema_version = "1"
+summary = "Jira Server client (jira CLI + skill), read-only jira-mcp server, Jira write governance in the guard"
+description = """
+Ships the stdlib `jira` CLI and its skill (read/search/update tickets, sprints, versions,
+transitions, attachments, links), the read-only `mcp-atlassian` server wired with the token
+read from ~/.config/jira at launch (never stored in a provider config), and guard section 70:
+creates need a provenance label, writes to agent-labelled tickets are promptless, writes to
+human tickets ask and their transitions are denied, native links only between agent-labelled
+tickets. Jira Server / Data Center 8.x with personal access tokens; Cloud is not implemented.
+"""
+depends_on = ["core"]
+recommends = ["ticket-workflow", "gitlab"]
+conflicts_with = []
+any_of = []
+tags = ["tracker"]
+owners = []
+docs = "docs/bundles/jira.md"
+stability = "stable"
+
+[requires.binaries.python3]
+min_version = "3.9"
+version_cmd = "python3 --version"
+version_regex = 'Python ([0-9]+\.[0-9]+)'
+why = "The jira CLI is stdlib python."
+
+[requires.binaries.uvx]
+min_version = "0"
+version_cmd = "uvx --version"
+optional = true
+why = "Runs the read-only mcp-atlassian server (only when jira.mcp.enabled)."
+
+[requires.config."jira.url"]
+type = "string"
+required = true
+pattern = '^https?://[^/\s]+(/[^\s]*)?$'
+description = "Base URL of your Jira Server, no trailing slash. The CLI exits 2 with 'not configured' until it is set."
+example = "https://jira.example.com"
+
+[requires.config."jira.kind"]
+type = "string"
+default = "server"
+enum = ["server", "cloud"]
+description = "Jira flavour. Only `server` (Server / Data Center 8.x, PAT bearer auth, plain-text bodies) is implemented."
+
+[requires.config."jira.link_types"]
+type = "array"
+items = "string"
+default = ["relates", "blocks", "issue split"]
+description = "Link type names (case-insensitive) the guard permits for `jira link` / `create --link` (HARNESS_JIRA_LINK_TYPES)."
+
+[requires.config."jira.fields"]
+type = "object"
+default = {}
+description = "Friendly custom-field names per project, from `jira fields PROJ`: [jira.fields.PROJ] story_points = \"customfield_…\". Lower-case keys at the top level apply to every project. Used by the jira CLI and create-ticket; ids are never guessed."
+
+[requires.config."jira.get_exclude"]
+type = "array"
+items = "string"
+default = []
+description = "Friendly field names (from jira.fields) that `jira get` should not surface; they still resolve for set/create. HARNESS_JIRA_GET_EXCLUDE (comma-separated) overrides."
+
+[requires.config."jira.issue_types"]
+type = "array"
+items = "object"
+default = []
+description = "Optional per-org issue-type rules for create-ticket: [[jira.issue_types]] name, standalone, requires, requires_without_facts, body_field, hint. Empty = generic (Epic requires epic_name)."
+
+[requires.config."jira.mcp.enabled"]
+type = "boolean"
+default = true
+description = "Register the read-only jira-mcp server (uvx mcp-atlassian, READ_ONLY_MODE=true)."
+
+[requires.secrets.jira_pat]
+where = "~/.config/jira"
+written_by = "human (Jira profile → Personal Access Tokens)"
+mode = "0600"
+description = "Personal access token, one line. Read by the jira CLI and injected into jira-mcp at launch; never printed, never in harness.toml. The guard denies agents reading it."
+rotate = "docs/runbooks/rotate-jira-token.md"
+
+[provides]
+rules = ["rules/70-jira.md"]
+skills = ["skills/jira"]
+skill_fragments = []
+agents = []
+guard_rules = ["guard.d/70-jira.sh"]
+permissions = "permissions.toml"
+mcp = "mcp.toml"
+bin = [{ name = "jira", target = "skills/jira/scripts/jira.py" }]
+
+[provides.env]
+JIRA_URL = "{{ jira.url }}"
+HARNESS_JIRA_LINK_TYPES = "{{ jira.link_types }}"
+
+[[manual_steps]]
+id = "jira-pat"
+title = "Create a Jira personal access token and store it in ~/.config/jira"
+once_per = "account"
+needs = ["browser"]
+minutes = 3
+why = "The CLI and the MCP server authenticate with a PAT (Bearer). Agents never create or read it."
+how = """
+1. Open {{ jira.url }}/secure/ViewProfile.jspa → **Personal Access Tokens** → **Create token**
+   (Jira Server / Data Center 8.14+). Name it `agent-harness`, set an expiry, **Create**, copy it.
+2. Store it — plain, one line, private (paste when `cat` waits, then Ctrl-D):
+   ```
+   install -d -m 700 ~/.config
+   ( umask 077; cat > ~/.config/jira )
+   chmod 600 ~/.config/jira
+   ```
+3. Check: `jira whoami` prints your account name. Exit 2 means a bad token or an unreachable
+   server (VPN?).
+"""
+[manual_steps.verify]
+cmd = "jira whoami"
+expect = { exit = 0 }
+timeout = 20
+unblocks = ["jira-auth"]
+
+[[manual_steps]]
+id = "jira-fields"
+title = "Record your projects' custom field ids in harness.toml (optional)"
+once_per = "org"
+needs = []
+minutes = 5
+why = "Friendly field names (`jira set KEY \"Story Points\" 3`) and create-ticket's Problem Description / Category / Epic Name fields need the org's customfield ids; nothing is guessed."
+how = """
+For each project you work in: `jira fields PROJ` lists `customfield_… -> Name`. Copy the ones
+you use into `local/harness.toml`:
+```
+[jira.fields.PROJ]
+story_points = "customfield_…"
+epic_link = "customfield_…"
+problem_description = "customfield_…"
+```
+then `harness apply`. Org admins can ship the table in the org overlay (`harness init --from`).
+"""
+[manual_steps.verify]
+cmd = "true"
+expect = { exit = 0 }
+
+[[manual_steps]]
+id = "install-uv"
+title = "Install uv (for the read-only jira-mcp server)"
+once_per = "machine"
+needs = []
+minutes = 1
+why = "jira-mcp runs `uvx mcp-atlassian`. Skip this and set jira.mcp.enabled = false if you only want the CLI."
+how = "`curl -LsSf https://astral.sh/uv/install.sh | sh` (or `brew install uv`, or `pipx install uv`), then open a new shell."
+[manual_steps.verify]
+cmd = "uvx --version"
+expect = { exit = 0 }
+unblocks = ["uvx"]
+
+[[doctor_checks]]
+id = "jira-cli"
+title = "jira CLI on PATH"
+severity = "fail"
+cmd = "command -v jira >/dev/null && jira 2>&1 | grep -q 'Commands'"
+expect = { exit = 0 }
+offline_skip = false
+fix = "harness apply"
+
+[[doctor_checks]]
+id = "jira-token-file"
+title = "~/.config/jira present and private (0600)"
+severity = "fail"
+cmd = "test -s ~/.config/jira && [ \"$(stat -c %a ~/.config/jira 2>/dev/null || stat -f %Lp ~/.config/jira)\" = 600 ]"
+expect = { exit = 0 }
+offline_skip = false
+fix = "jira-pat"
+
+[[doctor_checks]]
+id = "jira-auth"
+title = "jira whoami succeeds against {{ jira.url }}"
+severity = "fail"
+cmd = "jira whoami"
+expect = { exit = 0 }
+timeout = 20
+offline_skip = true
+fix = "jira-pat"
+
+[[doctor_checks]]
+id = "uvx"
+title = "uvx available for jira-mcp"
+severity = "warn"
+cmd = "uvx --version"
+expect = { exit = 0 }
+offline_skip = false
+fix = "install-uv"
+
+[uninstall]
+keeps = ["~/.config/jira"]
+notes = "The token file is yours; revoke it in Jira (profile → Personal Access Tokens) when you leave."

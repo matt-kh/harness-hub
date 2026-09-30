@@ -1,0 +1,73 @@
+# exit=1
+# stderr:
+context=dev-cluster server=v1.26.15+testr1 ns=shop
+# stdout:
+{
+  "context": "dev-cluster",
+  "prod": false,
+  "generated_at": "TIMESTAMP",
+  "command": "helm",
+  "findings": [
+    {
+      "severity": "crit",
+      "kind": "HelmRelease",
+      "ns": "shop",
+      "name": "shop",
+      "message": "status=failed \u2014 timed out waiting for the condition",
+      "evidence": "r7 superseded Upgrade complete; r8 superseded Upgrade complete; r9 failed timed out waiting for the condition"
+    }
+  ],
+  "data": {
+    "values": {
+      "image": {
+        "repository": "registry.example.invalid/shop/api",
+        "tag": "1.4.2"
+      },
+      "replicaCount": 2,
+      "db": {
+        "host": "pg.shop.example.com",
+        "user": "shop",
+        "password": "***REDACTED***",
+        "dsn": "***REDACTED***"
+      },
+      "apiKey": "***REDACTED***",
+      "ingress": {
+        "enabled": true,
+        "host": "shop.example.invalid"
+      },
+      "extraEnv": [
+        {
+          "name": "LOG_LEVEL",
+          "value": "debug"
+        },
+        {
+          "name": "SERVICE_TOKEN",
+          "value": "st-9a8b7c6d5e4f"
+        }
+      ]
+    },
+    "values_note": "redacted by k8s \u2014 secret-looking keys are ***REDACTED***; Secret data is shown as byte sizes",
+    "releases": [
+      {
+        "ns": "shop",
+        "release": "shop",
+        "status": "failed",
+        "chart": "shop-2.3.1",
+        "appVersion": "1.4.2",
+        "revision": "9",
+        "updated": "2026-09-22 08:14:03",
+        "history": "r7 superseded Upgrade complete; r8 superseded Upgrade complete; r9 failed timed out waiting for the condition",
+        "description": "timed out waiting for the condition"
+      },
+      {
+        "ns": "shop",
+        "release": "shop-cache",
+        "status": "deployed",
+        "chart": "redis-19.0.2",
+        "appVersion": "7.2.4",
+        "revision": "3",
+        "updated": "2026-08-30 11:02:44"
+      }
+    ]
+  }
+}

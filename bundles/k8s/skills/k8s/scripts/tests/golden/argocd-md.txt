@@ -1,0 +1,39 @@
+# exit=1
+# stderr:
+context=dev-cluster server=v1.26.15+testr1
+# stdout:
+# k8s argocd — dev-cluster
+
+## Findings (5)
+
+| sev | kind | ns/name | message |
+|---|---|---|---|
+| crit | Application | argocd/shop-api | health=Degraded sync=OutOfSync |
+| warn | Application | argocd/shop-cache | sync=Synced health=Progressing |
+| warn | ApplicationSet | argocd/shop-envs | ErrorOccurred: error generating params: repository not accessible |
+| info | Application | argocd/shop-api | source path not found locally under HERE/fixtures/gitops |
+| info | Application | argocd/shop-cache | source path not found locally under HERE/fixtures/gitops |
+
+## applications
+
+| ns | app | project | sync | health | revision | dest | source_path | local_path | local_path_exists |
+|---|---|---|---|---|---|---|---|---|---|
+| argocd | root | internal | Synced | Healthy | 9f1c2ab3de45 | https://kubernetes.default.svc/shop | projects/internal@HEAD | HERE/fixtures/gitops/projects/internal | True |
+| argocd | shop-api | internal | OutOfSync | Degraded | 9f1c2ab3de45 | https://kubernetes.default.svc/shop | apps/shop/overlays/dev@HEAD | HERE/fixtures/gitops/apps/shop/overlays/dev | False |
+| argocd | shop-cache | internal | Synced | Progressing | 9f1c2ab3de45 | https://kubernetes.default.svc/shop | apps/shop-cache/overlays/dev@HEAD | HERE/fixtures/gitops/apps/shop-cache/overlays/dev | False |
+
+## applicationsets
+
+| ns | applicationset | generators | conditions |
+|---|---|---|---|
+| argocd | shop-envs | 1 | ResourcesUpToDate=True, ErrorOccurred=True |
+
+## appprojects
+
+| ns | project | sourceRepos | destinations |
+|---|---|---|---|
+| argocd | internal | https://gitlab.example.invalid/example-org/gitops.git | 1 |
+
+## kargo
+
+CRDs not installed

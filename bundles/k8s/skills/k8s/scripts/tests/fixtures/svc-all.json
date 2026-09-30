@@ -1,0 +1,57 @@
+{
+  "apiVersion": "v1",
+  "kind": "List",
+  "items": [
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "shop-api",
+        "namespace": "shop"
+      },
+      "spec": {
+        "ports": [
+          {
+            "name": "http",
+            "port": 8080
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "prometheus-operated",
+        "namespace": "monitoring"
+      },
+      "spec": {
+        "ports": [
+          {
+            "name": "http-web",
+            "port": 9090
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "rancher-monitoring-prometheus",
+        "namespace": "monitoring"
+      },
+      "spec": {
+        "ports": [
+          {
+            "name": "http-web",
+            "port": 9090
+          }
+        ]
+      }
+    }
+  ],
+  "metadata": {
+    "resourceVersion": "1"
+  }
+}

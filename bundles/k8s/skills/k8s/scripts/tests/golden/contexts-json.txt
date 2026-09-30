@@ -1,0 +1,73 @@
+# exit=1
+# stderr:
+context=dev-cluster server=v1.26.15+testr1
+# stdout:
+{
+  "context": "dev-cluster",
+  "prod": false,
+  "generated_at": "TIMESTAMP",
+  "command": "contexts",
+  "findings": [
+    {
+      "severity": "warn",
+      "kind": "Context",
+      "ns": "",
+      "name": "forbidden",
+      "message": "unreachable: Error from server (Forbidden): pods is forbidden: User \"stub\" cannot list resource \"pods\" in API group \"\" at the cluster scope",
+      "evidence": null
+    },
+    {
+      "severity": "warn",
+      "kind": "Context",
+      "ns": "",
+      "name": "unreachable",
+      "message": "unreachable: Unable to connect to the server: dial tcp 192.0.2.1:6443: i/o timeout",
+      "evidence": null
+    }
+  ],
+  "data": {
+    "contexts": [
+      {
+        "name": "dev-cluster",
+        "cluster": "dev-cluster",
+        "prod": false,
+        "reachable": true,
+        "server": "v1.26.15+testr1",
+        "nodes_ready": 2,
+        "nodes_total": 3,
+        "error": ""
+      },
+      {
+        "name": "prod-cluster",
+        "cluster": "prod-cluster",
+        "prod": true,
+        "reachable": true,
+        "server": "v1.26.15+testr1",
+        "nodes_ready": 2,
+        "nodes_total": 3,
+        "error": ""
+      },
+      {
+        "name": "unreachable",
+        "cluster": "unreachable",
+        "prod": false,
+        "reachable": false,
+        "server": "",
+        "nodes_ready": 0,
+        "nodes_total": 0,
+        "error": "Unable to connect to the server: dial tcp 192.0.2.1:6443: i/o timeout"
+      },
+      {
+        "name": "forbidden",
+        "cluster": "forbidden",
+        "prod": false,
+        "reachable": false,
+        "server": "",
+        "nodes_ready": 0,
+        "nodes_total": 0,
+        "error": "Error from server (Forbidden): pods is forbidden: User \"stub\" cannot list resource \"pods\" in API group \"\" at the cluster scope"
+      }
+    ],
+    "current_context": "dev-cluster"
+  }
+}

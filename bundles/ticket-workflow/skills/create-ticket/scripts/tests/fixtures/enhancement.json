@@ -1,0 +1,10 @@
+{"project":"PROJ","type":"CR","class":"enhancement","type_of_problem":"Enhancement","program":"ACME",
+ "summary":"Allow exporting the dataset manifest as CSV from the dataset page",
+ "problem":"Users copy dataset manifests by hand into spreadsheets for audits.","motivation":"Audits happen weekly per program.",
+ "goal":"One-click CSV export of the manifest currently shown.",
+ "proposed_change":"Add an Export CSV action on the dataset page that downloads the visible manifest with the same columns and filters.",
+ "acceptance":["Export CSV button visible on the dataset page","Downloaded file matches the visible rows and columns","Filters applied on screen are respected"],
+ "where_to_test":["Dataset page","Dataset page with an active filter"],"what_to_test":["Export produces a CSV","Row count matches the filtered table"],
+ "out_of_scope":["Scheduled or emailed exports"],"related":[],"fix_versions":["1.12.0"],
+ "priority":"Medium","assignee":"jdoe","components":["Web-UI","Shop-Backend"],"labels":[],"problem_description_echo":true,
+ "meta":{"drafted_by":"jdoe","date":"2026-09-09","sources":{"priority":"default"}}}

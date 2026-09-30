@@ -1,0 +1,83 @@
+# exit=1
+# stderr:
+context=dev-cluster server=v1.26.15+testr1
+# stdout:
+{
+  "context": "dev-cluster",
+  "prod": false,
+  "generated_at": "TIMESTAMP",
+  "command": "certs",
+  "findings": [
+    {
+      "severity": "crit",
+      "kind": "Certificate",
+      "ns": "shop",
+      "name": "shop-api-tls",
+      "message": "expires in DAYS d (TIMESTAMP)",
+      "evidence": null
+    },
+    {
+      "severity": "warn",
+      "kind": "Certificate",
+      "ns": "ops",
+      "name": "ops-ingress-tls",
+      "message": "Ready=False order is in state \"errored\"",
+      "evidence": null
+    },
+    {
+      "severity": "warn",
+      "kind": "CertificateSigningRequest",
+      "ns": "",
+      "name": "csr-node-04",
+      "message": "pending approval (signer kubernetes.io/kubelet-serving)",
+      "evidence": null
+    },
+    {
+      "severity": "info",
+      "kind": "Certificate",
+      "ns": "",
+      "name": "apiserver",
+      "message": "not checked",
+      "evidence": "insecure-skip-tls-verify \u2014 certificate not checked"
+    }
+  ],
+  "data": {
+    "apiserver_cert": "insecure-skip-tls-verify \u2014 certificate not checked",
+    "csrs": [
+      {
+        "csr": "csr-node-04",
+        "state": "Pending",
+        "signer": "kubernetes.io/kubelet-serving",
+        "requestor": "system:node:worker-04",
+        "age": "AGE"
+      },
+      {
+        "csr": "csr-node-03",
+        "state": "Approved",
+        "signer": "kubernetes.io/kubelet-serving",
+        "requestor": "system:node:worker-03",
+        "age": "AGE"
+      }
+    ],
+    "cert_manager": [
+      {
+        "ns": "shop",
+        "certificate": "shop-api-tls",
+        "ready": "True",
+        "notAfter": "TIMESTAMP",
+        "days_left": DAYS,
+        "renewalTime": "TIMESTAMP",
+        "secret": "shop-api-tls"
+      },
+      {
+        "ns": "ops",
+        "certificate": "ops-ingress-tls",
+        "ready": "False",
+        "notAfter": "TIMESTAMP",
+        "days_left": DAYS,
+        "renewalTime": "TIMESTAMP",
+        "secret": "ops-ingress-tls"
+      }
+    ]
+  }
+}

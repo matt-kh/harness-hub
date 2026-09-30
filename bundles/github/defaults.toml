@@ -1,0 +1,4 @@
+# Defaults for bundle `github`. github.login has no default: set it in local/harness.toml.
+
+[github]
+host = "github.com"

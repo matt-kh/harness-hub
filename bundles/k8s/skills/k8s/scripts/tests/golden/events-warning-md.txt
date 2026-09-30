@@ -1,0 +1,35 @@
+# exit=1
+# stderr:
+context=dev-cluster server=v1.26.15+testr1
+# stdout:
+# k8s events — dev-cluster
+
+## Findings (1)
+
+| sev | kind | ns/name | message |
+|---|---|---|---|
+| warn | Events | - | 5 Warning events in the last 60m |
+
+## since
+
+60m
+
+## by_reason
+
+| key | value |
+|---|---|
+| BackOff | 331 |
+| FailedScheduling | 18 |
+| Failed | 7 |
+| ProvisioningFailed | 3 |
+| BackoffLimitExceeded | 1 |
+
+## events
+
+| age | type | reason | ns | object | count | message |
+|---|---|---|---|---|---|---|
+| AGE | Warning | BackOff | shop | Pod/shop-api-0 | 331 | Back-off restarting failed container api in pod shop-api-0_shop |
+| AGE | Warning | FailedScheduling | shop | Pod/shop-trainer-0 | 18 | 0/3 nodes are available: 3 Insufficient nvidia.com/gpu. |
+| AGE | Warning | Failed | default | Pod/reportd-7c9f8b6d5-qq2lm | 7 | Failed to pull image "registry.example.invalid/ops/reportd:2.0.1": not found |
+| AGE | Warning | ProvisioningFailed | shop | PersistentVolumeClaim/shop-models | 3 | failed to provision volume with StorageClass "nfs-client" |
+| AGE | Warning | BackoffLimitExceeded | ops | Job/nightly-report-28991231 | 1 | Job has reached the specified backoff limit |

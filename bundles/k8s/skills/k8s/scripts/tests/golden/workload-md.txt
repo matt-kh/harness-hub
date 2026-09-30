@@ -1,0 +1,80 @@
+# exit=1
+# stderr:
+context=dev-cluster server=v1.26.15+testr1 ns=shop
+# stdout:
+# k8s workload — dev-cluster
+
+## Findings (4)
+
+| sev | kind | ns/name | message |
+|---|---|---|---|
+| crit | Deployment | shop/shop-api | Available=False (MinimumReplicasUnavailable) |
+| warn | Deployment | shop/shop-api | observedGeneration 4 behind generation 5 — controller has not caught up |
+| warn | Deployment | shop/shop-api | 1/2 replicas ready |
+| warn | Pod | shop/shop-api-0 | 12 restarts |
+
+## workload
+
+| key | value |
+|---|---|
+| ns | shop |
+| kind | Deployment |
+| name | shop-api |
+| owner_chain | Deployment/shop-api |
+| generation | 5 |
+| observedGeneration | 4 |
+| created | TIMESTAMP |
+| images | registry.example.invalid/shop/api:1.4.2, registry.example.invalid/shop/envoy:1.29 |
+
+## rollout
+
+| key | value |
+|---|---|
+| replicas | 2 |
+| readyReplicas | 1 |
+| updatedReplicas | 2 |
+| availableReplicas | 1 |
+| unavailableReplicas | 1 |
+| spec_replicas | 2 |
+
+## conditions
+
+| type | status | reason | message |
+|---|---|---|---|
+| Available | False | MinimumReplicasUnavailable | Deployment does not have minimum availability. |
+| Progressing | True | ReplicaSetUpdated | ReplicaSet "shop-api-5d8b9c7f4" is progressing. |
+
+## selector
+
+app=shop-api
+
+## replicasets
+
+| rs | desired | ready | revision |
+|---|---|---|---|
+| shop-api-5d8b9c7f4 | 2 | 1 | 7 |
+
+## pods
+
+| ns | pod | phase | ready | restarts | node | state |
+|---|---|---|---|---|---|---|
+| shop | shop-api-0 | Running | 1/2 | 12 | worker-02 | api=waiting CrashLoopBackOff |
+| shop | shop-api-1 | Running | 2/2 | 0 | gpu-node-01 | ok |
+
+## warning_events
+
+| age | object | reason | count | message |
+|---|---|---|---|---|
+| AGE | Pod/shop-api-0 | BackOff | 331 | Back-off restarting failed container api in pod shop-api-0_shop |
+| AGE | Pod/shop-api-0 | Unhealthy | 55 | Readiness probe failed: HTTP probe failed with statuscode: 503 |
+
+## worst_pod
+
+shop-api-0
+
+## logs
+
+| key | value |
+|---|---|
+| api | TIMESTAMP INFO  starting shop-api 1.4.2 ⏎ TIMESTAMP DEBUG db.password=***REDACTED*** ⏎ TIMESTAMP DEBUG dsn=***REDACTED*** ⏎ TIMESTAMP DEBUG bearer ***REDACTED*** ⏎ TIMESTAMP DEBUG aws_access_key_id = ***REDACTED*** ⏎ TIMESTAMP ERROR failed to connect to pg.shop.example.com:5432: connection refused ⏎ TIMESTAMP FATAL exiting with code 1 |
+| sidecar | [2026-09-23 02:10:01.001][1][info][main] starting envoy ⏎ [2026-09-23 02:10:01.500][1][info][upstream] cluster shop-api added |

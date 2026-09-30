@@ -1,0 +1,6 @@
+{"project":"PROJ","type":"SW Task","class":"swtask","category":"Software Upgrade",
+ "summary":"Rotate the on-prem registry TLS certificate before expiry",
+ "problem":"The on-prem registry certificate expires on 2026-10-01.","goal":"Registry serves a renewed certificate with no pull failures.",
+ "acceptance":["New certificate installed","Nodes pull images without TLS errors"],
+ "priority":"High","assignee":"jdoe","labels":[],
+ "meta":{"drafted_by":"jdoe","date":"2026-09-09","sources":{}}}

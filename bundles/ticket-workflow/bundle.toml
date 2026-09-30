@@ -1,0 +1,105 @@
+[bundle]
+name = "ticket-workflow"
+schema_version = "1"
+summary = "/work-ticket (ticket → governed MR/PR, stacked delivery) and /create-ticket (one drafted ticket or issue)"
+description = """
+Two skills on top of a tracker bundle and an SCM bundle. `/work-ticket KEY|#N` verifies the
+ticket against the code, sizes it, gates every tracker write behind the agent-worked label,
+implements on key-free branches (subagents in local worktrees), runs only the checks CI lacks
+and opens MRs/PRs that mention the key without closing it; large tickets are planned by the
+Plan agent and delivered as stacked MRs/PRs. `/create-ticket <text>` renders ONE ticket or
+GitHub issue deterministically (render-ticket.py), creates it with the agent-drafted label,
+reads it back and stops. Works with Jira + GitLab, Jira + GitHub, or GitHub alone; the skills
+check the CLI they need at preflight and name the missing bundle instead of improvising.
+Org-specific issue-type rules and field ids come from jira.issue_types / jira.fields.
+"""
+depends_on = ["core"]
+recommends = ["jira", "gitlab", "github"]
+conflicts_with = []
+any_of = [["jira", "github"], ["gitlab", "github"]]
+tags = ["workflow", "tracker", "scm"]
+owners = []
+docs = "docs/bundles/ticket-workflow.md"
+stability = "stable"
+
+[requires.binaries.jq]
+min_version = "1.6"
+version_cmd = "jq --version"
+version_regex = 'jq-([0-9]+\.[0-9]+)'
+why = "Every preflight / facts script emits JSON through jq."
+
+[requires.binaries.python3]
+min_version = "3.9"
+version_cmd = "python3 --version"
+version_regex = 'Python ([0-9]+\.[0-9]+)'
+why = "render-ticket.py and the preflight helpers."
+
+[requires.binaries.git]
+min_version = "2.30"
+version_cmd = "git --version"
+version_regex = 'git version ([0-9]+\.[0-9]+)'
+why = "Worktrees for subagents, branch facts, stacked delivery."
+
+[provides]
+rules = ["rules/75-ticket-workflow.md"]
+skills = ["skills/work-ticket", "skills/create-ticket"]
+skill_fragments = []
+agents = []
+guard_rules = []
+permissions = "permissions.toml"
+mcp = ""
+bin = []
+
+[provides.env]
+
+[[manual_steps]]
+id = "repo-overrides"
+title = "Know the per-repo opt-outs (read once)"
+once_per = "org"
+needs = []
+minutes = 2
+why = "Repos with their own ticket workflow replace these skills wholesale; a few guard behaviours can be switched off per repo, never globally."
+how = """
+In a repo's `.claude/settings.json` → `"env"`:
+- `WORK_TICKET_ALLOW_TRANSITION=1` — `jira transition` / `gh issue close|reopen` on a human
+  ticket asks instead of denying (repos whose own workflow moves tickets).
+- `WORK_TICKET_KEY_IN_BRANCH=1` — the repo puts ticket keys in branch names (declaration only).
+- `WORK_TICKET_ALLOW_DEFAULT_PUSH_RE=<regex on the repo top level>` — a default-branch push
+  asks instead of denying (personal repos).
+A repo-level skill such as `work-jira-ticket` is detected at preflight and takes over.
+"""
+[manual_steps.verify]
+cmd = "true"
+expect = { exit = 0 }
+
+[[doctor_checks]]
+id = "ticket-workflow-tracker"
+title = "A tracker CLI is on PATH (jira or gh)"
+severity = "fail"
+cmd = "command -v jira >/dev/null 2>&1 || command -v gh >/dev/null 2>&1"
+expect = { exit = 0 }
+offline_skip = false
+fix = "Activate the jira or github bundle (hub.bundles) and run harness apply"
+
+[[doctor_checks]]
+id = "ticket-workflow-scm"
+title = "An SCM CLI is on PATH (glab or gh)"
+severity = "fail"
+cmd = "command -v glab >/dev/null 2>&1 || command -v gh >/dev/null 2>&1"
+expect = { exit = 0 }
+offline_skip = false
+fix = "Activate the gitlab or github bundle (hub.bundles) and run harness apply"
+
+[[doctor_checks]]
+id = "ticket-workflow-skills"
+title = "work-ticket and create-ticket skills rendered"
+severity = "fail"
+cmd = "test -s ~/.claude/skills/work-ticket/SKILL.md && test -s ~/.claude/skills/create-ticket/SKILL.md"
+expect = { exit = 0 }
+offline_skip = false
+fix = "harness apply --provider claude"
+providers = ["claude"]
+
+[uninstall]
+keeps = []
+notes = "Removes the two rendered skills and the rule block; tickets, MRs and labels they created are untouched."

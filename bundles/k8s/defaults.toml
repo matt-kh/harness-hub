@@ -1,0 +1,8 @@
+# Defaults for bundle `k8s`.
+
+[k8s]
+prod_re = "(^|[-_./:])(prod|production)([-_./:]|$)"
+gitops_root = ""
+gitops_repo_match = ""
+clusters_doc = "~/.local/state/harness/k8s/clusters.md"
+broken_contexts = []

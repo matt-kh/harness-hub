@@ -1,0 +1,21 @@
+# Claude Code permission rules contributed by bundle `jira` (merged into settings.json
+# `permissions` by the claude provider; other providers translate what they can).
+# jira CLI reads and the read-only jira-mcp server allowed; writes are decided by the guard's 70-jira section.
+
+[permissions]
+allow = [
+  "Bash(jira api:*)",
+  "Bash(jira attachments:*)",
+  "Bash(jira download:*)",
+  "Bash(jira fields:*)",
+  "Bash(jira get:*)",
+  "Bash(jira links:*)",
+  "Bash(jira search:*)",
+  "Bash(jira sprints:*)",
+  "Bash(jira transitions:*)",
+  "Bash(jira versions:*)",
+  "Bash(jira whoami:*)",
+  "mcp__jira-mcp",
+]
+ask = []
+deny = []

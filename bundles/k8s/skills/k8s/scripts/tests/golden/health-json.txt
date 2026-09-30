@@ -1,0 +1,338 @@
+# exit=1
+# stderr:
+context=dev-cluster server=v1.26.15+testr1
+# stdout:
+{
+  "context": "dev-cluster",
+  "prod": false,
+  "generated_at": "TIMESTAMP",
+  "command": "health",
+  "findings": [
+    {
+      "severity": "crit",
+      "kind": "Application",
+      "ns": "argocd",
+      "name": "shop-api",
+      "message": "health=Degraded sync=OutOfSync",
+      "evidence": "Deployment shop-api has 1/2 replicas available"
+    },
+    {
+      "severity": "crit",
+      "kind": "Certificate",
+      "ns": "shop",
+      "name": "shop-api-tls",
+      "message": "expires in DAYS d (TIMESTAMP)",
+      "evidence": null
+    },
+    {
+      "severity": "crit",
+      "kind": "HelmRelease",
+      "ns": "shop",
+      "name": "shop",
+      "message": "status=failed (chart shop-2.3.1 rev 9)",
+      "evidence": null
+    },
+    {
+      "severity": "crit",
+      "kind": "Job",
+      "ns": "ops",
+      "name": "nightly-report-28991231",
+      "message": "failed=3 Job has reached the specified backoff limit",
+      "evidence": null
+    },
+    {
+      "severity": "crit",
+      "kind": "Node",
+      "ns": "",
+      "name": "worker-03",
+      "message": "NotReady (Ready=False): kubelet stopped posting node status",
+      "evidence": null
+    },
+    {
+      "severity": "crit",
+      "kind": "Pod",
+      "ns": "shop",
+      "name": "shop-trainer-0",
+      "message": "phase=Pending: 0/3 nodes are available: 3 Insufficient nvidia.com/gpu. preemption: 0/3 nodes are available.",
+      "evidence": null
+    },
+    {
+      "severity": "warn",
+      "kind": "Application",
+      "ns": "argocd",
+      "name": "shop-cache",
+      "message": "sync=Synced health=Progressing",
+      "evidence": null
+    },
+    {
+      "severity": "warn",
+      "kind": "Certificate",
+      "ns": "ops",
+      "name": "ops-ingress-tls",
+      "message": "Ready=False order is in state \"errored\"",
+      "evidence": null
+    },
+    {
+      "severity": "warn",
+      "kind": "Events",
+      "ns": "",
+      "name": "",
+      "message": "5 Warning events in the last 60 min",
+      "evidence": "BackOff, BackoffLimitExceeded, Failed, FailedScheduling, ProvisioningFailed"
+    },
+    {
+      "severity": "warn",
+      "kind": "HelmRelease",
+      "ns": "default",
+      "name": "reportd",
+      "message": "status=pending-upgrade \u2014 a previous operation may still hold the lock",
+      "evidence": null
+    },
+    {
+      "severity": "warn",
+      "kind": "Node",
+      "ns": "",
+      "name": "worker-02",
+      "message": "MemoryPressure=True",
+      "evidence": null
+    },
+    {
+      "severity": "warn",
+      "kind": "Node",
+      "ns": "",
+      "name": "worker-03",
+      "message": "cordoned (unschedulable)",
+      "evidence": null
+    },
+    {
+      "severity": "warn",
+      "kind": "PVC",
+      "ns": "shop",
+      "name": "shop-models",
+      "message": "phase=Pending",
+      "evidence": null
+    },
+    {
+      "severity": "warn",
+      "kind": "Pod",
+      "ns": "default",
+      "name": "reportd-7c9f8b6d5-qq2lm",
+      "message": "containers not ready",
+      "evidence": "reportd=waiting ImagePullBackOff"
+    },
+    {
+      "severity": "warn",
+      "kind": "Pod",
+      "ns": "shop",
+      "name": "shop-api-0",
+      "message": "12 restarts",
+      "evidence": "Error exit=1"
+    },
+    {
+      "severity": "warn",
+      "kind": "PodDisruptionBudget",
+      "ns": "shop",
+      "name": "shop-api",
+      "message": "disruptionsAllowed=0 \u2014 blocks drain/eviction",
+      "evidence": null
+    },
+    {
+      "severity": "info",
+      "kind": "Certificate",
+      "ns": "",
+      "name": "apiserver",
+      "message": "apiserver certificate not checked",
+      "evidence": "insecure-skip-tls-verify \u2014 certificate not checked"
+    }
+  ],
+  "data": {
+    "server": "v1.26.15+testr1",
+    "nodes": [
+      {
+        "node": "gpu-node-01",
+        "ready": "True",
+        "pressure": "-",
+        "unschedulable": false,
+        "kubelet": "v1.26.15+testr1"
+      },
+      {
+        "node": "worker-02",
+        "ready": "True",
+        "pressure": "MemoryPressure",
+        "unschedulable": false,
+        "kubelet": "v1.26.15+testr1"
+      },
+      {
+        "node": "worker-03",
+        "ready": "False",
+        "pressure": "-",
+        "unschedulable": true,
+        "kubelet": "v1.26.15+testr1"
+      }
+    ],
+    "pods_total": 7,
+    "problem_pods": [
+      {
+        "ns": "shop",
+        "pod": "shop-api-0",
+        "phase": "Running",
+        "ready": "1/2",
+        "restarts": 12,
+        "node": "worker-02",
+        "state": "api=waiting CrashLoopBackOff"
+      },
+      {
+        "ns": "shop",
+        "pod": "shop-trainer-0",
+        "phase": "Pending",
+        "ready": "0/0",
+        "restarts": 0,
+        "node": "",
+        "state": "ok"
+      },
+      {
+        "ns": "default",
+        "pod": "reportd-7c9f8b6d5-qq2lm",
+        "phase": "Running",
+        "ready": "0/1",
+        "restarts": 0,
+        "node": "worker-02",
+        "state": "reportd=waiting ImagePullBackOff"
+      }
+    ],
+    "unbound_pvcs": [
+      {
+        "ns": "shop",
+        "pvc": "shop-models",
+        "phase": "Pending",
+        "storageClass": "nfs-client"
+      }
+    ],
+    "warning_events_60m": [
+      {
+        "age": "AGE",
+        "ns": "shop",
+        "object": "Pod/shop-api-0",
+        "reason": "BackOff",
+        "count": 331,
+        "message": "Back-off restarting failed container api in pod shop-api-0_shop"
+      },
+      {
+        "age": "AGE",
+        "ns": "shop",
+        "object": "Pod/shop-trainer-0",
+        "reason": "FailedScheduling",
+        "count": 18,
+        "message": "0/3 nodes are available: 3 Insufficient nvidia.com/gpu."
+      },
+      {
+        "age": "AGE",
+        "ns": "default",
+        "object": "Pod/reportd-7c9f8b6d5-qq2lm",
+        "reason": "Failed",
+        "count": 7,
+        "message": "Failed to pull image \"registry.example.invalid/ops/reportd:2.0.1\": not found"
+      },
+      {
+        "age": "AGE",
+        "ns": "shop",
+        "object": "PersistentVolumeClaim/shop-models",
+        "reason": "ProvisioningFailed",
+        "count": 3,
+        "message": "failed to provision volume with StorageClass \"nfs-client\""
+      },
+      {
+        "age": "AGE",
+        "ns": "ops",
+        "object": "Job/nightly-report-28991231",
+        "reason": "BackoffLimitExceeded",
+        "count": 1,
+        "message": "Job has reached the specified backoff limit"
+      }
+    ],
+    "failed_jobs": [
+      {
+        "ns": "ops",
+        "job": "nightly-report-28991231",
+        "failed": 3,
+        "reason": "BackoffLimitExceeded"
+      }
+    ],
+    "blocking_pdbs": [
+      {
+        "ns": "shop",
+        "pdb": "shop-api",
+        "healthy": 1,
+        "desired": 2,
+        "expected": 2
+      }
+    ],
+    "argocd_apps": [
+      {
+        "ns": "argocd",
+        "app": "root",
+        "sync": "Synced",
+        "health": "Healthy"
+      },
+      {
+        "ns": "argocd",
+        "app": "shop-api",
+        "sync": "OutOfSync",
+        "health": "Degraded"
+      },
+      {
+        "ns": "argocd",
+        "app": "shop-cache",
+        "sync": "Synced",
+        "health": "Progressing"
+      }
+    ],
+    "helm_releases": [
+      {
+        "ns": "shop",
+        "release": "shop",
+        "status": "failed",
+        "chart": "shop-2.3.1",
+        "revision": "9"
+      },
+      {
+        "ns": "shop",
+        "release": "shop-cache",
+        "status": "deployed",
+        "chart": "redis-19.0.2",
+        "revision": "3"
+      },
+      {
+        "ns": "ingress-nginx",
+        "release": "ingress-nginx",
+        "status": "deployed",
+        "chart": "ingress-nginx-4.10.1",
+        "revision": "4"
+      },
+      {
+        "ns": "default",
+        "release": "reportd",
+        "status": "pending-upgrade",
+        "chart": "reportd-0.4.0",
+        "revision": "2"
+      }
+    ],
+    "certificates": [
+      {
+        "ns": "shop",
+        "certificate": "shop-api-tls",
+        "ready": "True",
+        "notAfter": "TIMESTAMP",
+        "renewalTime": "TIMESTAMP"
+      },
+      {
+        "ns": "ops",
+        "certificate": "ops-ingress-tls",
+        "ready": "False",
+        "notAfter": "TIMESTAMP",
+        "renewalTime": "TIMESTAMP"
+      }
+    ],
+    "apiserver_cert": "insecure-skip-tls-verify \u2014 certificate not checked"
+  }
+}

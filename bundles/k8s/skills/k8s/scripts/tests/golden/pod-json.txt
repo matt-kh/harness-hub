@@ -1,0 +1,111 @@
+# exit=1
+# stderr:
+context=dev-cluster server=v1.26.15+testr1 ns=shop
+# stdout:
+{
+  "context": "dev-cluster",
+  "prod": false,
+  "generated_at": "TIMESTAMP",
+  "command": "pod",
+  "findings": [
+    {
+      "severity": "crit",
+      "kind": "Container",
+      "ns": "shop",
+      "name": "shop-api-0/api",
+      "message": "CrashLoopBackOff after 12 restarts",
+      "evidence": "Error exit=1"
+    },
+    {
+      "severity": "warn",
+      "kind": "Container",
+      "ns": "shop",
+      "name": "shop-api-0/api",
+      "message": "last exit code 1 (Error)",
+      "evidence": null
+    }
+  ],
+  "data": {
+    "pod": {
+      "ns": "shop",
+      "name": "shop-api-0",
+      "phase": "Running",
+      "node": "worker-02",
+      "qos": "Burstable",
+      "serviceAccount": "shop",
+      "owner": "Deployment/shop-api",
+      "startTime": "TIMESTAMP",
+      "restarts": 12,
+      "podIP": "198.51.100.17",
+      "reason": "",
+      "message": ""
+    },
+    "conditions": [
+      {
+        "type": "Initialized",
+        "status": "True",
+        "reason": "",
+        "message": ""
+      },
+      {
+        "type": "Ready",
+        "status": "False",
+        "reason": "ContainersNotReady",
+        "message": "containers with unready status: [api]"
+      },
+      {
+        "type": "PodScheduled",
+        "status": "True",
+        "reason": "",
+        "message": ""
+      }
+    ],
+    "containers": [
+      {
+        "container": "api",
+        "state": "waiting CrashLoopBackOff",
+        "lastState": "Error exit=1",
+        "restarts": 12,
+        "ready": false,
+        "image": "registry.example.invalid/shop/api:1.4.2",
+        "pullPolicy": "IfNotPresent",
+        "requests": "{\"cpu\": \"500m\", \"memory\": \"1Gi\"}",
+        "limits": "{\"cpu\": \"2\", \"memory\": \"4Gi\"}",
+        "probes": "liveness,readiness"
+      },
+      {
+        "container": "sidecar",
+        "state": "running",
+        "lastState": "",
+        "restarts": 0,
+        "ready": true,
+        "image": "registry.example.invalid/shop/envoy:1.29",
+        "pullPolicy": "IfNotPresent",
+        "requests": "{\"cpu\": \"100m\", \"memory\": \"128Mi\"}",
+        "limits": "{\"cpu\": \"200m\", \"memory\": \"256Mi\"}",
+        "probes": "none"
+      }
+    ],
+    "events": [
+      {
+        "age": "AGE",
+        "type": "Warning",
+        "reason": "BackOff",
+        "count": 331,
+        "message": "Back-off restarting failed container api in pod shop-api-0_shop"
+      },
+      {
+        "age": "AGE",
+        "type": "Warning",
+        "reason": "Unhealthy",
+        "count": 55,
+        "message": "Readiness probe failed: HTTP probe failed with statuscode: 503"
+      }
+    ],
+    "logs": {
+      "api": "TIMESTAMP INFO  starting shop-api 1.4.2\nTIMESTAMP DEBUG db.password=***REDACTED***\nTIMESTAMP DEBUG dsn=***REDACTED***\nTIMESTAMP DEBUG bearer ***REDACTED***\nTIMESTAMP DEBUG aws_access_key_id = ***REDACTED***\nTIMESTAMP ERROR failed to connect to pg.shop.example.com:5432: connection refused\nTIMESTAMP FATAL exiting with code 1",
+      "api (previous)": "TIMESTAMP INFO  starting shop-api 1.4.2\nTIMESTAMP DEBUG loaded client_secret: ***REDACTED***\nTIMESTAMP INFO  signing key:\n***REDACTED***\nTIMESTAMP ERROR failed to connect to pg.shop.example.com:5432: connection refused",
+      "sidecar": "[2026-09-23 02:10:01.001][1][info][main] starting envoy\n[2026-09-23 02:10:01.500][1][info][upstream] cluster shop-api added"
+    }
+  }
+}

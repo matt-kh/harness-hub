@@ -1,0 +1,53 @@
+{
+  "apiVersion": "v1",
+  "kind": "List",
+  "items": [
+    {
+      "apiVersion": "cert-manager.io/v1",
+      "kind": "Certificate",
+      "metadata": {
+        "name": "shop-api-tls",
+        "namespace": "shop"
+      },
+      "spec": {
+        "secretName": "shop-api-tls"
+      },
+      "status": {
+        "notAfter": "@@NOW+121h@@",
+        "renewalTime": "@@NOW+25h@@",
+        "conditions": [
+          {
+            "type": "Ready",
+            "status": "True"
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "cert-manager.io/v1",
+      "kind": "Certificate",
+      "metadata": {
+        "name": "ops-ingress-tls",
+        "namespace": "ops"
+      },
+      "spec": {
+        "secretName": "ops-ingress-tls"
+      },
+      "status": {
+        "notAfter": "@@NOW+4801h@@",
+        "renewalTime": "@@NOW+4081h@@",
+        "conditions": [
+          {
+            "type": "Ready",
+            "status": "False",
+            "reason": "Failed",
+            "message": "order is in state \"errored\""
+          }
+        ]
+      }
+    }
+  ],
+  "metadata": {
+    "resourceVersion": "1"
+  }
+}

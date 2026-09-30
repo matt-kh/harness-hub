@@ -1,0 +1,38 @@
+# exit=1
+# stderr:
+context=dev-cluster server=v1.26.15+testr1
+# stdout:
+# k8s capacity — dev-cluster
+
+## Findings (2)
+
+| sev | kind | ns/name | message |
+|---|---|---|---|
+| crit | Scheduling | - | 1 Pending pod(s) request nvidia.com/gpu |
+| warn | ResourceQuota | shop/shop-quota | requests.cpu at 95% (19/20) |
+
+## nodes
+
+| node | pods | cpu | lim_cpu | memory | lim_memory | nvidia.com/gpu | lim_nvidia.com/gpu | ephemeral-storage | lim_ephemeral-storage | live |
+|---|---|---|---|---|---|---|---|---|---|---|
+| gpu-node-01 | 2/110 | 600m/24000m (2%) | 2200m | 1.1Gi/256.0Gi (0%) | 4.2Gi | 0/8 (0%) | 0 | 0B/200.0Gi (0%) | 0B | cpu=8400m mem=112.5Gi |
+| worker-02 | 3/110 | 900m/8000m (11%) | 3700m | 1.8Gi/32.0Gi (5%) | 5.8Gi | 0/0 (0%) | 0 | 0B/200.0Gi (0%) | 0B | cpu=6200m mem=28.6Gi |
+| worker-03 | 0/110 | 0m/8000m (0%) | 0m | 0B/32.0Gi (0%) | 0B | 0/0 (0%) | 0 | 0B/200.0Gi (0%) | 0B | cpu=40m mem=878.9Mi |
+
+## cluster_totals
+
+| key | value |
+|---|---|
+| pods | 5/330 |
+| cpu | 1500m requested / 5900m limits / 40000m allocatable |
+| memory | 2.9Gi requested / 10.0Gi limits / 320.0Gi allocatable |
+| nvidia.com/gpu | 0 requested / 0 limits / 8 allocatable |
+| ephemeral-storage | 0B requested / 0B limits / 600.0Gi allocatable |
+
+## resourcequotas
+
+| ns | quota | resource | used | hard |
+|---|---|---|---|---|
+| shop | shop-quota | requests.cpu | 19 | 20 |
+| shop | shop-quota | requests.memory | 34Gi | 64Gi |
+| shop | shop-quota | requests.nvidia.com/gpu | 2 | 4 |

@@ -1,0 +1,48 @@
+# exit=1
+# stderr:
+context=dev-cluster server=v1.26.15+testr1
+# stdout:
+# k8s audit — dev-cluster
+
+## Findings (16)
+
+| sev | kind | ns/name | message |
+|---|---|---|---|
+| crit | Workload | ops/DaemonSet/legacy-agent | hostNetwork=true — shares the node network namespace |
+| crit | Workload | ops/DaemonSet/legacy-agent | hostPID=true — sees every process on the node |
+| crit | Workload | ops/DaemonSet/legacy-agent | mounts hostPath volume(s) |
+| crit | Workload | ops/DaemonSet/legacy-agent | container agent runs privileged |
+| warn | Workload | default/Deployment/reportd | uses the default ServiceAccount with its token automounted |
+| warn | Workload | ops/DaemonSet/legacy-agent | container agent does not set allowPrivilegeEscalation=false |
+| warn | Workload | ops/DaemonSet/legacy-agent | container agent has no resource limits |
+| warn | Workload | ops/DaemonSet/legacy-agent | container agent uses a mutable image tag |
+| warn | Workload | ops/DaemonSet/legacy-agent | container agent may run as root (runAsNonRoot unset/false) |
+| warn | Workload | ops/DaemonSet/legacy-agent | uses the default ServiceAccount with its token automounted |
+| info | Namespace | ops | no pod-security.kubernetes.io/enforce label (Pod Security Admission not enforced) |
+| info | Namespace | shop | no pod-security.kubernetes.io/enforce label (Pod Security Admission not enforced) |
+| info | Workload | ops/CronJob/nightly-report | container run has no liveness/readiness probe |
+| info | Workload | ops/DaemonSet/legacy-agent | container agent has no resource requests |
+| info | Workload | ops/DaemonSet/legacy-agent | container agent has no liveness/readiness probe |
+| info | Workload | shop/Deployment/shop-api | container sidecar has no liveness/readiness probe |
+
+## workloads_scanned
+
+6
+
+## workloads
+
+| ns | workload | pods | issues |
+|---|---|---|---|
+| default | Deployment/reportd | 1 | default-sa-automount |
+| ops | CronJob/nightly-report | 1 | no-probes |
+| ops | DaemonSet/legacy-agent | 1 | allowPrivilegeEscalation, default-sa-automount, hostNetwork, hostPID, hostPath, mutable-image, no-limits, no-probes, no-requests, privileged, run-as-root |
+| shop | Deployment/shop-api | 2 | no-probes |
+
+## namespaces
+
+| namespace | psa_enforce | psa_audit | psa_warn |
+|---|---|---|---|
+| shop | - | - | - |
+| ops | - | - | - |
+| default | baseline | - | restricted |
+| kube-system | - | - | - |

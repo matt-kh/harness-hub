@@ -1,0 +1,11 @@
+# Defaults for bundle `core` (lowest layer; override in local/harness.toml).
+
+[core]
+default_branch_re = "^(master|main)$"
+ticket_example = "PROJ-123"
+model_policy = { plan = "fable", execute = "opus" }
+agent_labels = { worked = "agent-worked", created = "agent-created", drafted = "agent-drafted" }
+agent_label_re = "^agent-"
+
+[credentials]
+extra_paths_re = ""

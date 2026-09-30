@@ -1,0 +1,221 @@
+[bundle]
+name = "core"
+schema_version = "1"
+summary = "Guard engine, credential and git rules, conventions, Plan / Auto / code-reviewer agents"
+description = """
+The base every other bundle builds on. Ships the guard engine (input parsing, fail-closed jq
+check, allow / ask / deny / defer decisions, the rendered guard.env reader) with the two
+sections every developer needs: credential files and secret env dumps are denied (20), and
+pushes to a default branch are denied / force-pushes and destructive git ask (30). Adds the
+global conventions and governance rules, the Plan (planning model) / Auto (execution model) /
+code-reviewer agents, and generic permission denies for credential files. Also carries the
+shared helpers other bundles inline: lib/compat.sh (hn_timeout, hn_realpath, hn_sha256) and
+lib/harness_config.{py,sh} (reading build/config.json).
+"""
+depends_on = []
+recommends = ["github"]
+conflicts_with = []
+any_of = []
+tags = ["base", "guard", "governance"]
+owners = []
+docs = "docs/bundles/core.md"
+stability = "stable"
+
+[requires.binaries.bash]
+min_version = "3.2"
+version_cmd = "bash --version"
+version_regex = 'version ([0-9]+\.[0-9]+)'
+why = "The guard hook and every script are bash. 3.2 parses everything; bash >= 4 is recommended (doctor warns)."
+
+[requires.binaries.jq]
+min_version = "1.6"
+version_cmd = "jq --version"
+version_regex = 'jq-([0-9]+\.[0-9]+)'
+why = "The guard parses the hook JSON with jq and FAILS CLOSED without it: every shell command is denied until jq is installed."
+
+[requires.binaries.python3]
+min_version = "3.9"
+version_cmd = "python3 --version"
+version_regex = 'Python ([0-9]+\.[0-9]+)'
+why = "Engine, skill CLIs (jira, gdoc, k8s) and helper scripts are stdlib python."
+
+[requires.binaries.git]
+min_version = "2.30"
+version_cmd = "git --version"
+version_regex = 'git version ([0-9]+\.[0-9]+)'
+why = "Hub checkout, and the guard resolves the current branch before a push."
+
+[requires.config."identity.email"]
+type = "string"
+required = true
+pattern = '^[^@\s]+@[^@\s]+$'
+description = "Your work email; shown in the instructions and used as the OAuth account hint. Never used as a commit author by the hub."
+example = "you@example.com"
+
+[requires.config."core.default_branch_re"]
+type = "string"
+default = "^(master|main)$"
+description = "Default/base branch regex: pushes to it are denied, sub MRs/PRs never target it (WORK_TICKET_BASE_BRANCH_RE)."
+
+[requires.config."core.ticket_example"]
+type = "string"
+default = "PROJ-123"
+pattern = '^[A-Z][A-Z0-9_]*-[0-9]+$'
+description = "Example ticket key used in guard reasons, instructions and skill docs."
+
+[requires.config."core.model_policy"]
+type = "object"
+default = { plan = "fable", execute = "opus" }
+description = "Model aliases: `plan` for the Plan / infra-architect agents, `execute` for Auto, reviewers and skills."
+
+[requires.config."core.agent_labels"]
+type = "object"
+default = { worked = "agent-worked", created = "agent-created", drafted = "agent-drafted" }
+description = "Provenance labels: worked = grants promptless writes, created = agent-created sub-tickets, drafted = /create-ticket drafts."
+
+[requires.config."core.agent_label_re"]
+type = "string"
+default = "^agent-"
+description = "Any label / Drive marker matching this regex tags an artefact as agent-owned (WORK_TICKET_AGENT_LABEL_RE)."
+
+[requires.config."credentials.extra_paths_re"]
+type = "string"
+default = ""
+description = "Extra ERE of credential paths the guard denies for readers (cat, grep, jq, cp, ...), on top of the built-in list (HARNESS_CRED_EXTRA_RE). Empty = none."
+example = '/etc/org-vault/|~/\.config/acme-cli/'
+
+[provides]
+rules = ["rules/00-conventions.md"]
+skills = []
+skill_fragments = []
+agents = ["agents/Plan.md", "agents/Auto.md", "agents/code-reviewer.md"]
+guard_rules = ["guard.d/20-credentials.sh", "guard.d/30-git.sh"]
+permissions = "permissions.toml"
+mcp = ""
+bin = []
+
+[provides.env]
+WORK_TICKET_LABEL = "{{ core.agent_labels.worked }}"
+WORK_TICKET_CREATED_LABEL = "{{ core.agent_labels.created }}"
+CREATE_TICKET_LABEL = "{{ core.agent_labels.drafted }}"
+WORK_TICKET_AGENT_LABEL_RE = "{{ core.agent_label_re }}"
+WORK_TICKET_BASE_BRANCH_RE = "{{ core.default_branch_re }}"
+HARNESS_TICKET_EXAMPLE = "{{ core.ticket_example }}"
+HARNESS_CRED_EXTRA_RE = "{{ credentials.extra_paths_re }}"
+
+[[manual_steps]]
+id = "local-bin-path"
+title = "Put ~/.local/bin on your PATH"
+once_per = "machine"
+needs = []
+minutes = 1
+why = "The hub links its CLIs (harness, jira, gdoc, k8s, gh when installed by the hub) into ~/.local/bin; agents call them by name."
+how = """
+Add this line to `~/.bashrc` (bash), `~/.zshrc` (zsh) or `~/.profile`, then open a new shell:
+
+```
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+macOS with the stock bash 3.2: also `brew install bash jq` (see `bash4`).
+"""
+[manual_steps.verify]
+cmd = 'case ":$PATH:" in *":$HOME/.local/bin:"*) exit 0 ;; *) exit 1 ;; esac'
+expect = { exit = 0 }
+unblocks = ["local-bin-path"]
+
+[[manual_steps]]
+id = "install-jq"
+title = "Install jq (the guard fails closed without it)"
+once_per = "machine"
+needs = []
+minutes = 1
+why = "Without jq the guard cannot parse the hook input and denies every shell command."
+how = """
+- Debian/Ubuntu/WSL: `sudo apt-get install -y jq`
+- Fedora: `sudo dnf install -y jq`
+- macOS: `brew install jq`
+- No root: download the static binary for your OS/arch from https://github.com/jqlang/jq/releases
+  into `~/.local/bin/jq` and `chmod +x` it.
+"""
+[manual_steps.verify]
+cmd = "jq --version"
+expect = { exit = 0 }
+unblocks = ["jq"]
+
+[[manual_steps]]
+id = "bash4"
+title = "Use bash >= 4 (macOS ships 3.2)"
+once_per = "machine"
+needs = []
+minutes = 2
+why = "Every script parses under bash 3.2, but a few helpers (GitHub preflight, some skill scripts) are only exercised on bash >= 4 in CI."
+how = """
+macOS: `brew install bash`, then make sure `$(brew --prefix)/bin` comes before `/bin` on PATH.
+You do not need to change your login shell; the hook and scripts run `bash` from PATH.
+Linux and WSL already ship bash 5.
+"""
+[manual_steps.verify]
+cmd = 'bash -c "[ \"\${BASH_VERSINFO[0]}\" -ge 4 ]"'
+expect = { exit = 0 }
+unblocks = ["bash-version"]
+
+[[doctor_checks]]
+id = "bash-version"
+title = "bash >= 4 on PATH"
+severity = "warn"
+cmd = 'bash -c "[ \"\${BASH_VERSINFO[0]}\" -ge 4 ]"'
+expect = { exit = 0 }
+offline_skip = false
+fix = "bash4"
+
+[[doctor_checks]]
+id = "jq"
+title = "jq installed"
+severity = "fail"
+cmd = "jq --version"
+expect = { exit = 0 }
+offline_skip = false
+fix = "install-jq"
+
+[[doctor_checks]]
+id = "python3"
+title = "python3 >= 3.9"
+severity = "fail"
+cmd = "python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 9) else 1)'"
+expect = { exit = 0 }
+offline_skip = false
+fix = "Install python 3.9+ (apt-get install python3 / brew install python)"
+
+[[doctor_checks]]
+id = "local-bin-path"
+title = "~/.local/bin on PATH"
+severity = "warn"
+cmd = 'case ":$PATH:" in *":$HOME/.local/bin:"*) exit 0 ;; *) exit 1 ;; esac'
+expect = { exit = 0 }
+offline_skip = false
+fix = "local-bin-path"
+
+[[doctor_checks]]
+id = "guard-hook"
+title = "Guard hook rendered, non-empty, executable and parses"
+severity = "fail"
+cmd = "test -s ~/.claude/hooks/guard-bash.sh && test -x ~/.claude/hooks/guard-bash.sh && bash -n ~/.claude/hooks/guard-bash.sh"
+expect = { exit = 0 }
+offline_skip = false
+fix = "harness apply --provider claude"
+providers = ["claude"]
+
+[[doctor_checks]]
+id = "guard-denies-credentials"
+title = "Guard denies reading a credential file"
+severity = "fail"
+cmd = """printf '%s' '{"cwd":"/tmp","tool_input":{"command":"cat ~/.ssh/id_rsa"}}' | bash ~/.claude/hooks/guard-bash.sh | grep -q '"permissionDecision":"deny"'"""
+expect = { exit = 0 }
+offline_skip = false
+fix = "harness apply --provider claude"
+providers = ["claude"]
+
+[uninstall]
+keeps = []
+notes = "Removes the rendered hook, agents and managed instruction blocks only; your own CLAUDE.md prose outside the managed blocks stays."

@@ -1,0 +1,39 @@
+{
+  "apiVersion": "v1",
+  "kind": "List",
+  "items": [
+    {
+      "apiVersion": "apps/v1",
+      "kind": "ReplicaSet",
+      "metadata": {
+        "name": "shop-api-5d8b9c7f4",
+        "namespace": "shop",
+        "creationTimestamp": "2026-09-01T00:00:00Z",
+        "annotations": {
+          "deployment.kubernetes.io/revision": "7"
+        },
+        "ownerReferences": [
+          {
+            "kind": "Deployment",
+            "name": "shop-api"
+          }
+        ]
+      },
+      "spec": {
+        "replicas": 2,
+        "selector": {
+          "matchLabels": {
+            "app": "shop-api"
+          }
+        }
+      },
+      "status": {
+        "replicas": 2,
+        "readyReplicas": 1
+      }
+    }
+  ],
+  "metadata": {
+    "resourceVersion": "1"
+  }
+}

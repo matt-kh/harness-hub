@@ -1,0 +1,97 @@
+# exit=1
+# stderr:
+context=dev-cluster server=v1.26.15+testr1
+# stdout:
+{
+  "context": "dev-cluster",
+  "prod": false,
+  "generated_at": "TIMESTAMP",
+  "command": "events",
+  "findings": [
+    {
+      "severity": "warn",
+      "kind": "Events",
+      "ns": "",
+      "name": "",
+      "message": "5 Warning events in the last 60m",
+      "evidence": "BackOff, FailedScheduling, Failed, ProvisioningFailed, Started, ScalingReplicaSet, BackoffLimitExceeded"
+    }
+  ],
+  "data": {
+    "since": "60m",
+    "by_reason": {
+      "BackOff": 331,
+      "FailedScheduling": 18,
+      "Failed": 7,
+      "ProvisioningFailed": 3,
+      "Started": 1,
+      "ScalingReplicaSet": 1,
+      "BackoffLimitExceeded": 1
+    },
+    "events": [
+      {
+        "age": "AGE",
+        "type": "Warning",
+        "reason": "BackOff",
+        "ns": "shop",
+        "object": "Pod/shop-api-0",
+        "count": 331,
+        "message": "Back-off restarting failed container api in pod shop-api-0_shop"
+      },
+      {
+        "age": "AGE",
+        "type": "Warning",
+        "reason": "FailedScheduling",
+        "ns": "shop",
+        "object": "Pod/shop-trainer-0",
+        "count": 18,
+        "message": "0/3 nodes are available: 3 Insufficient nvidia.com/gpu."
+      },
+      {
+        "age": "AGE",
+        "type": "Warning",
+        "reason": "Failed",
+        "ns": "default",
+        "object": "Pod/reportd-7c9f8b6d5-qq2lm",
+        "count": 7,
+        "message": "Failed to pull image \"registry.example.invalid/ops/reportd:2.0.1\": not found"
+      },
+      {
+        "age": "AGE",
+        "type": "Warning",
+        "reason": "ProvisioningFailed",
+        "ns": "shop",
+        "object": "PersistentVolumeClaim/shop-models",
+        "count": 3,
+        "message": "failed to provision volume with StorageClass \"nfs-client\""
+      },
+      {
+        "age": "AGE",
+        "type": "Normal",
+        "reason": "Started",
+        "ns": "shop",
+        "object": "Pod/shop-api-1",
+        "count": 1,
+        "message": "Started container api"
+      },
+      {
+        "age": "AGE",
+        "type": "Normal",
+        "reason": "ScalingReplicaSet",
+        "ns": "shop",
+        "object": "Deployment/shop-api",
+        "count": 1,
+        "message": "Scaled up replica set shop-api-5d8b9c7f4 to 2"
+      },
+      {
+        "age": "AGE",
+        "type": "Warning",
+        "reason": "BackoffLimitExceeded",
+        "ns": "ops",
+        "object": "Job/nightly-report-28991231",
+        "count": 1,
+        "message": "Job has reached the specified backoff limit"
+      }
+    ]
+  }
+}

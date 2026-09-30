@@ -1,0 +1,5 @@
+# exit=2
+# stderr:
+context=unreachable server=?
+Unable to connect to the server: dial tcp 192.0.2.1:6443: i/o timeout
+# stdout:

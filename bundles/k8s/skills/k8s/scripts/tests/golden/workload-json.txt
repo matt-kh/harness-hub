@@ -1,0 +1,128 @@
+# exit=1
+# stderr:
+context=dev-cluster server=v1.26.15+testr1 ns=shop
+# stdout:
+{
+  "context": "dev-cluster",
+  "prod": false,
+  "generated_at": "TIMESTAMP",
+  "command": "workload",
+  "findings": [
+    {
+      "severity": "crit",
+      "kind": "Deployment",
+      "ns": "shop",
+      "name": "shop-api",
+      "message": "Available=False (MinimumReplicasUnavailable)",
+      "evidence": "Deployment does not have minimum availability."
+    },
+    {
+      "severity": "warn",
+      "kind": "Deployment",
+      "ns": "shop",
+      "name": "shop-api",
+      "message": "observedGeneration 4 behind generation 5 \u2014 controller has not caught up",
+      "evidence": null
+    },
+    {
+      "severity": "warn",
+      "kind": "Deployment",
+      "ns": "shop",
+      "name": "shop-api",
+      "message": "1/2 replicas ready",
+      "evidence": null
+    },
+    {
+      "severity": "warn",
+      "kind": "Pod",
+      "ns": "shop",
+      "name": "shop-api-0",
+      "message": "12 restarts",
+      "evidence": null
+    }
+  ],
+  "data": {
+    "workload": {
+      "ns": "shop",
+      "kind": "Deployment",
+      "name": "shop-api",
+      "owner_chain": "Deployment/shop-api",
+      "generation": 5,
+      "observedGeneration": 4,
+      "created": "TIMESTAMP",
+      "images": "registry.example.invalid/shop/api:1.4.2, registry.example.invalid/shop/envoy:1.29"
+    },
+    "rollout": {
+      "replicas": 2,
+      "readyReplicas": 1,
+      "updatedReplicas": 2,
+      "availableReplicas": 1,
+      "unavailableReplicas": 1,
+      "spec_replicas": 2
+    },
+    "conditions": [
+      {
+        "type": "Available",
+        "status": "False",
+        "reason": "MinimumReplicasUnavailable",
+        "message": "Deployment does not have minimum availability."
+      },
+      {
+        "type": "Progressing",
+        "status": "True",
+        "reason": "ReplicaSetUpdated",
+        "message": "ReplicaSet \"shop-api-5d8b9c7f4\" is progressing."
+      }
+    ],
+    "selector": "app=shop-api",
+    "replicasets": [
+      {
+        "rs": "shop-api-5d8b9c7f4",
+        "desired": 2,
+        "ready": 1,
+        "revision": "7"
+      }
+    ],
+    "pods": [
+      {
+        "ns": "shop",
+        "pod": "shop-api-0",
+        "phase": "Running",
+        "ready": "1/2",
+        "restarts": 12,
+        "node": "worker-02",
+        "state": "api=waiting CrashLoopBackOff"
+      },
+      {
+        "ns": "shop",
+        "pod": "shop-api-1",
+        "phase": "Running",
+        "ready": "2/2",
+        "restarts": 0,
+        "node": "gpu-node-01",
+        "state": "ok"
+      }
+    ],
+    "warning_events": [
+      {
+        "age": "AGE",
+        "object": "Pod/shop-api-0",
+        "reason": "BackOff",
+        "count": 331,
+        "message": "Back-off restarting failed container api in pod shop-api-0_shop"
+      },
+      {
+        "age": "AGE",
+        "object": "Pod/shop-api-0",
+        "reason": "Unhealthy",
+        "count": 55,
+        "message": "Readiness probe failed: HTTP probe failed with statuscode: 503"
+      }
+    ],
+    "worst_pod": "shop-api-0",
+    "logs": {
+      "api": "TIMESTAMP INFO  starting shop-api 1.4.2\nTIMESTAMP DEBUG db.password=***REDACTED***\nTIMESTAMP DEBUG dsn=***REDACTED***\nTIMESTAMP DEBUG bearer ***REDACTED***\nTIMESTAMP DEBUG aws_access_key_id = ***REDACTED***\nTIMESTAMP ERROR failed to connect to pg.shop.example.com:5432: connection refused\nTIMESTAMP FATAL exiting with code 1",
+      "sidecar": "[2026-09-23 02:10:01.001][1][info][main] starting envoy\n[2026-09-23 02:10:01.500][1][info][upstream] cluster shop-api added"
+    }
+  }
+}
