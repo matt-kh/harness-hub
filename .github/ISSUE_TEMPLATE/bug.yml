@@ -1,0 +1,59 @@
+name: Bug
+description: Something in the engine, a bundle, a provider adapter or the guard behaves wrongly.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. **Do not paste organisation values, hostnames, tokens or file
+        contents from `~/.config`** — use placeholders such as `gitlab.example.com` and
+        `PROJ-123`. Security problems go to a private advisory instead (see the link on the
+        previous page).
+  - type: input
+    id: version
+    attributes:
+      label: harness version
+      description: Output of `harness version`
+      placeholder: "harness 0.1.0 (git abc1234), python 3.12.3, bash 5.2.21"
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options: [Linux, WSL2, macOS, other]
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      multiple: true
+      options: [bootstrap, plan/apply/sync, doctor, config validation, guard hook, provider adapter, bundle skill or CLI, docs]
+    validations:
+      required: true
+  - type: input
+    id: bundles
+    attributes:
+      label: Active bundles and providers
+      placeholder: "bundles: core, github, ticket-workflow — providers: claude, gemini"
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Commands in order. For guard issues, the exact command text the agent ran and the decision it got.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Relevant output
+      description: "`harness doctor --json`, `harness plan` or the guard reason. Redact anything organisation-specific."
+      render: text

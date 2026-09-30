@@ -1,0 +1,16 @@
+# Allowlist for PUBLIC pattern hits of tools/gate/private-ids.sh.
+#
+# Format: path-ERE<TAB>line-ERE<TAB>reason     (tab-separated, all three required)
+#   path-ERE  matched against the repo-relative path (grep -E)
+#   line-ERE  matched against the whole offending line (for file-name hits: the path)
+#   reason    free text, shown nowhere, required for review
+#
+# Special path: ^@email$ rows allow a commit author/committer address (line-ERE on the address).
+#
+# Private denylist hits can NEVER be allowlisted here: a row would have to name the private
+# text in a public file. Rename the identifier instead (see docs/runbooks/migrate-existing-harness.md).
+# Prefer an inline marker on the line itself for one-offs:  # gate-allow: <reason>
+# or, in Markdown:  <!-- gate-allow: <reason> -->
+
+^@email$	^noreply@github\.com$	GitHub web-flow committer on merges and web edits
+^tools/gate/README\.md$	public:ipv4: 	example of the gate's own output

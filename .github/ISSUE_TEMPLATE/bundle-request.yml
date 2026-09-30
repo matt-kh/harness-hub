@@ -1,0 +1,37 @@
+name: Bundle request
+description: Propose a new bundle, or a new capability in an existing one.
+labels: [bundle-request]
+body:
+  - type: input
+    id: name
+    attributes:
+      label: Bundle name
+      placeholder: "e.g. bitbucket, linear, terraform"
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What should agents be able to do, and what must they never do?
+      description: The governance half matters as much as the capability. Which writes are promptless, which ask, which are denied?
+    validations:
+      required: true
+  - type: textarea
+    id: tools
+    attributes:
+      label: Tools, credentials and manual steps
+      description: CLIs or MCP servers it needs, where their credentials live (path only), and the one-time human steps (browser, admin).
+  - type: dropdown
+    id: generic
+    attributes:
+      label: Is it generic?
+      description: Public bundles must work for any organisation, configured through harness.toml. Org-specific rules belong in a private bundle under local/bundles/.
+      options: ["Yes, nothing organisation-specific", "Mostly, with config keys", "Not sure"]
+    validations:
+      required: true
+  - type: checkboxes
+    id: contribute
+    attributes:
+      label: Contribution
+      options:
+        - label: I am willing to open a PR following CONTRIBUTING.md (manifest, guard rows, docs page, doctor checks)

@@ -1,0 +1,9 @@
+# The engine is python stdlib only and vendors what it needs; only Actions are updated.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: ci

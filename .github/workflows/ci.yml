@@ -1,0 +1,169 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NO_COLOR: "1"
+  HARNESS_OFFLINE: "1"
+  CI_CONFIG: tests/fixtures/harness.ci.toml
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install shellcheck
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
+      - name: shellcheck
+        run: |
+          git ls-files -z -- '*.sh' bin/harness bootstrap | xargs -0 -r shellcheck -S warning
+      - name: bash -n
+        run: |
+          rc=0
+          while IFS= read -r -d '' f; do bash -n "$f" || { echo "::error file=$f::bash -n failed"; rc=1; }; done \
+            < <(git ls-files -z -- '*.sh' bin/harness bootstrap)
+          exit $rc
+      - name: py_compile
+        run: git ls-files -z -- '*.py' | xargs -0 -r python3 -m py_compile
+      - name: harness lint
+        run: bin/harness lint
+      - name: Markdown links
+        run: tools/gate/check-links.sh
+
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          # the last one listed is the default python3; 3.9 is the supported floor
+          python-version: |
+            3.9
+            3.12
+      - name: Install tools (macOS)
+        if: runner.os == 'macOS'
+        run: brew install bash jq shellcheck
+      - name: bash 3.2 syntax gate (macOS /bin/bash)
+        if: runner.os == 'macOS'
+        run: |
+          /bin/bash --version | head -1
+          rc=0
+          while IFS= read -r -d '' f; do /bin/bash -n "$f" || { echo "::error file=$f::/bin/bash (3.2) cannot parse"; rc=1; }; done \
+            < <(git ls-files -z -- '*.sh' bin/harness bootstrap)
+          exit $rc
+      - name: Gate self-test
+        run: tools/gate/tests/selftest.sh
+      - name: harness test (python 3.12)
+        run: bin/harness test
+      - name: harness test (python 3.9)
+        run: |
+          shim=$(mktemp -d)
+          ln -s "$(command -v python3.9)" "$shim/python3"
+          PATH="$shim:$PATH" python3 --version
+          PATH="$shim:$PATH" bin/harness test
+
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Private-identifier gate
+        env:
+          # Empty on pull requests from forks: the gate then runs the public patterns only.
+          GATE_PRIVATE_DENYLIST: ${{ secrets.GATE_PRIVATE_DENYLIST }}
+          RANGE_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          RANGE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          args=(--ci)
+          if [ -z "$GATE_PRIVATE_DENYLIST" ]; then
+            echo "private list unavailable (fork pull request or secret not set): public patterns only"
+          fi
+          if [ -n "$RANGE_BASE" ] && ! printf '%s' "$RANGE_BASE" | grep -qE '^0+$' \
+             && git cat-file -e "$RANGE_BASE^{commit}" 2>/dev/null; then
+            args+=(--range "$RANGE_BASE..$RANGE_HEAD")
+          else
+            echo "no usable commit range for this event: scanning the tree only"
+          fi
+          tools/gate/private-ids.sh "${args[@]}"
+      - name: detect-secrets
+        run: |
+          if [ ! -f .secrets.baseline ]; then
+            echo "no .secrets.baseline yet: skipping detect-secrets"
+            exit 0
+          fi
+          pip install --quiet detect-secrets==1.5.0
+          git ls-files -z | xargs -0 detect-secrets-hook --baseline .secrets.baseline
+
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Render twice into fresh homes
+        run: |
+          h1=$(mktemp -d); h2=$(mktemp -d)
+          HOME="$h1" bin/harness render --config "$CI_CONFIG" --out /tmp/r1
+          HOME="$h2" bin/harness render --config "$CI_CONFIG" --out /tmp/r2
+      - name: Output is byte-identical
+        run: diff -r /tmp/r1 /tmp/r2
+
+  smoke:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        script: [tests/smoke/bootstrap.sh, tests/smoke/render-determinism.sh]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install tools (macOS)
+        if: runner.os == 'macOS'
+        run: command -v jq >/dev/null || brew install jq
+      - name: ${{ matrix.script }}
+        run: bash ${{ matrix.script }}
+      - name: Bootstrap from the entry point (temp HOME, fake CLIs)
+        if: matrix.script == 'tests/smoke/bootstrap.sh'
+        run: |
+          HOME="$(mktemp -d)"; export HOME
+          export PATH="$PWD/tests/fakes/bin:$PATH"
+          ./bootstrap --bundles core --providers claude --yes --offline --config "$CI_CONFIG"
+          bin/harness doctor --offline --config "$CI_CONFIG"
+          bin/harness plan --config "$CI_CONFIG" | tee /tmp/plan.txt
+          grep -q '0 changes' /tmp/plan.txt
+
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Generated doc regions are current
+        run: bin/harness docs check

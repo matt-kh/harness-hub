@@ -1,0 +1,38 @@
+name: Provider change
+description: An agent CLI (Claude Code, Gemini CLI, Copilot CLI, Codex, OpenCode) changed its paths, hook envelope or config format.
+labels: [provider]
+body:
+  - type: dropdown
+    id: provider
+    attributes:
+      label: Provider
+      options: [claude, gemini, copilot, codex, opencode, new provider]
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version where the change appears
+      description: Output of the provider's `--version`, plus the version in providers/<name>/README.md "verified against".
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What changed
+      multiple: true
+      options: [instructions file path, skills directory, agents/subagents, settings/permissions format, hook event or envelope, MCP registration, other]
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Details and upstream reference
+      description: Link the provider's changelog or docs. For hook changes, a redacted stdin/stdout sample helps us add a shim fixture.
+    validations:
+      required: true
+  - type: dropdown
+    id: impact
+    attributes:
+      label: Does the guard still enforce on this provider?
+      options: ["Yes", "No — commands run without the hook", "Unknown"]

@@ -1,0 +1,80 @@
+name: provider-drift
+
+# Weekly: install the latest agent CLIs, compare their versions with the "verified against"
+# line of each providers/<name>/README.md, and open (or comment on) one tracking issue.
+# The issue is informational; a maintainer re-verifies the adapter and updates the README.
+
+on:
+  schedule:
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: provider-drift
+  cancel-in-progress: false
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install the latest provider CLIs
+        run: |
+          for pkg in @anthropic-ai/claude-code @google/gemini-cli @github/copilot @openai/codex; do
+            npm install -g --no-fund --no-audit "$pkg" || echo "::warning::npm install $pkg failed"
+          done
+      - name: Compare with providers/*/README.md
+        id: compare
+        run: |
+          semver() { grep -oE '[0-9]+\.[0-9]+(\.[0-9]+)?' | head -1; }
+          report=$(mktemp); drift=0
+          {
+            echo "Weekly check of the latest provider CLIs against the adapters' \"verified against\" lines."
+            echo
+            echo "| provider | binary | latest | verified against | status |"
+            echo "|---|---|---|---|---|"
+          } >"$report"
+          for pair in claude:claude gemini:gemini copilot:copilot codex:codex; do
+            p=${pair%%:*}; bin=${pair#*:}
+            latest=$( ("$bin" --version 2>/dev/null || true) | semver)
+            readme="providers/$p/README.md"
+            verified=""
+            [ -f "$readme" ] && verified=$(grep -i 'verified against' "$readme" | head -1 | semver)
+            status=ok
+            if [ -z "$latest" ]; then status="could not install"; drift=1
+            elif [ -z "$verified" ]; then status="no verified-against line"; drift=1
+            elif [ "$latest" != "$verified" ]; then status="**re-verify**"; drift=1
+            fi
+            echo "| $p | \`$bin\` | ${latest:-?} | ${verified:-?} | $status |" >>"$report"
+          done
+          {
+            echo
+            echo "To update: install the new version, run \`bin/harness test\` and the provider's shim"
+            echo "fixtures, check the paths in \`providers/<name>/provider.toml\`, then update the"
+            echo "\"verified against\" line and CHANGELOG. Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          } >>"$report"
+          cat "$report" >>"$GITHUB_STEP_SUMMARY"
+          echo "report=$report" >>"$GITHUB_OUTPUT"
+          echo "drift=$drift" >>"$GITHUB_OUTPUT"
+      - name: Open or update the tracking issue
+        if: steps.compare.outputs.drift == '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          REPORT: ${{ steps.compare.outputs.report }}
+        run: |
+          title="Provider version drift"
+          n=$(gh issue list -R "$REPO" --state open --search "in:title \"$title\"" --json number,title \
+                --jq "map(select(.title == \"$title\")) | .[0].number // empty")
+          if [ -n "$n" ]; then
+            gh issue comment "$n" -R "$REPO" -F "$REPORT"
+          else
+            gh issue create -R "$REPO" -t "$title" -F "$REPORT"
+          fi

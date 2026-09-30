@@ -1,0 +1,63 @@
+# Local gates for harness-hub. Install once per clone:  make install
+# (= pre-commit install --hook-type pre-commit --hook-type commit-msg --hook-type pre-push)
+# Refresh the secrets baseline only after reviewing a finding:
+#   uvx --from detect-secrets detect-secrets scan $(git ls-files) > .secrets.baseline
+default_install_hook_types: [pre-commit, commit-msg, pre-push]
+default_stages: [pre-commit]
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-json
+      - id: check-yaml
+      - id: end-of-file-fixer
+        exclude: (^|/)tests/(golden|goldens)/
+      - id: trailing-whitespace
+        exclude: (\.md$|(^|/)tests/(golden|goldens)/)
+      - id: detect-private-key
+        # redaction tests carry synthetic key headers on purpose
+        exclude: (^|/)tests/(fixtures|golden|goldens)/
+      - id: check-added-large-files
+        args: ["--maxkb=512"]
+
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.10.0.1  # gate-allow: version string, not an IP
+    hooks:
+      - id: shellcheck
+        args: ["-S", "warning"]
+
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args: ["--baseline", ".secrets.baseline"]
+        exclude: ^\.secrets\.baseline$
+
+  - repo: local
+    hooks:
+      # Private-identifier gate: staged files on commit, the message (and author email) on commit-msg.
+      # Private patterns come from local/gate-denylist.txt (gitignored) or $HARNESS_GATE_PRIVATE.
+      - id: private-ids
+        name: private-identifier gate (files)
+        entry: tools/gate/private-ids.sh --files
+        language: script
+        stages: [pre-commit]
+      - id: private-ids
+        name: private-identifier gate (commit message)
+        entry: tools/gate/private-ids.sh --commit-msg-file
+        language: script
+        stages: [commit-msg]
+      - id: harness-lint
+        name: harness lint
+        entry: bin/harness lint
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
+      - id: harness-test
+        name: harness test (all suites)
+        entry: bin/harness test
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]

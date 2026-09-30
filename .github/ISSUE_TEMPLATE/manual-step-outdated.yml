@@ -1,0 +1,34 @@
+name: Manual step outdated
+description: A click path, command or screenshot-free instruction in a bundle's manual steps no longer matches reality.
+labels: [docs, manual-step]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Vendor consoles move their menus every few months; this is the most useful report you
+        can send. The step id is the heading anchor, e.g. `docs/bundles/gdoc.md#consent-screen`,
+        or the id `harness steps --pending` prints.
+  - type: input
+    id: step
+    attributes:
+      label: Bundle and step id
+      placeholder: "gdoc / consent-screen"
+    validations:
+      required: true
+  - type: textarea
+    id: now
+    attributes:
+      label: What the docs say vs. what you see
+      description: The new menu path, button label or command output. No screenshots containing organisation data.
+    validations:
+      required: true
+  - type: input
+    id: when
+    attributes:
+      label: Date observed and product version (if shown)
+      placeholder: "2026-09-30, Google Cloud console (new Auth Platform UI)"
+  - type: dropdown
+    id: verify
+    attributes:
+      label: Does the step's verify command still pass once done the new way?
+      options: ["Yes", "No", "Did not check"]

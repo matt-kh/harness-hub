@@ -1,0 +1,51 @@
+# Public identifier patterns for tools/gate/private-ids.sh.
+#
+# Format: one POSIX ERE (grep -E) per non-comment line, preceded by optional directives:
+#   # id: <name>        the id printed in reports and usable in allowlist reasons
+#   # except: <ERE>     a match whose text also matches this ERE is not a hit
+# Directives apply to the next pattern line only. Patterns are case-sensitive.
+# Portability: no \b, no \d, no lookarounds (BSD grep on macOS, bash 3.2); word boundaries
+# are written as explicit character classes, so the matched text may carry one boundary char.
+#
+# Safe values to use in docs and fixtures instead: /home/u, /Users/u, 192.0.2.x,
+# 198.51.100.x, 203.0.113.x, you@example.com, 111122223333, customfield_2xxxx.
+
+# id: home-dir
+# except: ^/(home|Users)/(u|runner|linuxbrew)$
+/(home|Users)/[A-Za-z0-9._-]+
+
+# id: twelve-digit
+# except: (111122223333|123456789012)
+(^|[^0-9A-Za-z_.])[0-9]{12}([^0-9A-Za-z_]|$)
+
+# id: ipv4
+# except: (^|[^0-9.])(192\.0\.2\.|198\.51\.100\.|203\.0\.113\.|127\.0\.0\.1([^0-9]|$)|0\.0\.0\.0([^0-9]|$))
+(^|[^0-9.])([0-9]{1,3}\.){3}[0-9]{1,3}([^0-9.]|\.([^0-9]|$)|$)
+
+# id: email
+# except: (@([A-Za-z0-9-]+\.)*example\.(com|org|net)$|@users\.noreply\.github\.com$|^noreply@anthropic\.com$|^noreply@github\.com$|^git@)
+[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}
+
+# id: jira-customfield
+customfield_1[0-9]{4}([^0-9]|$)
+
+# id: tld-com-my
+\.com\.my([^A-Za-z0-9_-]|$)
+
+# id: aws-arn
+arn:aws:
+
+# id: aws-access-key
+AKIA[0-9A-Z]{16}
+
+# id: slack-token
+xox[baprs]-
+
+# id: github-pat
+ghp_[A-Za-z0-9]{36}
+
+# id: github-fine-grained-pat
+github_pat_[A-Za-z0-9_]{20,}
+
+# id: gitlab-pat
+glpat-
