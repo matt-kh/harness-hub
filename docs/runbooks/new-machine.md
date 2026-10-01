@@ -29,6 +29,12 @@ git clone <your-private-remote>/harness-local.git ~/harness-hub/local
 chmod 700 ~/harness-hub/local
 ```
 
+If you commit to the hub from this machine, set the noreply address in the clone
+(`git config user.email "<id>+<login>@users.noreply.github.com"`) and check that GitHub
+*Settings → Emails* has **Keep my email addresses private** and **Block command line pushes
+that expose my email** enabled (once per account, needed before merging through the web UI;
+see [CONTRIBUTING](../../CONTRIBUTING.md#development-loop)).
+
 No private repo? Copy `local/harness.toml` (and `local/bundles/`, `local/gate-denylist.txt`)
 from the old machine over SSH. It contains no secrets by design.
 

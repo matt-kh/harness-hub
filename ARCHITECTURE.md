@@ -135,6 +135,14 @@ The engine compiles the layered result to `build/config.json` (for itself and fo
 tools) and `build/guard.env` (flat `KEY=value` lines sourced by the guard; see §5). Every
 bundle contributes its env names in `[provides.env]`.
 
+Build directory: `$HARNESS_BUILD_DIR` if set; else `<hub>/build` only when the config is the
+canonical `<hub>/local/harness.toml` (by realpath), because rendered skills read
+`${HARNESS_HOME}/build/config.json`; any other config (fixtures, CI, experiments) compiles to
+`${XDG_CACHE_HOME:-~/.cache}/harness/build/<sha1(realpath(config))[:12]>/`. `harness test`
+gives every child suite a fresh temporary `HARNESS_BUILD_DIR`, so tests never overwrite the
+live compiled config. `harness status` prints the resolved directory; `doctor` and
+`steps --pending` export `HARNESS_CONFIG_JSON` pointing into it.
+
 ### 3. Bundles: `bundles/<name>/`
 
 ```
@@ -281,7 +289,9 @@ with stubs from `bundles/core/guard/tests/stubs/` on `PATH`.
 `create | update | skip | conflict | orphan` per path. `apply` executes the plan, backing up
 every modified file to `~/.local/state/harness/backups/<timestamp>/` and writing
 `<provider home>/.harness-state.json` (`{version, applied_at, files: {path: {sha256, bundle, mode}}}`).
-`sync` classifies each managed path as `clean | drifted | missing | foreign` and can adopt a
+`sync` (and `status`) classifies each managed path as `clean | drifted | missing | foreign`;
+merged targets (`json-merge`, `managed-block`, `toml-block`) compare only the owned values or
+blocks, so keys and text the provider or user own never count as drift. It can adopt a
 drifted rendered file back into its source bundle (`--adopt`) so that edits made through the
 provider land in the repo.
 

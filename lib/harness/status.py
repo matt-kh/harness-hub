@@ -54,7 +54,7 @@ def run(ctx: Any, matrix: bool = False) -> int:
     rc, rev, _ = run_argv(["git", "-C", hub.home, "rev-parse", "--short", "HEAD"], timeout=5)
     info = {
         "hub": hub.home, "version": hub.version, "git": rev.strip() if rc == 0 else "",
-        "config": hub.config_path, "profile": hub.profile,
+        "config": hub.config_path, "build": hub.build_dir, "profile": hub.profile,
         "bundles": hub.active_names, "providers": [p.name for p in hub.active_providers],
         "auto_added": hub.resolution.added, "recommended": hub.resolution.recommended,
         "drift": counts,
@@ -65,6 +65,7 @@ def run(ctx: Any, matrix: bool = False) -> int:
         return 0
     print("hub        %s (v%s%s)" % (tilde(hub.home), hub.version, ", " + info["git"] if info["git"] else ""))
     print("config     %s" % tilde(hub.config_path))
+    print("build      %s" % tilde(hub.build_dir))
     print("bundles    %s" % " ".join(hub.active_names))
     for dep, by in sorted(hub.resolution.added.items()):
         print("           + %s (required by %s)" % (dep, by))

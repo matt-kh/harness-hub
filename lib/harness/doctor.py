@@ -12,7 +12,8 @@ Built-in checks (ids in parentheses, usable in ``[doctor].warn_only``):
   ``[[doctor_checks]]`` (templated ``cmd`` via ``bash -c`` or ``script``, with a timeout)
 
 A failing check whose ``fix`` names a manual step prints
-``→ manual step <bundle>#<id>: <title> (docs/bundles/<b>.md#<id>)``; any other ``fix`` is
+``→ manual step <bundle>#<id>: <title> (docs/bundles/<b>.md#<id>)`` (title templated
+against the config); any other ``fix`` is
 printed as a command. ``--offline`` skips checks marked ``offline_skip``. Check scripts
 exit 0 ok, 1 warn, 2+ fail. Output lines never echo secret-looking text.
 """
@@ -48,14 +49,17 @@ class Result:
                 "fix": self.fix, "fix_line": self.fix_line}
 
 
-def fix_line(bundle: Any, fix: str) -> str:
-    """The hand-off line printed under a failing check."""
+def fix_line(bundle: Any, fix: str, tpl: Optional[R.Templater] = None) -> str:
+    """The hand-off line printed under a failing check (step title templated when ``tpl``)."""
     if not fix:
         return ""
     for step in bundle.manual_steps if bundle is not None else []:
         if step.get("id") == fix:
-            return "→ manual step %s#%s: %s (%s#%s)" % (bundle.name, fix, step.get("title", ""),
-                                                         bundle.docs_path(), fix)
+            title = step.get("title", "")
+            if tpl is not None:
+                title = tpl.expand(title, "%s manual_steps.%s.title" % (bundle.name, fix))
+                tpl.missing = []
+            return "→ manual step %s#%s: %s (%s#%s)" % (bundle.name, fix, title, bundle.docs_path(), fix)
     return "→ fix: %s" % fix
 
 
@@ -80,6 +84,13 @@ class Doctor:
         self.providers = hub.filter_providers(providers)
         self.results: List[Result] = []
         self.warn_only = set(hub.config.get("doctor.warn_only", []) or [])
+        self._tpl: Optional[R.Templater] = None
+
+    @property
+    def tpl(self) -> R.Templater:
+        if self._tpl is None:
+            self._tpl = R.Templater(self.hub.template_context())
+        return self._tpl
 
     # ---------------------------------------------------------------- recording
     def add(self, cid: str, status: str, detail: str = "", bundle: Any = None, fix: str = "") -> Result:
@@ -87,7 +98,7 @@ class Doctor:
         if status == "FAIL" and (cid in self.warn_only or ("%s/%s" % (bname, cid)) in self.warn_only):
             status = "WARN"
             detail = (detail + " [warn_only]").strip()
-        r = Result(cid, status, detail, bname, fix, fix_line(bundle, fix) if status in ("FAIL", "WARN") else "")
+        r = Result(cid, status, detail, bname, fix, fix_line(bundle, fix, self.tpl) if status in ("FAIL", "WARN") else "")
         self.results.append(r)
         return r
 
@@ -246,9 +257,10 @@ class Doctor:
         return ""
 
     def bundle_checks(self, b: Any) -> None:
-        tpl = R.Templater(self.hub.template_context())
+        tpl = self.tpl
         env = dict(os.environ)
         env.setdefault("HARNESS_HOME", self.hub.home)
+        # checks run the rendered tools against this config's own build products (hub.build_dir)
         env["HARNESS_CONFIG_JSON"] = os.path.join(self.hub.build_dir, "config.json")
         active = [p.name for p in self.providers]
         for chk in b.doctor_checks:

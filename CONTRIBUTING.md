@@ -18,6 +18,12 @@ make docs           # bin/harness docs check (generated regions are current)
 make render-check   # render twice into fresh HOMEs, diff -r must be empty
 ```
 
+The noreply address covers commits you make locally; merges made through the GitHub UI use
+your account's primary email instead. Before you merge a pull request in the browser, enable
+both switches under GitHub *Settings → Emails*: **Keep my email addresses private** and
+**Block command line pushes that expose my email**. Without them the merge commit carries the
+primary address and the `gate` job on the default branch fails.
+
 Work against a throw-away home so nothing touches your real provider directories:
 
 ```sh
