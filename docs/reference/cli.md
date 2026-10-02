@@ -31,10 +31,13 @@ positional arguments:
     doctor       PASS/WARN/FAIL checks with the manual step that fixes each failure
     status       active bundles/providers, drift summary, capability matrix
     install      install a pinned, sha256-verified tool into ~/.local/bin
-    upgrade      update the hub checkout, print migration notes, re-plan
+    upgrade      move the hub to the newest release tag (or --to TAG|BRANCH), print migration
+                 notes, re-plan, apply, doctor
     pack         write the hub as a release artifact: git bundle + SHA256SUMS + INSTALL.txt (+
-                 tools)
-    verify       check a hub bundle file: git bundle verify, heads/tags, SHA256SUMS beside it
+                 tools, + .run)
+    verify       check a hub bundle or .run file: git bundle verify or sh FILE.run --check,
+                 SHA256SUMS beside it
+    release      maintainers: check a release tag (preflight) | write its release notes
     uninstall    remove what the harness wrote (state-listed paths only)
     test         run the engine, guard, bundle, skill and provider test suites
     lint         validate manifests, cross-references, templates, private identifiers
@@ -447,9 +450,10 @@ options:
 
 ```text
 usage: harness upgrade [-h] [--config PATH] [--home DIR] [--json] [--offline] [--yes] [--dry-run]
-                       [--to TAG] [--no-apply]
+                       [--to TARGET] [--no-apply]
 
-update the hub checkout, print migration notes, re-plan
+move the hub to the newest release tag (or --to TAG|BRANCH), print migration notes, re-plan,
+apply, doctor
 
 options:
   -h, --help     show this help message and exit
@@ -459,7 +463,8 @@ options:
   --offline      skip network checks (HARNESS_OFFLINE=1)
   --yes, -y      assume yes; never prompt
   --dry-run      show what would happen, write nothing
-  --to TAG       check out this tag (default: fast-forward the branch)
+  --to TARGET    latest (default: newest release tag, pre-releases skipped) | TAG | BRANCH (fast-
+                 forward)
   --no-apply     stop after the plan
 ```
 
@@ -467,9 +472,9 @@ options:
 
 ```text
 usage: harness pack [-h] [--config PATH] [--home DIR] [--json] [--offline] [--yes] [--dry-run]
-                    [--out DIR] [--tag TAG] [--tools OS/ARCH,...]
+                    [--out DIR] [--tag TAG] [--tools OS/ARCH,...] [--self-extract]
 
-write the hub as a release artifact: git bundle + SHA256SUMS + INSTALL.txt (+ tools)
+write the hub as a release artifact: git bundle + SHA256SUMS + INSTALL.txt (+ tools, + .run)
 
 options:
   -h, --help           show this help message and exit
@@ -484,18 +489,21 @@ options:
                        tags + HEAD)
   --tools OS/ARCH,...  also download tools/*.lock.json assets for these platforms (e.g.
                        linux/amd64,darwin/arm64)
+  --self-extract       also write harness-hub-<version>.run: a POSIX sh header + tar of the
+                       bundle, INSTALL.txt, SHA256SUMS and tools (sh FILE.run --check | --list |
+                       --extract DIR, or run it to install)
 ```
 
 ### harness verify
 
 ```text
 usage: harness verify [-h] [--config PATH] [--home DIR] [--json] [--offline] [--yes] [--dry-run]
-                      FILE.bundle
+                      FILE
 
-check a hub bundle file: git bundle verify, heads/tags, SHA256SUMS beside it
+check a hub bundle or .run file: git bundle verify or sh FILE.run --check, SHA256SUMS beside it
 
 positional arguments:
-  FILE.bundle    the bundle file (SHA256SUMS beside it is checked too)
+  FILE           FILE.bundle or FILE.run (SHA256SUMS beside it is checked too)
 
 options:
   -h, --help     show this help message and exit
@@ -505,6 +513,75 @@ options:
   --offline      skip network checks (HARNESS_OFFLINE=1)
   --yes, -y      assume yes; never prompt
   --dry-run      show what would happen, write nothing
+```
+
+### harness release
+
+```text
+usage: harness release [-h] [--config PATH] [--home DIR] [--json] [--offline] [--yes] [--dry-run]
+                       action ...
+
+maintainers: check a release tag (preflight) | write its release notes
+
+positional arguments:
+  action
+    check        preflight a release tag: SemVer, annotated, VERSION, CHANGELOG, local/, clean
+                 tree, on main
+    notes        release notes: the CHANGELOG section, install and verify lines, SHA256SUMS
+
+options:
+  -h, --help     show this help message and exit
+  --config PATH  config file (default: $HARNESS_CONFIG or <hub>/local/harness.toml)
+  --home DIR     hub directory (HARNESS_HOME)
+  --json         machine-readable output
+  --offline      skip network checks (HARNESS_OFFLINE=1)
+  --yes, -y      assume yes; never prompt
+  --dry-run      show what would happen, write nothing
+```
+
+#### harness release check
+
+```text
+usage: harness release check [-h] [--config PATH] [--home DIR] [--json] [--offline] [--yes]
+                             [--dry-run] [--remote NAME] [--branch NAME] [--no-remote]
+                             [TAG]
+
+positional arguments:
+  TAG            vX.Y.Z[-pre] (default: the tag on HEAD)
+
+options:
+  -h, --help     show this help message and exit
+  --config PATH  config file (default: $HARNESS_CONFIG or <hub>/local/harness.toml)
+  --home DIR     hub directory (HARNESS_HOME)
+  --json         machine-readable output
+  --offline      skip network checks (HARNESS_OFFLINE=1)
+  --yes, -y      assume yes; never prompt
+  --dry-run      show what would happen, write nothing
+  --remote NAME  remote holding the release branch (default origin)
+  --branch NAME  release branch the tag must be on (default main)
+  --no-remote    skip the fetch and the on-branch check (local rehearsal)
+```
+
+#### harness release notes
+
+```text
+usage: harness release notes [-h] [--config PATH] [--home DIR] [--json] [--offline] [--yes]
+                             [--dry-run] [--dir DIR] [--out FILE]
+                             TAG
+
+positional arguments:
+  TAG            the release tag
+
+options:
+  -h, --help     show this help message and exit
+  --config PATH  config file (default: $HARNESS_CONFIG or <hub>/local/harness.toml)
+  --home DIR     hub directory (HARNESS_HOME)
+  --json         machine-readable output
+  --offline      skip network checks (HARNESS_OFFLINE=1)
+  --yes, -y      assume yes; never prompt
+  --dry-run      show what would happen, write nothing
+  --dir DIR      release directory whose SHA256SUMS is appended
+  --out FILE     write the notes here (default: stdout)
 ```
 
 ### harness uninstall

@@ -22,6 +22,8 @@ class ParserTest(unittest.TestCase):
                 argv += ["check"]
             if name == "verify":
                 argv += ["x.bundle"]
+            if name == "release":
+                argv += ["check"]
             ns = p.parse_args(argv)
             self.assertEqual(ns.command, name)
 
@@ -39,6 +41,37 @@ class ParserTest(unittest.TestCase):
         self.assertEqual((ns.from_, ns.dest, ns.origin), ("h.bundle", "/d", "u"))
         ns = p.parse_args(["pack", "--out", "/o", "--tag", "v1", "--tools", "linux/amd64,darwin/arm64"])
         self.assertEqual((ns.out, ns.tag, cli._csv(ns.tools)), ("/o", "v1", ["linux/amd64", "darwin/arm64"]))
+
+    def test_release_and_self_extract_flags(self):
+        p = cli.build_parser()
+        ns = p.parse_args(["release", "check", "v1.2.3", "--no-remote", "--branch", "trunk"])
+        self.assertEqual((ns.action, ns.tag, ns.no_remote, ns.branch, ns.remote), ("check", "v1.2.3", True, "trunk", "origin"))
+        ns = p.parse_args(["release", "notes", "v1.2.3", "--dir", "rel", "--out", "N.md"])
+        self.assertEqual((ns.action, ns.tag, ns.dir, ns.out), ("notes", "v1.2.3", "rel", "N.md"))
+        self.assertTrue(p.parse_args(["pack", "--self-extract"]).self_extract)
+        self.assertEqual(p.parse_args(["upgrade"]).to, None)
+
+    def _help(self, *argv):
+        import contextlib
+
+        buf = io.StringIO()
+        with redirect_stdout(buf), self.assertRaises(SystemExit):
+            with contextlib.redirect_stderr(io.StringIO()):
+                cli.main(list(argv) + ["--help"])
+        return buf.getvalue()
+
+    def test_help_names_the_new_flags(self):
+        self.assertIn("--no-remote", self._help("release", "check"))
+        self.assertIn("--self-extract", self._help("pack"))
+        self.assertIn(".run", self._help("pack"))
+        self.assertIn("latest", self._help("upgrade"))
+        self.assertIn("FILE.run", self._help("verify"))
+
+    def test_release_without_action_is_a_usage_error(self):
+        import contextlib
+
+        with contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(cli.main(["release"]), 2)
 
     def test_dest_without_from_is_a_usage_error(self):
         buf = io.StringIO()
