@@ -158,6 +158,46 @@ def version_ge(have: str, want: str) -> bool:
     return a + (0,) * (n - len(a)) >= b + (0,) * (n - len(b))
 
 
+# SemVer 2.0.0 (https://semver.org/spec/v2.0.0.html), with an optional leading ``v``. The
+# release workflow inlines the same expression in shell (.github/workflows/release.yml, job gate).
+SEMVER_RE = re.compile(
+    r"^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)"
+    r"(?:-((?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*))?"
+    r"(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$")
+
+
+def parse_semver(text: str) -> Optional[Tuple[int, int, int, Tuple[str, ...], str]]:
+    """``(major, minor, patch, prerelease ids, build)`` for a strict SemVer string, else None."""
+    m = SEMVER_RE.match((text or "").strip())
+    if not m:
+        return None
+    pre = tuple(m.group(4).split(".")) if m.group(4) else ()
+    return int(m.group(1)), int(m.group(2)), int(m.group(3)), pre, m.group(5) or ""
+
+
+def is_prerelease(text: str) -> bool:
+    v = parse_semver(text)
+    return bool(v and v[3])
+
+
+def version_key(text: str) -> Tuple[Any, ...]:
+    """Sort key following SemVer 2.0.0 §11 precedence; build metadata is ignored.
+
+    Pre-release ids compare numerically when numeric, numeric < alphanumeric, a shorter id
+    list sorts first when it is a prefix, and a release sorts above all its pre-releases.
+    Strings that are not strict SemVer (``1.2``, ``v1.2.3-g0abc`` dev names) fall back to
+    :func:`parse_version` padded to three parts and sort as releases.
+    """
+    v = parse_semver(text)
+    if v is None:
+        loose = parse_version(text)
+        core = tuple((loose + (0, 0, 0))[:3]) if loose else (-1, -1, -1)
+        return core + ((1,),)
+    ids = tuple((0, int(i), "") if i.isdigit() else (1, 0, i) for i in v[3])
+    # (1,) for a release sorts above (0, ids...) for any pre-release of the same core
+    return (v[0], v[1], v[2]) + (((0,) + ids) if ids else (1,),)
+
+
 # ----------------------------------------------------------------- subprocess
 
 def run_shell(cmd: str, timeout: float = 10.0, cwd: Optional[str] = None,
