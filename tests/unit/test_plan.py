@@ -156,6 +156,44 @@ class SyncTest(HubTestCase):
         self.assertEqual(rows[self.h(".claude", "skills", "demo", "scripts", "demo.sh")], "drifted")
         self.assertEqual(rows[self.h(".claude", "CLAUDE.md")], "clean")
 
+    def test_merged_targets_compare_owned_values_only(self):
+        self.apply(providers=["claude", "codex"])
+        hub = self.hub()
+
+        def status(*parts):
+            rows = {r["path"]: r["status"] for r in SY.classify(hub, hub.filter_providers(["claude", "codex"]))}
+            return rows[self.h(*parts)]
+
+        cj = self.h(".claude.json")
+        doc = json.loads(self.read(cj))
+        doc["numStartups"] = 42                          # the provider rewrites unrelated keys
+        self.write(cj, json.dumps(doc, indent=4))
+        self.assertEqual(status(".claude.json"), "clean")
+        doc["mcpServers"]["alpha"]["command"] = "edited"  # an owned value
+        self.write(cj, json.dumps(doc))
+        self.assertEqual(status(".claude.json"), "drifted")
+
+        st = self.h(".claude", "settings.json")
+        sdoc = json.loads(self.read(st))
+        sdoc["theme"] = "light"
+        self.write(st, json.dumps(sdoc))
+        self.assertEqual(status(".claude", "settings.json"), "clean")
+        del sdoc["hooks"]                                 # a rendered value removed
+        self.write(st, json.dumps(sdoc))
+        self.assertEqual(status(".claude", "settings.json"), "drifted")
+
+        md = self.h(".claude", "CLAUDE.md")
+        self.write(md, "# My notes\n\n" + self.read(md))  # text outside the blocks
+        self.assertEqual(status(".claude", "CLAUDE.md"), "clean")
+        self.write(md, self.read(md).replace("Beta has no config.", "Beta edited."))
+        self.assertEqual(status(".claude", "CLAUDE.md"), "drifted")
+
+        ct = self.h(".codex", "config.toml")
+        self.write(ct, 'model = "x"\n\n' + self.read(ct))
+        self.assertEqual(status(".codex", "config.toml"), "clean")
+        self.write(ct, self.read(ct).replace("alpha-mcp", "alpha-edited"))
+        self.assertEqual(status(".codex", "config.toml"), "drifted")
+
     def test_foreign(self):
         self.write(self.h(".claude", "agents", "planner.md"), "x\n")
         hub = self.hub()

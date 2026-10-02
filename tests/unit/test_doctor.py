@@ -25,6 +25,15 @@ class DoctorTest(HubTestCase):
         self.assertEqual(res["core-ok"].status, "PASS")
         self.assertEqual(res["core-online"].status, "SKIP")
 
+    def test_manual_step_title_is_templated(self):
+        bt = os.path.join(self.bundles, "alpha", "bundle.toml")
+        self.write(bt, self.read(bt).replace('title = "Authenticate alpha"', 'title = "Authenticate to {{ alpha.host }}"'))
+        res, _ = self.results(offline=True)
+        self.assertEqual(res["alpha-auth"].fix_line,
+                         "→ manual step alpha#alpha-auth: Authenticate to alpha.example.com (docs/bundles/alpha.md#alpha-auth)")
+        rows = {r["id"]: r for r in ST.collect(self.hub())}
+        self.assertEqual(rows["alpha-auth"]["title"], "Authenticate to alpha.example.com")
+
     def test_literal_fix_command(self):
         core = self.hub().bundle("core")
         self.assertEqual(D.fix_line(core, "echo run a literal command"), "→ fix: echo run a literal command")

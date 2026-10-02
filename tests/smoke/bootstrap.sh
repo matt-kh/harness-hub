@@ -17,7 +17,13 @@ tmp=$(mktemp -d "${tmpdir%/}/harness-smoke.XXXXXX")
 trap 'rm -rf "$tmp"' EXIT
 mkdir -p "$tmp/home"
 HOME="$(cd "$tmp/home" && pwd)"; export HOME   # normalised: hook commands embed $HOME
-unset XDG_STATE_HOME XDG_DATA_HOME XDG_CONFIG_HOME HARNESS_CONFIG 2>/dev/null || true
+unset XDG_STATE_HOME XDG_DATA_HOME XDG_CONFIG_HOME XDG_CACHE_HOME HARNESS_CONFIG 2>/dev/null || true
+# build products of the fixture config stay in the temp dir; the live <hub>/build/config.json
+# (read by rendered skills) must come out of this run byte-identical
+export HARNESS_BUILD_DIR="$tmp/build"
+live_cfg="$here/build/config.json"
+live_sum=""
+[ -f "$live_cfg" ] && live_sum=$(cksum < "$live_cfg")
 export PATH="$here/tests/fakes/bin:$PATH"
 failures=0
 fail() { echo "FAIL: $*" >&2; failures=$((failures+1)); }
@@ -70,6 +76,12 @@ step "nothing written outside managed paths"
 (cd "$HOME" && find . -mindepth 1 | LC_ALL=C sort) > "$after"
 bad=$(LC_ALL=C comm -13 "$before" "$after" | grep -vE '^\./(\.claude(/(CLAUDE\.md|settings\.json|\.harness-state\.json|hooks|hooks/.*|skills|skills/.*|agents|agents/.*))?|\.claude\.json|\.local|\.local/(bin|bin/.*|state|state/harness|state/harness/.*|share|share/harness|share/harness/.*))$' || true)
 [ -z "$bad" ] || fail "unexpected paths written: $(printf '%s' "$bad" | tr '\n' ' ')"
+
+step "live build products untouched"
+[ -f "$tmp/build/config.json" ] || fail "fixture build products did not land in HARNESS_BUILD_DIR"
+if [ -n "$live_sum" ]; then
+  [ "$(cksum < "$live_cfg")" = "$live_sum" ] || fail "$live_cfg changed during the smoke run"
+fi
 
 [ "$failures" -eq 0 ] || die "$failures check(s) failed"
 echo "smoke bootstrap: ok"

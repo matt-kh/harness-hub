@@ -5,13 +5,34 @@ Every command builds one :class:`Hub`. Loading is lazy about validation so that
 """
 from __future__ import annotations
 
+import hashlib
 import os
 from typing import Any, Dict, List, Optional, Sequence
 
 from . import __version__
 from . import config as cfgmod
 from . import manifest
-from .util import HarnessError, hub_home
+from .util import HarnessError, hub_home, user_home
+
+
+def resolve_build_dir(home: str, config_path: str) -> str:
+    """Where build products (config.json, guard.env) for this config go.
+
+    ``$HARNESS_BUILD_DIR`` wins; the hub's own ``<hub>/build`` belongs to the canonical
+    ``<hub>/local/harness.toml`` only (rendered skills read it through ``HARNESS_HOME``);
+    any other config (fixtures, CI, a second checkout's config) gets a private directory
+    ``${XDG_CACHE_HOME:-~/.cache}/harness/build/<sha1(realpath(config))[:12]>`` so a test
+    or experiment never overwrites the live compiled config.
+    """
+    env = os.environ.get("HARNESS_BUILD_DIR")
+    if env:
+        return os.path.abspath(os.path.expanduser(env))
+    real = os.path.realpath(config_path)
+    if real == os.path.realpath(os.path.join(home, "local", "harness.toml")):
+        return os.path.join(home, "build")
+    cache = os.environ.get("XDG_CACHE_HOME") or os.path.join(user_home(), ".cache")
+    digest = hashlib.sha1(real.encode("utf-8")).hexdigest()[:12]
+    return os.path.join(cache, "harness", "build", digest)
 
 
 class Hub:
@@ -23,7 +44,7 @@ class Hub:
         self.version = __version__
         self.config_path = cfgmod.resolve_config_path(config_path, self.home)
         self.config_dir = os.path.dirname(self.config_path)
-        self.build_dir = os.path.join(self.home, "build")
+        self.build_dir = resolve_build_dir(self.home, self.config_path)
         self.environ = environ
         self.user_layers = cfgmod.user_layers(self.config_path, required=require_config)
         raw: Dict[str, Any] = {}

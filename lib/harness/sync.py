@@ -4,6 +4,15 @@ Per path (state vs live, plus the current render):
 
 * ``clean``    live content equals what the last apply wrote
 * ``drifted``  live content changed since the last apply (edited in the provider dir)
+
+Merged targets compare only what the harness owns, never the whole file, because the
+provider (or the user) rewrites the rest freely (Claude Code rewrites ``~/.claude.json``
+on every session): ``json-merge`` is clean while merging the render into the live document
+is a no-op without conflicts (unrelated keys never count), or, when the path is no longer
+rendered, while every value recorded in the state ``owned`` list is still in place;
+``managed-block`` and ``toml-block`` compare each recorded block body with its sha in the
+state ``blocks`` map, ignoring text outside the blocks. ``file``/``dir`` keep the whole-file
+sha and ``symlink`` the link target.
 * ``missing``  recorded in state, gone from disk
 * ``foreign``  rendered by the hub, present on disk, not in state (never adopted)
 
@@ -22,7 +31,7 @@ from typing import Any, Dict, List, Optional, Sequence
 
 from . import render as R
 from . import state as S
-from .util import HarnessError, atomic_write, expand, read_bytes, sha256_bytes, tilde
+from .util import HarnessError, atomic_write, canonical_json, expand, read_bytes, sha256_bytes, tilde
 
 
 def classify(hub: Any, providers: Sequence[Any]) -> List[Dict[str, Any]]:
@@ -50,7 +59,7 @@ def classify(hub: Any, providers: Sequence[Any]) -> List[Dict[str, Any]]:
                 elif sha256_bytes(live) == entry.get("sha256"):
                     status = "clean"
                 else:
-                    status = "drifted"
+                    status = _merged_status(mode, live, entry, targets.get(path))
             rows.append({"path": path, "provider": name, "status": status, "mode": mode, "entry": entry,
                          "target": targets.get(path)})
     for path, t in sorted(targets.items()):
@@ -61,6 +70,54 @@ def classify(hub: Any, providers: Sequence[Any]) -> List[Dict[str, Any]]:
                          "entry": None, "target": t})
     rows.sort(key=lambda r: (r["provider"], r["path"]))
     return rows
+
+
+def _merged_status(mode: str, live: bytes, entry: Dict[str, Any], target: Any) -> str:
+    """``clean``/``drifted`` for a path whose whole-file sha changed (see the module doc)."""
+    try:
+        text = live.decode("utf-8")
+    except UnicodeDecodeError:
+        return "drifted"
+    if mode == "json-merge" and ("owned" in entry or target is not None):
+        try:
+            doc = json.loads(text) if text.strip() else {}
+        except ValueError:
+            return "drifted"
+        if not isinstance(doc, dict):
+            return "drifted"
+        if target is not None and target.mode == "json-merge":
+            merged, _owned, conflicts = R.merge_json(doc, target, entry.get("owned", []))
+            return "clean" if not conflicts and canonical_json(merged) == canonical_json(doc) else "drifted"
+        return "clean" if _owned_in_place(doc, entry.get("owned", [])) else "drifted"
+    if mode == "managed-block" and "blocks" in entry:
+        live_blocks = dict(v for k, v in R.parse_blocks(text) if k == "block")
+        return "clean" if _blocks_match(entry["blocks"], live_blocks, R.body_sha) else "drifted"
+    if mode == "toml-block" and "blocks" in entry:
+        live_blocks = {m.group("id"): m.group("body") for m in R._TBLOCK_RE.finditer(text)}
+        return "clean" if _blocks_match(entry["blocks"], live_blocks,
+                                        lambda b: sha256_bytes(b.encode())) else "drifted"
+    return "drifted"
+
+
+def _owned_in_place(doc: Dict[str, Any], owned: Sequence[Dict[str, Any]]) -> bool:
+    for rec in owned:
+        cur = R._get(doc, tuple(rec["path"]))
+        if cur is R._MISSING:
+            return False
+        if "items" in rec:
+            if not isinstance(cur, list):
+                return False
+            have = {canonical_json(x) for x in cur}
+            if any(canonical_json(i) not in have for i in rec["items"]):
+                return False
+        elif canonical_json(cur) != canonical_json(rec.get("value")):
+            return False
+    return True
+
+
+def _blocks_match(recorded: Dict[str, str], live_blocks: Dict[str, str], sha) -> bool:
+    """Every block recorded at the last apply is present with the recorded body."""
+    return all(k in live_blocks and sha(live_blocks[k]) == v for k, v in recorded.items())
 
 
 def _adoptable_file(row: Dict[str, Any], home: str) -> Optional[str]:

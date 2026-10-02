@@ -10,7 +10,13 @@ tmp=$(mktemp -d "${tmpdir%/}/harness-render.XXXXXX")
 trap 'rm -rf "$tmp"' EXIT
 mkdir -p "$tmp/home"
 HOME="$(cd "$tmp/home" && pwd)"; export HOME   # normalised: hook commands embed $HOME
-unset XDG_STATE_HOME XDG_DATA_HOME HARNESS_CONFIG 2>/dev/null || true
+unset XDG_STATE_HOME XDG_DATA_HOME XDG_CACHE_HOME HARNESS_CONFIG 2>/dev/null || true
+# build products of the fixture config stay in the temp dir; the live <hub>/build/config.json
+# (read by rendered skills) must come out of this run byte-identical
+export HARNESS_BUILD_DIR="$tmp/build"
+live_cfg="$here/build/config.json"
+live_sum=""
+[ -f "$live_cfg" ] && live_sum=$(cksum < "$live_cfg")
 all=claude,gemini,copilot,codex,opencode
 "$here/bin/harness" render --config "$cfg" --providers "$all" --out "$tmp/a" > /dev/null
 "$here/bin/harness" render --config "$cfg" --providers "$all" --out "$tmp/b" > /dev/null
@@ -18,4 +24,7 @@ diff -r "$tmp/a" "$tmp/b" > "$tmp/diff.txt" || { cat "$tmp/diff.txt"; echo "FAIL
 n=$(find "$tmp/a" -type f | wc -l | tr -d ' ')
 [ "$n" -gt 0 ] || { echo "FAIL: nothing rendered" >&2; exit 1; }
 if grep -rlI $'\r' "$tmp/a" >/dev/null 2>&1; then echo "FAIL: CRLF in rendered files" >&2; exit 1; fi
+if [ -n "$live_sum" ] && [ "$(cksum < "$live_cfg")" != "$live_sum" ]; then
+  echo "FAIL: $live_cfg changed during the render" >&2; exit 1
+fi
 echo "smoke render-determinism: ok ($n files identical)"

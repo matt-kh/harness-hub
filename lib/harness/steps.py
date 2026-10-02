@@ -41,6 +41,7 @@ def verify(hub: Any, bundle: Any, step: Dict[str, Any], tpl: Optional[R.Template
         return False, "template key missing: %s" % key
     env = dict(os.environ)
     env.setdefault("HARNESS_HOME", hub.home)
+    env["HARNESS_CONFIG_JSON"] = os.path.join(hub.build_dir, "config.json")
     rc, out, err = run_shell(cmd, timeout=float(v.get("timeout", 15)), env=env)
     expect = v.get("expect") or {}
     ok = rc == int(expect.get("exit", 0))

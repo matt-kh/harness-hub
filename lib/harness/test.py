@@ -4,7 +4,7 @@ Suites (in order):
 
 * ``unit``       ``python3 -m unittest discover -s tests/unit``
 * ``guard``      ``bundles/core/guard/tests/run.sh`` with ``GUARD_BASH`` pointing at a guard
-                 concatenated from **all** bundles into ``build/guard/guard-bash.sh``
+                 concatenated from **all** bundles into ``<suite build dir>/guard/guard-bash.sh``
 * ``bundles``    every ``bundles/*/tests/run.sh``
 * ``skills``     every ``bundles/*/skills/*/scripts/tests/run.sh``
 * ``providers``  every ``providers/*/tests/run.sh``
@@ -13,12 +13,17 @@ Suites (in order):
 ``harness test <bundle>`` runs that bundle's own suites only. The last non-empty output
 line of each suite is shown as its summary; failures print their FAIL lines. Exit status
 is non-zero when any suite fails.
+
+Every child suite gets ``HARNESS_BUILD_DIR`` set to its own fresh temporary directory, so no
+suite (the bootstrap smoke applies a fixture config) can overwrite the live
+``<hub>/build/config.json`` that rendered skills read.
 """
 from __future__ import annotations
 
 import glob
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -30,8 +35,8 @@ from .util import atomic_write, hub_home
 SUITES = ("unit", "guard", "bundles", "skills", "providers", "smoke")
 
 
-def build_all_guard(home: str) -> str:
-    """Concatenate engine + every bundle's sections into build/guard/guard-bash.sh."""
+def build_all_guard(home: str, build_dir: str) -> str:
+    """Concatenate engine + every bundle's sections into <build_dir>/guard/guard-bash.sh."""
     from . import manifest as M
     from . import render as R
 
@@ -41,7 +46,7 @@ def build_all_guard(home: str) -> str:
     engine = R.find_guard_engine(ordered)
     if engine is None:
         raise RuntimeError("no guard engine (bundles/core/guard/engine.sh) found")
-    out = os.path.join(home, "build", "guard", "guard-bash.sh")
+    out = os.path.join(build_dir, "guard", "guard-bash.sh")
     atomic_write(out, R.build_guard(engine, ordered), mode=0o755)
     return out
 
@@ -100,19 +105,24 @@ def run(ctx: Any, suite: str = "all", verbose: bool = False) -> int:
     for name, argv, extra in suites:
         env = dict(os.environ)
         env["HARNESS_HOME"] = home
-        if extra.pop("__build_guard__", None):
-            try:
-                env["GUARD_BASH"] = build_all_guard(home)
-            except Exception as exc:
-                print("FAIL  %-*s could not build the guard: %s" % (width, name, exc))
-                failed += 1
-                continue
-        env.update(extra)
-        start = time.time()
-        with tempfile.TemporaryFile() as log:
-            rc = subprocess.call(argv, cwd=home, env=env, stdout=log, stderr=subprocess.STDOUT)
-            log.seek(0)
-            text = log.read().decode("utf-8", "replace")
+        build_dir = tempfile.mkdtemp(prefix="harness-test-build-")
+        env["HARNESS_BUILD_DIR"] = build_dir
+        try:
+            if extra.pop("__build_guard__", None):
+                try:
+                    env["GUARD_BASH"] = build_all_guard(home, build_dir)
+                except Exception as exc:
+                    print("FAIL  %-*s could not build the guard: %s" % (width, name, exc))
+                    failed += 1
+                    continue
+            env.update(extra)
+            start = time.time()
+            with tempfile.TemporaryFile() as log:
+                rc = subprocess.call(argv, cwd=home, env=env, stdout=log, stderr=subprocess.STDOUT)
+                log.seek(0)
+                text = log.read().decode("utf-8", "replace")
+        finally:
+            shutil.rmtree(build_dir, ignore_errors=True)
         lines = [ln for ln in text.splitlines() if ln.strip()]
         summary = lines[-1].strip() if lines else ""
         took = time.time() - start
