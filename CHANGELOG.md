@@ -33,9 +33,30 @@ prints every one between your applied version and the new one.
 - `AGENTS.md` (with `CLAUDE.md` as a symlink): instructions for agents changing this repo.
 - `HARNESS_BUILD_DIR`: where compiled config and the built guard go; tests and smoke scripts set
   it to a temporary directory so they never touch a live hub's `build/`.
+- Component taxonomy ([docs/reference/taxonomy.md](docs/reference/taxonomy.md)): every
+  rule, skill, agent, guard section, permission list, MCP server, CLI, installer, doctor
+  check and manual step has a stable path-derived id (`k8s/agents/k8s-triage`) and a
+  domain, function and posture; kind, control, model and decisions are derived. Bundle
+  manifests gain an optional `[taxonomy]` section (`domain`, `posture`, `function`,
+  `[taxonomy.components]` overrides), filled in for every public bundle. Nothing is renamed
+  and rendered provider files are unchanged.
+- `harness catalog [--kind K] [--bundle B] [--domain D] [--json]`: every bundle, component,
+  provider and profile with its id and facets.
+- Generated docs: [catalog](docs/catalog.md) (every component by kind, domain × posture
+  matrix), the taxonomy vocabulary, and a "Components" section on every bundle page.
+- `harness lint` rule `taxonomy`: errors for overrides that name no component, postures on
+  kinds that take none, functions that contradict a kind's fixed one, component postures
+  stronger than the bundle's and the reserved bundle names `providers` / `profiles`;
+  warnings for unclassified public bundles, skills, agents, CLIs and MCP servers, read-only
+  agents in auto permission mode, and components `[harness]` does not declare.
 - Docs: [distribution](docs/distribution.md) (tiers, release artifact, versioning), the
   [self-host runbook](docs/runbooks/self-host.md) for org platform instances, a "Guides and
   sensors" section in concepts, a bundle-file path in getting started.
+
+### Deprecated
+
+- `[bundle].tags` in `bundle.toml`: free-form and never read; `harness lint` warns
+  "bundle.tags: is deprecated; use taxonomy.domain". Classify the bundle with `[taxonomy]`.
 
 ### Changed
 
@@ -45,6 +66,21 @@ prints every one between your applied version and the new one.
 - CONTRIBUTING: "Principles first", contributions as the steering loop, guides and sensors in
   the add-a-bundle checklist; PR template asks for the principle(s) served and the pairing
   check.
+
+### Migration
+
+- Component taxonomy: `schema_version` stays `"1"` and every new key is optional, so
+  existing manifests keep loading. In every public or private `bundle.toml`, delete
+  `tags = [...]` from `[bundle]` and add a `[taxonomy]` section with `domain` (base, scm,
+  tracker, delivery, kubernetes, workspace) and `posture` (read-only, local, label-gated);
+  add `function` (govern, client, workflow, investigate, plan, execute, review, setup) as a
+  default for skills and agents, and `[taxonomy.components]` entries such as
+  `"agents/<name>" = { function = "review", posture = "read-only" }` for every skill, agent,
+  CLI (`bin/<name>`) and MCP server (`mcp/<server>`) that differs from the bundle. Run
+  `harness lint`: its `taxonomy:` messages list the ids (`harness catalog --bundle <b>`) and
+  the allowed values. A rule, skill, agent, guard section or permission list missing from
+  `[harness]` is reported too; declare it as a guide or sensor. Then run
+  `harness docs generate` to refresh the bundle pages and the catalog.
 
 ## [0.1.0] - 2026-09-30
 

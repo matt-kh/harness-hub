@@ -15,6 +15,9 @@ Pages and sources:
 * ``docs/reference/secrets.md``       ``bundles/*/bundle.toml`` (every ``[requires.secrets]``)
 * ``docs/reference/capability-matrix.md`` ``providers/*/provider.toml``
 * ``docs/reference/harness-coverage.md`` ``bundles/*/bundle.toml#harness`` (guides × sensors per bundle)
+* ``docs/reference/taxonomy.md``      ``lib/harness/taxonomy.py`` (facet values, facets and reach by kind)
+* ``docs/catalog.md``                 ``bundles/*/bundle.toml#catalog`` (every component by kind) and
+                                      ``bundles/*/bundle.toml#posture`` (domain × posture matrix)
 * ``templates/harness.toml.tmpl``     whole file, from the compiled schema
 
 Manual steps render as ``<a id="<id>"></a>`` + ``### <id> — <title>`` so that the doctor's
@@ -95,8 +98,13 @@ def bundle_body(b: M.Bundle) -> str:
     stab = b.data.get("bundle", {}).get("stability")
     if stab:
         meta.append("- **Stability:** %s" % stab)
+    tax = b.taxonomy or {}
+    if tax.get("domain") or tax.get("posture"):
+        meta.append("- **Domain / posture:** %s / %s" % (tax.get("domain") or "unclassified",
+                                                         tax.get("posture") or "unclassified"))
     if meta:
         out.append("\n".join(meta) + "\n")
+    out.append(components_body(b))
     out.append("## Requirements\n")
     out.append("### Binaries\n")
     out.append(table(["binary", "min version", "install", "optional", "why"], [
@@ -151,6 +159,161 @@ def bundle_body(b: M.Bundle) -> str:
     out.append("Kept on uninstall: %s\n" % (", ".join(code(k) for k in keeps) if keeps else "_nothing_"))
     if b.uninstall.get("notes"):
         out.append("%s\n" % b.uninstall["notes"].strip())
+    return "\n".join(out)
+
+
+def components_body(b: M.Bundle) -> str:
+    """The bundle's components with their ids and facets (taxonomy)."""
+    from . import taxonomy as T
+
+    comps = T.components(b)
+    out = ["## Components\n"]
+    out.append("Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md) facets "
+               "(domain shown only where it differs from the bundle's). All bundles: [catalog](../catalog.md).\n")
+    if not comps:
+        out.append("_none_\n")
+        return "\n".join(out)
+    bundle_domain = (b.taxonomy or {}).get("domain")
+    for kind in T.KINDS:
+        group = sorted((c for c in comps if c.kind == kind), key=lambda c: c.sort_key())
+        if not group:
+            continue
+        title = T.KIND_TITLES[kind]
+        if kind in ("doctor", "step"):
+            facets = "function: setup" + (" · posture: read-only" if kind == "doctor" else "")
+            out.append("**%s** (%s; table below): %s\n" % (title, facets, ", ".join(code(c.id) for c in group)))
+            continue
+        lines = ["**%s**\n" % title]
+        for c in group:
+            badges = c.badges(("kind", "domain") if c.domain == bundle_domain else ("kind",))
+            lines.append("- %s — %s" % (code(c.id), badges) if badges else "- %s" % code(c.id))
+        out.append("\n".join(lines) + "\n")
+    return "\n".join(out)
+
+
+def _rel_docs(path: str) -> str:
+    """A docs/… path relative to docs/ (where catalog.md lives)."""
+    return path[len("docs/"):] if path.startswith("docs/") else "../" + path
+
+
+def catalog_body(bundles: Sequence[M.Bundle], providers: Sequence[M.Provider], home: str) -> str:
+    """``docs/catalog.md``: every bundle, component, provider and profile by kind."""
+    from . import taxonomy as T
+
+    comps = [c for b in bundles for c in T.components(b)]
+    docs = {b.name: _rel_docs(b.docs_path()) for b in bundles}
+    out: List[str] = []
+    for kind in T.KINDS:
+        out.append("## %s\n" % T.KIND_TITLES[kind])
+        out.append("**Reach:** %s\n" % T.reach_line(kind, list(providers)))
+        group = sorted((c for c in comps if c.kind == kind), key=lambda c: c.sort_key())
+        if kind == "bundle":
+            rows = []
+            for b in bundles:
+                e = T.bundle_entry(b, [c for c in comps if c.bundle == b.name])
+                rows.append(["[%s](%s#components)" % (code(b.name), docs[b.name]), e["domain"] or "", e["posture"] or "",
+                             ", ".join(e["functions"]), e["stability"], b.summary])
+            out.append(table(["id", "domain", "posture", "functions", "stability", "summary"], rows))
+        elif kind in ("skill", "agent"):
+            out.append(table(["id", "control", "domain", "function", "posture", "model", "summary"], [
+                [code(c.id), c.control or "", c.domain or "", c.function or "", c.posture or "", c.model or "", c.blurb]
+                for c in group]))
+        elif kind == "rule":
+            out.append(table(["id", "control", "domain", "summary"], [
+                [code(c.id), c.control or "", c.domain or "", c.blurb] for c in group]))
+        elif kind in ("guard", "permission"):
+            ids = ["[%s](reference/hook-policy.md)" % code(c.id) if kind == "guard" else code(c.id) for c in group]
+            out.append(table(["id", "control", "domain", "decisions", "note"], [
+                [i, c.control or "", c.domain or "", c.decisions or "", c.blurb] for i, c in zip(ids, group)]))
+        elif kind == "mcp":
+            out.append(table(["id", "domain", "posture", "note"], [
+                [code(c.id), c.domain or "", c.posture or "", c.blurb] for c in group]))
+        elif kind == "bin":
+            out.append(table(["id", "domain", "posture", "target"], [
+                [code(c.id), c.domain or "", c.posture or "", code(c.ref)] for c in group]))
+        elif kind == "installer":
+            out.append(table(["id", "domain", "script"], [[code(c.id), c.domain or "", code(c.ref)] for c in group]))
+        elif kind == "doctor":
+            out.append(table(["id", "control", "domain", "title"], [
+                ["[%s](%s#doctor-checks)" % (code(c.id), docs[c.bundle]), c.control or "", c.domain or "", c.blurb]
+                for c in group]))
+        elif kind == "step":
+            out.append(table(["id", "domain", "title"], [
+                ["[%s](%s#%s)" % (code(c.id), docs[c.bundle], c.ref), c.domain or "", c.blurb] for c in group]))
+        elif kind == "provider":
+            rows = []
+            for p in providers:
+                e = T.provider_entry(p)
+                page = _rel_docs(p.data.get("provider", {}).get("docs") or "docs/providers/%s.md" % p.name)
+                rows.append(["[%s](%s)" % (code(e["id"]), page), e["tier"], e["summary"]])
+            out.append(table(["id", "tier", "summary"], rows))
+        elif kind == "profile":
+            rows = []
+            for e in T.profile_entries(home, {b.name: b for b in bundles}):
+                rows.append([code(e["id"]), ", ".join(e["domains"]), e["posture"] or "",
+                             ", ".join(e["bundles"]), ", ".join(e["providers"]), e["summary"]])
+            out.append(table(["id", "domains", "posture", "bundles", "providers", "summary"], rows))
+    return "\n".join(out)
+
+
+def posture_body(bundles: Sequence[M.Bundle]) -> str:
+    """``docs/catalog.md#posture``: skills, agents, CLIs and MCP servers by domain × posture."""
+    from . import taxonomy as T
+
+    comps = [c for b in bundles for c in T.components(b) if c.kind in T.POSTURE_KINDS]
+    rows = []
+    for d in T.FACETS["domain"]:
+        row = [d]
+        for p in T.POSTURE_ORDER:
+            ids = sorted(c.id for c in comps if c.domain == d and c.posture == p)
+            row.append(", ".join(code(i) for i in ids) or "—")
+        rows.append(row)
+    return ("Skills, agents, CLIs and MCP servers by domain and posture (the strongest effect without a "
+            "human prompt, weakest first).\n\n" + table(["domain"] + list(T.POSTURE_ORDER), rows))
+
+
+def _facet_by_kind(kind: str) -> List[str]:
+    from . import taxonomy as T
+
+    shape = {"bundle": "`<bundle>`", "provider": "`providers/<name>`", "profile": "`profiles/<name>`",
+             "permission": "`<bundle>/permissions`"}.get(kind) or "`<bundle>/%s/<name>`" % T.KIND_DIR[kind]
+    control = "derived: `[harness]`" if kind in T.CONTROL_KINDS else "—"
+    if kind == "bundle":
+        domain, function, posture = "declared (required on public)", "derived: union", "declared (required on public)"
+    elif kind == "profile":
+        domain, function, posture = "derived: union", "—", "derived: max"
+    elif kind == "provider":
+        domain, function, posture = "—", "—", "— (tier instead)"
+    else:
+        domain = "inherited, overridable"
+        function = ("fixed: %s" % T.KIND_FUNCTION[kind]) if kind in T.KIND_FUNCTION else "declared (required)"
+        posture = ("fixed: %s" % T.KIND_POSTURE[kind] if kind in T.KIND_POSTURE
+                   else "declared (required)" if kind in T.POSTURE_KINDS else "not allowed")
+    model = "derived: front matter" if kind in ("skill", "agent") else "—"
+    decisions = ("derived: `# rule:` comments" if kind == "guard" else "derived: allow/ask/deny lists"
+                 if kind == "permission" else "—")
+    return [kind, shape, control, domain, function, posture, model, decisions]
+
+
+def vocabulary_body(bundles: Sequence[M.Bundle], providers: Sequence[M.Provider]) -> str:
+    """``docs/reference/taxonomy.md``: facet values with their meaning and use, facets and reach by kind."""
+    from . import taxonomy as T
+
+    comps = [c for b in bundles for c in T.components(b)]
+    out: List[str] = []
+    for facet, values in T.FACETS.items():
+        out.append("### %s\n" % facet)
+        rows = []
+        for v, meaning in values.items():
+            using = [c for c in comps if getattr(c, facet) == v]
+            where = sorted(set(c.bundle for c in using))
+            rows.append([code(v), meaning, "%d (%s)" % (len(using), ", ".join(where)) if using else "0"])
+        out.append(table(["value", "meaning", "components using it"], rows))
+    out.append("### Facets by kind\n")
+    out.append(table(["kind", "id", "control", "domain", "function", "posture", "model", "decisions"],
+                     [_facet_by_kind(k) for k in T.KINDS]))
+    out.append("### Reach by kind\n")
+    out.append(table(["kind", "reach"], [[k, T.reach_line(k, list(providers))] for k in T.KINDS]))
     return "\n".join(out)
 
 
@@ -459,6 +622,12 @@ def expected(home: str) -> Dict[str, List[Tuple[str, str, str]]]:
         ("providers/*/provider.toml", matrix_body(providers), "# Capability matrix"))
     pages.setdefault(ref + "harness-coverage.md", []).append(
         ("bundles/*/bundle.toml#harness", coverage_body(bundles), "# Harness coverage"))
+    pages.setdefault(ref + "taxonomy.md", []).append(
+        ("lib/harness/taxonomy.py", vocabulary_body(bundles, providers), "# Taxonomy"))
+    pages.setdefault("docs/catalog.md", []).extend([
+        ("bundles/*/bundle.toml#catalog", catalog_body(bundles, providers, home), "# Catalog"),
+        ("bundles/*/bundle.toml#posture", posture_body(bundles), "# Catalog"),
+    ])
     return pages
 
 

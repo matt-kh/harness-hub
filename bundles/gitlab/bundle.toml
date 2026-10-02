@@ -13,7 +13,6 @@ depends_on = ["core"]
 recommends = ["jira", "ticket-workflow"]
 conflicts_with = []
 any_of = []
-tags = ["scm"]
 owners = []
 docs = "docs/bundles/gitlab.md"
 stability = "stable"
@@ -184,6 +183,15 @@ fix = "chmod 600 ~/.config/glab-cli/config.yml"
 [uninstall]
 keeps = ["~/.config/glab-cli/**"]
 notes = "glab and its token are yours; uninstall removes only the rendered rules, guard sections and permissions."
+
+# Component taxonomy (docs/reference/taxonomy.md): bundle defaults, then per-component overrides.
+[taxonomy]
+domain = "scm"
+posture = "label-gated"
+function = "govern"
+
+[taxonomy.components]
+"guard.d/40-gitlab-closing" = { domain = "tracker" }
 
 # Guides steer the agent before it acts; sensors detect at or after the action (principle 6).
 [harness]

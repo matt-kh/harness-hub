@@ -13,7 +13,6 @@ depends_on = ["core"]
 recommends = []
 conflicts_with = []
 any_of = []
-tags = ["docs", "mail"]
 owners = []
 docs = "docs/bundles/gdoc.md"
 stability = "stable"
@@ -197,6 +196,12 @@ fix = "chmod 700 ~/.config/gdoc && chmod 600 ~/.config/gdoc/*.json"
 [uninstall]
 keeps = ["~/.config/gdoc/**"]
 notes = "Revoke access at https://myaccount.google.com/permissions if you leave the organisation."
+
+# Component taxonomy (docs/reference/taxonomy.md): bundle defaults, then per-component overrides.
+[taxonomy]
+domain = "workspace"
+posture = "label-gated"
+function = "client"
 
 # Guides steer the agent before it acts; sensors detect at or after the action (principle 6).
 [harness]

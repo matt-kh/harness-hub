@@ -90,6 +90,30 @@ class CommandTest(HubTestCase):
         self.assertEqual(rc, 0)
         self.assertIn("* core", out)
 
+    def test_catalog(self):
+        import json
+
+        rc, out = self.run_cli("catalog")
+        self.assertEqual(rc, 0)
+        for cid in ("core/agents/planner", "core/skills/demo", "core/guard.d/20-core", "alpha/mcp/alpha",
+                    "core/doctor/core-ok", "providers/claude", "profiles/minimal"):
+            self.assertIn(cid, out)
+        rc, out = self.run_cli("catalog", "--json")
+        self.assertEqual(rc, 0)
+        data = json.loads(out)
+        planner = [e for e in data if e["id"] == "core/agents/planner"][0]
+        self.assertEqual((planner["kind"], planner["function"], planner["posture"]), ("agent", "plan", "read-only"))
+        rc, out = self.run_cli("catalog", "--kind", "agent", "--json")
+        self.assertEqual([e["id"] for e in json.loads(out)], ["core/agents/planner"])
+        rc, out = self.run_cli("catalog", "--bundle", "alpha", "--json")
+        ids = [e["id"] for e in json.loads(out)]
+        self.assertIn("alpha", ids)
+        self.assertTrue(all(i == "alpha" or i.startswith("alpha/") for i in ids), ids)
+        rc, out = self.run_cli("catalog", "--bundle", "nope")
+        self.assertEqual(rc, 2)
+        rc, out = self.run_cli("catalog", "--domain", "scm", "--json")
+        self.assertEqual({e["id"] for e in json.loads(out) if e["kind"] == "bundle"}, {"beta"})
+
 
 class UpgradeNotesTest(unittest.TestCase):
     def test_changelog_between(self):

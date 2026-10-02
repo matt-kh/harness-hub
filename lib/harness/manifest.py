@@ -13,7 +13,13 @@ Providers come from ``$HARNESS_HOME/providers/*/provider.toml`` plus ``$HARNESS_
 ``[provides]`` lists are authoritative when present (even when empty). When a key is absent
 the directory convention is used: ``rules/NN-*.md``, ``skills/*/``, ``agents/*.md``,
 ``guard.d/NN-*.sh``, ``skill-fragments/**``, ``permissions.toml``, ``mcp.toml``, ``bin/*``.
-``hook_rules`` is accepted as a deprecated alias of ``guard_rules``.
+``hook_rules`` is accepted as a deprecated alias of ``guard_rules``. Installers are
+``install/*.sh``; MCP servers are the ``[servers.<name>]`` tables of the MCP file.
+
+``[taxonomy]`` (optional; ``domain``, ``posture``, ``function`` and per-component
+``[taxonomy.components]`` overrides) classifies the bundle's components; see
+:mod:`harness.taxonomy` and docs/reference/taxonomy.md. ``[bundle].tags`` is deprecated in
+its favour.
 """
 from __future__ import annotations
 
@@ -77,6 +83,7 @@ class Bundle:
         self.doctor_checks: List[Dict[str, Any]] = data.get("doctor_checks", [])
         self.uninstall: Dict[str, Any] = data.get("uninstall", {})
         self.harness: Dict[str, Any] = data.get("harness", {})
+        self.taxonomy: Dict[str, Any] = data.get("taxonomy", {})
 
     @property
     def manifest_path(self) -> str:
@@ -149,6 +156,22 @@ class Bundle:
         if p is None and os.path.exists(self.rel("mcp.toml")):
             p = "mcp.toml"
         return p or None
+
+    def mcp_servers(self) -> List[str]:
+        """Server names (``[servers.<name>]``) of the bundle's MCP file, in file order."""
+        rel = self.mcp_file()
+        if not rel or not os.path.isfile(self.rel(rel)):
+            return []
+        try:
+            data = toml_compat.load_file(self.rel(rel))
+        except toml_compat.TOMLDecodeError as exc:
+            raise HarnessError("%s: TOML syntax error: %s" % (self.rel(rel), exc))
+        return list((data.get("servers") or {}).keys())
+
+    def installers(self) -> List[str]:
+        """Tool installers, relative to the bundle (``install/<tool>.sh``)."""
+        return sorted(os.path.relpath(p, self.path) for p in glob.glob(self.rel("install", "*.sh"))
+                      if os.path.isfile(p))
 
     def bins(self) -> List[Tuple[str, str]]:
         """(link name, bundle-relative target) for every exposed executable."""

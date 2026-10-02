@@ -14,7 +14,6 @@ depends_on = ["core"]
 recommends = ["ticket-workflow", "gitlab"]
 conflicts_with = []
 any_of = []
-tags = ["tracker"]
 owners = []
 docs = "docs/bundles/jira.md"
 stability = "stable"
@@ -193,6 +192,15 @@ fix = "install-uv"
 [uninstall]
 keeps = ["~/.config/jira"]
 notes = "The token file is yours; revoke it in Jira (profile → Personal Access Tokens) when you leave."
+
+# Component taxonomy (docs/reference/taxonomy.md): bundle defaults, then per-component overrides.
+[taxonomy]
+domain = "tracker"
+posture = "label-gated"
+function = "client"
+
+[taxonomy.components]
+"mcp/jira-mcp" = { posture = "read-only" }
 
 # Guides steer the agent before it acts; sensors detect at or after the action (principle 6).
 [harness]

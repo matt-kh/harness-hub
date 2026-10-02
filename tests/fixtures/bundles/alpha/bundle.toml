@@ -45,3 +45,7 @@ cmd = "exit 3"
 expect = { exit = 0 }
 timeout = 5
 fix = "alpha-auth"
+
+[taxonomy]
+domain = "tracker"
+posture = "read-only"

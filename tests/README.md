@@ -12,6 +12,7 @@
 | `smoke/render-determinism.sh` | two renders of every provider are byte-identical | `bin/harness test smoke` |
 | `smoke/pack.sh` | distribution: snapshot the working tree into a temp repo, `harness pack`, `harness verify` (and a tampered `SHA256SUMS` fails), a dirty tree is refused, `bootstrap --from <bundle>` into a temp HOME, the installed hub's `doctor --offline` rc 0 | `bin/harness test smoke` |
 | `unit/test_pack.py`, `unit/test_deps.py`, `unit/test_harness_section.py` | pack/verify/`bootstrap --from`/offline `upgrade --to`; stdlib-only imports and the shell binary scanner; `[harness]` schema, lint pairing and guard-reason checks, generated coverage docs | `bin/harness test unit` |
+| `unit/test_taxonomy.py` | component taxonomy: schema enums vs `taxonomy.FACETS`, ids, classification and inheritance, every `taxonomy` lint message, the repo's bundles classified, catalog and taxonomy docs | `bin/harness test unit` |
 
 `bin/harness test` also discovers `bundles/core/guard/tests/run.sh` (with `GUARD_BASH` set to a
 guard concatenated from every bundle), `bundles/*/tests/run.sh`,

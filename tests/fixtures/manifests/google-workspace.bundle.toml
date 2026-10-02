@@ -1,5 +1,6 @@
 # Example from the bundle-system design, verbatim except that the readable ';' separators
-# are expanded to one key per line (valid TOML). tests/unit/test_schema.py loads it.
+# are expanded to one key per line (valid TOML) and the deprecated `tags` became [taxonomy].
+# tests/unit/test_schema.py loads it.
 [bundle]
 name = "google-workspace"
 schema_version = "1"
@@ -10,7 +11,6 @@ Ships the stdlib `gdoc` CLI and its skill, the gdoc guard rules (writes to human
 one-time GCP OAuth Desktop client that only a human (sometimes an admin) can create.
 """
 depends_on = ["core"]
-tags = ["docs", "mail"]
 owners = ["@platform-team"]
 docs = "docs/bundles/google-workspace.md"
 stability = "stable"
@@ -180,3 +180,7 @@ fix = "chmod 600 ~/.config/gdoc/*.json"
 [uninstall]
 keeps = ["~/.config/gdoc/**"]
 notes = "Revoke access at https://myaccount.google.com/permissions if you leave the org."
+
+[taxonomy]
+domain = "workspace"
+posture = "label-gated"

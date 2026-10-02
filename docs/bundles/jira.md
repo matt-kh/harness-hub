@@ -49,6 +49,39 @@ tickets. Jira Server / Data Center 8.x with personal access tokens; Cloud is not
 - **Depends on:** `core`
 - **Recommends:** `ticket-workflow`, `gitlab`
 - **Stability:** stable
+- **Domain / posture:** tracker / label-gated
+
+## Components
+
+Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md) facets (domain shown only where it differs from the bundle's). All bundles: [catalog](../catalog.md).
+
+**Skills**
+
+- `jira/skills/jira` — control: guide · function: client · posture: label-gated · model: execute
+
+**Rules**
+
+- `jira/rules/70-jira` — control: guide · function: govern
+
+**Guard sections**
+
+- `jira/guard.d/70-jira` — control: sensor · function: govern · decisions: deny 3 · ask 1 · allow 4
+
+**Permission lists**
+
+- `jira/permissions` — control: guide · function: govern · decisions: allow 12
+
+**MCP servers**
+
+- `jira/mcp/jira-mcp` — function: client · posture: read-only
+
+**CLIs**
+
+- `jira/bin/jira` — function: client · posture: label-gated
+
+**Doctor checks** (function: setup · posture: read-only; table below): `jira/doctor/jira-auth`, `jira/doctor/jira-cli`, `jira/doctor/jira-token-file`, `jira/doctor/uvx`
+
+**Manual steps** (function: setup; table below): `jira/steps/install-uv`, `jira/steps/jira-fields`, `jira/steps/jira-pat`
 
 ## Requirements
 

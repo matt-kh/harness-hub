@@ -21,6 +21,7 @@ COMMANDS = [
     ("bootstrap", "first run: init -> resolve -> plan -> apply -> doctor -> manual steps"),
     ("init", "write local/harness.toml from the template (optionally from an org overlay)"),
     ("bundles", "list bundles or show one"),
+    ("catalog", "list every component with its id, kind, domain, function and posture"),
     ("config", "validate | get | set | explain | migrate the configuration"),
     ("plan", "render to memory and show what apply would change"),
     ("apply", "execute the plan (backups, atomic writes, state)"),
@@ -118,6 +119,13 @@ def build_parser() -> argparse.ArgumentParser:
     p = add("bundles")
     p.add_argument("action", nargs="?", default="list", choices=["list", "show"])
     p.add_argument("name", nargs="?")
+
+    p = add("catalog")
+    from .taxonomy import FACETS, KINDS
+
+    p.add_argument("--kind", choices=KINDS, help="only this kind of component")
+    p.add_argument("--bundle", metavar="NAME", help="only this bundle's components (and the bundle itself)")
+    p.add_argument("--domain", choices=list(FACETS["domain"]), help="only this domain")
 
     p = add("config")
     csub = p.add_subparsers(dest="action", metavar="action")
@@ -245,6 +253,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         eprint("harness: interrupted")
         return 130
     except BrokenPipeError:
+        # `harness catalog | head`: silence the second failure when python flushes at exit
+        devnull = os.open(os.devnull, os.O_WRONLY)
+        os.dup2(devnull, sys.stdout.fileno())
         return 0
 
 
@@ -254,6 +265,8 @@ def dispatch(ctx: Ctx, ns: argparse.Namespace, parser: argparse.ArgumentParser) 
         return cmd_version(ctx)
     if cmd == "bundles":
         return cmd_bundles(ctx, ns)
+    if cmd == "catalog":
+        return cmd_catalog(ctx, ns)
     if cmd == "config":
         return cmd_config(ctx, ns, parser)
     if cmd in ("plan", "apply"):
@@ -385,6 +398,50 @@ def cmd_bundles(ctx: Ctx, ns: argparse.Namespace) -> int:
         return 0
     for r in rows:
         print("%s %-18s %-8s %s" % ("*" if r["active"] else " ", r["name"], r["origin"], r["summary"]))
+    return 0
+
+
+def cmd_catalog(ctx: Ctx, ns: argparse.Namespace) -> int:
+    from . import taxonomy as T
+    from .hub import Hub
+    from .status import format_table
+
+    hub = Hub(home=ctx.home, config_path=ctx.config, require_config=False, select=False)
+    if ns.bundle and ns.bundle not in hub.bundles:
+        raise HarnessError("unknown bundle %s (known: %s); see `harness bundles`" % (
+            ns.bundle, ", ".join(sorted(hub.bundles)) or "none"), 2)
+    entries: List[Any] = []
+    for name in sorted(hub.bundles):
+        b = hub.bundles[name]
+        comps = T.components(b)
+        entries.append(T.bundle_entry(b, comps))
+        entries += [c.to_dict() for c in comps]
+    entries += [T.provider_entry(hub.providers[n]) for n in sorted(hub.providers)]
+    entries += T.profile_entries(hub.home, hub.bundles)
+
+    def keep(e: Any) -> bool:
+        if ns.kind and e["kind"] != ns.kind:
+            return False
+        if ns.bundle and e.get("bundle") != ns.bundle:
+            return False
+        if ns.domain and e.get("domain") != ns.domain and ns.domain not in (e.get("domains") or []):
+            return False
+        return True
+
+    order = {k: i for i, k in enumerate(T.KINDS)}
+    entries = sorted((e for e in entries if keep(e)), key=lambda e: (order[e["kind"]], e["id"]))
+    if ctx.json:
+        print(json.dumps(entries, indent=2))
+        return 0
+    rows = [["id", "kind", "control", "domain", "function", "posture"]]
+    for e in entries:
+        domain = e.get("domain") or ",".join(e.get("domains") or [])
+        function = e.get("function") or ",".join(e.get("functions") or [])
+        posture = e.get("posture") or e.get("tier") or ""
+        rows.append([e["id"], e["kind"], e.get("control") or "-", domain or "-", function or "-", posture or "-"])
+    print(format_table(rows), end="")
+    print("\n%d entr%s; facets: docs/reference/taxonomy.md" % (len(entries), "y" if len(entries) == 1 else "ies"))
+    sys.stdout.flush()  # a closed pipe raises here, inside main()'s handler
     return 0
 
 

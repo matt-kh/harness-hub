@@ -1,5 +1,6 @@
 # Example from the bundle-system design, verbatim except that the readable ';' separators
-# are expanded to one key per line (valid TOML). tests/unit/test_schema.py loads it.
+# are expanded to one key per line (valid TOML) and the deprecated `tags` became [taxonomy].
+# tests/unit/test_schema.py loads it.
 [bundle]
 name = "git-github"
 schema_version = "1"
@@ -11,7 +12,6 @@ the ticket-workflow skills and the GitHub section to the agent instructions.
 """
 depends_on   = ["core"]
 recommends   = ["ticket-workflow"]
-tags         = ["scm", "tracker"]
 owners       = ["@platform-team"]
 docs         = "docs/bundles/git-github.md"
 stability    = "stable"
@@ -158,3 +158,7 @@ fix = "chmod 600 ~/.config/gh/hosts.yml"
 [uninstall]
 keeps = ["~/.config/gh/**"]
 notes = "Removes ~/.local/bin/gh only if the state file records the harness installed it."
+
+[taxonomy]
+domain = "scm"
+posture = "label-gated"

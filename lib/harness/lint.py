@@ -12,8 +12,12 @@ Errors (exit 1):
 * ``tools/gate/private-ids.sh`` (when present) reporting private identifiers
 
 * ``[harness]`` refs that name no file, doctor check or lint rule of the bundle
+* ``taxonomy`` (principle 6, variety reduction): a ``[taxonomy.components]`` key that names no
+  component; a posture on a kind that takes none (rule, guard, permission, installer, step,
+  doctor); a function that contradicts a kind's fixed one; a component posture stronger than
+  the bundle's; a bundle named ``providers`` or ``profiles`` (reserved by the id scheme)
 
-Warnings: deprecated manifest keys, ``requires.config`` keys never referenced by any
+Warnings: deprecated manifest keys (``[bundle].tags`` -> ``[taxonomy]``), ``requires.config`` keys never referenced by any
 template, manifest string or env value (scripts may still read them from build/config.json),
 skills whose SKILL.md ``name`` differs from the directory, and three principle checks:
 
@@ -25,6 +29,10 @@ skills whose SKILL.md ``name`` differs from the directory, and three principle c
   ``bundles/**/*.sh``, ``providers/**/*.sh`` or ``tools/gate/*.sh`` that is neither on
   :data:`ALLOWED_BINARIES` nor declared by a bundle (``[requires.binaries]``, ``[provides] bin``);
   one warning per binary with its first ``file:line`` (heuristic, see ``shell_scan``)
+* ``taxonomy`` (principle 6): a public bundle without ``[taxonomy]``; a public skill, agent,
+  CLI or MCP server without a function or posture; a read-only agent whose front matter sets
+  a non-default ``permissionMode``; a public skill, agent, rule, guard section or permission
+  list that ``[harness]`` declares as neither guide nor sensor (empty permission lists excepted)
 """
 from __future__ import annotations
 
@@ -40,7 +48,8 @@ from .util import read_text, run_argv
 ID_SHAPE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 RULE_LINE_RE = re.compile(r"^#\s*rule:\s*(?P<pat>.+?)\s+->\s+(?P<dec>allow|ask|deny|pass|defer)\s*:\s*(?P<reason>.+?)\s*$")
 ALTERNATIVE_RE = re.compile(r"\b(use|instead|ask|run|mention|see)\b", re.I)
-LINT_RULES = {"manifest", "templates", "guard-syntax", "guard-reasons", "guides-sensors", "dependencies", "private-ids"}
+LINT_RULES = {"manifest", "templates", "guard-syntax", "guard-reasons", "guides-sensors", "dependencies", "private-ids",
+              "taxonomy"}
 
 # Principle 1 (lightweight): binaries any script may call without a bundle declaring them.
 ALLOWED_BINARIES = set(
@@ -182,6 +191,7 @@ def lint_bundle(b: M.Bundle, all_bundles: Dict[str, M.Bundle], schema: Dict[str,
                 rep.warn("%s: %s:%d guard-reasons: the %s reason %r does not say what to do instead; name the "
                          "alternative (use / run / ask / see / mention ... instead)" % (where, rel, i, m.group("dec"), m.group("reason")))
     lint_harness(b, rep)
+    lint_taxonomy(b, rep)
     # templates
     used: Set[str] = set()
     leaves = set(C.schema_leaf_keys(schema))
@@ -226,6 +236,74 @@ def lint_harness(b: M.Bundle, rep: Report) -> None:
         rep.warn("%s: guides-sensors: [harness] has sensors but no guides (feedback only); %s" % (where, hint))
     elif status == "empty":
         rep.warn("%s: guides-sensors: [harness] declares neither guides nor sensors; %s" % (where, hint))
+
+
+def _one_of(facet: str) -> str:
+    from . import taxonomy as T
+
+    return "one of: %s" % ", ".join(T.FACETS[facet])
+
+
+def lint_taxonomy(b: M.Bundle, rep: Report) -> None:
+    """``[taxonomy]``: overrides must name components and respect each kind's fixed facets."""
+    from . import taxonomy as T
+    from .util import HarnessError
+
+    where = "%s: taxonomy:" % b.name
+    if b.name in T.RESERVED_BUNDLE_NAMES:
+        rep.err("%s the bundle name %r is reserved by the component id scheme (providers/<p>, profiles/<p>); "
+                "rename the bundle directory and bundle.name" % (where, b.name))
+    tax = b.taxonomy or {}
+    public = b.origin == "public"
+    if "taxonomy" not in b.data and public:
+        rep.warn("%s no [taxonomy] section; add one with domain (%s) and posture (%s); "
+                 "see docs/reference/taxonomy.md" % (where, _one_of("domain"), _one_of("posture")))
+    try:
+        comps = T.components(b)
+    except HarnessError as exc:
+        rep.err("%s %s; fix the file so its components can be listed" % (where, exc))
+        return
+    by_key = {c.key: c for c in comps}
+    bundle_posture = tax.get("posture")
+    for key, cls in sorted((tax.get("components") or {}).items()):
+        c = by_key.get(key)
+        if c is None:
+            rep.err("%s components.%r names no component of the bundle; use an id printed by "
+                    "`harness catalog --bundle %s` without the %r prefix (agents/<name>, guard.d/NN-<topic>, "
+                    "doctor/<id>, steps/<id>, bin/<name>, mcp/<server>, install/<tool>, permissions)"
+                    % (where, key, b.name, b.name + "/"))
+            continue
+        cls = cls or {}
+        if "posture" in cls and c.kind not in T.POSTURE_KINDS:
+            rep.err("%s components.%r sets posture; remove it (%s)" % (where, key, T.NO_POSTURE_REASON[c.kind]))
+        fixed = T.KIND_FUNCTION.get(c.kind)
+        if "function" in cls and fixed and cls["function"] != fixed:
+            rep.err("%s components.%r sets function = %r but a %s is always %r; remove the function key"
+                    % (where, key, cls["function"], c.kind, fixed))
+        if ("posture" in cls and c.kind in T.POSTURE_KINDS and bundle_posture
+                and T.posture_rank(cls["posture"]) > T.posture_rank(bundle_posture)):
+            rep.err("%s components.%r posture %r is stronger than the bundle posture %r; raise taxonomy.posture "
+                    "on the bundle or lower the component" % (where, key, cls["posture"], bundle_posture))
+    for c in comps:
+        if public and c.kind in T.DECLARED_FUNCTION_KINDS and not c.function:
+            rep.warn("%s %s has no function; set it in [taxonomy] as the bundle default or in components.%r "
+                     "(%s)" % (where, c.id, c.key, _one_of("function")))
+        if public and c.kind in T.POSTURE_KINDS and not c.posture:
+            rep.warn("%s %s has no posture; set it in [taxonomy] as the bundle default or in components.%r "
+                     "(%s)" % (where, c.id, c.key, _one_of("posture")))
+        if c.kind == "agent" and c.posture == "read-only":
+            meta, _b = R.split_front_matter(read_text(b.rel(c.ref)) or "")
+            mode = meta.get("permissionMode")
+            if mode in ("auto", "acceptEdits", "bypassPermissions"):
+                raise_bundle = T.posture_rank("local") > T.posture_rank(tax.get("posture"))
+                rep.warn("%s %s has posture read-only but its front matter sets permissionMode: %s; "
+                         "set posture = \"local\" in components.%r%s or remove permissionMode"
+                         % (where, c.id, mode, c.key, " (and raise taxonomy.posture on the bundle)" if raise_bundle else ""))
+        if public and c.kind in T.CONTROL_KINDS and c.kind != "doctor" and not c.control:
+            if c.kind == "permission" and c.decisions == "empty (no rules)":
+                continue
+            rep.warn("%s %s appears in neither [harness] guides nor sensors; declare it as a guide or sensor "
+                     "so its control facet is known" % (where, c.id))
 
 
 def shell_files(home: str) -> List[str]:

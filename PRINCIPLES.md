@@ -50,6 +50,12 @@ repo; open the linked document when your change touches that area.
 | computational | deterministic, fast, run on every change (guard, lint, tests, doctor) |
 | inferential | semantic, slower, non-deterministic (a code-review agent) |
 | steering loop | when an issue recurs, improve a guide or sensor so it does not recur |
+| component | one thing a bundle ships: rule, skill, agent, guard section, permission list, MCP server, CLI, installer, doctor check, manual step |
+| id | a component's stable name, derived from its path: `<bundle>/<kind-dir>/<name>` (`k8s/agents/k8s-triage`) |
+| domain | what a component is about: base, scm, tracker, delivery, kubernetes, workspace |
+| function | what a component does for the agent: govern, client, workflow, investigate, plan, execute, review, setup |
+| posture | the strongest effect a component has without a human prompt: read-only < local < label-gated |
+| catalog | the generated list of every component with its id and facets ([docs/catalog.md](docs/catalog.md), `harness catalog`) |
 | upstream | the public hub, the reference distribution |
 | org platform instance | an organisation's fork or mirror of the hub on its own git host, with org bundles and an org overlay |
 | workstation | one developer's clone plus its gitignored `local/` |

@@ -16,7 +16,6 @@ depends_on = []
 recommends = ["github"]
 conflicts_with = []
 any_of = []
-tags = ["base", "guard", "governance"]
 owners = []
 docs = "docs/bundles/core.md"
 stability = "stable"
@@ -219,6 +218,18 @@ providers = ["claude"]
 [uninstall]
 keeps = []
 notes = "Removes the rendered hook, agents and managed instruction blocks only; your own CLAUDE.md prose outside the managed blocks stays."
+
+# Component taxonomy (docs/reference/taxonomy.md): bundle defaults, then per-component overrides.
+[taxonomy]
+domain = "base"
+posture = "local"
+function = "govern"
+
+[taxonomy.components]
+"agents/Plan" = { function = "plan", posture = "read-only" }
+"agents/Auto" = { function = "execute", posture = "local" }
+"agents/code-reviewer" = { function = "review", posture = "read-only" }
+"guard.d/30-git" = { domain = "scm" }
 
 # Guides steer the agent before it acts; sensors detect at or after the action (principle 6).
 [harness]
