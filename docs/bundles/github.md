@@ -162,6 +162,22 @@ organisation's default repository labels instead.
 | `gh-ssh` | warn | skipped | [ssh-key](#ssh-key) |
 | `gh-token-mode` | warn | runs | `chmod 600 ~/.config/gh/hosts.yml` |
 
+## Guides and sensors
+
+Guides steer the agent before it acts; sensors detect at or after the action. Pairing: **paired**.
+
+| side | kind | ref | note |
+|---|---|---|---|
+| guide | rule | `rules/60-github.md` | PR-based delivery, issue state is human-only, -R owner/repo on every call |
+| guide | permission | `permissions.toml` | read-only gh commands allowed; token printing denied |
+| sensor | guard | `guard.d/41-github-closing.sh` | denies closing keywords that would change issue state |
+| sensor | guard | `guard.d/60-github.sh` | token printing, API writes, merges/reviews, provenance labels, stacked PR targets |
+| sensor | doctor | `doctor_checks` | gh binary, auth, SSH and token file mode |
+| sensor | test | `guard.d/tests.sh` | guard rows with a stubbed gh |
+| sensor | test | `tests/run.sh` | this bundle's rows against core + github only |
+
+**Not covered:** Forks: the guard cannot read labels on a fork, so edits there ask instead of being label-gated.
+
 ## Uninstall
 
 Kept on uninstall: `~/.config/gh/**`

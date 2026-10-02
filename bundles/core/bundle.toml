@@ -219,3 +219,21 @@ providers = ["claude"]
 [uninstall]
 keeps = []
 notes = "Removes the rendered hook, agents and managed instruction blocks only; your own CLAUDE.md prose outside the managed blocks stays."
+
+# Guides steer the agent before it acts; sensors detect at or after the action (principle 6).
+[harness]
+coverage_note = "The model policy in agents/Plan.md and agents/Auto.md is a guide only: no sensor checks which model a sub-agent ran on."
+guides = [
+  { kind = "rule", ref = "rules/00-conventions.md", note = "conventions and governance: PR-based, artefact ownership, secrets stay in their files" },
+  { kind = "permission", ref = "permissions.toml", note = "denies reads of credential files in the provider's own permission system" },
+  { kind = "agent", ref = "agents/Plan.md", note = "planning agent on the plan model; design only, never edits" },
+  { kind = "agent", ref = "agents/Auto.md", note = "execution agent on the execute model under auto mode" },
+]
+sensors = [
+  { kind = "guard", ref = "guard.d/20-credentials.sh", note = "denies credential file reads and secret env dumps before they run" },
+  { kind = "guard", ref = "guard.d/30-git.sh", note = "denies default-branch pushes; asks on force-push and destructive git" },
+  { kind = "doctor", ref = "doctor_checks", note = "runtime prerequisites, and that the rendered guard parses and denies a credential read" },
+  { kind = "test", ref = "guard.d/tests.sh", note = "guard rows for both sections, including bypass attempts" },
+  { kind = "test", ref = "tests/run.sh", note = "full guard suite, helper drift, bash -n of every script" },
+  { kind = "review-agent", ref = "agents/code-reviewer.md", note = "inferential review of a diff against the conventions" },
+]

@@ -84,6 +84,7 @@ the command:
 |---|---|---|
 | `harness install <tool>`, `bootstrap` installing a missing tool | HTTPS download of the pinned release asset listed in `tools/<tool>.lock.json` (e.g. GitHub Releases), sha256-verified | `--no-install-tools`, `--offline`, `--from FILE`, `HARNESS_TOOLS_MIRROR` |
 | `harness upgrade` | `git fetch` of this repository's remote | skip upgrade; pin with `--to TAG` |
+| `harness pack --tools os/arch,...` | HTTPS download of the pinned `tools/<tool>.lock.json` assets for those platforms, sha256-verified (same code as `harness install`) | omit `--tools`, `--offline`, `HARNESS_TOOLS_MIRROR` |
 | `harness init --from <git url>` | `git clone`/`fetch` of the org overlay you name | pass a local path |
 | `harness doctor` (online checks) | runs **your** CLIs' own status commands: `gh auth status`, `glab auth status`, `jira whoami`, `gdoc auth status`, `kubectl version`, `ssh -T git@<host>` — they contact the hosts in your config | `--offline` (or `HARNESS_OFFLINE=1`) skips every network check |
 | `harness steps --pending` | the same verify commands as doctor | `--offline` |
@@ -92,6 +93,14 @@ Bundles' skills and CLIs (jira, gdoc, k8s) talk to the services you configured w
 or you run them; they are part of your workflow, not of the hub. The optional Jira MCP
 server is started by the provider through `uvx`, which downloads the package from PyPI on
 first use.
+
+## Release artifacts
+
+A release is a `git bundle` file, optional sidecar tool archives taken from the pinned lock
+files, and `SHA256SUMS` over all of them ([distribution](docs/distribution.md)). Check the
+sums (`shasum -a 256 -c SHA256SUMS`) before cloning; `harness verify FILE.bundle` also runs
+`git bundle verify`. Releases never contain `local/`, credentials, provider CLIs or MCP
+packages.
 
 ## Supported versions
 

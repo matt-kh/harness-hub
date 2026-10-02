@@ -20,7 +20,8 @@ if LIB not in sys.path:
 FIXTURES = os.path.join(REPO, "tests", "fixtures")
 
 _ENV_KEYS = ("HOME", "HARNESS_BUNDLES_ROOT", "HARNESS_CONFIG", "HARNESS_HOME", "XDG_STATE_HOME",
-             "XDG_DATA_HOME", "XDG_CACHE_HOME", "HARNESS_BUNDLE_PATH", "HARNESS_PROVIDER_PATH")
+             "XDG_DATA_HOME", "XDG_CACHE_HOME", "HARNESS_BUNDLE_PATH", "HARNESS_PROVIDER_PATH",
+             "HARNESS_BUILD_DIR")
 
 
 class HubTestCase(unittest.TestCase):
@@ -47,7 +48,10 @@ class HubTestCase(unittest.TestCase):
         os.environ["HOME"] = self.home
         os.environ["HARNESS_BUNDLES_ROOT"] = self.bundles
         os.environ["HARNESS_HOME"] = REPO
-        for k in ("HARNESS_CONFIG", "XDG_STATE_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME", "HARNESS_BUNDLE_PATH", "HARNESS_PROVIDER_PATH"):
+        # The checkout's build/ is never touched: resolve_build_dir() sends every non-canonical
+        # config to the (temp) HOME's cache dir, so HARNESS_BUILD_DIR is cleared, not set, here.
+        for k in ("HARNESS_CONFIG", "XDG_STATE_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME", "HARNESS_BUNDLE_PATH",
+                  "HARNESS_PROVIDER_PATH", "HARNESS_BUILD_DIR"):
             os.environ.pop(k, None)
         self.cfg_dir = os.path.join(self.tmp, "local")
         os.makedirs(self.cfg_dir)

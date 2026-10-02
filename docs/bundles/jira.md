@@ -147,6 +147,23 @@ then `harness apply`. Org admins can ship the table in the org overlay (`harness
 | `jira-auth` | fail | skipped | [jira-pat](#jira-pat) |
 | `uvx` | warn | runs | [install-uv](#install-uv) |
 
+## Guides and sensors
+
+Guides steer the agent before it acts; sensors detect at or after the action. Pairing: **paired**.
+
+| side | kind | ref | note |
+|---|---|---|---|
+| guide | rule | `rules/70-jira.md` | reads free, writes gated by agent-* labels, transitions human-only |
+| guide | skill | `skills/jira` | the jira CLI for Jira Server: search, fields, comments, labels |
+| guide | permission | `permissions.toml` | read commands allowed; writes left to the guard |
+| sensor | guard | `guard.d/70-jira.sh` | label-gated writes, provenance label on create, transitions denied on human tickets |
+| sensor | doctor | `doctor_checks` | CLI, token file mode, auth and uvx for the MCP server |
+| sensor | test | `guard.d/tests.sh` | guard rows with a stubbed jira |
+| sensor | test | `tests/run.sh` | this bundle's rows against core + jira only |
+| sensor | test | `skills/jira/scripts/tests/run.sh` | the jira CLI offline: config resolution and dry-run writes |
+
+**Not covered:** The optional MCP server runs with READ_ONLY_MODE=true; no sensor inspects MCP calls.
+
 ## Uninstall
 
 Kept on uninstall: `~/.config/jira`

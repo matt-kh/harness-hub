@@ -20,6 +20,8 @@ class ParserTest(unittest.TestCase):
                 argv += ["--out", "/tmp/x"]
             if name == "docs":
                 argv += ["check"]
+            if name == "verify":
+                argv += ["x.bundle"]
             ns = p.parse_args(argv)
             self.assertEqual(ns.command, name)
 
@@ -30,6 +32,22 @@ class ParserTest(unittest.TestCase):
         self.assertEqual((a.config, a.offline), ("/c.toml", True))
         self.assertEqual((b.config, b.offline, b.yes), ("/c.toml", True, True))
         self.assertEqual(cli._csv(["a,b", "c"]), ["a", "b", "c"])
+
+    def test_bootstrap_from_flags(self):
+        p = cli.build_parser()
+        ns = p.parse_args(["bootstrap", "--from", "h.bundle", "--dest", "/d", "--origin", "u", "--yes"])
+        self.assertEqual((ns.from_, ns.dest, ns.origin), ("h.bundle", "/d", "u"))
+        ns = p.parse_args(["pack", "--out", "/o", "--tag", "v1", "--tools", "linux/amd64,darwin/arm64"])
+        self.assertEqual((ns.out, ns.tag, cli._csv(ns.tools)), ("/o", "v1", ["linux/amd64", "darwin/arm64"]))
+
+    def test_dest_without_from_is_a_usage_error(self):
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            import contextlib
+
+            with contextlib.redirect_stderr(io.StringIO()):
+                rc = cli.main(["bootstrap", "--dest", "/tmp/x", "--dry-run"])
+        self.assertEqual(rc, 2)
 
 
 class CommandTest(HubTestCase):

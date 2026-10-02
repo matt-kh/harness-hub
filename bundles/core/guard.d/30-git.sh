@@ -1,12 +1,12 @@
 # shellcheck shell=bash
 
 # Section 30 (bundle core): git.
-# rule: git push <dst matching WORK_TICKET_BASE_BRANCH_RE> (explicit refspec or current branch) -> deny : MR/PR-based workflow
-# rule: git push to a default branch in a repo matching WORK_TICKET_ALLOW_DEFAULT_PUSH_RE -> ask : personal repos
-# rule: git push --force|-f|+refspec -> ask : force-push
-# rule: git reset --hard | git clean -f/-d/-x -> ask : destructive working-tree command
-# rule: git push of a -sub- branch from (or via cd into) a sub worktree -> ask : only the main thread pushes stacked branches
-# rule: git push --all|--mirror -> ask : would publish every local branch
+# rule: git push <dst matching WORK_TICKET_BASE_BRANCH_RE> (explicit refspec or current branch) -> deny : MR/PR-based workflow; push a branch and open an MR/PR instead
+# rule: git push to a default branch in a repo matching WORK_TICKET_ALLOW_DEFAULT_PUSH_RE -> ask : personal repos; ask the user to confirm, or push a branch instead
+# rule: git push --force|-f|+refspec -> ask : force-push rewrites shared history; ask the user first, or push a new branch instead
+# rule: git reset --hard | git clean -f/-d/-x -> ask : destructive working-tree command; use git stash, or ask the user first
+# rule: git push of a -sub- branch from (or via cd into) a sub worktree -> ask : only the main thread pushes stacked branches; run the push from the main checkout instead
+# rule: git push --all|--mirror -> ask : would publish every local branch; push the named branch instead
 # ---- Git ------------------------------------------------------------------------
 # Default-branch push: MR-based workflow → deny (ask where WORK_TICKET_ALLOW_DEFAULT_PUSH_RE
 # matches the repo top level). Destination = each refspec's dst (after ':', refs/heads/

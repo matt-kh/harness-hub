@@ -14,6 +14,7 @@ Pages and sources:
 * ``docs/reference/hook-policy.md``   ``bundles/*/guard.d`` (``# rule: <pattern> -> <decision> : <reason>``)
 * ``docs/reference/secrets.md``       ``bundles/*/bundle.toml`` (every ``[requires.secrets]``)
 * ``docs/reference/capability-matrix.md`` ``providers/*/provider.toml``
+* ``docs/reference/harness-coverage.md`` ``bundles/*/bundle.toml#harness`` (guides × sensors per bundle)
 * ``templates/harness.toml.tmpl``     whole file, from the compiled schema
 
 Manual steps render as ``<a id="<id>"></a>`` + ``### <id> — <title>`` so that the doctor's
@@ -144,12 +145,45 @@ def bundle_body(b: M.Bundle) -> str:
         [code(c.get("id", "")), c.get("severity", "fail"), "skipped" if c.get("offline_skip") else "runs",
          ("[%s](#%s)" % (c["fix"], c["fix"])) if c.get("fix") in steps else code(c.get("fix", ""))]
         for c in b.doctor_checks]))
+    out.append(harness_body(b))
     out.append("## Uninstall\n")
     keeps = b.uninstall.get("keeps") or []
     out.append("Kept on uninstall: %s\n" % (", ".join(code(k) for k in keeps) if keeps else "_nothing_"))
     if b.uninstall.get("notes"):
         out.append("%s\n" % b.uninstall["notes"].strip())
     return "\n".join(out)
+
+
+GUIDE_KINDS = ("rule", "skill", "permission", "agent", "template")
+SENSOR_KINDS = ("guard", "doctor", "test", "lint", "review-agent")
+
+
+def harness_body(b: M.Bundle) -> str:
+    """The bundle's ``[harness]``: guides (feedforward) and sensors (feedback)."""
+    out = ["## Guides and sensors\n"]
+    status = b.pairing()
+    if status == "undeclared":
+        out.append("_This bundle declares no `[harness]` section._\n")
+        return "\n".join(out)
+    out.append("Guides steer the agent before it acts; sensors detect at or after the action. "
+               "Pairing: **%s**.\n" % status)
+    rows = [["guide", e.get("kind", ""), code(e.get("ref", "")), e.get("note", "")] for e in b.guides]
+    rows += [["sensor", e.get("kind", ""), code(e.get("ref", "")), e.get("note", "")] for e in b.sensors]
+    out.append(table(["side", "kind", "ref", "note"], rows))
+    if b.harness.get("coverage_note"):
+        out.append("**Not covered:** %s\n" % " ".join(str(b.harness["coverage_note"]).split()))
+    return "\n".join(out)
+
+
+def coverage_body(bundles: Sequence[M.Bundle]) -> str:
+    rows = []
+    for b in bundles:
+        gk = sorted(set(e.get("kind", "") for e in b.guides), key=lambda k: GUIDE_KINDS.index(k) if k in GUIDE_KINDS else 99)
+        sk = sorted(set(e.get("kind", "") for e in b.sensors), key=lambda k: SENSOR_KINDS.index(k) if k in SENSOR_KINDS else 99)
+        rows.append(["[%s](../bundles/%s.md#guides-and-sensors)" % (b.name, b.name), len(b.guides), ", ".join(gk),
+                     len(b.sensors), ", ".join(sk), b.pairing(),
+                     " ".join(str(b.harness.get("coverage_note", "")).split())])
+    return table(["bundle", "guides", "guide kinds", "sensors", "sensor kinds", "pairing", "not covered"], rows)
 
 
 def provider_body(p: M.Provider) -> str:
@@ -423,6 +457,8 @@ def expected(home: str) -> Dict[str, List[Tuple[str, str, str]]]:
     pages.setdefault(ref + "secrets.md", []).append(("bundles/*/bundle.toml", secrets_body(bundles), "# Secrets"))
     pages.setdefault(ref + "capability-matrix.md", []).append(
         ("providers/*/provider.toml", matrix_body(providers), "# Capability matrix"))
+    pages.setdefault(ref + "harness-coverage.md", []).append(
+        ("bundles/*/bundle.toml#harness", coverage_body(bundles), "# Harness coverage"))
     return pages
 
 

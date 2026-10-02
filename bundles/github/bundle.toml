@@ -182,3 +182,18 @@ fix = "chmod 600 ~/.config/gh/hosts.yml"
 [uninstall]
 keeps = ["~/.config/gh/**"]
 notes = "Removes ~/.local/bin/gh only if the hub state records that the hub installed it."
+
+# Guides steer the agent before it acts; sensors detect at or after the action (principle 6).
+[harness]
+coverage_note = "Forks: the guard cannot read labels on a fork, so edits there ask instead of being label-gated."
+guides = [
+  { kind = "rule", ref = "rules/60-github.md", note = "PR-based delivery, issue state is human-only, -R owner/repo on every call" },
+  { kind = "permission", ref = "permissions.toml", note = "read-only gh commands allowed; token printing denied" },
+]
+sensors = [
+  { kind = "guard", ref = "guard.d/41-github-closing.sh", note = "denies closing keywords that would change issue state" },
+  { kind = "guard", ref = "guard.d/60-github.sh", note = "token printing, API writes, merges/reviews, provenance labels, stacked PR targets" },
+  { kind = "doctor", ref = "doctor_checks", note = "gh binary, auth, SSH and token file mode" },
+  { kind = "test", ref = "guard.d/tests.sh", note = "guard rows with a stubbed gh" },
+  { kind = "test", ref = "tests/run.sh", note = "this bundle's rows against core + github only" },
+]

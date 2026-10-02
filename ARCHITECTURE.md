@@ -3,7 +3,9 @@
 harness-hub is a bootstrap kit for **agent harnesses**: the instructions, skills, sub-agents,
 permission lists, MCP servers and command guards that make an AI coding agent behave like a
 disciplined colleague. One config file describes *your* organisation; the hub renders it into
-every agent provider you use.
+every agent provider you use. This repository is governed by [PRINCIPLES.md](PRINCIPLES.md)
+(one document per principle in [`principles/`](principles/)): read it before changing the
+contracts below, and name the principle a change serves.
 
 ```
                 bundles/*  (public, generic)        local/  (gitignored, yours)
@@ -33,6 +35,8 @@ on them; change them only with a schema version bump and a CHANGELOG "Migration"
 ### 1. Repository layout
 
 ```
+PRINCIPLES.md, principles/ the governing principles (summary + one document each)
+AGENTS.md (CLAUDE.md)     instructions for agents changing this repository
 bootstrap                 curl-able entry: exec bin/harness bootstrap "$@"
 bin/harness               bash launcher: checks python3 >= 3.9, jq, git; exec python3 -m harness
 lib/harness/              engine, python stdlib only (no pip); _vendor/tomli for python < 3.11
@@ -46,7 +50,8 @@ templates/                harness.toml template (generated from schema)
 tests/                    engine unit tests, fakes/bin/*, fixtures, smoke scripts
 docs/                     hand-written pages with generated regions (see §8)
 local/                    GITIGNORED private overlay (see §2)
-build/                    GITIGNORED render products (config.json, guard.env, rendered tree)
+build/                    GITIGNORED render products (config.json, guard.env, rendered tree),
+                          build/release/ (default `harness pack --out`); HARNESS_BUILD_DIR relocates it
 ```
 
 ### 2. Configuration: `local/harness.toml`
@@ -198,6 +203,13 @@ offline_skip = true; fix = "gh-auth"; providers = []
 
 [uninstall]
 keeps = ["~/.config/gh/**"]; notes = "…"
+
+[harness]                 # guides (feedforward) and sensors (feedback), principle 6
+coverage_note = "what the pairing does not cover"
+guides  = [ { kind = "rule", ref = "rules/60-github.md", note = "…" },
+            { kind = "permission", ref = "permissions.toml" } ]
+sensors = [ { kind = "guard", ref = "guard.d/60-github.sh" }, { kind = "doctor", ref = "doctor_checks" },
+            { kind = "test", ref = "guard.d/tests.sh" } ]
 ```
 
 Rules:
@@ -206,6 +218,17 @@ Rules:
   (`how`, `cmd`). Scripts are copied verbatim. A missing key with no default is a `plan` error.
 - `doctor_checks[].fix` must name a `manual_steps[].id` in the same bundle or be a literal
   command; `harness lint` fails on dangling ids.
+- `[harness]` declares what the bundle steers with and what checks it (Fowler's harness
+  engineering). Guide kinds: `rule`, `skill`, `permission`, `agent`, `template`; sensor kinds:
+  `guard`, `doctor`, `test`, `lint`, `review-agent`. `ref` is a bundle-relative path; for
+  `doctor` a `doctor_checks` id or `doctor_checks` (all of them), for `lint` a lint rule name
+  (`manifest`, `templates`, `guard-syntax`, `guard-reasons`, `guides-sensors`, `dependencies`,
+  `private-ids`). A ref that resolves to nothing is a lint error; a bundle with guides but no
+  sensors, sensors but no guides, or (public bundles) no `[harness]` at all is a lint warning.
+  `coverage_note` states what is deliberately not sensed. Rendered as "Guides and sensors" in
+  `docs/bundles/<b>.md` and summarised in `docs/reference/harness-coverage.md`.
+- Every `deny`/`ask` `# rule:` reason in `guard.d/` states the alternative action; lint warns
+  when the reason contains none of *use, instead, ask, run, mention, see*.
 - Numeric prefixes order rule fragments and guard sections across bundles
   (`10` k8s, `20` credentials, `30` git, `40` closing keywords, `50` gitlab, `60` github,
   `70` jira, `80` gdoc, `90+` private).
@@ -279,11 +302,22 @@ with stubs from `bundles/core/guard/tests/stubs/` on `PATH`.
 
 ### 6. Engine commands
 
-`bootstrap`, `init`, `bundles`, `config validate|get|set|explain|migrate`, `plan`, `apply`,
-`sync`, `render`, `doctor`, `status [--matrix]`, `install <tool>`, `upgrade`, `uninstall`,
-`test [suite]`, `lint`, `docs generate|check`, `steps [--pending]`, `version`. Global flags:
-`--config`, `--home`, `--json`, `--offline`, `--yes`, `--dry-run`. Environment: `HARNESS_HOME`,
-`HARNESS_CONFIG`, `HARNESS_OFFLINE`, `NO_COLOR`.
+`bootstrap [--from FILE.bundle [--dest DIR] [--origin URL]]`, `init`, `bundles`,
+`config validate|get|set|explain|migrate`, `plan`, `apply`, `sync`, `render`, `doctor`,
+`status [--matrix]`, `install <tool>`, `upgrade`, `pack [--out DIR] [--tag TAG] [--tools os/arch,...]`,
+`verify FILE.bundle`, `uninstall`, `test [suite]`, `lint`, `docs generate|check`,
+`steps [--pending]`, `version`. Global flags: `--config`, `--home`, `--json`, `--offline`,
+`--yes`, `--dry-run`. Environment: `HARNESS_HOME`, `HARNESS_CONFIG`, `HARNESS_OFFLINE`,
+`HARNESS_BUILD_DIR` (where `build/` products go; tests point it at a temp dir so a live hub's
+`build/config.json` is never overwritten), `NO_COLOR`.
+
+`pack`, `verify` and `bootstrap --from` are the distribution commands (§10). `lint` adds three
+principle checks to the manifest checks: `guides-sensors` and `guard-reasons` (§3) and
+`dependencies`: every binary a script in `bin/`, `bootstrap`, `bundles/**/*.sh`,
+`providers/**/*.sh` or `tools/gate/*.sh` invokes must be on the allow-list in
+`lib/harness/lint.py` or declared by some bundle (`[requires.binaries]`, `[provides] bin`);
+the scan is a heuristic (`lib/harness/shell_scan.py`) and reports one warning per binary.
+`tests/unit/test_deps.py` holds the engine to stdlib-or-`_vendor` imports.
 
 `plan` renders to a temporary tree and diffs against the live targets and the state file:
 `create | update | skip | conflict | orphan` per path. `apply` executes the plan, backing up
@@ -327,3 +361,55 @@ literal letter; use `[[:space:]]`, `[^[:alnum:]_]`, …). Brace a variable that 
 by a non-ASCII character (`"${var}—"`, not `"$var—"`): macOS ctype counts bytes ≥ 0x80 as
 identifier characters, so the unbraced form names another, unset variable. `bundles/core/tests/run.sh`
 checks both.
+
+### 10. Distribution
+
+The repository is the product: installing the hub means taking a copy of the repository and
+owning it. Every channel is plain git (a remote, a mirror or a `git bundle` file); there is no
+server, registry, daemon, language package or telemetry. Narrative and runbooks:
+[docs/distribution.md](docs/distribution.md), [docs/runbooks/self-host.md](docs/runbooks/self-host.md).
+
+| Tier | What | Install |
+|---|---|---|
+| Upstream distribution | the public hub on GitHub | nothing; it is the reference |
+| Org platform instance | a fork or mirror on the org's own git host with org bundles committed in-repo and an org overlay (`harness init --from`) | `git clone` from the org remote or from a bundle file |
+| Workstation | a clone plus gitignored `local/` | `bootstrap` (or `bootstrap --from FILE.bundle`) |
+
+**Release artifact** (`harness pack`, default `--out build/release`):
+
+```
+harness-hub-<version>.bundle  git bundle: --branches --tags HEAD (history included); with --tag TAG:
+                              every tag, no branches, so a clone checks out TAG
+tools/<asset>                 optional, --tools os/arch,...: tools/*.lock.json assets, sha256-checked
+INSTALL.txt                   verify / clone / bootstrap, plus the bootstrap --from and offline-upgrade forms
+SHA256SUMS                    sha256 of every file above (`sha256sum -c` / `shasum -a 256 -c`)
+```
+
+`<version>` is `--tag`, else an exact tag on `HEAD`, else `v<VERSION>-g<sha7>`.
+Remote-tracking refs and stashes are never bundled.
+
+Excluded, and asserted: `pack` refuses a dirty working tree (uncommitted or untracked files
+would silently be missing) and refuses when any bundled ref tracks a `local/` path at its tip
+or anywhere in its history; the check runs on the refs before the bundle is written and again
+on the heads the finished bundle lists. `build/`, state, backups and credentials are never in
+git. Provider CLIs and MCP server packages are not redistributed (pinned, verified and
+documented instead). Without network (`--offline` or a failed download) the bundle is still
+written; with `--tools` the missing assets are listed and `pack` exits 1.
+
+**`verify FILE.bundle`** runs `git bundle verify` in a throw-away repository (so it works
+outside any checkout), prints heads and tags, and checks every `SHA256SUMS` entry beside the
+file whose file is present (a mismatch fails; a missing file warns).
+
+**`bootstrap --from FILE.bundle [--dest DIR] [--origin URL]`** (also `./bootstrap --from`)
+verifies and clones the bundle into `DIR` (default `~/harness-hub`; must be absent or empty),
+checks out the newest tag when the bundle has no `HEAD`, sets `origin` to `URL` (default: the
+bundle file, so `git fetch` from a newer bundle at the same path upgrades offline), and then
+`exec`s the clone's own `bootstrap` with every other argument (`--from`, `--dest`,
+`--origin`, `--home` and `HARNESS_HOME` are dropped: the clone is its own hub).
+**Offline upgrade:** point `origin` at a newer bundle file
+(`git -C ~/harness-hub remote set-url origin /path/NEW.bundle`, or fetch its tags with
+`git fetch /path/NEW.bundle 'refs/tags/*:refs/tags/*'`) and run `harness upgrade --to TAG`.
+`upgrade --to` tolerates a failed `git fetch --tags` when TAG is already in the clone
+("fetch failed; using local tag"); otherwise it fails and names this flow.
+
+`tests/smoke/pack.sh` exercises pack → verify → `bootstrap --from` → `doctor --offline`.

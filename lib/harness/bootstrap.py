@@ -209,3 +209,77 @@ def run(ctx: Any, ns: Any) -> int:
     starts = " ".join("`%s`" % p.binary for p in hub.active_providers if p.binary)
     print("Then start your agent: %s" % starts)
     return 0
+
+
+# ----------------------------------------------------------------- bootstrap --from FILE.bundle
+
+FROM_ONLY_FLAGS = ("--from", "--dest", "--origin", "--home")
+
+
+def passthrough_args(argv: Sequence[str]) -> List[str]:
+    """``argv`` minus the command word and the flags that only the outer hub understands."""
+    out: List[str] = []
+    skip = False
+    dropped_cmd = False
+    for i, a in enumerate(argv):
+        if skip:
+            skip = False
+            continue
+        if a in FROM_ONLY_FLAGS:
+            skip = True
+            continue
+        if any(a.startswith(f + "=") for f in FROM_ONLY_FLAGS):
+            continue
+        if a == "bootstrap" and not dropped_cmd:
+            dropped_cmd = True
+            continue
+        out.append(a)
+    return out
+
+
+def from_bundle(ctx: Any, ns: Any) -> int:
+    """Clone a hub bundle file into --dest, then exec the clone's own ./bootstrap."""
+    src = os.path.abspath(os.path.expanduser(ns.from_))
+    if not os.path.isfile(src):
+        raise HarnessError("--from %s: no such file" % tilde(src), 2)
+    dest = os.path.abspath(os.path.expanduser(ns.dest or "~/harness-hub"))
+    if os.path.exists(dest) and (not os.path.isdir(dest) or os.listdir(dest)):
+        raise HarnessError("--dest %s exists and is not empty; pick another directory or remove it" % tilde(dest), 2)
+    rest = passthrough_args(getattr(ctx, "argv", []) or [])
+    script = os.path.join(dest, "bootstrap")
+    if ctx.dry_run:
+        print("dry run: would clone %s into %s%s, then run %s %s" % (
+            tilde(src), tilde(dest), " (origin %s)" % ns.origin if ns.origin else "", tilde(script), " ".join(rest)))
+        return 0
+    from .pack import git_bundle_verify
+
+    ok, text = git_bundle_verify(src)
+    if not ok:
+        raise HarnessError("%s is not a valid bundle: %s" % (tilde(src), text.splitlines()[-1] if text else "verify failed"))
+    env = dict(os.environ, GIT_TERMINAL_PROMPT="0")
+    rc, out, err = run_argv(["git", "clone", "-q", src, dest], timeout=600, env=env)
+    if rc != 0:
+        raise HarnessError("git clone %s failed: %s" % (tilde(src), (err or out).strip()))
+    rc, _o, _e = run_argv(["git", "-C", dest, "rev-parse", "--verify", "-q", "HEAD"], timeout=30)
+    if rc != 0:
+        # a --tag bundle has no HEAD: check out the newest tag
+        _rc, tags, _e = run_argv(["git", "-C", dest, "tag", "--sort=-v:refname"], timeout=30)
+        newest = (tags.split() or [""])[0]
+        if not newest:
+            raise HarnessError("%s has neither HEAD nor a tag to check out" % tilde(src))
+        rc, out, err = run_argv(["git", "-C", dest, "-c", "advice.detachedHead=false", "checkout", "-q", newest], timeout=120)
+        if rc != 0:
+            raise HarnessError("git checkout %s failed: %s" % (newest, (err or out).strip()))
+        print("checked out tag %s" % newest)
+    if ns.origin:
+        rc, out, err = run_argv(["git", "-C", dest, "remote", "set-url", "origin", ns.origin], timeout=30)
+        if rc != 0:
+            raise HarnessError("git remote set-url origin failed: %s" % (err or out).strip())
+    print("cloned %s -> %s (origin %s)" % (tilde(src), tilde(dest), ns.origin or tilde(src)))
+    if not os.path.isfile(script):
+        raise HarnessError("%s has no bootstrap script; is it a harness-hub bundle?" % tilde(dest))
+    sys.stdout.flush()
+    child_env = dict(os.environ)
+    child_env.pop("HARNESS_HOME", None)  # the clone is its own hub
+    os.execvpe("bash", ["bash", script] + rest, child_env)
+    return 0  # not reached

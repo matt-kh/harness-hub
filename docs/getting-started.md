@@ -71,6 +71,26 @@ Non-interactive, for CI or a dotfiles script:
 ~/harness-hub/bootstrap --profile github-dev --yes --offline     # no network checks
 ```
 
+### From a bundle file (air-gapped)
+
+No route to GitHub or your org's git host? Install from a release bundle file: one
+`git bundle` with the whole hub, optional tool archives and `SHA256SUMS`
+([distribution](distribution.md)).
+
+```sh
+cd /media/usb/rel && shasum -a 256 -c SHA256SUMS           # or: sha256sum -c SHA256SUMS
+git clone harness-hub-vX.Y.Z.bundle ~/harness-hub
+~/harness-hub/bootstrap --offline --no-install-tools
+harness install gh --from tools/gh_<version>_linux_amd64.tar.gz   # for each archive you need
+```
+
+- The clone's `origin` is the bundle file; upgrades fetch from a newer file
+  ([air-gapped runbook](runbooks/air-gapped.md#upgrading-offline)).
+- With a hub already installed, `harness bootstrap --from FILE.bundle --dest DIR` clones and
+  bootstraps in one step, and `harness verify FILE.bundle` checks the file.
+- Your organisation runs its own instance? Clone that instead and follow its onboarding line
+  ([self-host runbook](runbooks/self-host.md#7-write-the-onboarding-one-liner)).
+
 ## 3. Put `~/.local/bin` on your PATH
 
 `harness`, `gh` (if installed by the hub), and the bundle CLIs (`jira`, `k8s`, `gdoc`) land in

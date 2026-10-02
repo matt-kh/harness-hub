@@ -103,3 +103,17 @@ providers = ["claude"]
 [uninstall]
 keeps = []
 notes = "Removes the two rendered skills and the rule block; tickets, MRs and labels they created are untouched."
+
+# Guides steer the agent before it acts; sensors detect at or after the action (principle 6).
+[harness]
+coverage_note = "No permission rules and no guard section of its own: the write gates are sensed by the tracker and SCM bundles' guard sections (closing keywords, labels, stacked targets); work-ticket has no own test suite."
+guides = [
+  { kind = "rule", ref = "rules/75-ticket-workflow.md", note = "ticket to MR/PR flow, label gate, key-free branches, stacked delivery" },
+  { kind = "skill", ref = "skills/work-ticket", note = "the governed ticket workflow and its preflight scripts" },
+  { kind = "skill", ref = "skills/create-ticket", note = "one drafted ticket or issue, rendered deterministically" },
+]
+sensors = [
+  { kind = "doctor", ref = "doctor_checks", note = "a tracker CLI and an SCM CLI on PATH, both skills rendered" },
+  { kind = "test", ref = "tests/run.sh", note = "every skill suite of this bundle" },
+  { kind = "test", ref = "skills/create-ticket/scripts/tests/run.sh", note = "golden renders of every ticket class" },
+]

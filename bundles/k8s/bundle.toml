@@ -211,3 +211,23 @@ fix = "clusters-doc"
 [uninstall]
 keeps = ["~/.kube/**"]
 notes = "The kubeconfig and the generated clusters doc are yours; uninstall removes only the rendered skill, agents, rules and guard sections."
+
+# Guides steer the agent before it acts; sensors detect at or after the action (principle 6).
+[harness]
+coverage_note = "The agents' read-only stance is enforced for shell commands by the guard; MCP or API access outside the shell is not sensed."
+guides = [
+  { kind = "rule", ref = "rules/10-k8s.md", note = "read-only by default, explicit --context, Secret keys only, prod remediations are suggestions" },
+  { kind = "skill", ref = "skills/k8s", note = "the k8s CLI: contexts, triage views, secret-keys, redact" },
+  { kind = "permission", ref = "permissions.toml", note = "read-only kubectl/helm allowed" },
+  { kind = "agent", ref = "agents/k8s-triage.md", note = "read-only incident triage that hands remediations to the human" },
+  { kind = "agent", ref = "agents/k8s-auditor.md", note = "read-only posture review" },
+  { kind = "agent", ref = "agents/infra-architect.md", note = "design-only infrastructure advice" },
+]
+sensors = [
+  { kind = "guard", ref = "guard.d/10-k8s.sh", note = "kubectl/helm clause parsing shared by the rules section" },
+  { kind = "guard", ref = "guard.d/25-k8s-rules.sh", note = "kubeconfig, Secret data, cluster, release, GitOps and IaC mutations" },
+  { kind = "doctor", ref = "doctor_checks", note = "kubectl, helm, the k8s CLI, contexts and the clusters doc" },
+  { kind = "test", ref = "guard.d/tests.sh", note = "guard rows with stubbed kubectl and helm" },
+  { kind = "test", ref = "tests/run.sh", note = "this bundle's rows against core + k8s only" },
+  { kind = "test", ref = "skills/k8s/scripts/tests/run.sh", note = "the k8s CLI against stubbed kubectl and helm" },
+]

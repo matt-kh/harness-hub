@@ -1,12 +1,12 @@
 # shellcheck shell=bash
 
 # Section 60 (bundle github): gh governance.
-# rule: gh auth token | gh auth status --show-token | gh config get oauth_token -> deny : prints the token
-# rule: gh api -X non-GET | --input | fields without a method | graphql mutation -> ask : API write
-# rule: gh pr merge|review, release/repo/workflow/secret/auth/gist/... mutations -> ask : team-visible
+# rule: gh auth token | gh auth status --show-token | gh config get oauth_token -> deny : prints the token; run plain 'gh auth status' instead
+# rule: gh api -X non-GET | --input | fields without a method | graphql mutation -> ask : API write; ask the user, or use the matching gh subcommand
+# rule: gh pr merge|review, release/repo/workflow/secret/auth/gist/... mutations -> ask : team-visible; ask the user (merges, reviews and releases are human-only)
 # rule: gh label create agent-* -> allow : governance label; other labels ask
 # rule: gh pr create -> allow : creates are ungated (same -sub- stacked rules as glab)
-# rule: gh issue create without -l agent-drafted|agent-created -> deny : provenance label required
+# rule: gh issue create without -l agent-drafted|agent-created -> deny : provenance label required; use -l agent-drafted (or agent-created) instead
 # rule: gh pr|issue edit|comment|close|reopen on an agent-labelled ref -> allow : human refs ask; human issue close|reopen -> deny; fork PRs ask
 # ---- GitHub (gh) ------------------------------------------------------------------
 # Reads are free (settings.json allow). Order: token denies → gh api (per clause) → team-visible
