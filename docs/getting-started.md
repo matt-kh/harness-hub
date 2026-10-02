@@ -77,6 +77,16 @@ No route to GitHub or your org's git host? Install from a release bundle file: o
 `git bundle` with the whole hub, optional tool archives and `SHA256SUMS`
 ([distribution](distribution.md)).
 
+One file, if you have the `.run` envelope (it carries the bundle, the tool archives and
+`SHA256SUMS`):
+
+```sh
+sh harness-hub-vX.Y.Z.run --check                            # payload and SHA256SUMS
+sh harness-hub-vX.Y.Z.run --offline --no-install-tools       # clone to ~/harness-hub, bootstrap
+```
+
+Or from the bundle file and its directory:
+
 ```sh
 cd /media/usb/rel && shasum -a 256 -c SHA256SUMS           # or: sha256sum -c SHA256SUMS
 git clone harness-hub-vX.Y.Z.bundle ~/harness-hub
@@ -84,8 +94,8 @@ git clone harness-hub-vX.Y.Z.bundle ~/harness-hub
 harness install gh --from tools/gh_<version>_linux_amd64.tar.gz   # for each archive you need
 ```
 
-- The clone's `origin` is the bundle file; upgrades fetch from a newer file
-  ([air-gapped runbook](runbooks/air-gapped.md#upgrading-offline)).
+- The clone's `origin` is the bundle file; upgrades fetch from a newer file, or run a newer
+  `.run` with the same `--dest` ([air-gapped runbook](runbooks/air-gapped.md#upgrading-offline)).
 - With a hub already installed, `harness bootstrap --from FILE.bundle --dest DIR` clones and
   bootstraps in one step, and `harness verify FILE.bundle` checks the file.
 - Your organisation runs its own instance? Clone that instead and follow its onboarding line

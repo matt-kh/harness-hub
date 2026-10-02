@@ -24,9 +24,12 @@ and an org overlay. Clone it the same way; set one up with the
 [self-host runbook](docs/runbooks/self-host.md).
 
 **From a bundle file** (air-gapped): a release is one `git bundle` file plus optional tool
-archives and `SHA256SUMS`, built with `harness pack`.
+archives and `SHA256SUMS`, built with `harness pack`; the same files also come as one
+self-extracting `harness-hub-vX.Y.Z.run`.
 
 ```sh
+sh harness-hub-vX.Y.Z.run --check && sh harness-hub-vX.Y.Z.run --offline --no-install-tools
+# or, from the bundle file:
 shasum -a 256 -c SHA256SUMS
 git clone harness-hub-vX.Y.Z.bundle ~/harness-hub && ~/harness-hub/bootstrap --offline --no-install-tools
 ```

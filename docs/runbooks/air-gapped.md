@@ -59,6 +59,30 @@ harness doctor --offline
 `--offline` (or `HARNESS_OFFLINE=1`) skips every check that needs the network; they show as
 `SKIP`, not `FAIL`.
 
+### One file: the `.run` envelope
+
+`harness pack ... --self-extract` (and every published release) adds
+`harness-hub-vX.Y.Z.run`: a POSIX sh header plus a tar of the directory above, so one file
+crosses the gap. On the connected side, check it before carrying it (and, for a published
+release, its provenance: `gh attestation verify harness-hub-vX.Y.Z.run -R matt-kh/harness-hub`):
+
+```sh
+sh harness-hub-vX.Y.Z.run --check        # payload size + sha256, every SHA256SUMS line
+```
+
+On the offline side (needs sh, tar, git, bash, python3, jq):
+
+```sh
+sh harness-hub-vX.Y.Z.run --check
+sh harness-hub-vX.Y.Z.run --offline --no-install-tools      # --dest DIR, default ~/harness-hub
+harness install gh --from ~/.local/share/harness/releases/vX.Y.Z/tools/gh_<version>_linux_amd64.tar.gz
+harness doctor --offline
+```
+
+- The release files stay in `~/.local/share/harness/releases/vX.Y.Z/` (`--release-dir DIR`
+  to change it); the clone's `origin` is the bundle there.
+- To unpack only and follow `INSTALL.txt` by hand: `sh harness-hub-vX.Y.Z.run --extract DIR`.
+
 ### Without `harness pack`
 
 Plain git and a checksum tool do the same job, for example from an older checkout:
@@ -81,6 +105,13 @@ harness upgrade --to vX.Y.Z
 
 - A clone made from a bundle file already has that file as `origin`; replacing the file at the
   same path is enough.
+- With a `.run`: run the newer one with the same `--dest`. It fetches its tags into the
+  clone, points `origin` at its bundle and runs `harness upgrade --to vX.Y.Z`; pass
+  `--yes --offline` (and `--config FILE` if your config is not in `local/`):
+
+  ```sh
+  sh harness-hub-vX.Y.Z.run --check && sh harness-hub-vX.Y.Z.run --yes --offline
+  ```
 - Migration notes, config validation and the plan run as usual ([upgrade runbook](upgrade.md)).
 
 ## MCP servers
