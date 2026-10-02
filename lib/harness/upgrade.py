@@ -141,6 +141,7 @@ def resolve_target(home: str, to: Optional[str], offline: bool = False, log=prin
 
 def run(ctx: Any, ns: Any) -> int:
     import subprocess
+    import sys
 
     from .util import hub_home
 
@@ -180,6 +181,7 @@ def run(ctx: Any, ns: Any) -> int:
         print("\n## %s\n%s" % (ver, body))
     # re-exec so the new engine code is the one that plans
     tail = ["--config", ctx.config] if ctx.config else []
+    sys.stdout.flush()  # our lines before the children's
     rc = subprocess.call(["bash", home + "/bin/harness", "plan"] + tail)
     if rc == 1:
         return 1
