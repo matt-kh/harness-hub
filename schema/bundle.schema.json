@@ -24,7 +24,8 @@
             {"$ref": "#/$defs/names"}
           ]
         },
-        "tags": {"type": "array", "items": {"type": "string"}},
+        "tags": {"type": "array", "items": {"type": "string"}, "deprecated": true, "x-replaced-by": "taxonomy.domain",
+                 "description": "Free-form and never read; classify the bundle with [taxonomy] instead."},
         "owners": {"type": "array", "items": {"type": "string"}},
         "docs": {"type": "string"},
         "stability": {"type": "string", "enum": ["stable", "beta", "experimental", "deprecated"]},
@@ -63,6 +64,20 @@
     "uninstall": {
       "type": "object", "additionalProperties": false,
       "properties": {"keeps": {"type": "array", "items": {"type": "string"}}, "notes": {"type": "string"}}
+    },
+    "taxonomy": {
+      "type": "object", "additionalProperties": false,
+      "description": "Component taxonomy (docs/reference/taxonomy.md): bundle defaults for domain, posture and function, plus per-component overrides keyed by the component id without the bundle prefix.",
+      "properties": {
+        "domain": {"$ref": "#/$defs/domain"},
+        "posture": {"$ref": "#/$defs/posture"},
+        "function": {"$ref": "#/$defs/function"},
+        "components": {
+          "type": "object",
+          "propertyNames": {"pattern": "^((rules|skills|agents|guard\\.d|mcp|bin|install|doctor|steps)/[A-Za-z0-9._-]+|permissions)$"},
+          "additionalProperties": {"$ref": "#/$defs/component_class"}
+        }
+      }
     },
     "harness": {
       "type": "object", "additionalProperties": false,
@@ -138,6 +153,21 @@
         "verify": {"$ref": "#/$defs/verify"},
         "unblocks": {"type": "array", "items": {"type": "string"}},
         "providers": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "domain": {"type": "string", "enum": ["base", "scm", "tracker", "delivery", "kubernetes", "workspace"],
+               "description": "What the component is about (lib/harness/taxonomy.py FACETS)."},
+    "function": {"type": "string", "enum": ["govern", "client", "workflow", "investigate", "plan", "execute", "review", "setup"],
+                 "description": "What the component does for the agent."},
+    "posture": {"type": "string", "enum": ["read-only", "local", "label-gated"],
+                "description": "The strongest effect without a human prompt, weakest first."},
+    "component_class": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "domain": {"$ref": "#/$defs/domain"},
+        "function": {"$ref": "#/$defs/function"},
+        "posture": {"$ref": "#/$defs/posture"},
+        "note": {"type": "string"}
       }
     },
     "guide": {

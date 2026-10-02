@@ -13,3 +13,7 @@ rules = ["rules/05-beta.md"]
 
 [uninstall]
 keeps = []
+
+[taxonomy]
+domain = "scm"
+posture = "local"

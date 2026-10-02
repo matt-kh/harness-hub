@@ -80,6 +80,29 @@ agent is a model plus a harness, and the harness has two kinds of control
 - **Provider tier limits sensors.** On advisory providers (Codex, OpenCode) the guard does not
   run; only the guides apply ([capability matrix](reference/capability-matrix.md)).
 
+## Components, ids and taxonomy
+
+Everything a bundle ships is a **component** — rule, skill, agent, guard section, permission
+list, MCP server, CLI, installer, doctor check, manual step — and each is classified the same
+way ([taxonomy](reference/taxonomy.md)):
+
+- **Id**, derived from the path and never declared: `k8s/agents/k8s-triage`,
+  `core/guard.d/30-git`, `jira/mcp/jira-mcp`; bundles are bare (`k8s`), providers and
+  profiles are `providers/<p>` and `profiles/<p>`. Ids are stable; nothing is renamed to fit.
+- **Declared facets**, in the bundle's `[taxonomy]` table only: **domain** (base, scm,
+  tracker, delivery, kubernetes, workspace), **function** (govern, client, workflow,
+  investigate, plan, execute, review, setup) and **posture**, the strongest effect without a
+  human prompt (read-only < local < label-gated). The bundle sets defaults; overrides name a
+  component by its id without the bundle prefix.
+- **Derived facets**: kind, control (guide or sensor, from `[harness]`), model (front
+  matter), decisions (`# rule:` comments and permission lists), a provider's tier, and where
+  each kind of component reaches.
+
+`harness lint` (rule `taxonomy`) keeps the classification complete and consistent; the
+[catalog](catalog.md) and `harness catalog` list every component with its facets, and each
+bundle page has a **Components** section. The taxonomy lives in `bundle.toml` only: rendered
+provider files are unchanged by it.
+
 ## Providers
 
 A provider adapter (`providers/<name>/provider.toml`) is data: where each kind of artefact

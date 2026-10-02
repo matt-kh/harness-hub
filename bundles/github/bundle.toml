@@ -13,7 +13,6 @@ depends_on = ["core"]
 recommends = ["ticket-workflow"]
 conflicts_with = []
 any_of = []
-tags = ["scm", "tracker"]
 owners = []
 docs = "docs/bundles/github.md"
 stability = "stable"
@@ -182,6 +181,15 @@ fix = "chmod 600 ~/.config/gh/hosts.yml"
 [uninstall]
 keeps = ["~/.config/gh/**"]
 notes = "Removes ~/.local/bin/gh only if the hub state records that the hub installed it."
+
+# Component taxonomy (docs/reference/taxonomy.md): bundle defaults, then per-component overrides.
+[taxonomy]
+domain = "scm"
+posture = "label-gated"
+function = "govern"
+
+[taxonomy.components]
+"guard.d/41-github-closing" = { domain = "tracker" }
 
 # Guides steer the agent before it acts; sensors detect at or after the action (principle 6).
 [harness]

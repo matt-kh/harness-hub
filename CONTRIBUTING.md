@@ -21,7 +21,7 @@ loop. Agents: start with [AGENTS.md](AGENTS.md).
   | [3 Platform for everyone](principles/03-platform-for-everyone.md) | private-identifier gate, template key lint |
   | [4 Install as a platform](principles/04-install-as-a-platform.md) | offline bootstrap smoke test |
   | [5 Distributed as a git repo](principles/05-distributed-as-a-git-repo.md) | `tests/smoke/pack.sh` |
-  | [6 Harness engineering](principles/06-harness-engineering.md) | `harness lint` guides/sensors pairing warnings, guard test rows |
+  | [6 Harness engineering](principles/06-harness-engineering.md) | `harness lint` guides/sensors pairing and taxonomy checks, guard test rows |
   | [7 Extensible core](principles/07-extensible-core.md) | PR template, CHANGELOG "Principles" entries |
 
 ## Contributions are the steering loop
@@ -94,6 +94,12 @@ Read [ARCHITECTURE §3](ARCHITECTURE.md#3-bundles-bundlesname) first. Checklist:
       `coverage_note` saying what the pairing does not cover. `harness lint` shows no
       unpaired-guide or unpaired-sensor warning.
 - [ ] Every guard `# rule:` reason states the alternative (what to run, use or ask instead).
+- [ ] `[taxonomy]` classifies the bundle: `domain` and `posture`, a `function` default if its
+      skills and agents share one, and `[taxonomy.components]` overrides where a component
+      differs ([taxonomy](docs/reference/taxonomy.md)). New components follow the naming
+      convention there; existing ones are never renamed. `harness lint` shows no
+      `taxonomy:` warning and `bin/harness docs generate` has refreshed the
+      [catalog](docs/catalog.md).
 - [ ] New binaries the bundle's scripts call are declared in `[requires.binaries]`; no
       package-manager install steps ([principle 1](principles/01-lightweight.md)).
 - [ ] `docs/bundles/<name>.md` exists with a hand-written header, a **Troubleshooting**

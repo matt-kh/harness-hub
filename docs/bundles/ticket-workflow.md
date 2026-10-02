@@ -51,6 +51,28 @@ Org-specific issue-type rules and field ids come from jira.issue_types / jira.fi
 - **Needs one of:** `jira`, `github`
 - **Needs one of:** `gitlab`, `github`
 - **Stability:** stable
+- **Domain / posture:** delivery / label-gated
+
+## Components
+
+Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md) facets (domain shown only where it differs from the bundle's). All bundles: [catalog](../catalog.md).
+
+**Skills**
+
+- `ticket-workflow/skills/create-ticket` — control: guide · function: workflow · posture: label-gated · model: execute
+- `ticket-workflow/skills/work-ticket` — control: guide · function: workflow · posture: label-gated · model: execute
+
+**Rules**
+
+- `ticket-workflow/rules/75-ticket-workflow` — control: guide · function: govern
+
+**Permission lists**
+
+- `ticket-workflow/permissions` — function: govern · decisions: empty (no rules)
+
+**Doctor checks** (function: setup · posture: read-only; table below): `ticket-workflow/doctor/ticket-workflow-scm`, `ticket-workflow/doctor/ticket-workflow-skills`, `ticket-workflow/doctor/ticket-workflow-tracker`
+
+**Manual steps** (function: setup; table below): `ticket-workflow/steps/repo-overrides`
 
 ## Requirements
 

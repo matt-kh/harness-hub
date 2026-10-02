@@ -15,7 +15,6 @@ depends_on = ["core"]
 recommends = []
 conflicts_with = []
 any_of = []
-tags = ["kubernetes", "ops"]
 owners = []
 docs = "docs/bundles/k8s.md"
 stability = "stable"
@@ -211,6 +210,17 @@ fix = "clusters-doc"
 [uninstall]
 keeps = ["~/.kube/**"]
 notes = "The kubeconfig and the generated clusters doc are yours; uninstall removes only the rendered skill, agents, rules and guard sections."
+
+# Component taxonomy (docs/reference/taxonomy.md): bundle defaults, then per-component overrides.
+[taxonomy]
+domain = "kubernetes"
+posture = "read-only"
+function = "client"
+
+[taxonomy.components]
+"agents/k8s-triage" = { function = "investigate" }
+"agents/k8s-auditor" = { function = "review" }
+"agents/infra-architect" = { function = "plan" }
 
 # Guides steer the agent before it acts; sensors detect at or after the action (principle 6).
 [harness]

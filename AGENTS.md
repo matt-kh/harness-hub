@@ -61,6 +61,11 @@ make render-check   # render twice into one fresh HOME; diff must be empty
   its `# rule: <pattern> -> <decision> : <reason>` comment and in the emitted reason.
 - **Every guide has a sensor and every sensor a guide.** Declare both in the bundle's
   `[harness]` section (`guides`, `sensors`, `coverage_note`); `harness lint` warns otherwise.
+- **Every component is classified and never renamed.** Its id is derived from its path
+  (`k8s/agents/k8s-triage`); its domain, function and posture live in the bundle's
+  `[taxonomy]` only, never in skill or agent front matter. New components follow the naming
+  convention in [docs/reference/taxonomy.md](docs/reference/taxonomy.md); `harness lint`
+  warns on anything unclassified.
 - **Guard behaviour changes come with test rows** in `bundles/<b>/guard.d/tests.sh`,
   including bypass attempts.
 - **Generated regions are never hand-edited** (`<!-- generated:begin … -->` to

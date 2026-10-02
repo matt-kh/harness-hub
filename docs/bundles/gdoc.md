@@ -57,6 +57,35 @@ Workspace organisation that only a human (sometimes an admin) can create — six
 
 - **Depends on:** `core`
 - **Stability:** stable
+- **Domain / posture:** workspace / label-gated
+
+## Components
+
+Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md) facets (domain shown only where it differs from the bundle's). All bundles: [catalog](../catalog.md).
+
+**Skills**
+
+- `gdoc/skills/gdoc` — control: guide · function: client · posture: label-gated · model: execute
+
+**Rules**
+
+- `gdoc/rules/80-gdoc` — control: guide · function: govern
+
+**Guard sections**
+
+- `gdoc/guard.d/80-gdoc` — control: sensor · function: govern · decisions: deny 1 · ask 2 · allow 2
+
+**Permission lists**
+
+- `gdoc/permissions` — control: guide · function: govern · decisions: ask 1 · allow 12
+
+**CLIs**
+
+- `gdoc/bin/gdoc` — function: client · posture: label-gated
+
+**Doctor checks** (function: setup · posture: read-only; table below): `gdoc/doctor/gdoc-auth`, `gdoc/doctor/gdoc-cli`, `gdoc/doctor/gdoc-client`, `gdoc/doctor/gdoc-modes`
+
+**Manual steps** (function: setup; table below): `gdoc/steps/admin-trust`, `gdoc/steps/consent-screen`, `gdoc/steps/desktop-client`, `gdoc/steps/enable-apis`, `gdoc/steps/gcp-project`, `gdoc/steps/gdoc-login`
 
 ## Requirements
 

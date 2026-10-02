@@ -173,7 +173,7 @@ Manifest (`bundle.toml`):
 [bundle]
 name = "github"; schema_version = "1"; summary = "…"; description = """…"""
 depends_on = ["core"]; recommends = ["ticket-workflow"]; conflicts_with = []; any_of = []
-tags = []; owners = []; docs = "docs/bundles/github.md"; stability = "stable"
+owners = []; docs = "docs/bundles/github.md"; stability = "stable"     # tags: deprecated, use [taxonomy]
 
 [requires.binaries.gh]
 min_version = "2.60.0"; version_cmd = "gh --version"; version_regex = 'gh version ([0-9.]+)'
@@ -204,6 +204,11 @@ offline_skip = true; fix = "gh-auth"; providers = []
 [uninstall]
 keeps = ["~/.config/gh/**"]; notes = "…"
 
+[taxonomy]                # component classification, docs/reference/taxonomy.md
+domain = "scm"; posture = "label-gated"; function = "govern"
+[taxonomy.components]     # overrides, keyed by the component id without "<bundle>/"
+"guard.d/41-github-closing" = { domain = "tracker" }
+
 [harness]                 # guides (feedforward) and sensors (feedback), principle 6
 coverage_note = "what the pairing does not cover"
 guides  = [ { kind = "rule", ref = "rules/60-github.md", note = "…" },
@@ -229,9 +234,25 @@ Rules:
   `docs/bundles/<b>.md` and summarised in `docs/reference/harness-coverage.md`.
 - Every `deny`/`ask` `# rule:` reason in `guard.d/` states the alternative action; lint warns
   when the reason contains none of *use, instead, ask, run, mention, see*.
+- Every component has a stable **id** derived from its path, never declared and never
+  renamed to fit: `<bundle>/<kind-dir>/<name>` without the extension
+  (`k8s/agents/k8s-triage`, `core/guard.d/30-git`, `core/permissions`, `jira/mcp/jira-mcp`,
+  `jira/bin/jira`, `github/install/gh`, `core/doctor/jq`, `core/steps/install-jq`); bundles
+  are bare, providers and profiles are `providers/<p>` and `profiles/<p>`, so the bundle
+  names `providers` and `profiles` are reserved.
+- `[taxonomy]` classifies the components ([taxonomy](docs/reference/taxonomy.md)): `domain`
+  and `posture` are required on public bundles, `function` is an optional default for skills
+  and agents; `[taxonomy.components]` overrides `domain`, `function`, `posture` or `note` per
+  component. Every public skill and agent has a function and a posture, every CLI and MCP
+  server a posture; rules, guard sections, permission lists, installers and manual steps
+  take no posture and have a fixed function (as do CLIs, MCP servers and doctor checks).
+  Kind, control, model and decisions are derived. Facets never go into provider-format
+  front matter. `harness lint` (rule `taxonomy`) checks all of this; `harness catalog` and
+  `docs/catalog.md` list every component.
 - Numeric prefixes order rule fragments and guard sections across bundles
-  (`10` k8s, `20` credentials, `30` git, `40` closing keywords, `50` gitlab, `60` github,
-  `70` jira, `80` gdoc, `90+` private).
+  (`10` k8s, `20` credentials, `25` k8s rules, `30` git, `40`/`41` closing keywords
+  (gitlab/github), `50` gitlab, `60` github, `70` jira, `75` ticket workflow, `80` gdoc,
+  `90+` private); a rule and the guard section that enforces it share `NN-<topic>`.
 
 ### 4. Providers: `providers/<name>/`
 
@@ -303,6 +324,7 @@ with stubs from `bundles/core/guard/tests/stubs/` on `PATH`.
 ### 6. Engine commands
 
 `bootstrap [--from FILE.bundle [--dest DIR] [--origin URL]]`, `init`, `bundles`,
+`catalog [--kind K] [--bundle B] [--domain D]`,
 `config validate|get|set|explain|migrate`, `plan`, `apply`, `sync`, `render`, `doctor`,
 `status [--matrix]`, `install <tool>`, `upgrade`, `pack [--out DIR] [--tag TAG] [--tools os/arch,...]`,
 `verify FILE.bundle`, `uninstall`, `test [suite]`, `lint`, `docs generate|check`,
@@ -311,8 +333,8 @@ with stubs from `bundles/core/guard/tests/stubs/` on `PATH`.
 `HARNESS_BUILD_DIR` (where `build/` products go; tests point it at a temp dir so a live hub's
 `build/config.json` is never overwritten), `NO_COLOR`.
 
-`pack`, `verify` and `bootstrap --from` are the distribution commands (§10). `lint` adds three
-principle checks to the manifest checks: `guides-sensors` and `guard-reasons` (§3) and
+`pack`, `verify` and `bootstrap --from` are the distribution commands (§10). `lint` adds four
+principle checks to the manifest checks: `guides-sensors`, `guard-reasons` and `taxonomy` (§3) and
 `dependencies`: every binary a script in `bin/`, `bootstrap`, `bundles/**/*.sh`,
 `providers/**/*.sh` or `tools/gate/*.sh` invokes must be on the allow-list in
 `lib/harness/lint.py` or declared by some bundle (`[requires.binaries]`, `[provides] bin`);
@@ -348,6 +370,14 @@ Hand-written pages with generated regions:
 and the `# rule: <pattern> -> <decision> : <reason>` comments in guard sections;
 `harness docs check` fails when a region is stale. Manual steps in `docs/bundles/<b>.md` use
 `### <id> — <title>` headings so `doctor` can link `docs/bundles/<b>.md#<id>`.
+
+Generated pages and regions: `docs/bundles/<b>.md` (summary, **Components**, requirements,
+manual steps, doctor checks, guides and sensors, uninstall), `docs/providers/<p>.md`, and in
+`docs/reference/`: `cli.md`, `config-schema.md`, `hook-policy.md`, `secrets.md`,
+`capability-matrix.md`, `harness-coverage.md` and `taxonomy.md` (facet values, facets and
+reach by kind, source `lib/harness/taxonomy.py`); `docs/catalog.md` holds two regions, every
+component by kind (`bundles/*/bundle.toml#catalog`) and the domain × posture matrix
+(`bundles/*/bundle.toml#posture`).
 
 ### 9. Portability
 

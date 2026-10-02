@@ -17,7 +17,6 @@ depends_on = ["core"]
 recommends = ["jira", "gitlab", "github"]
 conflicts_with = []
 any_of = [["jira", "github"], ["gitlab", "github"]]
-tags = ["workflow", "tracker", "scm"]
 owners = []
 docs = "docs/bundles/ticket-workflow.md"
 stability = "stable"
@@ -103,6 +102,12 @@ providers = ["claude"]
 [uninstall]
 keeps = []
 notes = "Removes the two rendered skills and the rule block; tickets, MRs and labels they created are untouched."
+
+# Component taxonomy (docs/reference/taxonomy.md): bundle defaults, then per-component overrides.
+[taxonomy]
+domain = "delivery"
+posture = "label-gated"
+function = "workflow"
 
 # Guides steer the agent before it acts; sensors detect at or after the action (principle 6).
 [harness]

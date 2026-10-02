@@ -46,6 +46,28 @@ ticket (section 40). Adds the GitLab section of the instructions and glab read p
 - **Depends on:** `core`
 - **Recommends:** `jira`, `ticket-workflow`
 - **Stability:** stable
+- **Domain / posture:** scm / label-gated
+
+## Components
+
+Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md) facets (domain shown only where it differs from the bundle's). All bundles: [catalog](../catalog.md).
+
+**Rules**
+
+- `gitlab/rules/50-gitlab` — control: guide · function: govern
+
+**Guard sections**
+
+- `gitlab/guard.d/40-gitlab-closing` — control: sensor · domain: tracker · function: govern · decisions: deny 1
+- `gitlab/guard.d/50-gitlab` — control: sensor · function: govern · decisions: ask 2 · allow 3
+
+**Permission lists**
+
+- `gitlab/permissions` — control: guide · function: govern · decisions: ask 11 · allow 13
+
+**Doctor checks** (function: setup · posture: read-only; table below): `gitlab/doctor/gitlab-ssh`, `gitlab/doctor/glab-auth`, `gitlab/doctor/glab-binary`, `gitlab/doctor/glab-token-mode`
+
+**Manual steps** (function: setup; table below): `gitlab/steps/gitlab-agent-labels`, `gitlab/steps/gitlab-ssh-key`, `gitlab/steps/glab-auth`, `gitlab/steps/install-glab`
 
 ## Requirements
 

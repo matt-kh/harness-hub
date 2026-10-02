@@ -50,6 +50,34 @@ lib/harness_config.{py,sh} (reading build/config.json).
 
 - **Recommends:** `github`
 - **Stability:** stable
+- **Domain / posture:** base / local
+
+## Components
+
+Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md) facets (domain shown only where it differs from the bundle's). All bundles: [catalog](../catalog.md).
+
+**Agents**
+
+- `core/agents/Auto` — control: guide · function: execute · posture: local · model: execute
+- `core/agents/Plan` — control: guide · function: plan · posture: read-only · model: plan
+- `core/agents/code-reviewer` — control: sensor (inferential) · function: review · posture: read-only · model: execute
+
+**Rules**
+
+- `core/rules/00-conventions` — control: guide · function: govern
+
+**Guard sections**
+
+- `core/guard.d/20-credentials` — control: sensor · function: govern · decisions: deny 7
+- `core/guard.d/30-git` — control: sensor · domain: scm · function: govern · decisions: deny 1 · ask 5
+
+**Permission lists**
+
+- `core/permissions` — control: guide · function: govern · decisions: deny 11 · allow 1
+
+**Doctor checks** (function: setup · posture: read-only; table below): `core/doctor/bash-version`, `core/doctor/guard-denies-credentials`, `core/doctor/guard-hook`, `core/doctor/jq`, `core/doctor/local-bin-path`, `core/doctor/python3`
+
+**Manual steps** (function: setup; table below): `core/steps/bash4`, `core/steps/install-jq`, `core/steps/local-bin-path`
 
 ## Requirements
 

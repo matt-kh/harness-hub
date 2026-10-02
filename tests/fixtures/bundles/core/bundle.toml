@@ -9,7 +9,6 @@ manual steps and doctor checks.
 """
 depends_on = []
 recommends = ["beta"]
-tags = ["fixture"]
 owners = ["@octocat"]
 docs = "docs/bundles/core.md"
 stability = "stable"
@@ -85,3 +84,10 @@ fix = "echo run a literal command"
 [uninstall]
 keeps = ["~/.config/demo/**"]
 notes = "Fixture."
+
+[taxonomy]
+domain = "base"
+posture = "local"
+
+[taxonomy.components]
+"agents/planner" = { function = "plan", posture = "read-only" }

@@ -45,16 +45,18 @@ A bundle is one capability, built along the lines of Martin Fowler's
   code-review agent.
 - Each bundle declares both in `bundle.toml`; `harness lint` warns when one has no partner.
   Coverage per bundle: [harness coverage](docs/reference/harness-coverage.md).
+- Every component has a stable id and a domain, function and posture (the strongest effect
+  without a prompt); all of them, by kind: [catalog](docs/catalog.md) or `harness catalog`.
 
-| Bundle | What agents get | What a human sets up once |
-|---|---|---|
-| [core](docs/bundles/core.md) | guard engine, credential and git rules, Plan / Auto / code-reviewer agents, the `harness` CLI | nothing beyond `bootstrap` |
-| [github](docs/bundles/github.md) | `gh` (pinned install), PR workflow, GitHub Issues as tracker | `gh auth login`, SSH key |
-| [gitlab](docs/bundles/gitlab.md) | `glab` MR workflow, agent-labelled MRs, closing-keyword deny | `glab auth login`, SSH key |
-| [jira](docs/bundles/jira.md) | `jira` CLI for Jira Server/Data Center, read-only MCP, write gate | personal access token |
-| [ticket-workflow](docs/bundles/ticket-workflow.md) | `work-ticket` (ticket → MR/PR) and `create-ticket` skills | nothing; needs a tracker and an SCM bundle |
-| [k8s](docs/bundles/k8s.md) | read-only `k8s` CLI, triage and audit agents, Secret redaction | kubeconfig contexts |
-| [gdoc](docs/bundles/gdoc.md) | `gdoc` CLI for Docs, Drive, Sheets and Gmail drafts | a GCP OAuth client |
+| Bundle | Domain / posture | What agents get | What a human sets up once |
+|---|---|---|---|
+| [core](docs/bundles/core.md) | base / local | guard engine, credential and git rules, Plan / Auto / code-reviewer agents, the `harness` CLI | nothing beyond `bootstrap` |
+| [github](docs/bundles/github.md) | scm / label-gated | `gh` (pinned install), PR workflow, GitHub Issues as tracker | `gh auth login`, SSH key |
+| [gitlab](docs/bundles/gitlab.md) | scm / label-gated | `glab` MR workflow, agent-labelled MRs, closing-keyword deny | `glab auth login`, SSH key |
+| [jira](docs/bundles/jira.md) | tracker / label-gated | `jira` CLI for Jira Server/Data Center, read-only MCP, write gate | personal access token |
+| [ticket-workflow](docs/bundles/ticket-workflow.md) | delivery / label-gated | `work-ticket` (ticket → MR/PR) and `create-ticket` skills | nothing; needs a tracker and an SCM bundle |
+| [k8s](docs/bundles/k8s.md) | kubernetes / read-only | read-only `k8s` CLI, triage and audit agents, Secret redaction | kubeconfig contexts |
+| [gdoc](docs/bundles/gdoc.md) | workspace / label-gated | `gdoc` CLI for Docs, Drive, Sheets and Gmail drafts | a GCP OAuth client |
 
 ## Governance
 
@@ -115,7 +117,8 @@ listed in [SECURITY.md](SECURITY.md).
 | [Distribution](docs/distribution.md) | tiers, release bundle |
 | [Self-host](docs/runbooks/self-host.md) | an org platform instance |
 | [Runbooks](docs/runbooks/new-machine.md) | new machine, upgrade, air-gapped, migration, rotation |
-| [Reference](docs/reference/cli.md) | CLI, config schema, hook policy, secrets |
+| [Catalog](docs/catalog.md) | every bundle, skill, agent, rule, guard section and check, with its id and facets |
+| [Reference](docs/reference/cli.md) | CLI, config schema, hook policy, secrets, [taxonomy](docs/reference/taxonomy.md) |
 | [Architecture](ARCHITECTURE.md) | normative contracts |
 | [AGENTS.md](AGENTS.md) | for agents changing this repo |
 | [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Changelog](CHANGELOG.md) | |

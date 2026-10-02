@@ -22,6 +22,7 @@ positional arguments:
     bootstrap    first run: init -> resolve -> plan -> apply -> doctor -> manual steps
     init         write local/harness.toml from the template (optionally from an org overlay)
     bundles      list bundles or show one
+    catalog      list every component with its id, kind, domain, function and posture
     config       validate | get | set | explain | migrate the configuration
     plan         render to memory and show what apply would change
     apply        execute the plan (backups, atomic writes, state)
@@ -135,6 +136,30 @@ options:
   --offline      skip network checks (HARNESS_OFFLINE=1)
   --yes, -y      assume yes; never prompt
   --dry-run      show what would happen, write nothing
+```
+
+### harness catalog
+
+```text
+usage: harness catalog [-h] [--config PATH] [--home DIR] [--json] [--offline] [--yes] [--dry-run]
+                       [--kind {bundle,skill,agent,rule,guard,permission,mcp,bin,installer,doctor,step,provider,profile}]
+                       [--bundle NAME] [--domain {base,scm,tracker,delivery,kubernetes,workspace}]
+
+list every component with its id, kind, domain, function and posture
+
+options:
+  -h, --help            show this help message and exit
+  --config PATH         config file (default: $HARNESS_CONFIG or <hub>/local/harness.toml)
+  --home DIR            hub directory (HARNESS_HOME)
+  --json                machine-readable output
+  --offline             skip network checks (HARNESS_OFFLINE=1)
+  --yes, -y             assume yes; never prompt
+  --dry-run             show what would happen, write nothing
+  --kind {bundle,skill,agent,rule,guard,permission,mcp,bin,installer,doctor,step,provider,profile}
+                        only this kind of component
+  --bundle NAME         only this bundle's components (and the bundle itself)
+  --domain {base,scm,tracker,delivery,kubernetes,workspace}
+                        only this domain
 ```
 
 ### harness config

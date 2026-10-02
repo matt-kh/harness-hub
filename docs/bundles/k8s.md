@@ -44,6 +44,42 @@ reason. Mutations are always handed to the human.
 
 - **Depends on:** `core`
 - **Stability:** stable
+- **Domain / posture:** kubernetes / read-only
+
+## Components
+
+Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md) facets (domain shown only where it differs from the bundle's). All bundles: [catalog](../catalog.md).
+
+**Skills**
+
+- `k8s/skills/k8s` — control: guide · function: client · posture: read-only · model: execute
+
+**Agents**
+
+- `k8s/agents/infra-architect` — control: guide · function: plan · posture: read-only · model: plan
+- `k8s/agents/k8s-auditor` — control: guide · function: review · posture: read-only · model: execute
+- `k8s/agents/k8s-triage` — control: guide · function: investigate · posture: read-only · model: execute
+
+**Rules**
+
+- `k8s/rules/10-k8s` — control: guide · function: govern
+
+**Guard sections**
+
+- `k8s/guard.d/10-k8s` — control: sensor · function: govern · decisions: helper (no rules)
+- `k8s/guard.d/25-k8s-rules` — control: sensor · function: govern · decisions: deny 4 · ask 7
+
+**Permission lists**
+
+- `k8s/permissions` — control: guide · function: govern · decisions: deny 12 · ask 45 · allow 42
+
+**CLIs**
+
+- `k8s/bin/k8s` — function: client · posture: read-only
+
+**Doctor checks** (function: setup · posture: read-only; table below): `k8s/doctor/clusters-doc`, `k8s/doctor/helm-binary`, `k8s/doctor/k8s-cli`, `k8s/doctor/kube-contexts`, `k8s/doctor/kubectl-binary`
+
+**Manual steps** (function: setup; table below): `k8s/steps/clusters-doc`, `k8s/steps/gitops-checkout`, `k8s/steps/install-kubectl`, `k8s/steps/kubeconfig-contexts`
 
 ## Requirements
 
