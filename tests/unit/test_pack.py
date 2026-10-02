@@ -5,6 +5,7 @@ import hashlib
 import io
 import json
 import os
+import re
 import shutil
 import subprocess
 import tarfile
@@ -41,7 +42,8 @@ class PackTest(unittest.TestCase):
         os.makedirs(os.path.join(self.repo, "tools"))
         self.write("VERSION", "1.2.3\n")
         self.write(".gitignore", "/local/\n/build/\n")
-        self.write("bootstrap", "#!/usr/bin/env bash\necho fixture\n")
+        self.write("bootstrap", "#!/usr/bin/env bash\necho fixture \"$@\"\n")
+        self.write("bin/harness", "#!/usr/bin/env bash\necho \"harness-stub $*\"\n")
         self.write("local/harness.toml", "secret = 'never packed'\n")  # ignored  # pragma: allowlist secret
         self.git("init", "-q", "-b", "main")
         self.git("add", "-A")
@@ -263,6 +265,145 @@ class PackTest(unittest.TestCase):
         self.assertEqual(logs, [])
         self.assertEqual(self.read(os.path.join(clone, "VERSION")), "1.2.4\n")
         self.assertIn("remote set-url origin /path/NEW.bundle", self.read(os.path.join(self.out, "INSTALL.txt")))
+
+    # ------------------------------------------------------------------ self-extracting .run
+    def sh(self, *args, env=None):
+        e = dict(os.environ)
+        e.update(env or {})
+        e.pop("HARNESS_HOME", None)
+        return subprocess.run(["sh"] + list(args), stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=e,
+                              cwd=self.tmp)
+
+    def test_self_extract_payload_deterministic(self):
+        for name, text in (("a.txt", "alpha\n"), ("tools/t.tar.gz", "tool\n")):
+            self.write(name, text, root=self.out)
+        files = ["a.txt", "tools/t.tar.gz"]
+        one = P.build_payload(self.out, files, os.path.join(self.tmp, "p1.tar"), 1700000000)
+        two = P.build_payload(self.out, list(reversed(files)), os.path.join(self.tmp, "p2.tar"), 1700000000)
+        self.assertEqual(one, two)
+        with open(os.path.join(self.tmp, "p1.tar"), "rb") as a, open(os.path.join(self.tmp, "p2.tar"), "rb") as b:
+            self.assertEqual(a.read(), b.read())
+        with tarfile.open(os.path.join(self.tmp, "p1.tar")) as tf:
+            members = tf.getmembers()
+        self.assertEqual([m.name for m in members], ["a.txt", "tools", "tools/t.tar.gz"])
+        self.assertEqual({(m.uid, m.gid, m.uname, m.gname, m.mtime) for m in members}, {(0, 0, "", "", 1700000000)})
+        self.assertEqual([m.mode for m in members], [0o644, 0o755, 0o644])
+        h1 = P.header_text("v1.2.3", "v1.2.3", "harness-hub-v1.2.3.bundle", one[0], one[1])
+        self.assertEqual(h1, P.header_text("v1.2.3", "v1.2.3", "harness-hub-v1.2.3.bundle", one[0], one[1]))
+        skip = int(re.search(r"(?m)^HN_SKIP='(\d+)'$", h1).group(1))
+        self.assertEqual(h1.count("\n") + 1, skip)  # the @SKIP@ line is the first payload line
+        self.assertTrue(h1.endswith("\n__PAYLOAD_BELOW__\n"))
+        self.assertNotRegex(h1, r"@[A-Z_]+@")
+        with self.assertRaises(HarnessError):
+            P.header_text("v1;rm -rf /", "", "x.bundle", one[0], one[1])
+
+    def test_commit_time_honours_source_date_epoch(self):
+        self.assertTrue(P.commit_time(self.repo) > 0)
+        os.environ["SOURCE_DATE_EPOCH"] = "1234567890"
+        try:
+            self.assertEqual(P.commit_time(self.repo), 1234567890)
+        finally:
+            os.environ.pop("SOURCE_DATE_EPOCH")
+
+    def test_sha256_ladder_twins_are_identical(self):
+        def block(path):
+            text = self.read(path)
+            return re.search(r"(?ms)^hn_sha256\(\) \{.*?^\}$", text).group(0)
+
+        self.assertEqual(block(os.path.join(REPO, "bundles/core/lib/compat.sh")), block(P.HEADER_TEMPLATE))
+
+    def _run_release(self, tag="v1.2.3"):
+        self.git("tag", "-a", tag, "-m", "r")
+        return self.pack(tag=tag, self_extract=True)
+
+    def test_self_extract_check_list_extract(self):
+        res = self._run_release()
+        run = res["run"]
+        self.assertEqual(os.path.basename(run), "harness-hub-v1.2.3.run")
+        self.assertTrue(os.access(run, os.X_OK))
+        r = self.sh(run, "--check")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn(b"payload ok", r.stdout)
+        r = self.sh(run, "--list")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        listed = r.stdout.decode().split()
+        for name in ("harness-hub-v1.2.3.bundle", "INSTALL.txt", "SHA256SUMS"):
+            self.assertIn(name, listed)
+        x = os.path.join(self.tmp, "x")
+        r = self.sh(run, "--extract", x)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        inner = P.read_sums(os.path.join(x, "SHA256SUMS"))
+        self.assertEqual(sorted(inner), ["INSTALL.txt", "harness-hub-v1.2.3.bundle"])
+        for rel in ("harness-hub-v1.2.3.bundle", "INSTALL.txt"):
+            self.assertEqual(sha(os.path.join(x, rel)), sha(os.path.join(self.out, rel)))
+        outer = P.read_sums(os.path.join(self.out, "SHA256SUMS"))
+        self.assertEqual(outer["harness-hub-v1.2.3.run"], sha(run))
+        self.assertEqual({k: v for k, v in outer.items() if k != "harness-hub-v1.2.3.run"}, inner)
+        self.assertIn("sh harness-hub-v1.2.3.run --check", self.read(os.path.join(self.out, "INSTALL.txt")))
+        self.assertTrue(P.verify(res["bundle"])["ok"])
+        rep = P.verify(run)
+        self.assertTrue(rep["ok"], rep)
+        self.assertEqual(rep["kind"], "run")
+        self.assertIn("harness-hub-v1.2.3.run", rep["checked"])
+
+    def test_self_extract_tamper_fails(self):
+        run = self._run_release()["run"]
+        with open(run, "rb") as fh:
+            data = fh.read()
+        at = data.index(b"\n__PAYLOAD_BELOW__\n") + len(b"\n__PAYLOAD_BELOW__\n") + 600
+        bad = os.path.join(self.tmp, "bad.run")
+        with open(bad, "wb") as fh:
+            fh.write(data[:at] + bytes([data[at] ^ 0xFF]) + data[at + 1:])
+        r = self.sh(bad, "--check")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn(b"sha256", r.stderr)
+        self.assertIn(b"re-download", r.stderr)
+        with open(bad, "wb") as fh:
+            fh.write(data[:-1000])
+        r = self.sh(bad, "--check")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn(b"truncated", r.stderr)
+        self.assertFalse(P.verify(bad)["ok"])
+
+    def test_self_extract_install_and_upgrade(self):
+        run = self._run_release()["run"]
+        home, hub, rel = (os.path.join(self.tmp, d) for d in ("home", "inst", "relx"))
+        os.makedirs(home)
+        r = self.sh(run, "--dest", hub, "--release-dir", rel, "--", "--extra", env={"HOME": home})
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn(b"fixture --extra", r.stdout)
+        self.assertEqual(self.git("rev-parse", "HEAD", cwd=hub), self.git("rev-parse", "v1.2.3^{commit}"))
+        self.assertEqual(self.git("remote", "get-url", "origin", cwd=hub).strip(),
+                         os.path.join(rel, "harness-hub-v1.2.3.bundle"))
+        # a non-empty directory that is not a clone is refused
+        r = self.sh(run, "--dest", self.out, "--release-dir", rel, env={"HOME": home})
+        self.assertEqual(r.returncode, 1)
+        self.assertIn(b"pass --dest DIR", r.stderr)
+        # a newer .run with the same --dest takes the upgrade path
+        self.write("VERSION", "1.2.4\n")
+        self.git("commit", "-q", "-am", "next")
+        self.out = os.path.join(self.tmp, "rel2")
+        run2 = self._run_release("v1.2.4")["run"]
+        r = self.sh(run2, "--dest", hub, "--yes", env={"HOME": home})
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn(b"harness-stub upgrade --to v1.2.4 --yes", r.stdout)
+        rel2 = os.path.join(home, ".local", "share", "harness", "releases", "v1.2.4")
+        self.assertEqual(self.git("remote", "get-url", "origin", cwd=hub).strip(),
+                         os.path.join(rel2, "harness-hub-v1.2.4.bundle"))
+        self.assertIn("v1.2.4", self.git("tag", "--list", cwd=hub).split())
+
+    def test_pack_self_extract_dev_version(self):
+        res = self.pack(self_extract=True)
+        run = res["run"]
+        self.assertRegex(os.path.basename(run), r"^harness-hub-v1\.2\.3-g[0-9a-f]{7}\.run$")
+        with open(run, "rb") as fh:
+            self.assertIn(b"\nHN_TAG=''\n", fh.read(4096))
+        home, hub = os.path.join(self.tmp, "home"), os.path.join(self.tmp, "hub2")
+        os.makedirs(home)
+        r = self.sh(run, "--dest", hub, env={"HOME": home, "XDG_DATA_HOME": os.path.join(self.tmp, "xdg")})
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(self.git("rev-parse", "HEAD", cwd=hub), self.git("rev-parse", "HEAD"))
+        self.assertTrue(self.git("remote", "get-url", "origin", cwd=hub).startswith(os.path.join(self.tmp, "xdg")))
 
     @staticmethod
     def read(path):
