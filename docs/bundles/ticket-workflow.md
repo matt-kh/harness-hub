@@ -100,6 +100,21 @@ A repo-level skill such as `work-jira-ticket` is detected at preflight and takes
 | `ticket-workflow-scm` | fail | runs | `Activate the gitlab or github bundle (hub.bundles) and run harness apply` |
 | `ticket-workflow-skills` | fail | runs | `harness apply --provider claude` |
 
+## Guides and sensors
+
+Guides steer the agent before it acts; sensors detect at or after the action. Pairing: **paired**.
+
+| side | kind | ref | note |
+|---|---|---|---|
+| guide | rule | `rules/75-ticket-workflow.md` | ticket to MR/PR flow, label gate, key-free branches, stacked delivery |
+| guide | skill | `skills/work-ticket` | the governed ticket workflow and its preflight scripts |
+| guide | skill | `skills/create-ticket` | one drafted ticket or issue, rendered deterministically |
+| sensor | doctor | `doctor_checks` | a tracker CLI and an SCM CLI on PATH, both skills rendered |
+| sensor | test | `tests/run.sh` | every skill suite of this bundle |
+| sensor | test | `skills/create-ticket/scripts/tests/run.sh` | golden renders of every ticket class |
+
+**Not covered:** No permission rules and no guard section of its own: the write gates are sensed by the tracker and SCM bundles' guard sections (closing keywords, labels, stacked targets); work-ticket has no own test suite.
+
 ## Uninstall
 
 Kept on uninstall: _nothing_

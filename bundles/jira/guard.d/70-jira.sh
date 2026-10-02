@@ -3,12 +3,12 @@
 # Section 70 (bundle jira): Jira write governance.
 # rule: jira set KEY issuelinks | create --field issuelinks= -> deny : use the governed link commands
 # rule: jira link A TYPE B (both agent-labelled, type in HARNESS_JIRA_LINK_TYPES_RE) -> allow : otherwise deny
-# rule: jira create without a provenance label (agent-drafted|agent-created) -> deny : every agent-created ticket is labelled
+# rule: jira create without a provenance label (agent-drafted|agent-created) -> deny : every agent-created ticket is labelled; use labels agent-drafted (or agent-created) instead
 # rule: jira create with a provenance label -> allow : creates are promptless
 # rule: jira label KEY add agent-* -> allow : governance labelling is free
 # rule: jira set|comment|upload|label|transition KEY on agent-labelled tickets -> allow : promptless
 # rule: jira transition KEY on a human ticket -> deny : ticket state is human-only (ask under WORK_TICKET_ALLOW_TRANSITION=1)
-# rule: jira writes to human tickets -> ask : need an explicit user request
+# rule: jira writes to human tickets -> ask : need an explicit user request; ask the user, or label the ticket agent-worked first
 # ---- Jira writes: governance gate (work-ticket / create-ticket skills) -----------
 # create (with provenance label) and `label KEY add agent-*`: promptless.
 # set/comment/upload/label/link/transition on tickets carrying ANY agent-* label: promptless.

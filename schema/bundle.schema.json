@@ -63,6 +63,15 @@
     "uninstall": {
       "type": "object", "additionalProperties": false,
       "properties": {"keeps": {"type": "array", "items": {"type": "string"}}, "notes": {"type": "string"}}
+    },
+    "harness": {
+      "type": "object", "additionalProperties": false,
+      "description": "Guides (feedforward: steer before the agent acts) and sensors (feedback: detect at or after the action) this bundle contributes. `harness lint` warns when one side is empty.",
+      "properties": {
+        "guides": {"type": "array", "items": {"$ref": "#/$defs/guide"}},
+        "sensors": {"type": "array", "items": {"$ref": "#/$defs/sensor"}},
+        "coverage_note": {"type": "string", "description": "What the pairing does not cover, or why one side is intentionally empty."}
+      }
     }
   },
   "$defs": {
@@ -129,6 +138,22 @@
         "verify": {"$ref": "#/$defs/verify"},
         "unblocks": {"type": "array", "items": {"type": "string"}},
         "providers": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "guide": {
+      "type": "object", "additionalProperties": false, "required": ["kind", "ref"],
+      "properties": {
+        "kind": {"type": "string", "enum": ["rule", "skill", "permission", "agent", "template"]},
+        "ref": {"type": "string", "minLength": 1, "description": "Bundle-relative path (rules/10-x.md, skills/x, permissions.toml, agents/x.md)."},
+        "note": {"type": "string"}
+      }
+    },
+    "sensor": {
+      "type": "object", "additionalProperties": false, "required": ["kind", "ref"],
+      "properties": {
+        "kind": {"type": "string", "enum": ["guard", "doctor", "test", "lint", "review-agent"]},
+        "ref": {"type": "string", "minLength": 1, "description": "Bundle-relative path (guard.d/NN-x.sh, tests/run.sh, agents/x.md), a doctor_checks id, `doctor_checks` for all of them, or a lint rule name."},
+        "note": {"type": "string"}
       }
     },
     "doctor_check": {

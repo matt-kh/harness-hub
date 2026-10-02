@@ -150,6 +150,22 @@ and `{{ core.agent_labels.drafted }}` once under **Group → Manage → Labels**
 | `gitlab-ssh` | warn | skipped | [gitlab-ssh-key](#gitlab-ssh-key) |
 | `glab-token-mode` | warn | runs | `chmod 600 ~/.config/glab-cli/config.yml` |
 
+## Guides and sensors
+
+Guides steer the agent before it acts; sensors detect at or after the action. Pairing: **paired**.
+
+| side | kind | ref | note |
+|---|---|---|---|
+| guide | rule | `rules/50-gitlab.md` | MR-based delivery, ticket keys mentioned never closed, stacked sub MRs |
+| guide | permission | `permissions.toml` | read-only glab commands allowed |
+| sensor | guard | `guard.d/40-gitlab-closing.sh` | denies closing keywords with a ticket key |
+| sensor | guard | `guard.d/50-gitlab.sh` | API writes, merges/approvals, stacked MR targets, label-gated edits |
+| sensor | doctor | `doctor_checks` | glab binary, auth, SSH and token file mode |
+| sensor | test | `guard.d/tests.sh` | guard rows with a stubbed glab |
+| sensor | test | `tests/run.sh` | this bundle's rows against core + gitlab only |
+
+**Not covered:** MR title and description conventions are guides only; nothing checks them before the MR is created.
+
 ## Uninstall
 
 Kept on uninstall: `~/.config/glab-cli/**`

@@ -1,6 +1,9 @@
 """upgrade: move the hub checkout forward, print migration notes, re-validate, plan (and apply).
 
-* ``--to TAG``: ``git fetch --tags`` then ``git checkout TAG`` (detached, pinned)
+* ``--to TAG``: ``git fetch --tags`` then ``git checkout TAG`` (detached, pinned). When the
+  fetch fails (air-gapped: ``origin`` unreachable) and TAG already exists in the clone, the
+  local tag is used; when it does not, the error names the bundle-file flow
+  (``origin`` -> ``NEW.bundle``, or ``git fetch NEW.bundle 'refs/tags/*:refs/tags/*'``)
 * default: ``git pull --ff-only`` on the current branch (refuses on local changes)
 * prints every ``## [X.Y.Z]`` section of CHANGELOG.md between the old and new VERSION
 * re-validates the config (deprecations warn) and shows the plan; applies unless
@@ -28,6 +31,23 @@ def changelog_between(text: str, old: str, new: str) -> List[Tuple[str, str]]:
     return out
 
 
+def checkout_tag(home: str, tag: str, log=print) -> None:
+    """``git fetch --tags`` (tolerated offline when ``tag`` is already local) + checkout."""
+    rc, _o, e = run_argv(["git", "-C", home, "fetch", "--tags", "--quiet"], timeout=300)
+    if rc != 0:
+        have, _o2, _e2 = run_argv(["git", "-C", home, "rev-parse", "--verify", "-q", "%s^{commit}" % tag], timeout=30)
+        if have != 0:
+            raise HarnessError(
+                "git fetch --tags failed (%s) and %s is not in the clone. Offline, take it from a bundle file: "
+                "git -C %s remote set-url origin /path/NEW.bundle (or git -C %s fetch /path/NEW.bundle "
+                "'refs/tags/*:refs/tags/*'), then re-run harness upgrade --to %s (see docs/runbooks/air-gapped.md)"
+                % ((e.strip().splitlines() or ["rc=%d" % rc])[-1], tag, home, home, tag))
+        log("note: fetch failed; using local tag %s" % tag)
+    rc, _o, e = run_argv(["git", "-C", home, "checkout", "--quiet", tag], timeout=300)
+    if rc != 0:
+        raise HarnessError("checkout --quiet %s failed: %s" % (tag, e.strip()))
+
+
 def run(ctx: Any, ns: Any) -> int:
     from .util import hub_home
 
@@ -41,10 +61,7 @@ def run(ctx: Any, ns: Any) -> int:
     if ctx.dry_run:
         print("dry run: would %s" % ("fetch and check out %s" % ns.to if ns.to else "git pull --ff-only"))
     elif ns.to:
-        for argv in (["git", "-C", home, "fetch", "--tags", "--quiet"], ["git", "-C", home, "checkout", "--quiet", ns.to]):
-            rc, _o, e = run_argv(argv, timeout=300)
-            if rc != 0:
-                raise HarnessError("%s failed: %s" % (" ".join(argv[3:]), e.strip()))
+        checkout_tag(home, ns.to)
     else:
         rc, o, e = run_argv(["git", "-C", home, "pull", "--ff-only", "--quiet"], timeout=300)
         if rc != 0:

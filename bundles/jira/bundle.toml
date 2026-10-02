@@ -193,3 +193,19 @@ fix = "install-uv"
 [uninstall]
 keeps = ["~/.config/jira"]
 notes = "The token file is yours; revoke it in Jira (profile → Personal Access Tokens) when you leave."
+
+# Guides steer the agent before it acts; sensors detect at or after the action (principle 6).
+[harness]
+coverage_note = "The optional MCP server runs with READ_ONLY_MODE=true; no sensor inspects MCP calls."
+guides = [
+  { kind = "rule", ref = "rules/70-jira.md", note = "reads free, writes gated by agent-* labels, transitions human-only" },
+  { kind = "skill", ref = "skills/jira", note = "the jira CLI for Jira Server: search, fields, comments, labels" },
+  { kind = "permission", ref = "permissions.toml", note = "read commands allowed; writes left to the guard" },
+]
+sensors = [
+  { kind = "guard", ref = "guard.d/70-jira.sh", note = "label-gated writes, provenance label on create, transitions denied on human tickets" },
+  { kind = "doctor", ref = "doctor_checks", note = "CLI, token file mode, auth and uvx for the MCP server" },
+  { kind = "test", ref = "guard.d/tests.sh", note = "guard rows with a stubbed jira" },
+  { kind = "test", ref = "tests/run.sh", note = "this bundle's rows against core + jira only" },
+  { kind = "test", ref = "skills/jira/scripts/tests/run.sh", note = "the jira CLI offline: config resolution and dry-run writes" },
+]

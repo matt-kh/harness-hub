@@ -8,6 +8,44 @@ prints every one between your applied version and the new one.
 
 ## [Unreleased]
 
+### Principles
+
+- `principles_version: 1`: the seven principles (lightweight; developer-first; a platform for
+  everyone; installed as a platform, distributable air-gapped; distributed as a git
+  repository; harness engineering; extensible core). `PRINCIPLES.md` is the summary and index,
+  `principles/NN-*.md` holds one document per principle.
+
+### Added
+
+- `harness pack [--out DIR] [--tag TAG] [--tools os/arch,...]`: writes the release artifact,
+  a `git bundle` of the hub plus optional pinned tool archives, `SHA256SUMS` and
+  `INSTALL.txt`. Refuses a dirty tree and never includes `local/`.
+- `harness verify FILE.bundle`: `git bundle verify`, the bundle's heads and tags, and the
+  `SHA256SUMS` check.
+- `harness bootstrap --from FILE.bundle [--dest DIR] [--origin URL]`: clone a bundle file and
+  run the clone's bootstrap.
+- Bundle manifests: optional `[harness]` section with `guides`, `sensors` and
+  `coverage_note`, filled in for every public bundle; generated "Guides and sensors" tables
+  and a harness coverage reference.
+- `harness lint` warnings for bundles with unpaired guides or sensors, guard rule reasons
+  without an alternative, and script binaries outside the allow-list; a unit test that keeps
+  the engine on the python standard library.
+- `AGENTS.md` (with `CLAUDE.md` as a symlink): instructions for agents changing this repo.
+- `HARNESS_BUILD_DIR`: where compiled config and the built guard go; tests and smoke scripts set
+  it to a temporary directory so they never touch a live hub's `build/`.
+- Docs: [distribution](docs/distribution.md) (tiers, release artifact, versioning), the
+  [self-host runbook](docs/runbooks/self-host.md) for org platform instances, a "Guides and
+  sensors" section in concepts, a bundle-file path in getting started.
+
+### Changed
+
+- README reframed as a public platform with three install paths (upstream, org instance,
+  bundle file).
+- Air-gapped runbook: offline install and upgrade use the release bundle.
+- CONTRIBUTING: "Principles first", contributions as the steering loop, guides and sensors in
+  the add-a-bundle checklist; PR template asks for the principle(s) served and the pairing
+  check.
+
 ## [0.1.0] - 2026-09-30
 
 Initial public release.

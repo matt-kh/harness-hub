@@ -50,6 +50,36 @@ A missing key is an error at plan time, never a silent blank.
 same way (`hub.bundles`). That is where your cluster inventory, your Jira issue-type rules
 and your extra guard rules go.
 
+## Guides and sensors
+
+The hub follows the vocabulary of Martin Fowler's
+[harness engineering](https://martinfowler.com/articles/harness-engineering.html) article: an
+agent is a model plus a harness, and the harness has two kinds of control
+([principle 6](../principles/06-harness-engineering.md)).
+
+| | Guides (feedforward) | Sensors (feedback) |
+|---|---|---|
+| When | before the agent acts | at or after the action |
+| Purpose | raise the chance it is right the first time | detect and correct when it is not |
+| In a bundle | `rules/`, `skills/`, `permissions.toml`, `agents/`, templates | `guard.d/`, doctor checks, `guard.d/tests.sh` and `tests/`, lint rules, review agents |
+| Declared as | `[harness] guides = [{kind, ref, note}]` | `[harness] sensors = [{kind, ref, note}]` |
+
+- **Computational** sensors are deterministic and cheap: the guard, `harness lint`, test rows,
+  `harness doctor`. They run on every change or every command.
+- **Inferential** sensors are semantic and slower: the core bundle's code-reviewer agent.
+- **The guard is a sensor that fires before the action.** It reads the shell command text,
+  decides `allow | ask | deny | pass`, and its reason says what to do instead, so the message
+  also steers the next attempt.
+- **Pairing.** Each bundle declares both lists and a `coverage_note` for what the pairing does
+  not cover. `harness lint` warns on guides without sensors, sensors without guides, and guard
+  reasons without an alternative. Each bundle page and the
+  [harness coverage](reference/harness-coverage.md) reference render the tables.
+- **The steering loop.** When an agent repeats a mistake, improve a guide or a sensor so it
+  does not recur; contributions to this repo are that loop
+  ([CONTRIBUTING](../CONTRIBUTING.md#principles-first)).
+- **Provider tier limits sensors.** On advisory providers (Codex, OpenCode) the guard does not
+  run; only the guides apply ([capability matrix](reference/capability-matrix.md)).
+
 ## Providers
 
 A provider adapter (`providers/<name>/provider.toml`) is data: where each kind of artefact

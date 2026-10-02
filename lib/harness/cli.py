@@ -30,6 +30,8 @@ COMMANDS = [
     ("status", "active bundles/providers, drift summary, capability matrix"),
     ("install", "install a pinned, sha256-verified tool into ~/.local/bin"),
     ("upgrade", "update the hub checkout, print migration notes, re-plan"),
+    ("pack", "write the hub as a release artifact: git bundle + SHA256SUMS + INSTALL.txt (+ tools)"),
+    ("verify", "check a hub bundle file: git bundle verify, heads/tags, SHA256SUMS beside it"),
     ("uninstall", "remove what the harness wrote (state-listed paths only)"),
     ("test", "run the engine, guard, bundle, skill and provider test suites"),
     ("lint", "validate manifests, cross-references, templates, private identifiers"),
@@ -100,6 +102,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--email", help="identity.email for a new config")
     p.add_argument("--no-install-tools", action="store_true", help="do not run `harness install` for missing binaries")
     p.add_argument("--adopt", action="append", default=[], metavar="PATH", help="take over this foreign path (backed up)")
+    p.add_argument("--from", dest="from_", metavar="FILE.bundle",
+                   help="clone the hub from this bundle file into --dest, then run the clone's bootstrap with the other flags")
+    p.add_argument("--dest", metavar="DIR", help="with --from: where to clone (default ~/harness-hub; must not exist or be empty)")
+    p.add_argument("--origin", metavar="URL", help="with --from: set the clone's origin remote (default: the bundle file)")
 
     p = add("init")
     _selection(p)
@@ -166,6 +172,15 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--to", metavar="TAG", help="check out this tag (default: fast-forward the branch)")
     p.add_argument("--no-apply", action="store_true", help="stop after the plan")
 
+    p = add("pack")
+    p.add_argument("--out", metavar="DIR", help="output directory (default <hub>/build/release)")
+    p.add_argument("--tag", metavar="TAG", help="release this existing tag (bundle carries every tag; default: branches + tags + HEAD)")
+    p.add_argument("--tools", action="append", metavar="OS/ARCH,...",
+                   help="also download tools/*.lock.json assets for these platforms (e.g. linux/amd64,darwin/arm64)")
+
+    p = add("verify")
+    p.add_argument("file", metavar="FILE.bundle", help="the bundle file (SHA256SUMS beside it is checked too)")
+
     p = add("uninstall")
     p.add_argument("--bundle", action="append", metavar="NAME", help="only paths owned by these bundles")
     p.add_argument("--provider", action="append", metavar="NAME", help="only these providers")
@@ -203,6 +218,7 @@ class Ctx:
         self.offline = bool(getattr(ns, "offline", False)) or os.environ.get("HARNESS_OFFLINE") in ("1", "true", "yes")
         self.yes = bool(getattr(ns, "yes", False))
         self.dry_run = bool(getattr(ns, "dry_run", False))
+        self.argv: List[str] = []
 
     def hub(self, require_config: bool = True, bundles: Optional[Sequence[str]] = None,
             providers: Optional[Sequence[str]] = None, profile: Optional[str] = None):
@@ -219,6 +235,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         parser.print_help()
         return 2
     ctx = Ctx(ns)
+    ctx.argv = list(sys.argv[1:] if argv is None else argv)
     try:
         return int(dispatch(ctx, ns, parser) or 0)
     except HarnessError as exc:
@@ -269,6 +286,10 @@ def dispatch(ctx: Ctx, ns: argparse.Namespace, parser: argparse.ArgumentParser) 
         from . import upgrade
 
         return upgrade.run(ctx, ns)
+    if cmd in ("pack", "verify"):
+        from . import pack
+
+        return pack.run_pack(ctx, ns) if cmd == "pack" else pack.run_verify(ctx, ns)
     if cmd == "uninstall":
         from . import uninstall
 
@@ -292,6 +313,10 @@ def dispatch(ctx: Ctx, ns: argparse.Namespace, parser: argparse.ArgumentParser) 
     if cmd == "bootstrap":
         from . import bootstrap
 
+        if ns.from_:
+            return bootstrap.from_bundle(ctx, ns)
+        if ns.dest or ns.origin:
+            raise HarnessError("--dest and --origin only apply with --from FILE.bundle", 2)
         return bootstrap.run(ctx, ns)
     raise HarnessError("unknown command %s" % cmd, 2)
 

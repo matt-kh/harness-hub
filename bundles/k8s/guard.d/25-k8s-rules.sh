@@ -1,17 +1,17 @@
 # shellcheck shell=bash
 
 # Section 25 (bundle k8s): kubeconfig, Secret data, cluster and infra mutations.
-# rule: kubectl config view --raw -> deny : prints credentials
-# rule: kubectl config use-context|set-*|delete-*|rename-context -> deny : kubeconfig is human-managed
-# rule: aws eks update-kubeconfig | eksctl utils write-kubeconfig -> deny : kubeconfig is human-managed
-# rule: kubectl get secret(s) -o yaml|json|jsonpath|template | get --raw .../secrets -> deny : Secret values are never printed (unless piped through k8s redact)
-# rule: kubectl create token -> ask : mints a ServiceAccount credential
-# rule: kubectl exec|attach|cp|debug|port-forward|proxy -> ask : exec-class
-# rule: kubectl apply|delete|edit|patch|scale|rollout restart|... (no --dry-run=client|server) -> ask : cluster mutation
-# rule: helm get values|all|manifest -> ask : may print credentials (allow when every clause is piped through k8s redact)
-# rule: helm install|upgrade|uninstall|rollback|test|push|registry login -> ask : release mutation
-# rule: argocd app(set) sync|delete|set|... | flux reconcile|... | eksctl create|... -> ask : GitOps / cluster mutation
-# rule: pulumi up|destroy|refresh|import | terraform apply|destroy|import -> ask : IaC state mutation
+# rule: kubectl config view --raw -> deny : prints credentials; use plain 'kubectl config view' (redacted) instead
+# rule: kubectl config use-context|set-*|delete-*|rename-context -> deny : kubeconfig is human-managed; pass --context on every command instead (see the k8s rule)
+# rule: aws eks update-kubeconfig | eksctl utils write-kubeconfig -> deny : kubeconfig is human-managed; pass --context on every command instead (see the k8s rule)
+# rule: kubectl get secret(s) -o yaml|json|jsonpath|template | get --raw .../secrets -> deny : Secret values are never printed; use 'k8s secret-keys NS NAME' or pipe through 'k8s redact' instead
+# rule: kubectl create token -> ask : mints a ServiceAccount credential; ask the user, or use read-only k8s commands instead
+# rule: kubectl exec|attach|cp|debug|port-forward|proxy -> ask : exec-class; use 'k8s pod' or 'kubectl logs' for read-only triage instead
+# rule: kubectl apply|delete|edit|patch|scale|rollout restart|... (no --dry-run=client|server) -> ask : cluster mutation; use --dry-run=server, or hand the command to the user instead
+# rule: helm get values|all|manifest -> ask : may print credentials; pipe every clause through 'k8s redact' instead (then allowed)
+# rule: helm install|upgrade|uninstall|rollback|test|push|registry login -> ask : release mutation; use 'helm template' read-only, or hand the command to the user instead
+# rule: argocd app(set) sync|delete|set|... | flux reconcile|... | eksctl create|... -> ask : GitOps / cluster mutation; change the GitOps repo instead, or hand the command to the user
+# rule: pulumi up|destroy|refresh|import | terraform apply|destroy|import -> ask : IaC state mutation; run a preview / plan instead, or hand the command to the user
 # ---- Kubernetes rules (run after the credential clause loop, as before the split) ----
 # kubeconfig: deny raw credentials, deny context-cluster-user edits
 printf '%s' "$flat" | grep -qE "${KC}config\s+view\b[^;&|]*\s--raw(=true)?(\s|$)" && deny "kubectl config view --raw prints credentials — drop --raw (kubectl redacts by default)"

@@ -31,6 +31,9 @@ positional arguments:
     status       active bundles/providers, drift summary, capability matrix
     install      install a pinned, sha256-verified tool into ~/.local/bin
     upgrade      update the hub checkout, print migration notes, re-plan
+    pack         write the hub as a release artifact: git bundle + SHA256SUMS + INSTALL.txt (+
+                 tools)
+    verify       check a hub bundle file: git bundle verify, heads/tags, SHA256SUMS beside it
     uninstall    remove what the harness wrote (state-listed paths only)
     test         run the engine, guard, bundle, skill and provider test suites
     lint         validate manifests, cross-references, templates, private identifiers
@@ -56,7 +59,8 @@ Run `harness <command> --help` for command flags. Docs: docs/reference/cli.md
 ```text
 usage: harness bootstrap [-h] [--config PATH] [--home DIR] [--json] [--offline] [--yes]
                          [--dry-run] [--bundles A,B] [--providers X,Y] [--profile PROFILE]
-                         [--email EMAIL] [--no-install-tools] [--adopt PATH]
+                         [--email EMAIL] [--no-install-tools] [--adopt PATH] [--from FILE.bundle]
+                         [--dest DIR] [--origin URL]
 
 first run: init -> resolve -> plan -> apply -> doctor -> manual steps
 
@@ -76,6 +80,11 @@ options:
   --email EMAIL         identity.email for a new config
   --no-install-tools    do not run `harness install` for missing binaries
   --adopt PATH          take over this foreign path (backed up)
+  --from FILE.bundle    clone the hub from this bundle file into --dest, then run the clone's
+                        bootstrap with the other flags
+  --dest DIR            with --from: where to clone (default ~/harness-hub; must not exist or be
+                        empty)
+  --origin URL          with --from: set the clone's origin remote (default: the bundle file)
 ```
 
 ### harness init
@@ -427,6 +436,50 @@ options:
   --dry-run      show what would happen, write nothing
   --to TAG       check out this tag (default: fast-forward the branch)
   --no-apply     stop after the plan
+```
+
+### harness pack
+
+```text
+usage: harness pack [-h] [--config PATH] [--home DIR] [--json] [--offline] [--yes] [--dry-run]
+                    [--out DIR] [--tag TAG] [--tools OS/ARCH,...]
+
+write the hub as a release artifact: git bundle + SHA256SUMS + INSTALL.txt (+ tools)
+
+options:
+  -h, --help           show this help message and exit
+  --config PATH        config file (default: $HARNESS_CONFIG or <hub>/local/harness.toml)
+  --home DIR           hub directory (HARNESS_HOME)
+  --json               machine-readable output
+  --offline            skip network checks (HARNESS_OFFLINE=1)
+  --yes, -y            assume yes; never prompt
+  --dry-run            show what would happen, write nothing
+  --out DIR            output directory (default <hub>/build/release)
+  --tag TAG            release this existing tag (bundle carries every tag; default: branches +
+                       tags + HEAD)
+  --tools OS/ARCH,...  also download tools/*.lock.json assets for these platforms (e.g.
+                       linux/amd64,darwin/arm64)
+```
+
+### harness verify
+
+```text
+usage: harness verify [-h] [--config PATH] [--home DIR] [--json] [--offline] [--yes] [--dry-run]
+                      FILE.bundle
+
+check a hub bundle file: git bundle verify, heads/tags, SHA256SUMS beside it
+
+positional arguments:
+  FILE.bundle    the bundle file (SHA256SUMS beside it is checked too)
+
+options:
+  -h, --help     show this help message and exit
+  --config PATH  config file (default: $HARNESS_CONFIG or <hub>/local/harness.toml)
+  --home DIR     hub directory (HARNESS_HOME)
+  --json         machine-readable output
+  --offline      skip network checks (HARNESS_OFFLINE=1)
+  --yes, -y      assume yes; never prompt
+  --dry-run      show what would happen, write nothing
 ```
 
 ### harness uninstall

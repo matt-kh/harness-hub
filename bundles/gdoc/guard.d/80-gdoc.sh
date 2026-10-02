@@ -1,11 +1,11 @@
 # shellcheck shell=bash
 
 # Section 80 (bundle gdoc): Google Workspace governance keyed on the Drive property agent_provenance.
-# rule: gdoc api -X|--method|-d|--data -> deny : api is GET-only
-# rule: gdoc mark ID -> ask : adopts a human file
+# rule: gdoc api -X|--method|-d|--data -> deny : api is GET-only; use the create/append/replace/sheet subcommands instead
+# rule: gdoc mark ID -> ask : adopts a human file; ask the user before marking it
 # rule: gdoc import|append|replace|sheet append|update on an agent-marked file -> allow : human files / lookup failure ask
 # rule: gdoc create | gdoc mail draft -> allow : create stamps provenance; nothing is sent
-# rule: gdoc mail send -> ask : outward and irreversible
+# rule: gdoc mail send -> ask : outward and irreversible; use a mail draft instead and let the user send it
 # ---- Google Workspace (gdoc): governance gate ------------------------------------
 # create (script stamps properties.agent_provenance=agent-created) and mail draft: promptless.
 # import/append/replace/sheet append|update on files whose Drive property agent_provenance

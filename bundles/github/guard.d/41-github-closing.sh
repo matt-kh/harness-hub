@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 
 # Section 41 (bundle github): GitHub closing keywords.
-# rule: (close|fix|resolve) #N | owner/repo#N | issue URL in git commit | gh pr create|edit|merge | gh api -> deny : issue state is human-only
+# rule: (close|fix|resolve) #N | owner/repo#N | issue URL in git commit | gh pr create|edit|merge | gh api -> deny : issue state is human-only; mention #N instead (see #N, refs #N)
 # ---- GitHub shared definitions (used by 41 and 60) ----
 GH="${WORK_TICKET_GH:-gh}"
 GHR='((-R|--repo)[= ]\S+\s+)?'                                  # optional -R owner/repo between gh words

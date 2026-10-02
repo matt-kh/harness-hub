@@ -1,8 +1,8 @@
 # shellcheck shell=bash
 
 # Section 50 (bundle gitlab): glab governance.
-# rule: glab api -X POST|PUT|PATCH|DELETE | payload flag -> ask : API write
-# rule: glab mr merge|approve|revoke|delete, issue/release/repo/label mutations -> ask : team-visible, humans merge
+# rule: glab api -X POST|PUT|PATCH|DELETE | payload flag -> ask : API write; ask the user, or use the matching glab subcommand
+# rule: glab mr merge|approve|revoke|delete, issue/release/repo/label mutations -> ask : team-visible, humans merge; ask the user instead of merging or approving
 # rule: glab label create -n agent-* -> allow : governance label; other labels ask
 # rule: glab mr create -> allow : creates are ungated (a -sub- source without target / with a base target -> deny)
 # rule: glab mr update|note|close REF on an agent-labelled MR -> allow : human MRs ask; -sub- retarget to base -> deny

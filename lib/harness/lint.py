@@ -11,9 +11,20 @@ Errors (exit 1):
 * ``{{ key }}`` references to keys no schema knows (templated files and manifest strings)
 * ``tools/gate/private-ids.sh`` (when present) reporting private identifiers
 
+* ``[harness]`` refs that name no file, doctor check or lint rule of the bundle
+
 Warnings: deprecated manifest keys, ``requires.config`` keys never referenced by any
 template, manifest string or env value (scripts may still read them from build/config.json),
-skills whose SKILL.md ``name`` differs from the directory.
+skills whose SKILL.md ``name`` differs from the directory, and three principle checks:
+
+* ``guides-sensors`` (principle 6): a public bundle without ``[harness]``, or whose
+  ``[harness]`` has guides but no sensors (feedforward only) or sensors but no guides
+* ``guard-reasons`` (principle 6): a deny/ask ``# rule:`` reason that does not state the
+  alternative (none of the words use, instead, ask, run, mention, see)
+* ``dependencies`` (principle 1): a binary invoked by ``bin/*``, ``bootstrap``,
+  ``bundles/**/*.sh``, ``providers/**/*.sh`` or ``tools/gate/*.sh`` that is neither on
+  :data:`ALLOWED_BINARIES` nor declared by a bundle (``[requires.binaries]``, ``[provides] bin``);
+  one warning per binary with its first ``file:line`` (heuristic, see ``shell_scan``)
 """
 from __future__ import annotations
 
@@ -27,6 +38,19 @@ from . import render as R
 from .util import read_text, run_argv
 
 ID_SHAPE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
+RULE_LINE_RE = re.compile(r"^#\s*rule:\s*(?P<pat>.+?)\s+->\s+(?P<dec>allow|ask|deny|pass|defer)\s*:\s*(?P<reason>.+?)\s*$")
+ALTERNATIVE_RE = re.compile(r"\b(use|instead|ask|run|mention|see)\b", re.I)
+LINT_RULES = {"manifest", "templates", "guard-syntax", "guard-reasons", "guides-sensors", "dependencies", "private-ids"}
+
+# Principle 1 (lightweight): binaries any script may call without a bundle declaring them.
+ALLOWED_BINARIES = set(
+    # the plan's base set: the hub's whole runtime footprint
+    "bash sh python3 jq git curl ssh tar unzip shasum sha256sum awk sed grep cut tr sort uniq head tail wc "
+    "find xargs mktemp install chmod ln readlink stat date printf cat env test "
+    # POSIX utilities present on every Linux, WSL and macOS base system (found by the first scan)
+    "dirname basename mkdir rm cp mv ls uname sleep diff cmp "
+    # optional: only called behind `command -v` with a python fallback (core/lib/compat.sh hn_*)
+    "timeout gtimeout realpath".split())
 BUILTIN_KEYS = {"hub.home", "hub.version", "hub.config", "provider.name", "provider.home", "provider.skills_dir"}
 
 
@@ -149,8 +173,15 @@ def lint_bundle(b: M.Bundle, all_bundles: Dict[str, M.Bundle], schema: Dict[str,
             rep.err("%s: bash -n %s: %s" % (where, rel, err.strip().splitlines()[0] if err.strip() else rc))
         for i, line in enumerate((read_text(full) or "").splitlines(), 1):
             s = line.strip()
-            if s.startswith("# rule:") and not re.match(r"^#\s*rule:\s*.+?\s+->\s+(allow|ask|deny|pass|defer)\s*:\s*.+$", s):
+            if not s.startswith("# rule:"):
+                continue
+            m = RULE_LINE_RE.match(s)
+            if not m:
                 rep.err("%s: %s:%d malformed rule comment (want '# rule: <pattern> -> <decision> : <reason>')" % (where, rel, i))
+            elif m.group("dec") in ("deny", "ask") and not ALTERNATIVE_RE.search(m.group("reason")):
+                rep.warn("%s: %s:%d guard-reasons: the %s reason %r does not say what to do instead; name the "
+                         "alternative (use / run / ask / see / mention ... instead)" % (where, rel, i, m.group("dec"), m.group("reason")))
+    lint_harness(b, rep)
     # templates
     used: Set[str] = set()
     leaves = set(C.schema_leaf_keys(schema))
@@ -165,6 +196,80 @@ def lint_bundle(b: M.Bundle, all_bundles: Dict[str, M.Bundle], schema: Dict[str,
             if not key_known(key, leaves, schema):
                 rep.err("%s: bundle.toml/permissions/mcp uses {{ %s }} which no schema key defines" % (where, key))
     return used
+
+
+def lint_harness(b: M.Bundle, rep: Report) -> None:
+    """``[harness]`` refs must resolve; pairing gaps are warnings (principle 6)."""
+    where = b.name
+    check_ids = {c.get("id") for c in b.doctor_checks}
+    for side, entries in (("guides", b.guides), ("sensors", b.sensors)):
+        for e in entries:
+            kind, ref = e.get("kind", ""), e.get("ref", "")
+            if kind == "doctor":
+                if ref == "doctor_checks" and not check_ids:
+                    rep.err("%s: [harness] sensor doctor_checks but the bundle has no doctor checks" % where)
+                elif ref != "doctor_checks" and ref not in check_ids:
+                    rep.err("%s: [harness] sensor doctor %r names no doctor check of the bundle" % (where, ref))
+            elif kind == "lint":
+                if ref not in LINT_RULES:
+                    rep.err("%s: [harness] sensor lint %r is not a lint rule (%s)" % (where, ref, ", ".join(sorted(LINT_RULES))))
+            elif ref and not os.path.exists(b.rel(ref)):
+                rep.err("%s: [harness] %s %s %s does not exist in the bundle" % (where, side[:-1], kind, ref))
+    status = b.pairing()
+    hint = ("pair each guide with a sensor that checks it (guard section, doctor check, test, lint rule) "
+            "and each sensor with the guide that tells the agent the rule up front")
+    if status == "undeclared" and b.origin == "public":
+        rep.warn("%s: guides-sensors: no [harness] section; declare the bundle's guides and sensors (%s)" % (where, hint))
+    elif status == "guides only":
+        rep.warn("%s: guides-sensors: [harness] has guides but no sensors (feedforward only); %s" % (where, hint))
+    elif status == "sensors only":
+        rep.warn("%s: guides-sensors: [harness] has sensors but no guides (feedback only); %s" % (where, hint))
+    elif status == "empty":
+        rep.warn("%s: guides-sensors: [harness] declares neither guides nor sensors; %s" % (where, hint))
+
+
+def shell_files(home: str) -> List[str]:
+    """The scripts the dependency rule scans (sorted, relative to ``home``)."""
+    import glob
+
+    out = set()
+    for pat in ("bin/*", "bootstrap", "bundles/**/*.sh", "providers/**/*.sh", "tools/gate/*.sh"):
+        for p in glob.glob(os.path.join(home, pat), recursive=True):
+            if not os.path.isfile(p):
+                continue
+            if not p.endswith(".sh"):
+                head = (read_text(p) or "")[:80]
+                if not re.match(r"^#!.*\b(ba)?sh\b", head):
+                    continue
+            out.add(os.path.relpath(p, home))
+    return sorted(out)
+
+
+def lint_dependencies(hub: Any, rep: Report) -> None:
+    from . import shell_scan
+
+    declared: Set[str] = set()
+    for b in hub.bundles.values():
+        declared |= set(b.requires_binaries)
+        declared |= {name for name, _t in b.bins()}
+    files = shell_files(hub.home)
+    texts = {f: read_text(os.path.join(hub.home, f)) or "" for f in files}
+    funcs: Set[str] = set()
+    for t in texts.values():
+        # guard sections are concatenated with the engine and skills source their libs:
+        # a function defined in any scanned script counts as defined everywhere
+        funcs |= shell_scan.function_names(t)
+    seen: Dict[str, List[str]] = {}
+    for f in files:
+        for line, word in shell_scan.commands(texts[f]):
+            if word in ALLOWED_BINARIES or word in declared or word in funcs:
+                continue
+            seen.setdefault(word, []).append("%s:%d" % (f, line))
+    for word in sorted(seen):
+        where = seen[word]
+        rep.warn("dependencies: %s invokes `%s`%s, which is neither on the lint allow-list nor declared by a bundle; "
+                 "use an allowed tool or python, or declare it in [requires.binaries] of the bundle that needs it"
+                 % (where[0], word, " (%d more)" % (len(where) - 1) if len(where) > 1 else ""))
 
 
 def run_lint(hub: Any) -> Report:
@@ -210,6 +315,7 @@ def run_lint(hub: Any) -> Report:
         for n in data.get("providers", []):
             if n not in hub.providers:
                 rep.err("profiles/%s.toml: unknown provider %s" % (prof, n))
+    lint_dependencies(hub, rep)
     gate = os.path.join(home, "tools", "gate", "private-ids.sh")
     if os.path.isfile(gate) and os.environ.get("HARNESS_LINT_SKIP_GATE") != "1":
         rc, out, err = run_argv(["bash", gate, "--ci"], timeout=300, cwd=home)

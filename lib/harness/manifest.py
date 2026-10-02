@@ -76,6 +76,7 @@ class Bundle:
         self.manual_steps: List[Dict[str, Any]] = data.get("manual_steps", [])
         self.doctor_checks: List[Dict[str, Any]] = data.get("doctor_checks", [])
         self.uninstall: Dict[str, Any] = data.get("uninstall", {})
+        self.harness: Dict[str, Any] = data.get("harness", {})
 
     @property
     def manifest_path(self) -> str:
@@ -168,6 +169,22 @@ class Bundle:
 
     def env(self) -> Dict[str, str]:
         return {k: v for k, v in sorted((self.provides.get("env") or {}).items())}
+
+    # -- [harness]: guides (feedforward) and sensors (feedback) -----------------
+    @property
+    def guides(self) -> List[Dict[str, Any]]:
+        return list(self.harness.get("guides") or [])
+
+    @property
+    def sensors(self) -> List[Dict[str, Any]]:
+        return list(self.harness.get("sensors") or [])
+
+    def pairing(self) -> str:
+        """``paired`` | ``guides only`` | ``sensors only`` | ``empty`` | ``undeclared``."""
+        if "harness" not in self.data:
+            return "undeclared"
+        g, s = bool(self.guides), bool(self.sensors)
+        return "paired" if g and s else "guides only" if g else "sensors only" if s else "empty"
 
 
 def _glob_match(rel: str, pattern: str) -> bool:

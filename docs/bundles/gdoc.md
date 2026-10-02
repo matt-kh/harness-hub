@@ -190,6 +190,22 @@ A Workspace admin: **admin.google.com → Security → Access and data control �
 | `gdoc-auth` | warn | skipped | [gdoc-login](#gdoc-login) |
 | `gdoc-modes` | warn | runs | `chmod 700 ~/.config/gdoc && chmod 600 ~/.config/gdoc/*.json` |
 
+## Guides and sensors
+
+Guides steer the agent before it acts; sensors detect at or after the action. Pairing: **paired**.
+
+| side | kind | ref | note |
+|---|---|---|---|
+| guide | rule | `rules/80-gdoc.md` | provenance-gated writes, drafts only for mail, no sharing |
+| guide | skill | `skills/gdoc` | the gdoc CLI and its round-trip editing workflow |
+| guide | permission | `permissions.toml` | read commands allowed, writes left to the guard |
+| sensor | guard | `guard.d/80-gdoc.sh` | GET-only api, provenance check before writes, ask on mark and mail send |
+| sensor | doctor | `doctor_checks` | CLI, OAuth client, auth and token file modes |
+| sensor | test | `guard.d/tests.sh` | guard rows with a stubbed gdoc |
+| sensor | test | `tests/run.sh` | this bundle's rows against core + gdoc only |
+
+**Not covered:** The gdoc CLI itself has no unit suite; its write paths are covered by the guard rows.
+
 ## Uninstall
 
 Kept on uninstall: `~/.config/gdoc/**`

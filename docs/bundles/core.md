@@ -145,6 +145,25 @@ Linux and WSL already ship bash 5.
 | `guard-hook` | fail | runs | `harness apply --provider claude` |
 | `guard-denies-credentials` | fail | runs | `harness apply --provider claude` |
 
+## Guides and sensors
+
+Guides steer the agent before it acts; sensors detect at or after the action. Pairing: **paired**.
+
+| side | kind | ref | note |
+|---|---|---|---|
+| guide | rule | `rules/00-conventions.md` | conventions and governance: PR-based, artefact ownership, secrets stay in their files |
+| guide | permission | `permissions.toml` | denies reads of credential files in the provider's own permission system |
+| guide | agent | `agents/Plan.md` | planning agent on the plan model; design only, never edits |
+| guide | agent | `agents/Auto.md` | execution agent on the execute model under auto mode |
+| sensor | guard | `guard.d/20-credentials.sh` | denies credential file reads and secret env dumps before they run |
+| sensor | guard | `guard.d/30-git.sh` | denies default-branch pushes; asks on force-push and destructive git |
+| sensor | doctor | `doctor_checks` | runtime prerequisites, and that the rendered guard parses and denies a credential read |
+| sensor | test | `guard.d/tests.sh` | guard rows for both sections, including bypass attempts |
+| sensor | test | `tests/run.sh` | full guard suite, helper drift, bash -n of every script |
+| sensor | review-agent | `agents/code-reviewer.md` | inferential review of a diff against the conventions |
+
+**Not covered:** The model policy in agents/Plan.md and agents/Auto.md is a guide only: no sensor checks which model a sub-agent ran on.
+
 ## Uninstall
 
 Kept on uninstall: _nothing_
