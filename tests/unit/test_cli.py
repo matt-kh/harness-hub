@@ -6,7 +6,7 @@ import os
 import unittest
 from contextlib import redirect_stdout
 
-from helpers import HubTestCase  # noqa: E402
+from helpers import REPO, HubTestCase  # noqa: E402
 
 from harness import cli
 
@@ -129,3 +129,20 @@ class UpgradeNotesTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class LauncherTest(unittest.TestCase):
+    """bin/harness runs its own checkout whatever HARNESS_HOME the shell inherited."""
+
+    def test_inherited_harness_home_is_ignored_with_a_note(self):
+        import subprocess
+        import tempfile
+
+        other = tempfile.mkdtemp(prefix="harness-other-")
+        env = dict(os.environ, HARNESS_HOME=other, HARNESS_SKIP_PREREQS="1")
+        proc = subprocess.run([os.path.join(REPO, "bin", "harness"), "catalog", "--json"],
+                              env=env, capture_output=True, text=True, cwd=other)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn("core/guard.d/20-credentials", proc.stdout)
+        self.assertIn("is another checkout", proc.stderr)
+        self.assertIn(REPO, proc.stderr)

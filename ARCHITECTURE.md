@@ -70,7 +70,8 @@ Layering, lowest to highest precedence:
 5. environment `HARNESS_<SECTION>_<KEY>` (e.g. `HARNESS_JIRA_URL`)
 
 Resolution: `--config PATH` > `$HARNESS_CONFIG` > `$HARNESS_HOME/local/harness.toml`.
-`HARNESS_HOME` defaults to the directory that contains `bin/harness`.
+`bin/harness` sets `HARNESS_HOME` to the checkout it lives in (an inherited value naming another
+checkout is ignored with a note); `python3 -m harness` and rendered scripts read the variable as is.
 
 Canonical keys (bundles declare what they need under `[requires.config]`; the compiled schema
 is the union):

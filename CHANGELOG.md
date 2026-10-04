@@ -85,6 +85,10 @@ prints every one between your applied version and the new one.
   "bundle.tags: is deprecated; use taxonomy.domain". Classify the bundle with `[taxonomy]`.
 
 ### Fixed
+- `bin/harness` runs the checkout it lives in: an inherited `HARNESS_HOME` naming another checkout
+  is ignored with a note instead of silently making a worktree's pre-commit hooks and `make`
+  targets lint and test the main checkout. `python3 -m harness` and rendered scripts still read
+  the variable; `--home DIR` remains the explicit override.
 - `harness test` drops git's repository-discovery variables (`GIT_DIR`, `GIT_WORK_TREE`,
   `GIT_INDEX_FILE`, …) from every suite's environment, and the pack unit tests drop them too.
   Git exports them to hooks, so the pre-push hook's unit run pointed the pack fixture
