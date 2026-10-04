@@ -270,8 +270,13 @@ def find_guard_engine(bundles: Sequence[Bundle]) -> Optional[Bundle]:
 
 def build_guard(engine: Bundle, bundles: Iterable[Bundle]) -> bytes:
     """engine.sh + sections (sorted) + engine-flush.sh, byte-identical to build.sh."""
+    return build_guard_from_sections(engine, guard_sections(bundles))
+
+
+def build_guard_from_sections(engine: Bundle, sections: Sequence[Tuple[str, str, str]]) -> bytes:
+    """engine.sh + the given ``guard_sections`` rows (in order) + engine-flush.sh."""
     parts: List[bytes] = [read_bytes(engine.rel("guard", "engine.sh")) or b""]
-    for base, bname, full in guard_sections(bundles):
+    for base, bname, full in sections:
         parts.append(("\n# ==== section %s (bundle %s) ====\n" % (base, bname)).encode("utf-8"))
         parts.append(read_bytes(full) or b"")
     parts.append(b"\n# ==== flush ====\n")

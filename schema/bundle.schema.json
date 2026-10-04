@@ -181,8 +181,8 @@
     "sensor": {
       "type": "object", "additionalProperties": false, "required": ["kind", "ref"],
       "properties": {
-        "kind": {"type": "string", "enum": ["guard", "doctor", "test", "lint", "review-agent"]},
-        "ref": {"type": "string", "minLength": 1, "description": "Bundle-relative path (guard.d/NN-x.sh, tests/run.sh, agents/x.md), a doctor_checks id, `doctor_checks` for all of them, or a lint rule name."},
+        "kind": {"type": "string", "enum": ["guard", "doctor", "test", "lint", "review-agent", "provider-feature"]},
+        "ref": {"type": "string", "minLength": 1, "description": "Bundle-relative path (guard.d/NN-x.sh, tests/run.sh, agents/x.md), a doctor_checks id, `doctor_checks` for all of them, a lint rule name, or for provider-feature `<provider>:<feature>` naming an entry of that provider's `features`."},
         "note": {"type": "string"}
       }
     },

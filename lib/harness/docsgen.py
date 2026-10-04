@@ -318,7 +318,7 @@ def vocabulary_body(bundles: Sequence[M.Bundle], providers: Sequence[M.Provider]
 
 
 GUIDE_KINDS = ("rule", "skill", "permission", "agent", "template")
-SENSOR_KINDS = ("guard", "doctor", "test", "lint", "review-agent")
+SENSOR_KINDS = ("guard", "doctor", "test", "lint", "review-agent", "provider-feature")
 
 
 def harness_body(b: M.Bundle) -> str:

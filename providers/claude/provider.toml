@@ -1,4 +1,8 @@
 # Claude Code (Anthropic). Verified locally against Claude Code 2.1.x (2026-09-30).
+# Product features a bundle may declare as `provider-feature` sensors ([harness] sensors,
+# ref "claude:<feature>"); harness lint checks refs against this list.
+features = ["auto-mode-classifier", "permission-prompt"]
+
 [provider]
 name = "claude"
 summary = "Claude Code CLI"

@@ -15,7 +15,7 @@ ENGINE = os.path.join(REPO, "lib", "harness")
 
 # python 3.9 has no sys.stdlib_module_names: the stdlib modules an engine may reasonably use
 FALLBACK_STDLIB = set("""
-__future__ abc argparse ast base64 binascii bisect calendar codecs collections configparser
+__future__ abc argparse ast base64 binascii bisect calendar codecs collections concurrent configparser
 contextlib copy csv dataclasses datetime decimal difflib email enum errno fcntl filecmp fnmatch
 fractions functools getpass glob gzip hashlib heapq hmac html http importlib inspect io ipaddress
 itertools json keyword locale logging lzma math mimetypes operator os pathlib pickle platform

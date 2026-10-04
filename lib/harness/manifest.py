@@ -273,6 +273,8 @@ class Provider:
         self.verified: str = p.get("verified", "")
         self.targets: Dict[str, Dict[str, Any]] = data.get("targets", {})
         self.capabilities: Dict[str, Any] = data.get("capabilities", {})
+        # product features a bundle's [harness] may name as `provider-feature` sensors
+        self.features: List[str] = list(data.get("features", []))
 
     def target(self, name: str) -> Optional[Dict[str, Any]]:
         t = self.targets.get(name)

@@ -291,8 +291,8 @@ def _controls(b: Any) -> Dict[str, str]:
             kind, ref = e.get("kind", ""), e.get("ref", "")
             if side == "sensor" and kind == "doctor":
                 keys = doctor_keys if ref == "doctor_checks" else ["doctor/%s" % ref]
-            elif kind in ("test", "lint"):
-                continue
+            elif kind in ("test", "lint", "provider-feature"):
+                continue  # not a component of the bundle
             elif kind == "permission" or (ref and ref == b.permissions_file()):
                 keys = ["permissions"]
             else:
@@ -307,7 +307,7 @@ def _controls(b: Any) -> Dict[str, str]:
 def _notes(b: Any) -> Dict[str, str]:
     out: Dict[str, str] = {}
     for e in b.guides + b.sensors:
-        if e.get("kind") in ("test", "lint", "doctor"):
+        if e.get("kind") in ("test", "lint", "doctor", "provider-feature"):
             continue
         k = component_id(e.get("ref", ""))
         if e.get("note") and k not in out:
