@@ -110,12 +110,12 @@ EOF
         while [ "$j" -lt "${#args[@]}" ]; do
           tok=${args[j]}; j=$((j+1))
           case "$tok" in
+            -F|--file|-C|-c|--reuse-message|--reedit-message|--fixup|--squash|--author|--date|-t|--template|--cleanup|--trailer) j=$((j+1)) ;;
             --message=*) msg=${tok#*=}; found=true ;;
             --message) msg=${args[j]:-}; found=true ;;
             --*) ;;
             -*m) msg=${args[j]:-}; found=true ;;           # -m, -am, -sm …
             -*m*) msg=${tok#*m}; found=true ;;             # -mMSG, -amMSG
-            -F|--file|-C|-c|--reuse-message|--reedit-message|--fixup|--squash|--author|--date|-t|--template|--cleanup|--trailer) j=$((j+1)) ;;
           esac
           $found && break
         done
@@ -142,6 +142,6 @@ EOF
         fi ;;
     esac
   done <<EOF
-$(printf '%s' "$flat" | grep -oE "$TW_GIT_RE[^;&|]*")
+$(printf '%s' "$flat" | grep -oE "${TW_GIT_RE}[^;&|]*")
 EOF
 fi
