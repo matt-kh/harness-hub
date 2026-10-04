@@ -41,6 +41,8 @@ instruction fragments (`rules/`), complete skills (`skills/`), sub-agents (`agen
 sections (`guard.d/`), permission lists, MCP servers, CLIs for `~/.local/bin`, installers,
 doctor checks and **manual steps**. `bundle.toml` declares all of it, plus the config keys and
 secrets it needs. Bundles depend on (`depends_on`), recommend, or conflict with each other.
+Each declares a `stability` (experimental, beta, stable, deprecated) whose criteria are in
+[CONTRIBUTING "Stability levels"](../CONTRIBUTING.md#stability-levels).
 
 `{{ section.key }}` is the only template syntax. It works in rules, agents, skill Markdown and
 manifest strings; scripts are copied verbatim and read their settings from the environment.
@@ -61,12 +63,14 @@ agent is a model plus a harness, and the harness has two kinds of control
 |---|---|---|
 | When | before the agent acts | at or after the action |
 | Purpose | raise the chance it is right the first time | detect and correct when it is not |
-| In a bundle | `rules/`, `skills/`, `permissions.toml`, `agents/`, templates | `guard.d/`, doctor checks, `guard.d/tests.sh` and `tests/`, lint rules, review agents |
+| In a bundle | `rules/`, `skills/`, `permissions.toml`, `agents/`, templates | `guard.d/`, doctor checks, `guard.d/tests.sh` and `tests/`, lint rules, review agents, provider features |
 | Declared as | `[harness] guides = [{kind, ref, note}]` | `[harness] sensors = [{kind, ref, note}]` |
 
 - **Computational** sensors are deterministic and cheap: the guard, `harness lint`, test rows,
   `harness doctor`. They run on every change or every command.
-- **Inferential** sensors are semantic and slower: the core bundle's code-reviewer agent.
+- **Inferential** sensors are semantic and slower: the core bundle's code-reviewer agent, and
+  features of the provider itself declared as `provider-feature` sensors
+  (`ref = "claude:auto-mode-classifier"`, checked against the provider's `features` list).
 - **The guard is a sensor that fires before the action.** It reads the shell command text,
   decides `allow | ask | deny | pass`, and its reason says what to do instead, so the message
   also steers the next attempt.

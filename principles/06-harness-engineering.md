@@ -104,4 +104,8 @@ Non-compliant:
 ## Open questions
 
 - Drift detection outside the change lifecycle (a scheduled `doctor` or `sync` report).
-- How to declare inferential sensors that live in provider features rather than the bundle.
+- Resolved: inferential sensors that live in provider features rather than the bundle are
+  declared as `{ kind = "provider-feature", ref = "<provider>:<feature>" }` in `[harness]`
+  sensors, checked by `harness lint` against the provider's `features` list
+  ([ARCHITECTURE §3](../ARCHITECTURE.md#3-bundles-bundlesname)); core declares
+  `claude:auto-mode-classifier`.

@@ -52,6 +52,30 @@ prints every one between your applied version and the new one.
 - Docs: [distribution](docs/distribution.md) (tiers, release artifact, versioning), the
   [self-host runbook](docs/runbooks/self-host.md) for org platform instances, a "Guides and
   sensors" section in concepts, a bundle-file path in getting started.
+- `harness lint` rules, each message saying what to do instead:
+  `env-provides` (error: a `[provides.env]` key without a prefix the guard's guard.env parser
+  accepts; the list is parsed from `bundles/core/guard/engine.sh`),
+  `rule-guard-pairing` (warning: a `rules/NN-x.md` without a `guard.d/NN-*.sh` or the reverse,
+  unless `coverage_note` names `x`), `permissions-vs-guard` (error: a `Bash(<prefix>:*)` allow
+  rule the guard denies or asks, or a deny rule it allows, found by running the guard built
+  from core + the bundle on `<prefix> x`), `agent-tools` (read-only agents with write tools or
+  a permissionMode warn — the permissionMode check moved here from `taxonomy`; a hard-coded
+  agent `model:` is an error), `skill-description` (warning: description length 60–1024 after
+  expansion with the CI config, a "Use when" trigger, and for workflow skills "NOT for" plus
+  `argument-hint`), `fragments-target` (error: fragments for a skill no related bundle
+  provides; warning: fragments in a public bundle), `profile-sane` (error: a profile that
+  names unknown or private bundles or providers, or does not resolve) and `stability`
+  (warning: a `stable` bundle without a test suite per skill/CLI).
+  `harness lint --skip RULE` turns one off (e.g. the slower `permissions-vs-guard`).
+- Sensor kind `provider-feature` in `[harness]` sensors, `ref = "<provider>:<feature>"`,
+  checked against a new optional top-level `features` list in `provider.toml`
+  (`claude`: `auto-mode-classifier`, `permission-prompt`; empty elsewhere). Core declares
+  `claude:auto-mode-classifier` ("reviews the Auto agent's actions"); the "Guides and
+  sensors" tables render it. No migration: `features` and the new sensor kind are optional
+  and no existing key changed.
+- `harness bootstrap` ends with "≈ N minutes of manual steps remain (harness steps
+  --pending)", summed from the pending steps' `minutes`; `tests/smoke/bootstrap.sh` prints
+  the elapsed seconds.
 
 ### Deprecated
 
@@ -66,6 +90,26 @@ prints every one between your applied version and the new one.
 - CONTRIBUTING: "Principles first", contributions as the steering loop, guides and sensors in
   the add-a-bundle checklist; PR template asks for the principle(s) served and the pairing
   check.
+- work-ticket's skill description shortened to 1024 characters or fewer (rule
+  `skill-description`), keeping its triggers, "NOT for" scope, repo-level hand-over and GitHub
+  mode. Coverage notes of core, github, gitlab, k8s and ticket-workflow name the topics whose
+  rule or guard section is unpaired by number (`rule-guard-pairing`).
+
+### Stability
+
+- `ticket-workflow` and `gdoc`: `stable` → `beta`; their coverage notes admit a missing test
+  suite (work-ticket, the gdoc CLI), which the
+  [stability criteria](CONTRIBUTING.md#stability-levels) require for `stable`.
+
+### Docs
+
+- CONTRIBUTING: "Stability levels" (experimental, beta, stable, deprecated), linked from
+  concepts "Bundles".
+- Principle 6 open questions: declaring inferential sensors that live in provider features is
+  resolved by the `provider-feature` sensor kind. Principle 2 open questions: the bootstrap
+  smoke's elapsed seconds and bootstrap's remaining-minutes line are the time-to-first-useful-
+  session proxies. Doc-only: the normative statements are unchanged, so `principles_version`
+  stays 1.
 
 ### Migration
 
