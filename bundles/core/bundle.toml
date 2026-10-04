@@ -247,4 +247,5 @@ sensors = [
   { kind = "test", ref = "guard.d/tests.sh", note = "guard rows for both sections, including bypass attempts" },
   { kind = "test", ref = "tests/run.sh", note = "full guard suite, helper drift, bash -n of every script" },
   { kind = "review-agent", ref = "agents/code-reviewer.md", note = "inferential review of a diff against the conventions" },
+  { kind = "lint", ref = "yields", note = "principle 8: every component carries its repository-level yield (repo_owns line, Step 0, baseline sentence); credentials never yield" },
 ]

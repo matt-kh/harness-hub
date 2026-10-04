@@ -15,3 +15,5 @@
   through `append`/`replace`. Read back after every write.
 - Secrets: `~/.config/gdoc/{client_secret,token}.json` hold the OAuth client and tokens —
   never read or print them; check auth with `gdoc auth status`.
+
+A repository's own instructions for the same action replace this block.

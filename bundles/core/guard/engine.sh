@@ -47,11 +47,32 @@
 # Git: pushing to a default branch (BASE_BRANCH_RE) denies — MR-based workflow.
 # Fail CLOSED if jq is missing: every Bash command is denied until jq is installed.
 #
+# ---- Repository-level declaration (principle 8: user-level by design) ----------------
+# This hook is a user-level baseline. Hooks stack and the most restrictive decision wins, so a
+# repository's own hook cannot lift a deny made here; instead the guard yields from inside. It
+# resolves the repository root from the hook's cwd (first ancestor holding .git, no git call;
+# not from the command's target: `git -C other push` is judged under the cwd's declaration) and
+# parses <root>/.harness.toml (a TOML subset, at most 16 KiB and 400 lines; never sourced, fail
+# open on anything else):
+#   [owns] domains = [...] / components = [...]   every section whose taxonomy id or domain is
+#                                   listed returns before deciding anything (pass: the provider and
+#                                   the repository's own harness decide)
+#   [overrides] NAME = "value"      only WORK_TICKET_* names declared by a `# repo-override:`
+#                                   comment in some section (docs/reference/hook-policy.md#repo-overrides)
+# Precedence per key: real environment (e.g. .claude/settings.json "env") > .harness.toml
+# [overrides] > guard.env > the default below. Never repo-settable (client/engine paths, the
+# credential regex; only the developer's own environment sets them): HARNESS_GUARD_ENV
+# HARNESS_CRED_EXTRA_RE GUARD_GIT GUARD_KUBECTL WORK_TICKET_JIRA_PY WORK_TICKET_GLAB
+# WORK_TICKET_GH WORK_TICKET_GDOC_PY, and every name matching *_PY, GUARD_*, HARNESS_*, *CRED*.
+# Never yields (the developer's own credentials are not the repository's to lift):
+# core/guard.d/20-credentials (REPO_NEVER_YIELDS below) and the rules a section places in a
+# `# never-yields:` prelude above its repo_owns line: commands that print stored credentials
+# (gh auth token, gh auth status --show-token, gh config get oauth_token, kubectl config view
+# --raw) and shell writes to .harness.toml (ask: the agent never authorises itself).
+#
 # ---- Override env vars (read at run time) ------------------------------------------
-# Repos opt in via their `.claude/settings.json` → "env": {...}. Hooks stack (a repo hook
-# cannot un-deny a user-level deny), so these envs are the only way a repo switches off a
-# user-level behaviour. Where a repo has its own equivalent skill/guard/convention, that
-# repo-level behaviour replaces the user-level one completely (never merged).
+# Set by the real environment (a repository's provider env, e.g. `.claude/settings.json` →
+# "env": {...}), by .harness.toml [overrides] (allow-listed names only) or by guard.env.
 #   WORK_TICKET_LABEL               Jira label granting promptless writes (agent-worked)
 #   WORK_TICKET_CREATED_LABEL       provenance label of work-ticket sub-tickets (agent-created)
 #   CREATE_TICKET_LABEL             provenance label of /create-ticket tickets (agent-drafted)
@@ -107,6 +128,7 @@ _gs="${BASH_SOURCE[0]:-$0}"
 case "$_gs" in */*) GUARD_DIR=${_gs%/*} ;; *) GUARD_DIR=. ;; esac
 GUARD_DIR=$(cd "$GUARD_DIR" 2>/dev/null && pwd) || GUARD_DIR=.
 _ge="${HARNESS_GUARD_ENV:-$GUARD_DIR/guard.env}"
+_genv_keys=""
 if [ -r "$_ge" ]; then
   while IFS= read -r _gl || [ -n "$_gl" ]; do
     case "$_gl" in ''|'#'*) continue ;; esac
@@ -120,9 +142,12 @@ if [ -r "$_ge" ]; then
       \"*\") _gv=${_gv#\"}; _gv=${_gv%\"} ;;
     esac
     export "$_gk=$_gv"
+    _genv_keys="$_genv_keys $_gk"
   done < "$_ge"
 fi
-unset _ge _gl _gk _gv _gq _gs
+REPO_GENV_KEYS="${_genv_keys:-} "     # keys guard.env set: a .harness.toml override may replace them
+GUARD_SELF="$GUARD_DIR/${_gs##*/}"    # this file (absolute): the `# repo-override:` allow-list is read from it
+unset _ge _gl _gk _gv _gq _gs _genv_keys
 
 input=$(cat)
 if command -v jq >/dev/null 2>&1; then
@@ -140,6 +165,177 @@ flat=$(printf '%s' "$cmd" | tr '\n' ' ' | tr -s ' ')
 cwd=$(printf '%s' "$input" | jq -r '.cwd // empty' 2>/dev/null)
 cwd_base=$(basename -- "${cwd:-/}")
 in_sub_worktree=false; printf '%s' "$cwd_base" | grep -qE '_[^/]*-sub-' && in_sub_worktree=true
+
+# ---- Repository-level declaration: <repo root>/.harness.toml (principle 8) ------------
+# See the header. Fail open everywhere: an unreadable, oversized (> 16 KiB or > 400 lines) or
+# malformed file (or line) changes nothing and prints one note on stderr per ignored line (at
+# most 5, then a count).
+REPO_NEVER_YIELDS='core/guard.d/20-credentials'
+REPO_OVERRIDE_DENY='HARNESS_GUARD_ENV HARNESS_CRED_EXTRA_RE GUARD_GIT GUARD_KUBECTL WORK_TICKET_JIRA_PY WORK_TICKET_GLAB WORK_TICKET_GH WORK_TICKET_GDOC_PY'
+REPO_ROOT=""; REPO_DECL=""; REPO_OWNS_IDS=""; REPO_OWNS_DOMAINS=""; REPO_SET=""; REPO_OVERRIDE_NAMES=""; REPO_NOTES=0
+# >>> hrepo
+hrepo_root() {  # [DIR] -> first ancestor holding .git (dir or worktree file); rc 1 outside a checkout
+  local d="${1:-$PWD}" n=0
+  case "$d" in /*) ;; *) return 1 ;; esac
+  while [ -n "$d" ] && [ "$n" -lt 64 ]; do
+    if [ -e "$d/.git" ]; then printf '%s\n' "$d"; return 0; fi
+    d=${d%/*}; n=$((n+1))
+  done
+  return 1
+}
+hrepo_file() {  # [DIR] -> <root>/.harness.toml; rc 1 when absent
+  local r; r=$(hrepo_root "${1:-}") || return 1
+  [ -f "$r/.harness.toml" ] && [ -r "$r/.harness.toml" ] || return 1
+  printf '%s\n' "$r/.harness.toml"
+}
+hrepo_trim_to() {  # VAR STR -> VAR = STR without surrounding whitespace (printf -v: no subshell per line)
+  local _hs="$2"
+  _hs="${_hs#"${_hs%%[![:space:]]*}"}"
+  printf -v "$1" '%s' "${_hs%"${_hs##*[![:space:]]}"}"
+}
+hrepo_unquote_to() {  # VAR STR -> VAR = x for "x" | 'x'; rc 1 on anything else (no escapes in the subset)
+  local _hv
+  case "$2" in
+    \"*\") _hv=${2#\"}; _hv=${_hv%\"}; case "$_hv" in *[\"\\]*) return 1 ;; esac ;;
+    \'*\') _hv=${2#\'}; _hv=${_hv%\'}; case "$_hv" in *\'*) return 1 ;; esac ;;
+    *) return 1 ;;
+  esac
+  printf -v "$1" '%s' "$_hv"
+}
+hrepo_get() {  # FILE SECTION KEY -> value(s), one per line; rc 1 when absent (first occurrence wins)
+  local f="$1" want="$2" key="$3" sec="" line k v item rest out="" n=0 found=1 nl='
+'
+  [ -f "$f" ] && [ -r "$f" ] || return 1
+  [ "$(($(wc -c < "$f")))" -le 16384 ] || return 1
+  while IFS= read -r line || [ -n "$line" ]; do
+    n=$((n+1)); [ "$n" -le 400 ] || return 1
+    hrepo_trim_to line "$line"
+    case "$line" in
+      ''|'#'*) continue ;;
+      '['*']') hrepo_trim_to sec "${line#\[}"; hrepo_trim_to sec "${sec%\]}"; continue ;;
+      '['*) sec=""; continue ;;
+    esac
+    [ "$found" = 1 ] && [ "$sec" = "$want" ] || continue
+    hrepo_trim_to k "${line%%=*}"
+    [ "$k" != "$line" ] && [ "$k" = "$key" ] || continue
+    hrepo_trim_to v "${line#*=}"
+    case "$v" in
+      '['*']')
+        rest=${v#\[}; rest=${rest%\]}
+        while [ -n "$rest" ]; do
+          item=${rest%%,*}
+          if [ "$item" = "$rest" ]; then rest=""; else rest=${rest#*,}; fi
+          hrepo_trim_to item "$item"; [ -n "$item" ] || continue
+          hrepo_unquote_to item "$item" || continue
+          out="$out$item$nl"
+        done ;;
+      *) [ "$want" != owns ] || continue          # [owns] keys are arrays only
+         hrepo_unquote_to v "$v" || continue; out="$v$nl" ;;
+    esac
+    found=0
+  done < "$f"
+  [ "$found" = 1 ] || printf '%s' "$out"
+  return $found
+}
+hrepo_owns() {  # ID DOMAIN [DIR] -> rc 0 when the repository declares the component or its domain
+  local f v nl='
+'
+  case "$1" in core/guard.d/20-credentials|core/permissions) return 1 ;; esac   # never yield
+  f=$(hrepo_file "${3:-}") || return 1
+  # no pipes: callers run under `set -o pipefail`, where an early `grep -q` exit is a SIGPIPE failure
+  v=$(hrepo_get "$f" owns components 2>/dev/null)
+  case "$nl$v$nl" in *"$nl$1$nl"*) return 0 ;; esac
+  [ -n "${2:-}" ] || return 1
+  v=$(hrepo_get "$f" owns domains 2>/dev/null)
+  case "$nl$v$nl" in *"$nl$2$nl"*) return 0 ;; esac
+  return 1
+}
+# <<< hrepo
+repo_note() {  # LINE WHY -> one stderr note per ignored line; at most 5 per run, then a count
+  REPO_NOTES=$((REPO_NOTES+1))
+  [ "$REPO_NOTES" -le 5 ] || return 0
+  echo "guard-bash(user): ${REPO_DECL:-.harness.toml}:$1 ignored ($2)" >&2
+}
+repo_override_names() {  # -> REPO_OVERRIDE_NAMES: every `# repo-override: NAME` of this guard, space-delimited
+  [ -z "$REPO_OVERRIDE_NAMES" ] || return 0
+  REPO_OVERRIDE_NAMES=" $(grep -oE '^# repo-override: [A-Z][A-Z0-9_]* ' "$GUARD_SELF" 2>/dev/null | awk '{print $3}' | sort -u | tr '\n' ' ')"
+}
+# Parse [owns] and [overrides] into locals first and apply them only after the whole file was
+# read: a file over 16 KiB or 400 lines is ignored as a whole. No subshell per line (the hook
+# has a time budget; a slow parse would time out and fail open). Overrides: allow-listed
+# WORK_TICKET_* names only, exported unless the real environment set them.
+repo_load_decl() {
+  local sec="" n=0 line k v item rest list seen=" " ids="" doms="" sets="" kv nl='
+'
+  [ -n "${cwd:-}" ] || return 0                       # no cwd in the hook input: no lookup
+  REPO_ROOT=$(hrepo_root "$cwd") || { REPO_ROOT=""; return 0; }
+  [ -f "$REPO_ROOT/.harness.toml" ] && [ -r "$REPO_ROOT/.harness.toml" ] || return 0
+  REPO_DECL="$REPO_ROOT/.harness.toml"
+  if [ "$(($(wc -c < "$REPO_DECL")))" -gt 16384 ]; then
+    echo "guard-bash(user): $REPO_DECL ignored (larger than 16 KiB; keep the declaration short)" >&2; REPO_DECL=""; return 0
+  fi
+  while IFS= read -r line || [ -n "$line" ]; do
+    n=$((n+1))
+    if [ "$n" -gt 400 ]; then
+      echo "guard-bash(user): $REPO_DECL ignored (more than 400 lines; keep the declaration short)" >&2; REPO_DECL=""; return 0
+    fi
+    hrepo_trim_to line "$line"
+    case "$line" in
+      ''|'#'*) continue ;;
+      '['*']') hrepo_trim_to sec "${line#\[}"; hrepo_trim_to sec "${sec%\]}"; continue ;;
+      '['*) repo_note "$n" "unterminated section header"; sec=""; continue ;;
+    esac
+    hrepo_trim_to k "${line%%=*}"; hrepo_trim_to v "${line#*=}"
+    if [ "$k" = "$line" ] || [ -z "$k" ]; then repo_note "$n" "not key = value"; continue; fi
+    case "$k" in *[!A-Za-z0-9_]*) repo_note "$n" "bad key"; continue ;; esac
+    case "$sec" in owns|overrides) ;; *) continue ;; esac
+    case "$seen" in *" $sec.$k "*) repo_note "$n" "duplicate key $k in [$sec]; the first one counts"; continue ;; esac
+    case "$sec" in
+      owns)
+        case "$v" in '['*']') ;; *) repo_note "$n" "$k must be a one-line array of strings (no inline comments)"; continue ;; esac
+        case "$k" in domains|components) ;; *) repo_note "$n" "unknown [owns] key $k (domains, components)"; continue ;; esac
+        rest=${v#\[}; rest=${rest%\]}; list=""
+        while [ -n "$rest" ]; do
+          item=${rest%%,*}
+          if [ "$item" = "$rest" ]; then rest=""; else rest=${rest#*,}; fi
+          hrepo_trim_to item "$item"; [ -n "$item" ] || continue
+          hrepo_unquote_to item "$item" || { repo_note "$n" "unquoted or escaped array item"; continue; }
+          case "$item" in ''|*[!A-Za-z0-9./_-]*) repo_note "$n" "bad id or domain '$item'"; continue ;; esac
+          list="$list $item"
+        done
+        seen="$seen$sec.$k "
+        if [ "$k" = domains ]; then doms="$doms$list"; else ids="$ids$list"; fi ;;
+      overrides)
+        hrepo_unquote_to v "$v" || { repo_note "$n" "$k must be a quoted string (no inline comments or escapes)"; continue; }
+        seen="$seen$sec.$k "
+        case " $REPO_OVERRIDE_DENY " in *" $k "*) repo_note "$n" "$k is settable only from your own environment, never from a repository"; continue ;; esac
+        case "$k" in *_PY|GUARD_*|HARNESS_*|*CRED*) repo_note "$n" "$k is settable only from your own environment, never from a repository"; continue ;; esac
+        case "$k" in WORK_TICKET_*) ;; *) repo_note "$n" "$k is not a repo override (only allow-listed WORK_TICKET_* names; see docs/reference/hook-policy.md#repo-overrides)"; continue ;; esac
+        repo_override_names
+        case "$REPO_OVERRIDE_NAMES" in *" $k "*) ;; *) repo_note "$n" "$k is not a repo override (see docs/reference/hook-policy.md#repo-overrides)"; continue ;; esac
+        sets="$sets$k=$v$nl" ;;
+    esac
+  done < "$REPO_DECL"
+  [ "$REPO_NOTES" -le 5 ] || echo "guard-bash(user): $REPO_DECL: $((REPO_NOTES-5)) more lines ignored (run 'harness repo' for the full list)" >&2
+  REPO_OWNS_IDS=$ids; REPO_OWNS_DOMAINS=$doms
+  # the real environment wins; a value that came from guard.env is replaced
+  while [ -n "$sets" ]; do
+    kv=${sets%%"$nl"*}; sets=${sets#*"$nl"}
+    k=${kv%%=*}; v=${kv#*=}
+    if [ -z "${!k+x}" ] || [ "${REPO_GENV_KEYS#* $k }" != "$REPO_GENV_KEYS" ]; then
+      export "$k=$v"; REPO_SET="$REPO_SET $k"
+    fi
+  done
+  return 0
+}
+repo_owns() {  # ID DOMAIN -> rc 0 when the repository declares the component or its domain (never credentials)
+  [ -n "$REPO_DECL" ] || return 1
+  case " $REPO_NEVER_YIELDS " in *" $1 "*) return 1 ;; esac
+  case "$REPO_OWNS_IDS " in *" $1 "*) return 0 ;; esac
+  case "$REPO_OWNS_DOMAINS " in *" $2 "*) return 0 ;; esac
+  return 1
+}
+repo_load_decl
 
 decide() {  # $1 = allow|ask|deny, $2 = reason
   jq -cn --arg d "$1" --arg reason "guard-bash(user): $2" \
@@ -221,7 +417,7 @@ sub_create_rules() {
   case "$2" in *-sub-*) ;; *) return 0 ;; esac
   [ -n "$3" ] || deny "sub $1 ($2) without a target/base branch — sub ${1}s target the ticket branch (or their blocker's sub branch), never the base"
   case "$3" in *'$'*) defer "sub $1 ($2) with a \$VAR target — use a literal branch name"; return 0 ;; esac
-  if printf '%s' "$3" | grep -qE "$BASE_BRANCH_RE"; then
+  if printf '%s' "$3" | grep -qE -e "$BASE_BRANCH_RE"; then
     deny "sub $1 ($2) must not target $3 — target the ticket branch (stacked delivery; humans merge bottom-up)"
   fi
   return 0
@@ -286,7 +482,7 @@ gate_writes() {
       # retargeting a -sub- MR/PR to master|main is always wrong (auto-retarget misfire or a mistake)
       if [ -n "$rtgt" ] && printf '%s' "$msrc" | grep -q -- '-sub-'; then
         case "$rtgt" in *'$'*) defer "retarget of sub $kind $sig$r to a \$VAR — use a literal branch name"; continue ;; esac
-        if printf '%s' "$rtgt" | grep -qE "$BASE_BRANCH_RE"; then
+        if printf '%s' "$rtgt" | grep -qE -e "$BASE_BRANCH_RE"; then
           deny "retarget of sub $kind $sig$r ($msrc) to $rtgt refused — sub MRs/PRs target the ticket branch; retarget there instead"
         fi
       fi

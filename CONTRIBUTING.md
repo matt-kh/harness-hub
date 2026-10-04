@@ -23,6 +23,7 @@ loop. Agents: start with [AGENTS.md](AGENTS.md).
   | [5 Distributed as a git repo](principles/05-distributed-as-a-git-repo.md) | `tests/smoke/pack.sh` |
   | [6 Harness engineering](principles/06-harness-engineering.md) | `harness lint` guides/sensors pairing and taxonomy checks, guard test rows |
   | [7 Extensible core](principles/07-extensible-core.md) | PR template, CHANGELOG "Principles" entries |
+  | [8 User-level by design](principles/08-user-level-by-design.md) | `harness lint` `yields` rule, guard rows for `.harness.toml` yield, `harness repo` unit test |
 
 ## Contributions are the steering loop
 
@@ -100,12 +101,60 @@ Read [ARCHITECTURE §3](ARCHITECTURE.md#3-bundles-bundlesname) first. Checklist:
       convention there; existing ones are never renamed. `harness lint` shows no
       `taxonomy:` warning and `bin/harness docs generate` has refreshed the
       [catalog](docs/catalog.md).
+- [ ] Every rule-bearing guard section starts with `repo_owns <id> <domain> && return 0` and
+      has a test row showing it passes when the repository owns its domain; override names
+      it honours carry a `# repo-override:` comment and start with `WORK_TICKET_`. Only plain
+      shared assignments and a `# never-yields:` prelude (rules for commands that print a
+      stored credential, with their `# rule:` comment inside it and a row proving they still
+      deny when the domain is owned) may precede the line
+      ([principle 8](principles/08-user-level-by-design.md)).
+- [ ] Every skill's Step 0 carries the standard repository-level paragraph
+      ([standard texts](#standard-texts)); every agent description ends with the standard
+      baseline sentence; rules end with the repository sentence.
 - [ ] New binaries the bundle's scripts call are declared in `[requires.binaries]`; no
       package-manager install steps ([principle 1](principles/01-lightweight.md)).
 - [ ] `docs/bundles/<name>.md` exists with a hand-written header, a **Troubleshooting**
       section, and an empty generated region; run `bin/harness docs generate`.
 - [ ] `[uninstall].keeps` lists every path the user's tools own (credentials, caches).
 - [ ] README bundle table and CHANGELOG updated.
+
+### Standard texts
+
+Copy these verbatim ([principle 8](principles/08-user-level-by-design.md)); `harness lint`
+(rule `yields`) looks for them.
+
+**Skills** — the Step 0 paragraph, near the top of `SKILL.md`, with the skill's id and its
+bundle's `[taxonomy] domain` filled in:
+
+````markdown
+**Step 0 — repository-level harness (principle 8).** This is a user-level skill. Read the
+repository's declaration first:
+
+```bash
+harness repo owns <bundle>/skills/<name>   # rc 0 = owned (prints why) → stop; rc 1 = carry on
+```
+
+If it is owned (by id or by its domain `<domain>`), or the repository ships its own skill for
+the same workflow, this skill yields: say so in one line, name the repository-level skill or
+convention, and stop — nothing below runs and nothing is merged. If the repository owns the
+*workflow* but not the client, stay available as the plain client underneath it. Never edit
+the repository's harness to fit this skill. `harness repo` explains everything the
+repository declares and any `.claude/skills|agents` name collisions.
+````
+
+**Agents** — the last sentence of the front-matter `description` (after any model-pinning
+note):
+
+```text
+(User-level baseline, principle 8 — a repository-level agent of the same name replaces it.)
+```
+
+**Rules** — the closing sentence of every rule file except the core conventions (which carry
+the full precedence note):
+
+```text
+A repository's own instructions for the same action replace this block.
+```
 
 An organisation's own bundles can also live in its **org platform instance** (a private fork
 or mirror) under `bundles/<org>-<topic>/`; see the

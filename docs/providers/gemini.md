@@ -36,8 +36,10 @@ The shim translates the envelopes ([ARCHITECTURE §5](../../ARCHITECTURE.md#5-gu
 - Setting `ask_as = "allow"` trades safety for convenience: every command the guard would
   have asked about then runs without a prompt. Keep the default unless you understand the list
   in the [hook policy](../reference/hook-policy.md).
-- Gemini reads `GEMINI.md` hierarchically (home, then project directories); repo-level files
-  still take precedence as for every provider.
+- Gemini reads `GEMINI.md` hierarchically (home, then project directories). Whether
+  project settings stack hooks or pass environment to them is not covered by the hub; a
+  repository's `.harness.toml` works regardless, because the guard reads it from the hook's
+  cwd ([repository-level harnesses](../repo-level.md#other-providers)).
 
 ## Troubleshooting
 

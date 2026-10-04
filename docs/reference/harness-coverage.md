@@ -18,7 +18,7 @@ cover. Generated from `bundles/*/bundle.toml`; do not edit inside the generated 
 <!-- generated:begin source=bundles/*/bundle.toml#harness -->
 | bundle | guides | guide kinds | sensors | sensor kinds | pairing | not covered |
 |---|---|---|---|---|---|---|
-| [core](../bundles/core.md#guides-and-sensors) | 4 | rule, permission, agent | 6 | guard, doctor, test, review-agent | paired | The model policy in agents/Plan.md and agents/Auto.md is a guide only: no sensor checks which model a sub-agent ran on. |
+| [core](../bundles/core.md#guides-and-sensors) | 4 | rule, permission, agent | 7 | guard, doctor, test, lint, review-agent | paired | The model policy in agents/Plan.md and agents/Auto.md is a guide only: no sensor checks which model a sub-agent ran on. |
 | [gdoc](../bundles/gdoc.md#guides-and-sensors) | 3 | rule, skill, permission | 4 | guard, doctor, test | paired | The gdoc CLI itself has no unit suite; its write paths are covered by the guard rows. |
 | [github](../bundles/github.md#guides-and-sensors) | 2 | rule, permission | 5 | guard, doctor, test | paired | Forks: the guard cannot read labels on a fork, so edits there ask instead of being label-gated. |
 | [gitlab](../bundles/gitlab.md#guides-and-sensors) | 2 | rule, permission | 5 | guard, doctor, test | paired | MR title and description conventions are guides only; nothing checks them before the MR is created. |

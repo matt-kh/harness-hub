@@ -17,6 +17,8 @@ decide() {
     '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:$d,permissionDecisionReason:$r}}'
   exit 0
 }
+# repository-level declaration (principle 8): the fixture repository never owns a section
+repo_owns() { return 1; }
 allow() { decide allow "$1"; }
 ask()   { decide ask "$1"; }
 deny()  { decide deny "$1"; }

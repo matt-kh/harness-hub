@@ -47,6 +47,54 @@ class RegionTest(unittest.TestCase):
         self.assertIn("### harness plan", G.cli_body())
 
 
+class RepoRegionsTest(unittest.TestCase):
+    """Principle 8: the repo-overrides table and the "what yields" region, from the repo's bundles."""
+
+    def test_regions(self):
+        pages = G.expected(REPO)
+        self.assertEqual([src for src, _b, _h in pages["docs/reference/hook-policy.md"]],
+                         ["bundles/*/guard.d", "bundles/*/guard.d#repo-overrides"])
+        (src, body, _h), = pages["docs/repo-level.md"]
+        self.assertEqual(src, "lib/harness/taxonomy.py#repo")
+        self.assertIn("| `core/guard.d/30-git` | guard | scm | core |", body)
+        self.assertNotIn("| `core/guard.d/20-credentials` |", body)
+        self.assertNotIn("`k8s/guard.d/10-k8s`", body)
+        self.assertIn("Never yield, whatever the file says: `core/guard.d/20-credentials`, `core/permissions`", body)
+        self.assertIn("| `delivery` | — | `ticket-workflow/skills/create-ticket`, `ticket-workflow/skills/work-ticket` |",
+                      body)
+        overrides = dict((s, b) for s, b, _h in pages["docs/reference/hook-policy.md"])["bundles/*/guard.d#repo-overrides"]
+        self.assertIn("| `WORK_TICKET_ALLOW_TRANSITION` | (empty) |", overrides)
+        self.assertIn("`github/guard.d/60-github`, `jira/guard.d/70-jira`", overrides)
+        self.assertIn("`guard.env` ← `core.default_branch_re`", overrides)
+        self.assertIn("`HARNESS_CRED_EXTRA_RE`", overrides)
+        self.assertEqual(G.repo_overrides_body(G.public_bundles(REPO)), overrides)  # stable
+
+    def test_hook_policy_yields_column(self):
+        """Never-yields preludes and the credential section are marked; other rules name their domain."""
+        pages = G.expected(REPO)
+        hook = dict((s, b) for s, b, _h in pages["docs/reference/hook-policy.md"])["bundles/*/guard.d"]
+        self.assertIn("| section | bundle | pattern | decision | reason | yields |", hook)
+        rows = {ln.split(" | ")[2]: ln.rsplit(" | ", 1)[-1].rstrip(" |") for ln in hook.splitlines()
+                if ln.startswith("| ") and ln.count(" | ") >= 5}
+        self.assertEqual(rows["`kubectl config view --raw`"], "never")
+        self.assertEqual(rows["`gh auth token \\| gh auth status --show-token \\| gh config get oauth_token`"], "never")
+        self.assertEqual(rows["`<reader> .env / .env.*`"], "never")
+        self.assertEqual(rows["`gh pr create`"], "owns scm")
+        self.assertEqual(rows["`kubectl create token`"], "owns kubernetes")
+        self.assertEqual(len([k for k, v in rows.items() if k.startswith("`shell write to .harness.toml")
+                              and v == "never"]), 1)
+
+    def test_yields_column(self):
+        pages = G.expected(REPO)
+        cat = dict((s, b) for s, b, _h in pages["docs/catalog.md"])["bundles/*/bundle.toml#catalog"]
+        self.assertIn("| id | control | domain | function | posture | model | yields | summary |", cat)
+        self.assertIn("| id | control | domain | decisions | yields | note |", cat)
+        self.assertRegex(cat, r"\| \[`core/guard.d/20-credentials`\]\(reference/hook-policy.md\) \|[^\n]*\| never \|")
+        voc = pages["docs/reference/taxonomy.md"][0][1]
+        self.assertIn("### yields", voc)
+        self.assertIn("| kind | id | control | domain | function | posture | model | decisions | yields |", voc)
+
+
 class GenerateCheckTest(HubTestCase):
     def setUp(self):
         super().setUp()

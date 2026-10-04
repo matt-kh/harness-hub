@@ -9,6 +9,9 @@
 # rule: jira set|comment|upload|label|transition KEY on agent-labelled tickets -> allow : promptless
 # rule: jira transition KEY on a human ticket -> deny : ticket state is human-only (ask under WORK_TICKET_ALLOW_TRANSITION=1)
 # rule: jira writes to human tickets -> ask : need an explicit user request; ask the user, or label the ticket agent-worked first
+# repo-override: WORK_TICKET_ALLOW_TRANSITION = "" -> =1: a state change (transition, close, reopen) on a purely human ticket or issue asks instead of denying
+# repo-override: WORK_TICKET_LABELED_DECISION = "allow" -> allow|ask: the decision for writes to agent-labelled tickets, issues, MRs and PRs
+repo_owns jira/guard.d/70-jira tracker && return 0   # principle 8: the repository's .harness.toml owns this section or domain tracker
 # ---- Jira writes: governance gate (work-ticket / create-ticket skills) -----------
 # create (with provenance label) and `label KEY add agent-*`: promptless.
 # set/comment/upload/label/link/transition on tickets carrying ANY agent-* label: promptless.

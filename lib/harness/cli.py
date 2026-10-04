@@ -37,6 +37,7 @@ COMMANDS = [
     ("test", "run the engine, guard, bundle, skill and provider test suites"),
     ("lint", "validate manifests, cross-references, templates, private identifiers"),
     ("docs", "generate | check the generated regions under docs/"),
+    ("repo", "show what the current repository's .harness.toml declares and which user-level components yield here"),
     ("steps", "list manual steps (--pending: only those whose verify fails)"),
     ("version", "print hub, applied and runtime versions"),
 ]
@@ -205,6 +206,15 @@ def build_parser() -> argparse.ArgumentParser:
     p = add("docs")
     p.add_argument("action", choices=["generate", "check"])
 
+    p = add("repo")
+    p.add_argument("action", nargs="?", default="show", metavar="show|owns|init",
+                   help="show (default): declaration, problems, what yields, collisions, overrides; "
+                        "owns ID: exit 0 when the repository owns ID (prints why), 1 when not, 2 for an unknown id; "
+                        "init: print a commented .harness.toml")
+    p.add_argument("args", nargs="*", metavar="ID|DIR", help="owns: the component id, then an optional DIR; "
+                   "show/init: the directory to look from (default: the current one)")
+    p.add_argument("--write", action="store_true", help="init: create <repo root>/.harness.toml (never overwrites)")
+
     p = add("steps")
     p.add_argument("--bundle", action="append", metavar="NAME")
     p.add_argument("--pending", action="store_true", help="only steps whose verify command fails")
@@ -319,6 +329,10 @@ def dispatch(ctx: Ctx, ns: argparse.Namespace, parser: argparse.ArgumentParser) 
         from . import docsgen
 
         return docsgen.run(ctx, ns.action)
+    if cmd == "repo":
+        from . import repo
+
+        return repo.run(ctx, ns.action, ns.args, write=ns.write)
     if cmd == "init":
         from . import init
 

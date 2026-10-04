@@ -17,8 +17,9 @@ Needs **one tracker** (`jira` or `github`) and **one SCM** (`gitlab` or `github`
 refuses to resolve otherwise (`any_of`). Provider-specific commands come in as skill
 fragments from those bundles.
 
-If a repository ships its own ticket workflow skill, `work-ticket` runs only its read-only
-preflight and hands over completely ([precedence](../concepts.md#precedence)).
+If a repository owns the ticket workflow (`.harness.toml` or its own skill), `work-ticket`
+runs only its read-only preflight and hands over completely
+([repository-level harnesses](../repo-level.md)).
 
 ## Troubleshooting
 
@@ -28,7 +29,7 @@ preflight and hands over completely ([precedence](../concepts.md#precedence)).
 | Preflight stops at the label gate | the label could not be added or read back (permissions, or a fork you cannot label) | fix permissions; in fork flow the triage goes into the PR body instead |
 | The agent asks before every comment on the ticket | the ticket is human-only (no `agent-*` label yet) | expected until the label gate passes; answer once |
 | Stacked MR parts have no CI | pipelines/workflows filter on target branch | see the gitlab/github bundle troubleshooting tables |
-| Branch names contain the ticket key in one repo | that repo sets `WORK_TICKET_KEY_IN_BRANCH=1` or has its own workflow | expected: repo-level conventions win |
+| Branch names contain the ticket key in one repo | that repo declares `WORK_TICKET_KEY_IN_BRANCH` or owns `delivery` | expected: repository-level conventions win |
 | Draft PRs unavailable | private repo on GitHub Free | the skill uses a `[WIP]` title plus the `agent-wip` label |
 
 <!-- generated:begin source=bundles/ticket-workflow/bundle.toml -->
@@ -59,16 +60,16 @@ Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md
 
 **Skills**
 
-- `ticket-workflow/skills/create-ticket` — control: guide · function: workflow · posture: label-gated · model: execute
-- `ticket-workflow/skills/work-ticket` — control: guide · function: workflow · posture: label-gated · model: execute
+- `ticket-workflow/skills/create-ticket` — control: guide · function: workflow · posture: label-gated · model: execute · yields: declaration
+- `ticket-workflow/skills/work-ticket` — control: guide · function: workflow · posture: label-gated · model: execute · yields: declaration
 
 **Rules**
 
-- `ticket-workflow/rules/75-ticket-workflow` — control: guide · function: govern
+- `ticket-workflow/rules/75-ticket-workflow` — control: guide · function: govern · yields: text
 
 **Permission lists**
 
-- `ticket-workflow/permissions` — function: govern · decisions: empty (no rules)
+- `ticket-workflow/permissions` — function: govern · decisions: empty (no rules) · yields: config
 
 **Doctor checks** (function: setup · posture: read-only; table below): `ticket-workflow/doctor/ticket-workflow-scm`, `ticket-workflow/doctor/ticket-workflow-skills`, `ticket-workflow/doctor/ticket-workflow-tracker`
 
@@ -96,21 +97,26 @@ _none_
 
 <a id="repo-overrides"></a>
 
-### repo-overrides — Know the per-repo opt-outs (read once)
+### repo-overrides — Know how a repository yields and overrides (read once)
 
 *once per org · needs nothing but a terminal · ~2 min*
 
-**Why:** Repos with their own ticket workflow replace these skills wholesale; a few guard behaviours can be switched off per repo, never globally.
+**Why:** The hub is a user-level baseline (principle 8): a repository that owns its ticket workflow replaces these skills wholesale, and a few guard behaviours can be switched per repository, never globally.
 
 **How:**
 
-In a repo's `.claude/settings.json` → `"env"`:
-- `WORK_TICKET_ALLOW_TRANSITION=1` — `jira transition` / `gh issue close|reopen` on a human
-  ticket asks instead of denying (repos whose own workflow moves tickets).
-- `WORK_TICKET_KEY_IN_BRANCH=1` — the repo puts ticket keys in branch names (declaration only).
-- `WORK_TICKET_ALLOW_DEFAULT_PUSH_RE=<regex on the repo top level>` — a default-branch push
-  asks instead of denying (personal repos).
-A repo-level skill such as `work-jira-ticket` is detected at preflight and takes over.
+In the repository's `.harness.toml` (provider-neutral, committed; `harness repo` shows the effect):
+- `[owns] domains = ["delivery"]` — this repository runs its own ticket → MR/PR workflow;
+  `/work-ticket` and `/create-ticket` stop after their read-only preflight and hand over.
+- `[overrides] WORK_TICKET_ALLOW_TRANSITION = "1"` — a transition / close / reopen on a
+  human ticket asks instead of denying.
+- `[overrides] WORK_TICKET_KEY_IN_BRANCH = "1"` — the repository puts ticket keys in branch
+  names (declaration only).
+- `[overrides] WORK_TICKET_ALLOW_DEFAULT_PUSH_RE = "<regex>"` — a default-branch push asks
+  instead of denying (personal repositories).
+A provider `env` override (Claude Code: `.claude/settings.json` → `"env"`) of the same name
+wins per key. A repository workflow skill is also detected at preflight by its description.
+Full list and the credential exemption: docs/repo-level.md.
 
 **Verify:** `true` (exit 0)
 

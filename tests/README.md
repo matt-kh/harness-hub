@@ -3,7 +3,7 @@
 | path | what | run |
 |---|---|---|
 | `unit/test_*.py` | engine unit tests (stdlib `unittest`, python 3.9+), each in a throw-away `$HOME` against a copy of `fixtures/bundles` | `bin/harness test unit` or `PYTHONPATH=lib python3 -m unittest discover -s tests/unit` |
-| `fixtures/bundles/{core,alpha,beta}` | minimal bundles exercising every manifest feature: depends_on, any_of, conflicts_with, recommends, deprecated `hook_rules`, skill fragments, MCP `env_files`, bin links, a tiny guard engine + sections | used by the unit tests (`HARNESS_BUNDLES_ROOT`) |
+| `fixtures/bundles/{core,alpha,beta}` | minimal bundles exercising every manifest feature: depends_on, any_of, conflicts_with, recommends, deprecated `hook_rules`, skill fragments, MCP `env_files`, bin links, a tiny guard engine (with a `repo_owns` stub that never yields) + sections | used by the unit tests (`HARNESS_BUNDLES_ROOT`) |
 | `fixtures/manifests/*.bundle.toml` | the two worked examples from the bundle design, validated against `schema/bundle.schema.json` | `unit/test_schema.py` |
 | `fixtures/harness.fixture.toml` | config for the fixture bundles | unit tests |
 | `fixtures/harness.ci.toml` | public-placeholder config for CI and the smoke tests | `smoke/*.sh` |
@@ -12,7 +12,8 @@
 | `smoke/render-determinism.sh` | two renders of every provider are byte-identical | `bin/harness test smoke` |
 | `smoke/pack.sh` | distribution: snapshot the working tree into a temp repo, `harness pack`, `harness verify` (and a tampered `SHA256SUMS` fails), a dirty tree is refused, `bootstrap --from <bundle>` into a temp HOME, the installed hub's `doctor --offline` rc 0 | `bin/harness test smoke` |
 | `unit/test_pack.py`, `unit/test_deps.py`, `unit/test_harness_section.py` | pack/verify/`bootstrap --from`/offline `upgrade --to`; stdlib-only imports and the shell binary scanner; `[harness]` schema, lint pairing and guard-reason checks, generated coverage docs | `bin/harness test unit` |
-| `unit/test_taxonomy.py` | component taxonomy: schema enums vs `taxonomy.FACETS`, ids, classification and inheritance, every `taxonomy` lint message, the repo's bundles classified, catalog and taxonomy docs | `bin/harness test unit` |
+| `unit/test_taxonomy.py` | component taxonomy: schema enums vs `taxonomy.FACETS`, ids, classification and inheritance, every `taxonomy` lint message, the repo's bundles classified, catalog and taxonomy docs; the derived `yields` facet, every `yields` lint message, engine/helper never-list and deny-list equal to the taxonomy, `schema/repo.schema.json` domains | `bin/harness test unit` |
+| `unit/test_repo.py` | principle 8: the `.harness.toml` subset parser vs full TOML, repository root (incl. a worktree's `.git` file), yielding by id/domain, the never-list, override precedence (environment > provider env > `.harness.toml` > `guard.env` > default), name collisions, `disableAllHooks`, `harness repo` show/`--json`/owns/init | `bin/harness test unit` |
 
 `bin/harness test` also discovers `bundles/core/guard/tests/run.sh` (with `GUARD_BASH` set to a
 guard concatenated from every bundle), `bundles/*/tests/run.sh`,

@@ -13,3 +13,5 @@
 - Forks/upstream: the agent cannot label there, so edits ask and delivery is a single PR.
 - Secret: `~/.config/gh/hosts.yml` holds the token — never read or print it; check auth with
   `gh auth status`.
+
+A repository's own instructions for the same action replace this block.

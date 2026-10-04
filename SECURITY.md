@@ -67,6 +67,31 @@ to behave, and you should run them with their strictest approval setting.
 - **Server-side settings.** Branch protection, required reviews and secret scanning on your
   SCM are the real enforcement; the guard is the only protection only where the plan offers
   none (for example private repos on GitHub Free).
+- **Repositories that declare their own harness.** A repository's `.harness.toml` is
+  repository content the guard reads from the hook's working directory — the agent's cwd, not
+  the command's target: `git -C ../other push` is judged under the cwd's declaration
+  ([repository-level harnesses](docs/repo-level.md)). It can only loosen rules that do not
+  protect the developer's own credentials: skip every rule of the guard sections whose domain
+  or id it owns — including the human-only merge and review asks (`scm`), the Secret-value and
+  kubeconfig-mutation denies (`kubernetes`) and the transition and closing-keyword denies
+  (`tracker`) — and set the allow-listed `WORK_TICKET_*` overrides in the
+  [hook policy](docs/reference/hook-policy.md#repo-overrides). It never lifts:
+  - the credential-file denies: `core/guard.d/20-credentials` (shell reads of the kubeconfig,
+    `~/.config/{gh,glab-cli,jira,gdoc}`, `~/.aws`, `~/.ssh`, `.env*`, agent credential files,
+    secret environment dumps) and `core/permissions` (the matching `Read(...)` denies);
+  - the commands that print a stored credential: `gh auth token`,
+    `gh auth status --show-token`, `gh config get oauth_token`, `kubectl config view --raw`
+    (the `# never-yields:` preludes of `github/guard.d/60-github` and `k8s/guard.d/25-k8s-rules`);
+  - the asks on writing `.harness.toml` itself: `Write`/`Edit` of `**/.harness.toml`
+    (`core/permissions`) and shell writes to it (`>`, `tee`, `cp`, `mv`, `sed -i`,
+    `harness repo init --write`; the prelude of `core/guard.d/30-git`). The declaration lifts
+    user-level rules, so an agent that wrote it would authorise itself; a human reviews and
+    commits it.
+
+  Client paths and engine or credential settings (`HARNESS_GUARD_ENV`, `HARNESS_CRED_EXTRA_RE`,
+  every `*_PY`, `GUARD_*`, `HARNESS_*` and `*CRED*` name) are ignored when they appear in the
+  file. Review a cloned repository's `.harness.toml` like any other committed agent
+  configuration; `harness repo` shows its effect.
 
 ## Where secrets live
 

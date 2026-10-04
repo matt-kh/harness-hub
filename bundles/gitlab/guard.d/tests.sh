@@ -56,3 +56,17 @@ t  ask   'glab mr create -s feat-x -b master --title x -y && glab mr update 200 
 # ---- harness parameters: ticket example in reasons (core.ticket_example)
 tr "e\.g\. 'PROJ-123 fix parser'"                           'git commit -m "Closes LBL-1 parser"'
 HARNESS_TICKET_EXAMPLE=ABC-9 tr "e\.g\. 'ABC-9 fix parser'" 'git commit -m "Closes LBL-1 parser"'
+# ---- repository-level declaration: .harness.toml (principle 8) ----------------------
+decl '[overrides]' 'WORK_TICKET_LABELED_DECISION = "ask"'
+r ask   'glab mr note 100 -m "hi"'
+WORK_TICKET_LABELED_DECISION=allow r allow 'glab mr note 100 -m "hi"'   # the real environment wins
+decl '[overrides]' 'WORK_TICKET_GLAB = "/bin/true"'         # bypass: client paths are never repo-settable
+r ask   'glab mr note 200 -m "hi"'
+decl '[owns]' 'domains = ["scm"]'
+r pass  'glab mr merge 100'
+r pass  'glab mr note 200 -m "hi"'
+r deny  'git commit -m "Closes LBL-1 parser"'                 # 40-gitlab-closing is tracker: unchanged
+decl '[owns]' 'domains = ["tracker"]'
+r pass  'git commit -m "Closes LBL-1 parser"'
+r ask   'glab mr merge 100'
+decl
