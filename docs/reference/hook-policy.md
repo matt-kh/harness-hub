@@ -42,12 +42,19 @@ an ask prompt, `ask` is mapped by `[providers.<name>].ask_as`. Model and rationa
 | 50-gitlab.sh | gitlab | `glab mr merge\|approve\|revoke\|delete, issue/release/repo/label mutations` | ask | team-visible, humans merge; ask the user instead of merging or approving |
 | 50-gitlab.sh | gitlab | `glab label create -n agent-*` | allow | governance label; other labels ask |
 | 50-gitlab.sh | gitlab | `glab mr create` | allow | creates are ungated (a -sub- source without target / with a base target -> deny) |
+| 50-gitlab.sh | gitlab | `glab mr create -f\|--fill` | ask | generated text may carry a closing keyword or a key-less title; pass --title and --description-file instead |
+| 50-gitlab.sh | gitlab | `glab mr create --related-issue` | ask | links (and may close) a GitLab issue; mention the key in the description instead |
+| 50-gitlab.sh | gitlab | `glab mr create -t TITLE not matching HARNESS_GITLAB_MR_TITLE_RE` | ask | MR titles start with the ticket key; use a title like 'PROJ-123 fix parser' instead, or set gitlab.mr_title_re (empty disables) |
+| 50-gitlab.sh | gitlab | `glab mr create -t with $VAR or backticks` | ask | the title cannot be checked; use a literal title instead |
 | 50-gitlab.sh | gitlab | `glab mr update\|note\|close REF on an agent-labelled MR` | allow | human MRs ask; -sub- retarget to base -> deny |
 | 60-github.sh | github | `gh auth token \| gh auth status --show-token \| gh config get oauth_token` | deny | prints the token; run plain 'gh auth status' instead |
 | 60-github.sh | github | `gh api -X non-GET \| --input \| fields without a method \| graphql mutation` | ask | API write; ask the user, or use the matching gh subcommand |
 | 60-github.sh | github | `gh pr merge\|review, release/repo/workflow/secret/auth/gist/... mutations` | ask | team-visible; ask the user (merges, reviews and releases are human-only) |
 | 60-github.sh | github | `gh label create agent-*` | allow | governance label; other labels ask |
 | 60-github.sh | github | `gh pr create` | allow | creates are ungated (same -sub- stacked rules as glab) |
+| 60-github.sh | github | `gh pr create -f\|--fill\|--fill-first\|--fill-verbose` | ask | generated text may contain a closing keyword; pass -t and -F body-file instead |
+| 60-github.sh | github | `gh pr create -t TITLE matching HARNESS_GITHUB_PR_TITLE_FORBID_RE` | ask | issue refs belong in the PR body (mention #N there), not the title; set github.pr_title_forbid_re to change the convention (empty disables) |
+| 60-github.sh | github | `gh pr create -t with $VAR or backticks` | ask | the title cannot be checked; use a literal title instead |
 | 60-github.sh | github | `gh issue create without -l agent-drafted\|agent-created` | deny | provenance label required; use -l agent-drafted (or agent-created) instead |
 | 60-github.sh | github | `gh pr\|issue edit\|comment\|close\|reopen on an agent-labelled ref` | allow | human refs ask; human issue close\|reopen -> deny; fork PRs ask |
 | 70-jira.sh | jira | `jira set KEY issuelinks \| create --field issuelinks=` | deny | use the governed link commands |

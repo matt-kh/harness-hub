@@ -59,7 +59,7 @@ Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md
 **Guard sections**
 
 - `gitlab/guard.d/40-gitlab-closing` — control: sensor · domain: tracker · function: govern · decisions: deny 1
-- `gitlab/guard.d/50-gitlab` — control: sensor · function: govern · decisions: ask 2 · allow 3
+- `gitlab/guard.d/50-gitlab` — control: sensor · function: govern · decisions: ask 6 · allow 3
 
 **Permission lists**
 
@@ -84,6 +84,7 @@ Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md
 |---|---|---|---|---|
 | `gitlab.host` | string | yes |  | Your GitLab host (self-managed hostname or gitlab.com). Used for auth, the instructions and work-ticket provider detection. |
 | `gitlab.hosts_re` | string | no | `""` | Optional regex of extra GitLab hosts for work-ticket provider detection (HARNESS_GITLAB_HOSTS_RE). Empty = gitlab.host plus any host containing 'gitlab'. |
+| `gitlab.mr_title_re` | string | no | `"^[A-Z][A-Z0-9_]*-[0-9]+ "` | ERE an MR title must match (ticket key first); empty disables the check. HARNESS_GITLAB_MR_TITLE_RE. |
 | `gitlab.personal_repo_re` | string | no | `""` | Regex on a repo's top-level path; where it matches, a push to the default branch asks instead of denying (personal repos). Repos can also set WORK_TICKET_ALLOW_DEFAULT_PUSH_RE themselves. |
 
 ### Secrets (never in harness.toml)
@@ -181,12 +182,12 @@ Guides steer the agent before it acts; sensors detect at or after the action. Pa
 | guide | rule | `rules/50-gitlab.md` | MR-based delivery, ticket keys mentioned never closed, stacked sub MRs |
 | guide | permission | `permissions.toml` | read-only glab commands allowed |
 | sensor | guard | `guard.d/40-gitlab-closing.sh` | denies closing keywords with a ticket key |
-| sensor | guard | `guard.d/50-gitlab.sh` | API writes, merges/approvals, stacked MR targets, label-gated edits |
+| sensor | guard | `guard.d/50-gitlab.sh` | API writes, merges/approvals, stacked MR targets, label-gated edits; MR creates with --fill or --related-issue, or a -t title not matching gitlab.mr_title_re, ask |
 | sensor | doctor | `doctor_checks` | glab binary, auth, SSH and token file mode |
 | sensor | test | `guard.d/tests.sh` | guard rows with a stubbed glab |
 | sensor | test | `tests/run.sh` | this bundle's rows against core + gitlab only |
 
-**Not covered:** MR title and description conventions are guides only; nothing checks them before the MR is created.
+**Not covered:** `--squash-before-merge` / `--remove-source-branch` and description sections are guides only (project defaults may already squash); an MR created without -t is not title-checked.
 
 ## Uninstall
 

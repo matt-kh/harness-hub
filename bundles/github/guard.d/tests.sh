@@ -90,6 +90,34 @@ t  deny  'gh pr create -H feat-x -B main -t x -b "Fixes #3"'
 t  allow 'gh pr create -H feat-x -B main -t x -b "part of #3, see #4"'
 t  allow $'gh pr create -H feat-x -B main -t x -F - <<\'EOF\'\nit\'s done\nEOF'
 tr 'target the ticket branch' 'gh pr create -H a-sub-01-x -B main'
+# pr create: --fill* and the title convention (github.pr_title_forbid_re)
+t  ask   'gh pr create -R o/r -H f -B main --fill'
+t  ask   'gh pr create -R o/r -H f -B main --fill-first'
+t  ask   'gh pr create -R o/r -H f -B main --fill-verbose -l agent-worked'
+t  ask   'gh pr create -R o/r -f -H f -B main'
+t  ask   'gh pr create -R o/r -H f -B main -t "Fix login #42" -F b.md'
+t  ask   'gh pr create -R o/r -H f -B main --title="Login form (#42)" -F b.md'
+t  allow 'gh pr create -R o/r -H f -B main -t "Fix login" -F b.md'
+t  allow 'gh pr create -R o/r -H f -B main --title="Fix login" -F b.md -l agent-worked'
+t  allow 'gh pr create -R o/r -H f -B main -t "Fix login" -b "-f is not --fill, see #42"'
+HARNESS_GITHUB_PR_TITLE_FORBID_RE='' t allow 'gh pr create -R o/r -H f -B main -t "Login form #42" -F b.md'
+HARNESS_GITHUB_PR_TITLE_FORBID_RE='#[0-9]+|WIP' t ask 'gh pr create -R o/r -H f -B main -t "WIP login" -F b.md'
+t  ask   'gh pr create -R o/r -H f -B main -t "$TITLE" -F b.md'
+t  ask   'gh pr create -R o/r -H f -B main -t "`git log -1 --format=%s`" -F b.md'
+t  pass  'gh pr create -R o/r --web --fill'                                  # --web creates nothing here
+t  deny  'gh pr create -R o/r -H f-sub-01-x -B main -t "Login form #42"'     # a deny still wins over the title ask
+# bypass attempts
+t  ask   'sh -c "gh pr create -R o/r -H f -B main --fill"'
+t  ask   'cd x && gh pr create -R o/r -H f -B main -t "Login form #42" -F b.md'
+t  ask   'gh pr create -R o/r -H f -B main -t ok -F b.md; gh pr create -R o/r -H g -B main --fill'
+tr 'pr create --fill' 'sh -c "gh pr create -R o/r -H f -B main --fill"'
+tr 'pr_title_forbid_re' 'gh pr create -R o/r -H f -B main -t "Login form #42" -F b.md'
+tr 'body-file' 'gh pr create -R o/r -H f -B main --fill'
+# guard.env: an empty github.pr_title_forbid_re is omitted from guard.env → disabled when the file lists the bundle
+genv=$(mktemp); printf '%s\n' "HARNESS_BUNDLES='core github'" > "$genv"
+HARNESS_GUARD_ENV=$genv t allow 'gh pr create -R o/r -H f -B main -t "Login form #42" -F b.md'
+HARNESS_GUARD_ENV=$genv t ask   'gh pr create -R o/r -H f -B main --fill'
+rm -f "$genv"
 # pr write gate
 g allow 'gh pr edit 100 -b "new"'
 g ask   'gh pr edit 200 -b new'

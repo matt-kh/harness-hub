@@ -2,3 +2,4 @@
 
 [github]
 host = "github.com"
+pr_title_forbid_re = "#[0-9]+"

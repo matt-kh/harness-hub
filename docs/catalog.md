@@ -70,8 +70,8 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | [`core/guard.d/30-git`](reference/hook-policy.md) | sensor | scm | deny 1 · ask 5 | denies default-branch pushes; asks on force-push and destructive git |
 | [`gitlab/guard.d/40-gitlab-closing`](reference/hook-policy.md) | sensor | tracker | deny 1 | denies closing keywords with a ticket key |
 | [`github/guard.d/41-github-closing`](reference/hook-policy.md) | sensor | tracker | deny 1 | denies closing keywords that would change issue state |
-| [`gitlab/guard.d/50-gitlab`](reference/hook-policy.md) | sensor | scm | ask 2 · allow 3 | API writes, merges/approvals, stacked MR targets, label-gated edits |
-| [`github/guard.d/60-github`](reference/hook-policy.md) | sensor | scm | deny 2 · ask 2 · allow 3 | token printing, API writes, merges/reviews, provenance labels, stacked PR targets |
+| [`gitlab/guard.d/50-gitlab`](reference/hook-policy.md) | sensor | scm | ask 6 · allow 3 | API writes, merges/approvals, stacked MR targets, label-gated edits; MR creates with --fill or --related-issue, or a -t title not matching gitlab.mr_title_re, ask |
+| [`github/guard.d/60-github`](reference/hook-policy.md) | sensor | scm | deny 2 · ask 5 · allow 3 | token printing, API writes, merges/reviews, provenance labels, stacked PR targets; PR creates with --fill* or a -t title matching github.pr_title_forbid_re ask |
 | [`jira/guard.d/70-jira`](reference/hook-policy.md) | sensor | tracker | deny 3 · ask 1 · allow 4 | label-gated writes, provenance label on create, transitions denied on human tickets |
 | [`gdoc/guard.d/80-gdoc`](reference/hook-policy.md) | sensor | workspace | deny 1 · ask 2 · allow 2 | GET-only api, provenance check before writes, ask on mark and mail send |
 

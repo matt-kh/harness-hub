@@ -47,6 +47,12 @@ type = "string"
 default = ""
 description = "Optional regex of extra GitLab hosts for work-ticket provider detection (HARNESS_GITLAB_HOSTS_RE). Empty = gitlab.host plus any host containing 'gitlab'."
 
+[requires.config."gitlab.mr_title_re"]
+type = "string"
+default = "^[A-Z][A-Z0-9_]*-[0-9]+ "
+description = "ERE an MR title must match (ticket key first); empty disables the check. HARNESS_GITLAB_MR_TITLE_RE."
+example = "^(PROJ|OPS)-[0-9]+ "
+
 [requires.secrets.glab_token]
 where = "~/.config/glab-cli/config.yml"
 written_by = "glab auth login"
@@ -69,6 +75,7 @@ WORK_TICKET_GLAB = "glab"
 HARNESS_GITLAB_HOST = "{{ gitlab.host }}"
 HARNESS_GITLAB_HOSTS_RE = "{{ gitlab.hosts_re }}"
 WORK_TICKET_ALLOW_DEFAULT_PUSH_RE = "{{ gitlab.personal_repo_re }}"
+HARNESS_GITLAB_MR_TITLE_RE = "{{ gitlab.mr_title_re }}"
 
 [[manual_steps]]
 id = "install-glab"
@@ -195,14 +202,14 @@ function = "govern"
 
 # Guides steer the agent before it acts; sensors detect at or after the action (principle 6).
 [harness]
-coverage_note = "MR title and description conventions are guides only; nothing checks them before the MR is created."
+coverage_note = "`--squash-before-merge` / `--remove-source-branch` and description sections are guides only (project defaults may already squash); an MR created without -t is not title-checked."
 guides = [
   { kind = "rule", ref = "rules/50-gitlab.md", note = "MR-based delivery, ticket keys mentioned never closed, stacked sub MRs" },
   { kind = "permission", ref = "permissions.toml", note = "read-only glab commands allowed" },
 ]
 sensors = [
   { kind = "guard", ref = "guard.d/40-gitlab-closing.sh", note = "denies closing keywords with a ticket key" },
-  { kind = "guard", ref = "guard.d/50-gitlab.sh", note = "API writes, merges/approvals, stacked MR targets, label-gated edits" },
+  { kind = "guard", ref = "guard.d/50-gitlab.sh", note = "API writes, merges/approvals, stacked MR targets, label-gated edits; MR creates with --fill or --related-issue, or a -t title not matching gitlab.mr_title_re, ask" },
   { kind = "doctor", ref = "doctor_checks", note = "glab binary, auth, SSH and token file mode" },
   { kind = "test", ref = "guard.d/tests.sh", note = "guard rows with a stubbed glab" },
   { kind = "test", ref = "tests/run.sh", note = "this bundle's rows against core + gitlab only" },
