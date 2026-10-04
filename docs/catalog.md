@@ -73,6 +73,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | [`gitlab/guard.d/50-gitlab`](reference/hook-policy.md) | sensor | scm | ask 2 · allow 3 | API writes, merges/approvals, stacked MR targets, label-gated edits |
 | [`github/guard.d/60-github`](reference/hook-policy.md) | sensor | scm | deny 2 · ask 2 · allow 3 | token printing, API writes, merges/reviews, provenance labels, stacked PR targets |
 | [`jira/guard.d/70-jira`](reference/hook-policy.md) | sensor | tracker | deny 3 · ask 1 · allow 4 | label-gated writes, provenance label on create, transitions denied on human tickets |
+| [`ticket-workflow/guard.d/75-ticket-workflow`](reference/hook-policy.md) | sensor | delivery | ask 4 | key-free branches and subjects, sub worktree paths, squash delivery |
 | [`gdoc/guard.d/80-gdoc`](reference/hook-policy.md) | sensor | workspace | deny 1 · ask 2 · allow 2 | GET-only api, provenance check before writes, ask on mark and mail send |
 
 ## Permission lists

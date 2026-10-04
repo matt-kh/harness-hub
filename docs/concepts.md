@@ -170,7 +170,7 @@ Two rules decide which instruction or guard wins:
    |---|---|
    | `WORK_TICKET_ALLOW_DEFAULT_PUSH_RE` | regex on the repo path; a push to its default branch asks instead of denying (personal repos) |
    | `WORK_TICKET_ALLOW_TRANSITION=1` | ticket state changes on human tickets ask instead of denying (repos whose own workflow transitions tickets) |
-   | `WORK_TICKET_KEY_IN_BRANCH=1` | declares the repo puts ticket keys in branch names |
+   | `WORK_TICKET_KEY_IN_BRANCH=1` | key-named branches and key-prefixed commit subjects pass instead of asking (ticket-workflow guard) |
    | `WORK_TICKET_LABELED_DECISION` | `allow` or `ask` for writes to agent-labelled artefacts |
 
    The full list, with defaults, is in the [hook policy reference](reference/hook-policy.md).

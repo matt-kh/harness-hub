@@ -52,6 +52,11 @@ prints every one between your applied version and the new one.
 - Docs: [distribution](docs/distribution.md) (tiers, release artifact, versioning), the
   [self-host runbook](docs/runbooks/self-host.md) for org platform instances, a "Guides and
   sensors" section in concepts, a bundle-file path in getting started.
+- Guard section 75 (bundle `ticket-workflow`): asks on branches created with a ticket key or
+  `#N` in the name (`git switch -c`, `checkout -b`, `branch`, `worktree add -b`), on commits
+  whose first `-m` starts with a ticket key, on `git worktree add` of a `-sub-` branch outside
+  `../<repo>_<branch>`, and on merges of a `-sub-` branch without `--squash`. All decisions
+  are deferred asks; `WORK_TICKET_KEY_IN_BRANCH=1` lets the two key rules pass.
 
 ### Deprecated
 
@@ -81,6 +86,10 @@ prints every one between your applied version and the new one.
   the allowed values. A rule, skill, agent, guard section or permission list missing from
   `[harness]` is reported too; declare it as a guide or sensor. Then run
   `harness docs generate` to refresh the bundle pages and the catalog.
+- Guard section 75: repos that put ticket keys in branch names or commit subjects set
+  `WORK_TICKET_KEY_IN_BRANCH=1` in `.claude/settings.json` → `env` (previously accepted but a
+  no-op); the guard now asks on key-named branches, key-prefixed commit subjects,
+  off-convention sub worktree paths and non-squash merges of `-sub-` branches.
 
 ## [0.1.0] - 2026-09-30
 

@@ -116,7 +116,7 @@ A value exists only while a component uses it. To add one:
 | `base` | the harness itself: engine, credentials, conventions, core agents | 15 (core) |
 | `scm` | source hosts, branches, MRs/PRs | 24 (core, github, gitlab) |
 | `tracker` | tickets, issues, their state | 15 (github, gitlab, jira) |
-| `delivery` | ticket-to-merge workflow spanning tracker and SCM | 8 (ticket-workflow) |
+| `delivery` | ticket-to-merge workflow spanning tracker and SCM | 9 (ticket-workflow) |
 | `kubernetes` | clusters, Helm, GitOps, IaC targeting them | 18 (k8s) |
 | `workspace` | docs, drive, sheets, mail | 15 (gdoc) |
 
@@ -124,7 +124,7 @@ A value exists only while a component uses it. To add one:
 
 | value | meaning | components using it |
 |---|---|---|
-| `govern` | constrains the agent and says what to do instead | 24 (core, gdoc, github, gitlab, jira, k8s, ticket-workflow) |
+| `govern` | constrains the agent and says what to do instead | 25 (core, gdoc, github, gitlab, jira, k8s, ticket-workflow) |
 | `client` | thin interface to one system | 7 (gdoc, jira, k8s) |
 | `workflow` | multi-step governed procedure | 2 (ticket-workflow) |
 | `investigate` | diagnoses to a root cause, never applies the fix | 1 (k8s) |

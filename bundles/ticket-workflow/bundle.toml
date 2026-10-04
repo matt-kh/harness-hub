@@ -44,7 +44,7 @@ rules = ["rules/75-ticket-workflow.md"]
 skills = ["skills/work-ticket", "skills/create-ticket"]
 skill_fragments = []
 agents = []
-guard_rules = []
+guard_rules = ["guard.d/75-ticket-workflow.sh"]
 permissions = "permissions.toml"
 mcp = ""
 bin = []
@@ -62,7 +62,8 @@ how = """
 In a repo's `.claude/settings.json` → `"env"`:
 - `WORK_TICKET_ALLOW_TRANSITION=1` — `jira transition` / `gh issue close|reopen` on a human
   ticket asks instead of denying (repos whose own workflow moves tickets).
-- `WORK_TICKET_KEY_IN_BRANCH=1` — the repo puts ticket keys in branch names (declaration only).
+- `WORK_TICKET_KEY_IN_BRANCH=1` — the repo puts ticket keys in branch names and commit
+  subjects: the guard lets key-named branches and key-prefixed subjects pass instead of asking.
 - `WORK_TICKET_ALLOW_DEFAULT_PUSH_RE=<regex on the repo top level>` — a default-branch push
   asks instead of denying (personal repos).
 A repo-level skill such as `work-jira-ticket` is detected at preflight and takes over.
@@ -111,14 +112,16 @@ function = "workflow"
 
 # Guides steer the agent before it acts; sensors detect at or after the action (principle 6).
 [harness]
-coverage_note = "No permission rules and no guard section of its own: the write gates are sensed by the tracker and SCM bundles' guard sections (closing keywords, labels, stacked targets); work-ticket has no own test suite."
+coverage_note = "The size rubric, Q-checklist and MR body content are judgement calls (inferential: code-reviewer); SCM verb conventions are sensed by the gitlab/github guard sections; work-ticket has no own test suite yet."
 guides = [
   { kind = "rule", ref = "rules/75-ticket-workflow.md", note = "ticket to MR/PR flow, label gate, key-free branches, stacked delivery" },
   { kind = "skill", ref = "skills/work-ticket", note = "the governed ticket workflow and its preflight scripts" },
   { kind = "skill", ref = "skills/create-ticket", note = "one drafted ticket or issue, rendered deterministically" },
 ]
 sensors = [
+  { kind = "guard", ref = "guard.d/75-ticket-workflow.sh", note = "key-free branches and subjects, sub worktree paths, squash delivery" },
   { kind = "doctor", ref = "doctor_checks", note = "a tracker CLI and an SCM CLI on PATH, both skills rendered" },
-  { kind = "test", ref = "tests/run.sh", note = "every skill suite of this bundle" },
+  { kind = "test", ref = "tests/run.sh", note = "this bundle's guard rows against core + ticket-workflow only, then every skill suite" },
+  { kind = "test", ref = "guard.d/tests.sh", note = "rows for section 75 incl. bypasses" },
   { kind = "test", ref = "skills/create-ticket/scripts/tests/run.sh", note = "golden renders of every ticket class" },
 ]

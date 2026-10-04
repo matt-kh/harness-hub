@@ -58,6 +58,10 @@ an ask prompt, `ask` is mapped by `[providers.<name>].ask_as`. Model and rationa
 | 70-jira.sh | jira | `jira set\|comment\|upload\|label\|transition KEY on agent-labelled tickets` | allow | promptless |
 | 70-jira.sh | jira | `jira transition KEY on a human ticket` | deny | ticket state is human-only (ask under WORK_TICKET_ALLOW_TRANSITION=1) |
 | 70-jira.sh | jira | `jira writes to human tickets` | ask | need an explicit user request; ask the user, or label the ticket agent-worked first |
+| 75-ticket-workflow.sh | ticket-workflow | `git switch -c\|checkout -b\|branch\|worktree add -b NAME with a ticket key or #N in NAME` | ask | keys live on the MR/PR, not the branch; use a <short-name> branch instead (repos opt in with WORK_TICKET_KEY_IN_BRANCH=1) |
+| 75-ticket-workflow.sh | ticket-workflow | `git commit whose first -m/--message starts with a ticket key` | ask | mention the key in the body or MR instead (WORK_TICKET_KEY_IN_BRANCH=1 passes) |
+| 75-ticket-workflow.sh | ticket-workflow | `git worktree add PATH -b <-sub- branch> with basename(PATH) != <repo>_<branch>` | ask | subagent worktrees follow ../<repo>_<branch>; use that path instead |
+| 75-ticket-workflow.sh | ticket-workflow | `git merge [--no-ff\|--ff\|--ff-only] <-sub- branch> without --squash` | ask | single delivery squash-merges parts; use git merge --squash instead |
 | 80-gdoc.sh | gdoc | `gdoc api -X\|--method\|-d\|--data` | deny | api is GET-only; use the create/append/replace/sheet subcommands instead |
 | 80-gdoc.sh | gdoc | `gdoc mark ID` | ask | adopts a human file; ask the user before marking it |
 | 80-gdoc.sh | gdoc | `gdoc import\|append\|replace\|sheet append\|update on an agent-marked file` | allow | human files / lookup failure ask |

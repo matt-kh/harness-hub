@@ -6,7 +6,7 @@
 t pass  'jira get LBL-1'
 t pass  'jira links LBL-1'
 t pass  'jira api /rest/api/2/issueLinkType'
-t pass  'git commit -m "LBL-1 fix parser"'
+WORK_TICKET_KEY_IN_BRANCH=1 t pass 'git commit -m "LBL-1 fix parser"'   # key-prefixed subjects ask in section 75 otherwise
 t pass  'git push -u origin LBL-1-feature'
 t pass  'glab mr view 100 -F json'
 t pass  'glab mr list --search LBL-1'
