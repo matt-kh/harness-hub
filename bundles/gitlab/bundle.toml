@@ -195,7 +195,7 @@ function = "govern"
 
 # Guides steer the agent before it acts; sensors detect at or after the action (principle 6).
 [harness]
-coverage_note = "MR title and description conventions are guides only; nothing checks them before the MR is created."
+coverage_note = "MR title and description conventions are guides only; nothing checks them before the MR is created. The gitlab-closing guard section enforces rule text that lives in rules/50-gitlab.md."
 guides = [
   { kind = "rule", ref = "rules/50-gitlab.md", note = "MR-based delivery, ticket keys mentioned never closed, stacked sub MRs" },
   { kind = "permission", ref = "permissions.toml", note = "read-only glab commands allowed" },

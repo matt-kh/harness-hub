@@ -56,7 +56,7 @@ section of the instructions. Needs a one-time GCP OAuth **Desktop** client insid
 Workspace organisation that only a human (sometimes an admin) can create — six manual steps.
 
 - **Depends on:** `core`
-- **Stability:** stable
+- **Stability:** beta
 - **Domain / posture:** workspace / label-gated
 
 ## Components

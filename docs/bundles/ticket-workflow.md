@@ -50,7 +50,7 @@ Org-specific issue-type rules and field ids come from jira.issue_types / jira.fi
 - **Recommends:** `jira`, `gitlab`, `github`
 - **Needs one of:** `jira`, `github`
 - **Needs one of:** `gitlab`, `github`
-- **Stability:** stable
+- **Stability:** beta
 - **Domain / posture:** delivery / label-gated
 
 ## Components
@@ -135,7 +135,7 @@ Guides steer the agent before it acts; sensors detect at or after the action. Pa
 | sensor | test | `tests/run.sh` | every skill suite of this bundle |
 | sensor | test | `skills/create-ticket/scripts/tests/run.sh` | golden renders of every ticket class |
 
-**Not covered:** No permission rules and no guard section of its own: the write gates are sensed by the tracker and SCM bundles' guard sections (closing keywords, labels, stacked targets); work-ticket has no own test suite.
+**Not covered:** No permission rules and no guard section of its own: the ticket-workflow rule's write gates are sensed by the tracker and SCM bundles' guard sections (closing keywords, labels, stacked targets); work-ticket has no own test suite.
 
 ## Uninstall
 

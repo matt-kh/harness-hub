@@ -19,7 +19,7 @@ conflicts_with = []
 any_of = [["jira", "github"], ["gitlab", "github"]]
 owners = []
 docs = "docs/bundles/ticket-workflow.md"
-stability = "stable"
+stability = "beta"
 
 [requires.binaries.jq]
 min_version = "1.6"
@@ -111,7 +111,7 @@ function = "workflow"
 
 # Guides steer the agent before it acts; sensors detect at or after the action (principle 6).
 [harness]
-coverage_note = "No permission rules and no guard section of its own: the write gates are sensed by the tracker and SCM bundles' guard sections (closing keywords, labels, stacked targets); work-ticket has no own test suite."
+coverage_note = "No permission rules and no guard section of its own: the ticket-workflow rule's write gates are sensed by the tracker and SCM bundles' guard sections (closing keywords, labels, stacked targets); work-ticket has no own test suite."
 guides = [
   { kind = "rule", ref = "rules/75-ticket-workflow.md", note = "ticket to MR/PR flow, label gate, key-free branches, stacked delivery" },
   { kind = "skill", ref = "skills/work-ticket", note = "the governed ticket workflow and its preflight scripts" },

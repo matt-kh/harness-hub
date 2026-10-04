@@ -15,7 +15,7 @@ conflicts_with = []
 any_of = []
 owners = []
 docs = "docs/bundles/gdoc.md"
-stability = "stable"
+stability = "beta"
 
 [requires.binaries.python3]
 min_version = "3.9"
