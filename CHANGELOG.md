@@ -84,6 +84,13 @@ prints every one between your applied version and the new one.
 - `[bundle].tags` in `bundle.toml`: free-form and never read; `harness lint` warns
   "bundle.tags: is deprecated; use taxonomy.domain". Classify the bundle with `[taxonomy]`.
 
+### Fixed
+- `harness test` drops git's repository-discovery variables (`GIT_DIR`, `GIT_WORK_TREE`,
+  `GIT_INDEX_FILE`, …) from every suite's environment, and the pack unit tests drop them too.
+  Git exports them to hooks, so the pre-push hook's unit run pointed the pack fixture
+  repositories at the real checkout and failed (in a worktree, with the whole hub staged for
+  deletion); the suites now pass from hooks as they do from a shell.
+
 ### Changed
 
 - README reframed as a public platform with three install paths (upstream, org instance,
