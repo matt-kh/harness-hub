@@ -58,7 +58,10 @@ prints every one between your applied version and the new one.
   --extract DIR`; run it to unpack into `~/.local/share/harness/releases/<version>/`
   (`--release-dir`), clone into `--dest` (default `~/harness-hub`) and bootstrap, or, against
   an existing clone, fetch its tags, point `origin` at its bundle and `harness upgrade`. The
-  bundle stays the release; the outer `SHA256SUMS` lists the `.run`.
+  bundle stays the release; the outer `SHA256SUMS` lists the `.run`. On the upgrade path the
+  bootstrap-only flags (`--no-install-tools`, `--bundles X`, ...) are dropped with a note, so
+  the install command line also upgrades; a dev-build `.run` (no tag) installs only and
+  refuses an existing clone.
 - `harness verify FILE.run`: `sh FILE.run --check` plus the `SHA256SUMS` check.
 - `harness release check [TAG] [--remote NAME] [--branch NAME] [--no-remote] [--json]`: the
   release preflight (SemVer 2.0.0 tag with `v` and no `+build`, annotated, `VERSION` and the
@@ -69,7 +72,9 @@ prints every one between your applied version and the new one.
   the CI suite (`ci.yml` is now also a reusable workflow), pack with the four tool platforms
   and `--self-extract`, a `.run` install smoke, and publishes a GitHub Release (pre-release
   for `-rc.N` tags) with notes from this file and build provenance; any other tag name ends
-  green with nothing released. `workflow_dispatch` makes dry-run dev builds or re-runs a tag.
+  green with nothing released. `workflow_dispatch` makes dry-run dev builds or re-runs a tag
+  (with `--ref` the tag itself; a re-run replaces a draft left by a failed upload, never a
+  published release).
 - SemVer 2.0.0 helpers (`util.SEMVER_RE`, `parse_semver`, `is_prerelease`, `version_key`
   with §11 precedence); `harness upgrade` orders CHANGELOG sections with them.
 
@@ -87,7 +92,8 @@ prints every one between your applied version and the new one.
   the add-a-bundle checklist; PR template asks for the principle(s) served and the pairing
   check.
 - `harness upgrade` targets `--to latest` by default: it fetches tags and checks out the
-  newest release tag (pre-releases skipped); `--to TAG` pins; `--to BRANCH` checks out and
+  newest release tag (pre-releases skipped) and never moves backwards (a checkout at or ahead
+  of that tag is left alone, exit 0); `--to TAG` pins; `--to BRANCH` checks out and
   fast-forwards a branch; `harness doctor` runs after a successful apply and sets the exit
   status. The upgrade and air-gapped runbooks now describe what the code does.
 - CONTRIBUTING "Releases (maintainers)" is the tag-driven procedure (release PR, merge,

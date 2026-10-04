@@ -427,16 +427,22 @@ harness-hub-<version>.run     optional, --self-extract: POSIX sh header + uncomp
 `@SKIP@`, read with `tail -n +SKIP`. The payload is a GNU-format tar written by python
 `tarfile`: sorted names, parent directories as entries, uid/gid 0, empty owner names, mode
 0644 (0755 for directories), mtime of the released commit (`SOURCE_DATE_EPOCH` wins), so the
-same files give the same bytes (the bundle inside is not reproducible across git versions).
+same files give the same bytes; the header is deterministic too. The git bundle inside is not
+guaranteed byte-identical between builds, so `SHA256SUMS` and the build provenance identify a
+specific build.
 Flags: `--check` (payload size and sha256 against the header, then every inner `SHA256SUMS`
 line; installs nothing), `--list`, `--extract DIR`, `--dest DIR` (default `~/harness-hub`),
 `--release-dir DIR` (default `${XDG_DATA_HOME:-~/.local/share}/harness/releases/<version>/`,
-the same base as the engine's data dir), `--`; the first other word and everything after it
-are passed on. Install: verify, unpack into the release dir (kept, so `origin` stays
+the same base as the engine's data dir; `--release-dir` or `HOME` is required, as is `--dest`
+or `HOME`), `--`; the first other word and everything after it are passed on, and a `--dest`
+or `--release-dir` among them is refused. Install: verify, unpack into the release dir (kept, so `origin` stays
 fetchable offline and `tools/` stays available to `harness install --from`), refuse a
 non-empty `--dest` that is not a hub clone, `git clone [-b TAG]`, `exec` the clone's
-`bootstrap`. Upgrade (when `--dest/.git` exists): `git fetch BUNDLE 'refs/tags/*:refs/tags/*'`,
-`origin` -> the bundle, `exec harness upgrade --to <TAG|latest>` with the passed-on arguments.
+`bootstrap`. Upgrade (when `--dest/.git` exists): first refuse a clone without `bin/harness`
+and `bootstrap` and a dev build (empty `@TAG@`; it installs only), then `git fetch BUNDLE
+'refs/tags/*:refs/tags/*'`, `origin` -> the bundle, `exec harness upgrade --to TAG` with the
+passed-on arguments minus the bootstrap-only flags (`--bundles`, `--providers`, `--profile`,
+`--email`, `--adopt`, `--from`, `--origin` with their values, `--no-install-tools`; printed).
 The sha256 ladder `hn_sha256` is a copy of `bundles/core/lib/compat.sh`'s (a unit test keeps
 them identical). `verify FILE.run` runs `sh FILE.run --check`, then the `SHA256SUMS` check.
 

@@ -267,10 +267,12 @@ class PackTest(unittest.TestCase):
         self.assertIn("remote set-url origin /path/NEW.bundle", self.read(os.path.join(self.out, "INSTALL.txt")))
 
     # ------------------------------------------------------------------ self-extracting .run
-    def sh(self, *args, env=None):
+    def sh(self, *args, env=None, unset=()):
         e = dict(os.environ)
         e.update(env or {})
         e.pop("HARNESS_HOME", None)
+        for k in unset:
+            e.pop(k, None)
         return subprocess.run(["sh"] + list(args), stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=e,
                               cwd=self.tmp)
 
@@ -384,13 +386,65 @@ class PackTest(unittest.TestCase):
         self.git("commit", "-q", "-am", "next")
         self.out = os.path.join(self.tmp, "rel2")
         run2 = self._run_release("v1.2.4")["run"]
-        r = self.sh(run2, "--dest", hub, "--yes", env={"HOME": home})
+        # the install command line works for upgrades: bootstrap-only flags (and values) are dropped
+        r = self.sh(run2, "--dest", hub, "--offline", "--no-install-tools", "--bundles", "core",
+                    "--yes", "--providers=claude", "--profile", "p", "--config", "c.toml", env={"HOME": home})
         self.assertEqual(r.returncode, 0, r.stderr)
-        self.assertIn(b"harness-stub upgrade --to v1.2.4 --yes", r.stdout)
+        self.assertIn(b"harness-stub upgrade --to v1.2.4 --offline --yes --config c.toml\n", r.stdout)
+        self.assertIn(b"note: install-only flags ignored for the upgrade: --no-install-tools --bundles core "
+                      b"--providers=claude --profile p\n", r.stdout)
         rel2 = os.path.join(home, ".local", "share", "harness", "releases", "v1.2.4")
         self.assertEqual(self.git("remote", "get-url", "origin", cwd=hub).strip(),
                          os.path.join(rel2, "harness-hub-v1.2.4.bundle"))
         self.assertIn("v1.2.4", self.git("tag", "--list", cwd=hub).split())
+
+    def test_self_extract_refuses_a_clone_that_is_not_a_hub_before_writing(self):
+        run = self._run_release()["run"]
+        home, other = os.path.join(self.tmp, "home"), os.path.join(self.tmp, "other")
+        os.makedirs(home)
+        os.makedirs(other)
+        self.git("init", "-q", cwd=other)
+        r = self.sh(run, "--dest", other, env={"HOME": home})
+        self.assertEqual(r.returncode, 1)
+        self.assertIn(b"not a harness hub", r.stderr)
+        self.assertIn(b"pass --dest DIR", r.stderr)
+        self.assertEqual(self.git("remote", cwd=other), "")  # no origin added
+        self.assertEqual(self.git("tag", "--list", cwd=other), "")  # nothing fetched
+        self.assertFalse(os.path.exists(os.path.join(home, ".local", "share", "harness")))
+
+    def test_self_extract_dest_after_passthrough_flags_is_refused(self):
+        run = self._run_release()["run"]
+        home = os.path.join(self.tmp, "home")
+        os.makedirs(home)
+        for args in (["--yes", "--dest", "x"], ["--yes", "--release-dir=x"], ["--", "--dest=x"]):
+            r = self.sh(run, *args, env={"HOME": home})
+            self.assertEqual(r.returncode, 1, args)
+            self.assertIn(b"put --dest and --release-dir before other flags", r.stderr)
+
+    def test_self_extract_without_home_names_the_flag(self):
+        run = self._run_release()["run"]
+        r = self.sh(run, "--dest", os.path.join(self.tmp, "d"), unset=("HOME", "XDG_DATA_HOME"))
+        self.assertEqual(r.returncode, 1)
+        self.assertIn(b"HOME is not set; pass --release-dir DIR", r.stderr)
+        r = self.sh(run, "--release-dir", os.path.join(self.tmp, "r"), unset=("HOME", "XDG_DATA_HOME"))
+        self.assertEqual(r.returncode, 1)
+        self.assertIn(b"HOME is not set; pass --dest DIR", r.stderr)
+
+    def test_dev_build_run_refuses_an_existing_clone(self):
+        self.git("tag", "-a", "v1.2.3", "-m", "r")
+        tagged = os.path.join(self.tmp, "inst")
+        home = os.path.join(self.tmp, "home")
+        os.makedirs(home)
+        r = self.sh(self.pack(tag="v1.2.3", self_extract=True)["run"], "--dest", tagged, env={"HOME": home})
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.git("commit", "-q", "--allow-empty", "-m", "dev")
+        self.out = os.path.join(self.tmp, "rel-dev")
+        dev = self.pack(self_extract=True)["run"]
+        r = self.sh(dev, "--dest", tagged, "--yes", env={"HOME": home})
+        self.assertEqual(r.returncode, 1)
+        self.assertIn(b"a dev build installs only; pass --dest NEW_DIR, or upgrade from a tagged release .run",
+                      r.stderr)
+        self.assertNotIn(b"harness-stub", r.stdout)
 
     def test_pack_self_extract_dev_version(self):
         res = self.pack(self_extract=True)

@@ -12,7 +12,8 @@
 #      (every file byte-identical), harness verify FILE.run, a tampered .run fails --check
 #   8. sh FILE.run --dest TMP/hub2 ... into a second temp HOME: the clone is at the tag commit,
 #      origin is under $HOME/.local/share/harness/releases/v0.0.0-smoke/, doctor --offline is 0
-#   9. the same .run on the same --dest takes the upgrade path (harness upgrade --to the tag)
+#   9. the same .run on the same --dest (the documented --offline --no-install-tools command line)
+#      takes the upgrade path: harness upgrade --to the tag, --no-install-tools dropped with a note
 # Nothing outside the temp directory is written (HARNESS_BUILD_DIR keeps build/ products there).
 set -eu
 here=$(cd "$(dirname "$0")/../.." && pwd)
@@ -137,8 +138,12 @@ HOME="$tmp/home2" "$dest2/bin/harness" doctor --offline --config "$src/tests/fix
   > "$tmp/doctor2.log" 2>&1 || { cat "$tmp/doctor2.log"; die "doctor --offline after the .run install exited non-zero"; }
 
 step "the same .run on the same --dest upgrades"
-HOME="$tmp/home2" sh "$run" --dest "$dest2" --yes --offline --config "$src/tests/fixtures/harness.ci.toml" \
+# exactly the documented command (README, getting started): the install-only flag is dropped
+HOME="$tmp/home2" sh "$run" --dest "$dest2" --offline --no-install-tools --yes \
+  --config "$src/tests/fixtures/harness.ci.toml" \
   > "$tmp/runupgrade.log" 2>&1 || { cat "$tmp/runupgrade.log"; die ".run upgrade path exited non-zero"; }
 grep -q 'upgrading ' "$tmp/runupgrade.log" || { cat "$tmp/runupgrade.log"; die ".run did not take the upgrade path"; }
+grep -q 'install-only flags ignored for the upgrade: --no-install-tools$' "$tmp/runupgrade.log" \
+  || { cat "$tmp/runupgrade.log"; die ".run upgrade did not report the dropped --no-install-tools"; }
 
 echo "smoke pack: ok ($(basename "$b"), $(basename "$run"))"

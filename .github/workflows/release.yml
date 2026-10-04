@@ -6,7 +6,10 @@ name: release
 #
 # Only SemVer 2.0.0 tag names release: any other tag (v1, v1.2, vnext) ends green with every job
 # skipped. workflow_dispatch: empty tag = dev build of the selected ref (never published); a tag
-# rebuilds it and publishes only with publish=true (re-run after a failed release).
+# rebuilds it and publishes only with publish=true (re-run after a failed release). A tag
+# dispatch must select the tag itself (--ref vX.Y.Z): the reusable CI suite tests github.sha,
+# so preflight fails when the selected ref is not the tagged commit. A re-run replaces a draft
+# left by a failed upload, never a published release.
 
 on:
   push:
@@ -88,6 +91,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: The selected ref is the tagged commit (workflow_dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          tagged=$(git rev-parse "$TAG^{commit}")
+          if [ "$tagged" != "$GITHUB_SHA" ]; then
+            echo "::error::the selected ref ($GITHUB_SHA) is not $TAG ($tagged); re-run with --ref $TAG so the CI suite tests the tagged commit"
+            exit 1
+          fi
       - name: harness release check
         id: check
         run: |
@@ -189,9 +200,14 @@ jobs:
           path: rel
       - name: Check the downloaded files
         run: (cd rel && sha256sum -c SHA256SUMS)
-      - name: Never overwrite a release
+      - name: Never overwrite a release (a draft from a failed upload is replaced)
         run: |
-          if gh release view "$TAG" -R "${{ github.repository }}" > /dev/null 2>&1; then
+          # empty: no release yet; true: a draft left by a failed run (deleted, the tag stays)
+          isDraft=$(gh release view "$TAG" -R "${{ github.repository }}" --json isDraft -q .isDraft 2>/dev/null || true)
+          if [ "$isDraft" = true ]; then
+            echo "deleting the draft release $TAG left by an earlier run (the tag stays)"
+            gh release delete "$TAG" -R "${{ github.repository }}" --yes
+          elif [ "$isDraft" = false ]; then
             echo "::error::release $TAG already exists; never move or overwrite a published release: fix forward with a new tag"
             exit 1
           fi

@@ -160,10 +160,12 @@ def version_ge(have: str, want: str) -> bool:
 
 # SemVer 2.0.0 (https://semver.org/spec/v2.0.0.html), with an optional leading ``v``. The
 # release workflow inlines the same expression in shell (.github/workflows/release.yml, job gate).
+# ASCII digits only and \Z (not $, which also matches before a trailing newline), like the
+# POSIX ERE in .github/workflows/release.yml
 SEMVER_RE = re.compile(
-    r"^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)"
-    r"(?:-((?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*))?"
-    r"(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$")
+    r"^v?(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)"
+    r"(?:-((?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*))?"
+    r"(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?\Z", re.ASCII)
 
 
 def parse_semver(text: str) -> Optional[Tuple[int, int, int, Tuple[str, ...], str]]:

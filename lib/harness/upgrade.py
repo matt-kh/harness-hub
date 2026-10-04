@@ -4,7 +4,9 @@
 
 * ``latest``: ``git fetch --tags`` (skipped offline), then check out the newest release tag
   (highest SemVer 2.0.0 tag; pre-releases such as ``v1.3.0-rc.1`` are skipped). Without any
-  release tag the error names ``--to BRANCH`` and the bundle-file flow.
+  release tag the error names ``--to BRANCH`` and the bundle-file flow. It never moves
+  backwards: when ``VERSION`` at that tag is not newer than the checkout's (a contributor on
+  ``main`` ahead of the last release), it says so and exits 0 without planning.
 * ``TAG``: ``git fetch --tags`` then ``git checkout TAG`` (detached, pinned). When the fetch
   fails (air-gapped: ``origin`` unreachable) and TAG already exists in the clone, the local
   tag is used; when it does not, the error names the bundle-file flow (``origin`` ->
@@ -139,6 +141,20 @@ def resolve_target(home: str, to: Optional[str], offline: bool = False, log=prin
     return "tag", to
 
 
+def tag_version(home: str, tag: str) -> str:
+    """``VERSION`` as committed at ``tag``; the tag name without ``v`` when it has none."""
+    rc, out, _e = _git(home, ["show", "%s:VERSION" % tag])
+    text = out.strip() if rc == 0 else ""
+    if text:
+        return text
+    return tag[1:] if tag.startswith("v") else tag
+
+
+def newer_release(home: str, tag: str, current: str) -> bool:
+    """True when ``tag`` (by its committed VERSION) has higher SemVer precedence than ``current``."""
+    return version_key(tag_version(home, tag)) > version_key(current)
+
+
 def run(ctx: Any, ns: Any) -> int:
     import subprocess
     import sys
@@ -163,6 +179,11 @@ def run(ctx: Any, ns: Any) -> int:
         print("dry run: would %s" % what)
     else:
         kind, target = resolve_target(home, to, offline=ctx.offline)
+        if kind == "tag" and (not to or to == "latest") and not newer_release(home, target, old):
+            # --to latest never moves backwards; an explicit --to TAG still pins (and may downgrade)
+            print("hub %s is at or ahead of the newest release %s; nothing to upgrade "
+                  "(pin with --to TAG, follow a branch with --to BRANCH)" % (old, target))
+            return 0
         if kind == "branch":
             rc, _o, e = run_argv(["git", "-C", home, "checkout", "--quiet", target], timeout=120)
             if rc != 0:

@@ -49,14 +49,18 @@ harness-hub-vX.Y.Z.run      optional envelope (--self-extract): a POSIX sh heade
   `lib/harness/selfextract-header.sh`) checks the payload size and sha256 and every
   `SHA256SUMS` line, then clones the bundle inside. The payload tar is deterministic for the
   same files (sorted names, owner 0, fixed modes, mtime of the released commit or
-  `SOURCE_DATE_EPOCH`); the bundle itself is not byte-reproducible across git versions.
+  `SOURCE_DATE_EPOCH`), and so is the header. The git bundle itself is not guaranteed to be
+  byte-identical between builds (even with the same git version), so two builds of one tag
+  can differ; `SHA256SUMS` and the build provenance identify a specific build.
 - `.run` flags: `--check` (verify only), `--list`, `--extract DIR` (unpack, then follow
   `INSTALL.txt`), `--dest DIR` (default `~/harness-hub`), `--release-dir DIR` (default
   `~/.local/share/harness/releases/<version>/`, where the files stay so `origin` remains
   fetchable offline and `tools/` stays at hand for `harness install --from`). Every other
   argument goes to the clone's `bootstrap`. Run against an existing hub clone (`--dest`), it
   fetches the tags, points `origin` at the new bundle and runs `harness upgrade --to <tag>`
-  with the remaining arguments instead.
+  with the remaining arguments instead, dropping bootstrap-only flags such as
+  `--no-install-tools` or `--bundles X` (it prints which). A dev-build `.run` (no tag) only
+  installs: against an existing clone it refuses and asks for `--dest NEW_DIR`.
 
 - Without a release tag on `HEAD` (or `--tag`), the version in the file name is
   `v<VERSION>-g<short sha>`.

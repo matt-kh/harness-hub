@@ -208,7 +208,9 @@ pre-release and `harness upgrade` (default `--to latest`) skips it.
 
 Never move or delete a published tag; fix forward with the next patch version. When a run
 fails after the tag was pushed (a flaky download, say), re-run it for the same tag; it never
-overwrites an existing release:
+overwrites a published release (a draft left by a failed upload is deleted and recreated, the
+tag stays). `--ref vX.Y.Z` is required: the CI suite tests the selected ref, so the preflight
+refuses a dispatch whose ref is not the tagged commit:
 
 ```sh
 gh workflow run release.yml -R matt-kh/harness-hub --ref vX.Y.Z -f tag=vX.Y.Z -f publish=true

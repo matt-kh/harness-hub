@@ -75,10 +75,17 @@ class WorkflowGateTest(unittest.TestCase):
         samples = ["v1.2.3", "v0.0.0", "v1.2.3-rc.1", "v1.0.0-alpha.beta.1", "v1.0.0-0.3.7", "v1.0.0-x-y.7z.92",
                    "v1.2.3+build.5", "v1.2.3-rc.1+exp.sha.5114f85", "v10.20.30",
                    "1.2.3", "v1", "v1.2", "vnext", "v01.2.3", "v1.02.3", "v1.2.3-01", "v1.2.3-", "v1.2.3+",
-                   "v1.2.3.4", "v1.2.3-rc..1", "V1.2.3", "v1.2.3 ", ""]  # gate-allow: version string, not an IP
+                   "v1.2.3.4", "v1.2.3-rc..1", "V1.2.3", "v1.2.3 ", "v\u0661.2.3", ""]  # gate-allow: version string, not an IP
         for tag in samples:
             want = bool(SEMVER_RE.match(tag)) and tag.startswith("v")
             self.assertEqual(bool(ere.search(tag)), want, tag)
+
+    def test_util_regex_is_ascii_and_anchored_at_the_very_end(self):
+        from harness.util import SEMVER_RE
+
+        self.assertTrue(SEMVER_RE.match("v1.2.3"))
+        for tag in ("v1.2.3\n", "v\u0661.2.3", "v1.\u0662.3", "v1.2.3-rc.\u0663", "1.2.3\n"):
+            self.assertIsNone(SEMVER_RE.match(tag), repr(tag))
 
 
 class TargetTest(unittest.TestCase):
@@ -135,6 +142,107 @@ class TargetTest(unittest.TestCase):
             U.checkout_tag(clone, "main", log=lambda *a: None)
         self.assertIn("tag-only bundle", str(cm.exception))
         self.assertIn("--to TAG", str(cm.exception))
+
+
+
+class UpgradeLatestTest(unittest.TestCase):
+    """``harness upgrade`` (default --to latest) never moves a checkout backwards; --to TAG pins."""
+
+    def setUp(self):
+        keys = list(GIT_ENV) + ["HARNESS_HOME"]
+        self._env = {k: os.environ.get(k) for k in keys}
+        os.environ.update(GIT_ENV)
+        self.tmp = tempfile.mkdtemp(prefix="harness-upgrade-")
+        self.repo = os.path.join(self.tmp, "hub")
+        os.makedirs(self.repo)
+        os.environ["HARNESS_HOME"] = self.repo
+        self.git("init", "-q", "-b", "main")
+        self.commit("1.2.3")
+        self.git("tag", "-a", "v1.2.3", "-m", "r")
+
+    def tearDown(self):
+        for k, v in self._env.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def git(self, *args):
+        return subprocess.run(["git"] + list(args), cwd=self.repo, check=True,
+                              stdout=subprocess.PIPE, stderr=subprocess.PIPE).stdout.decode()
+
+    def commit(self, version):
+        with open(os.path.join(self.repo, "VERSION"), "w", encoding="utf-8") as fh:
+            fh.write(version + "\n")
+        self.git("add", "VERSION")
+        self.git("commit", "-q", "-m", version)
+
+    def upgrade(self, to=None):
+        import contextlib
+        import io
+        from unittest import mock
+
+        class Ctx:
+            dry_run = False
+            offline = True
+            config = None
+            yes = True
+
+        class NS:
+            no_apply = True
+
+        NS.to = to
+        out = io.StringIO()
+        with mock.patch("subprocess.call", return_value=0) as call, contextlib.redirect_stdout(out):
+            rc = U.run(Ctx(), NS())
+        return rc, out.getvalue(), call
+
+    def head(self):
+        return self.git("rev-parse", "HEAD").strip()
+
+    def test_latest_does_not_move_a_checkout_ahead_of_the_newest_tag(self):
+        self.commit("1.3.0")  # main ahead of v1.2.3
+        before = self.head()
+        rc, out, call = self.upgrade()
+        self.assertEqual(rc, 0)
+        self.assertIn("hub 1.3.0 is at or ahead of the newest release v1.2.3; nothing to upgrade", out)
+        self.assertIn("--to TAG", out)
+        self.assertIn("--to BRANCH", out)
+        self.assertEqual(self.head(), before)
+        call.assert_not_called()
+
+    def test_latest_at_the_newest_tag_is_a_no_op(self):
+        rc, out, call = self.upgrade("latest")
+        self.assertEqual(rc, 0)
+        self.assertIn("nothing to upgrade", out)
+        call.assert_not_called()
+
+    def test_latest_moves_forward_to_a_newer_tag(self):
+        self.commit("1.2.4")
+        self.git("tag", "-a", "v1.2.4", "-m", "r")
+        self.git("checkout", "-q", "v1.2.3")
+        rc, out, call = self.upgrade()
+        self.assertEqual(rc, 0)
+        self.assertIn("hub 1.2.3 -> 1.2.4", out)
+        self.assertEqual(self.head(), self.git("rev-parse", "v1.2.4^{commit}").strip())
+        self.assertTrue(call.called)  # plan ran
+
+    def test_explicit_tag_still_pins_backwards(self):
+        self.commit("1.3.0")
+        rc, out, _call = self.upgrade("v1.2.3")
+        self.assertEqual(rc, 0)
+        self.assertIn("hub 1.3.0 -> 1.2.3", out)
+        self.assertEqual(self.head(), self.git("rev-parse", "v1.2.3^{commit}").strip())
+
+    def test_tag_version_falls_back_to_the_tag_name(self):
+        self.git("rm", "-q", "VERSION")
+        self.git("commit", "-q", "-m", "no version")
+        self.git("tag", "-a", "v2.0.0", "-m", "r")
+        self.assertEqual(U.tag_version(self.repo, "v2.0.0"), "2.0.0")
+        self.assertEqual(U.tag_version(self.repo, "v1.2.3"), "1.2.3")
+        self.assertTrue(U.newer_release(self.repo, "v2.0.0", "1.9.9"))
+        self.assertFalse(U.newer_release(self.repo, "v1.2.3", "1.2.3"))
 
 
 if __name__ == "__main__":

@@ -13,6 +13,7 @@
 #                                   into DIR (default ~/harness-hub), run its ./bootstrap; when
 #                                   DIR is already a hub clone: fetch the tags, point origin at
 #                                   the bundle and run `harness upgrade` with the remaining flags
+#                                   (bootstrap-only flags such as --no-install-tools are dropped)
 #
 # Needs: sh, tail, tar, wc and one of sha256sum / shasum / python3; git and bash to install.
 set -eu
@@ -30,7 +31,7 @@ die() {
 }
 
 usage() {
-  sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'
 }
 
 # Twin of hn_sha256 in bundles/core/lib/compat.sh; tests/unit/test_pack.py keeps them identical.
@@ -71,6 +72,13 @@ while [ $# -gt 0 ]; do
     --release-dir=*) reldir=${1#--release-dir=}; shift ;;
     --) shift; break ;;
     *) break ;;  # the first unknown word and everything after it go to bootstrap / upgrade
+  esac
+done
+# --dest / --release-dir after the first passthrough flag would silently reach bootstrap
+for a in "$@"; do
+  case $a in
+    --dest|--dest=*|--release-dir|--release-dir=*)
+      die "put --dest and --release-dir before other flags (found $a after them): sh $0 --dest DIR [--release-dir DIR] [flags...]" ;;
   esac
 done
 
@@ -131,16 +139,34 @@ fi
 # install / upgrade
 command -v git >/dev/null 2>&1 \
   || die "git is not installed; install git (and bash, python3 >= 3.9, jq), or use --extract DIR and follow INSTALL.txt"
-[ -n "${HOME:-}" ] || [ -n "$dest" ] || die "HOME is not set; pass --dest DIR and --release-dir DIR"
-reldir=$(abspath "${reldir:-${XDG_DATA_HOME:-$HOME/.local/share}/harness/releases/$HN_VERSION}")
-dest=${dest:-$HOME/harness-hub}
+if [ -z "$reldir" ]; then
+  if [ -n "${XDG_DATA_HOME:-}" ]; then reldir=$XDG_DATA_HOME/harness/releases/$HN_VERSION
+  elif [ -n "${HOME:-}" ]; then reldir=$HOME/.local/share/harness/releases/$HN_VERSION
+  else die "HOME is not set; pass --release-dir DIR (where the release files stay)"
+  fi
+fi
+reldir=$(abspath "$reldir")
+if [ -z "$dest" ]; then
+  [ -n "${HOME:-}" ] || die "HOME is not set; pass --dest DIR (where the hub is cloned or upgraded)"
+  dest=$HOME/harness-hub
+fi
+
+# an existing clone is upgraded; decide (and refuse) before anything is written
+upgrade=
+if [ -d "$dest/.git" ]; then
+  [ -f "$dest/bin/harness" ] && [ -f "$dest/bootstrap" ] \
+    || die "$dest is a git clone but not a harness hub (no bin/harness or bootstrap); pass --dest DIR (a new or empty directory)"
+  [ -n "$HN_TAG" ] \
+    || die "$dest is already a hub clone and a dev build installs only; pass --dest NEW_DIR, or upgrade from a tagged release .run"
+  upgrade=1
+fi
 mkdir -p "$reldir" || die "cannot create $reldir; pass --release-dir DIR (a writable directory)"
 tar -xf "$tmp/payload.tar" -C "$reldir" || die "tar could not unpack into $reldir; pass --release-dir DIR"
 bundle=$reldir/$HN_BUNDLE
 echo "release files: $reldir"
 unset HARNESS_HOME
 
-if [ -d "$dest/.git" ]; then
+if [ -n "$upgrade" ]; then
   # upgrade an existing clone from this bundle: new tags, origin -> the bundle, harness upgrade
   git -C "$dest" fetch -q "$bundle" 'refs/tags/*:refs/tags/*' \
     || die "git fetch from $bundle into $dest failed; fix the clone (git -C $dest status) or pass --dest DIR for a fresh install"
@@ -149,11 +175,34 @@ if [ -d "$dest/.git" ]; then
   else
     git -C "$dest" remote add origin "$bundle"
   fi
-  [ -f "$dest/bin/harness" ] || die "$dest is a git clone but not a harness hub; pass --dest DIR"
-  echo "upgrading $dest to ${HN_TAG:-the newest release tag} (origin is now $bundle)"
+  # harness upgrade parses strictly: drop the bootstrap-only flags (and their values)
+  dropped=
+  takes_value=
+  n=$#
+  while [ "$n" -gt 0 ]; do
+    a=$1
+    shift
+    n=$((n - 1))
+    if [ -n "$takes_value" ]; then
+      takes_value=
+      dropped="$dropped $a"
+      continue
+    fi
+    case $a in
+      --no-install-tools|--no-install-tools=*) dropped="$dropped $a" ;;
+      --bundles|--bundle|--providers|--provider|--profile|--email|--adopt|--from|--origin)
+        dropped="$dropped $a"
+        takes_value=1 ;;
+      --bundles=*|--bundle=*|--providers=*|--provider=*|--profile=*|--email=*|--adopt=*|--from=*|--origin=*)
+        dropped="$dropped $a" ;;
+      *) set -- "$@" "$a" ;;
+    esac
+  done
+  [ -z "$dropped" ] || echo "note: install-only flags ignored for the upgrade:$dropped"
+  echo "upgrading $dest to $HN_TAG (origin is now $bundle)"
   rm -rf "$tmp"
   trap - EXIT
-  exec bash "$dest/bin/harness" upgrade --to "${HN_TAG:-latest}" "$@"
+  exec bash "$dest/bin/harness" upgrade --to "$HN_TAG" "$@"
 fi
 
 if [ -e "$dest" ] && { [ ! -d "$dest" ] || [ -n "$(ls -A "$dest" 2>/dev/null)" ]; }; then

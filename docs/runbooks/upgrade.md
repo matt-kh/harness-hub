@@ -10,7 +10,9 @@ harness upgrade --no-apply   # fetch, show migration notes and the plan, stop
 What it does:
 
 1. `git fetch --tags` from the hub's `origin` (skipped with `--offline`), then checks out the
-   target: the highest SemVer release tag for `latest`, the named tag (detached), or, for a
+   target: the highest SemVer release tag for `latest` (never backwards: when the hub's
+   `VERSION` is at or ahead of that tag, as on a contributor's `main`, it says so and stops
+   with exit 0; `--to TAG` still pins, also to an older tag), the named tag (detached), or, for a
    local branch name, `git checkout BRANCH && git pull --ff-only`. When the fetch fails and
    the tag is already in the clone, the local tag is used. Your `local/` directory is
    untouched — it is gitignored. Local changes to tracked files are refused.
@@ -66,7 +68,9 @@ sh harness-hub-vX.Y.Z.run --yes            # add --offline air-gapped, --config 
 
 It unpacks into `~/.local/share/harness/releases/vX.Y.Z/`, fetches the bundle's tags into the
 clone, points `origin` at the new bundle and runs `harness upgrade --to vX.Y.Z` with the
-remaining arguments (steps 1-5 above).
+remaining arguments (steps 1-5 above); bootstrap-only flags such as `--no-install-tools` are
+dropped with a note, so the install command line works for upgrades too. A dev-build `.run`
+(no tag) installs only and refuses an existing clone.
 
 ## Following main (contributors)
 
