@@ -8,6 +8,14 @@ prints every one between your applied version and the new one.
 
 ## [Unreleased]
 
+### Docs
+
+- [docs/roadmap.md](docs/roadmap.md): planned bundles and extensions by tranche (P0 coverage
+  gaps and lint sensors; core git and shell hygiene, `run-checks`, `worktree`, Jira Cloud, the
+  `ci` bundle; then the secret-tooling, toolchain, containers, release, cloud, iac, db, hosts
+  and digest bundles), the guard prefix bands reserved for them, two proposed taxonomy domains and the
+  rejected candidates. Linked from README and ARCHITECTURE §3.
+
 ### Principles
 
 - `principles_version: 1`: the seven principles (lightweight; developer-first; a platform for
