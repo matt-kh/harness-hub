@@ -219,15 +219,53 @@ macOS ships bash 3.2 and BSD userland; CI parses every script with `/bin/bash -n
 
 ## Releases (maintainers)
 
-Semver tags `vX.Y.Z`, `VERSION` file, GitHub release notes = the CHANGELOG section. Before
-1.0 a minor release may change config with migration notes; deprecated keys warn for two
-minors, then error.
+Versioning is [SemVer 2.0.0](https://semver.org/spec/v2.0.0.html): annotated tags
+`X.Y.Z` (pre-releases `X.Y.Z-rc.N`) on `main`, and the `VERSION` file holds the same string.
+Tags are bare SemVer, no `v` prefix; a `v`-prefixed tag is ignored by the release workflow.
+Pushing the tag is the release: `.github/workflows/release.yml` runs the
+preflight (`harness release check`), the full CI suite, `harness pack --self-extract` with the
+four tool platforms, a `.run` install smoke, and publishes the GitHub Release with the notes
+from this CHANGELOG section and build provenance. Before 1.0 a minor release may change config
+with migration notes; deprecated keys warn for two minors, then error.
 
-On a clean checkout of the tag, build and check the release artifact
-([distribution](docs/distribution.md)), then attach every file in the output directory to the
-GitHub release:
+1. **Release PR** (branch, never `main`): bump `VERSION` to `X.Y.Z`; rename
+   `## [Unreleased]` to `## [X.Y.Z] - YYYY-MM-DD` and add an empty `## [Unreleased]` above
+   it; update the compare links at the bottom (`[Unreleased]: …/compare/X.Y.Z...HEAD`,
+   `[X.Y.Z]: …/releases/tag/X.Y.Z`); `make docs-generate`; `make test lint gate docs`.
+2. **Merge** it (humans merge).
+3. **Tag** the merge commit on an up-to-date `main` and run the preflight:
+
+   ```sh
+   git switch main && git pull --ff-only
+   git tag -a X.Y.Z -m "harness-hub X.Y.Z"
+   make release-check TAG=X.Y.Z
+   ```
+
+4. **Push the tag**: `git push origin X.Y.Z`. The `release` workflow does the rest; a tag
+   name that is not bare SemVer 2.0.0 (`v1.2.3` included) ends green with every job skipped.
+5. **Verify** the published release:
+
+   ```sh
+   gh release view X.Y.Z -R matt-kh/harness-hub
+   gh release download X.Y.Z -R matt-kh/harness-hub -D /tmp/rel
+   gh attestation verify /tmp/rel/harness-hub-X.Y.Z.bundle -R matt-kh/harness-hub
+   sh /tmp/rel/harness-hub-X.Y.Z.run --check && (cd /tmp/rel && shasum -a 256 -c SHA256SUMS)
+   ```
+
+Pre-releases: `VERSION` must equal the pre-release string exactly (`1.3.0-rc.1`) and the
+CHANGELOG section is `## [1.3.0-rc.1] - YYYY-MM-DD`; the GitHub release is marked
+pre-release and `harness upgrade` (default `--to latest`) skips it.
+
+Never move or delete a published tag; fix forward with the next patch version. When a run
+fails after the tag was pushed (a flaky download, say), re-run it for the same tag; it never
+overwrites a published release (a draft left by a failed upload is deleted and recreated, the
+tag stays). `--ref X.Y.Z` is required: the CI suite tests the selected ref, so the preflight
+refuses a dispatch whose ref is not the tagged commit:
 
 ```sh
-bin/harness pack --out /tmp/rel --tag vX.Y.Z --tools linux/amd64,linux/arm64,darwin/amd64,darwin/arm64
-bin/harness verify /tmp/rel/harness-hub-vX.Y.Z.bundle
+gh workflow run release.yml -R matt-kh/harness-hub --ref X.Y.Z -f tag=X.Y.Z -f publish=true
 ```
+
+Rehearse without publishing: `gh workflow run release.yml -R matt-kh/harness-hub --ref BRANCH`
+(a dev build; the `rel` artifact holds the files), or locally
+`make release-build TAG=X.Y.Z` (`TOOLS=` for an offline run) after a throw-away local tag.

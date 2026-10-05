@@ -8,6 +8,14 @@ prints every one between your applied version and the new one.
 
 ## [Unreleased]
 
+### Docs
+
+- [docs/roadmap.md](docs/roadmap.md): planned bundles and extensions by tranche (P0 coverage
+  gaps and lint sensors; core git and shell hygiene, `run-checks`, `worktree`, Jira Cloud, the
+  `ci` bundle; then the secret-tooling, toolchain, containers, release, cloud, iac, db, hosts
+  and digest bundles), the guard prefix bands reserved for them, two proposed taxonomy domains and the
+  rejected candidates. Linked from README and ARCHITECTURE §3.
+
 ### Principles
 
 - `principles_version: 1`: principles 1–7 (lightweight; developer-first; a platform for
@@ -59,6 +67,33 @@ prints every one between your applied version and the new one.
 - Docs: [distribution](docs/distribution.md) (tiers, release artifact, versioning), the
   [self-host runbook](docs/runbooks/self-host.md) for org platform instances, a "Guides and
   sensors" section in concepts, a bundle-file path in getting started.
+- `harness pack --self-extract`: also writes `harness-hub-<version>.run`, a POSIX sh header
+  (tracked as `lib/harness/selfextract-header.sh`) plus a deterministic uncompressed tar of the
+  bundle, `INSTALL.txt`, `SHA256SUMS` and tool archives. `sh FILE.run --check | --list |
+  --extract DIR`; run it to unpack into `~/.local/share/harness/releases/<version>/`
+  (`--release-dir`), clone into `--dest` (default `~/harness-hub`) and bootstrap, or, against
+  an existing clone, fetch its tags, point `origin` at its bundle and `harness upgrade`. The
+  bundle stays the release; the outer `SHA256SUMS` lists the `.run`. On the upgrade path the
+  bootstrap-only flags (`--no-install-tools`, `--bundles X`, ...) are dropped with a note, so
+  the install command line also upgrades; a dev-build `.run` (no tag) installs only and
+  refuses an existing clone.
+- `harness verify FILE.run`: `sh FILE.run --check` plus the `SHA256SUMS` check.
+- `harness release check [TAG] [--remote NAME] [--branch NAME] [--no-remote] [--json]`: the
+  release preflight (bare SemVer 2.0.0 tag `X.Y.Z[-pre]`, no `v` prefix and no `+build`,
+  annotated, `VERSION` and the dated CHANGELOG section match, `[Unreleased]` emptied, no
+  `local/`, clean tree, tag on `origin/main`, unique release asset names) and `harness release
+  notes TAG [--dir DIR] [--out FILE]`; `make release-check TAG=…` and `make release-build TAG=…
+  [TOOLS=…]`.
+- `.github/workflows/release.yml`: a tag push whose name is bare SemVer 2.0.0
+  (`X.Y.Z[-pre]`; a `v`-prefixed tag is skipped) runs the preflight,
+  the CI suite (`ci.yml` is now also a reusable workflow), pack with the four tool platforms
+  and `--self-extract`, a `.run` install smoke, and publishes a GitHub Release (pre-release
+  for `-rc.N` tags) with notes from this file and build provenance; any other tag name ends
+  green with nothing released. `workflow_dispatch` makes dry-run dev builds or re-runs a tag
+  (with `--ref` the tag itself; a re-run replaces a draft left by a failed upload, never a
+  published release).
+- SemVer 2.0.0 helpers (`util.SEMVER_RE`, `parse_semver`, `is_prerelease`, `version_key`
+  with §11 precedence); `harness upgrade` orders CHANGELOG sections with them.
 - `.harness.toml` repository declaration (`[repo]`, `[owns] domains/components`, `[overrides]`),
   read by the guard from the hook cwd (not from a command's target) and by skills at
   preflight; `schema/repo.schema.json`. A TOML subset parsed without a subshell per line;
@@ -103,6 +138,16 @@ prints every one between your applied version and the new one.
 - CONTRIBUTING: "Principles first", contributions as the steering loop, guides and sensors in
   the add-a-bundle checklist; PR template asks for the principle(s) served and the pairing
   check.
+- `harness upgrade` targets `--to latest` by default: it fetches tags and checks out the
+  newest release tag (pre-releases skipped) and never moves backwards (a checkout at or ahead
+  of that tag is left alone, exit 0); `--to TAG` pins; `--to BRANCH` checks out and
+  fast-forwards a branch; `harness doctor` runs after a successful apply and sets the exit
+  status. The upgrade and air-gapped runbooks now describe what the code does.
+- CONTRIBUTING "Releases (maintainers)" is the tag-driven procedure (release PR, merge,
+  annotated bare SemVer tag `X.Y.Z`, `make release-check`, push the tag, verify).
+- Principles 4 and 5: the open question on signing is resolved (build provenance verified
+  online, `SHA256SUMS` offline, annotated tags, signed tags optional); principle 5 lists the
+  `.run` envelope. Statements unchanged (the bump to 2 above is principle 8).
 - Every guard section runs as a function; yielding sections start with
   `repo_owns <id> <domain> && return 0`; `core/guard.d/20-credentials` and `core/permissions`
   never yield, and neither do the token-printing denies, which move into `# never-yields:`
@@ -131,6 +176,10 @@ prints every one between your applied version and the new one.
   the allowed values. A rule, skill, agent, guard section or permission list missing from
   `[harness]` is reported too; declare it as a guide or sensor. Then run
   `harness docs generate` to refresh the bundle pages and the catalog.
+- `harness upgrade` without `--to` now fetches tags and checks out the newest release tag
+  instead of `git pull --ff-only` on the current branch. Contributors following `main`:
+  `harness upgrade --to main`. Clones made from a `--tag` bundle (detached HEAD) now upgrade
+  without extra steps. No config keys changed.
 - Repositories: nothing required. Provider `env` overrides keep working and win per key.
   To declare what your repository owns, add `.harness.toml` (`[owns]`, `[overrides]`) and
   run `harness repo`. Overrides settable from `.harness.toml` are exactly

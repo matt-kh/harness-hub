@@ -68,7 +68,7 @@ repo; open the linked document when your change touches that area.
 | yield | how a hub component steps aside for a repository-level equivalent: `declaration`, `name`, `text` or `config`; `never` for the developer's own credentials (credential-file denies, `# never-yields:` preludes); `n/a` where nothing repository-level corresponds |
 | `.harness.toml` | the provider-neutral declaration at a repository root: `[owns]` (domains, component ids) and `[overrides]` (allow-listed names) |
 | owns | a repository's claim, in `.harness.toml`, that its harness covers a domain or a component id; the hub's matching components yield there |
-| bundle file | a `git bundle` release artifact, `harness-hub-vX.Y.Z.bundle`; not to be confused with a harness bundle |
+| bundle file | a `git bundle` release artifact, `harness-hub-X.Y.Z.bundle`; not to be confused with a harness bundle |
 
 ## Applying the principles
 
