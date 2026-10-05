@@ -2,7 +2,7 @@
 
 ```sh
 harness upgrade              # the newest release tag (same as --to latest; pre-releases skipped)
-harness upgrade --to v0.3.1  # a specific version (also a pre-release: --to v0.4.0-rc.1)
+harness upgrade --to 0.3.1   # a specific version (also a pre-release: --to 0.4.0-rc.1)
 harness upgrade --to main    # follow a branch: check it out and fast-forward it
 harness upgrade --no-apply   # fetch, show migration notes and the plan, stop
 ```
@@ -48,7 +48,7 @@ default target works there unchanged. `--to main` in such a clone says so and as
 ## Rollback
 
 ```sh
-cd ~/harness-hub && git checkout v0.2.4    # the version you came from
+cd ~/harness-hub && git checkout 0.2.4     # the version you came from
 harness apply                              # re-renders the old version, backing up first
 ```
 
@@ -62,12 +62,12 @@ Run the newer envelope with the same `--dest` as the installed clone (default
 `~/harness-hub`):
 
 ```sh
-sh harness-hub-vX.Y.Z.run --check
-sh harness-hub-vX.Y.Z.run --yes            # add --offline air-gapped, --config FILE if not local/
+sh harness-hub-X.Y.Z.run --check
+sh harness-hub-X.Y.Z.run --yes             # add --offline air-gapped, --config FILE if not local/
 ```
 
-It unpacks into `~/.local/share/harness/releases/vX.Y.Z/`, fetches the bundle's tags into the
-clone, points `origin` at the new bundle and runs `harness upgrade --to vX.Y.Z` with the
+It unpacks into `~/.local/share/harness/releases/X.Y.Z/`, fetches the bundle's tags into the
+clone, points `origin` at the new bundle and runs `harness upgrade --to X.Y.Z` with the
 remaining arguments (steps 1-5 above); bootstrap-only flags such as `--no-install-tools` are
 dropped with a note, so the install command line works for upgrades too. A dev-build `.run`
 (no tag) installs only and refuses an existing clone.

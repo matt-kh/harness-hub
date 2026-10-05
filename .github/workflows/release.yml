@@ -1,19 +1,19 @@
 name: release
 
-# Tag push vX.Y.Z[-pre] on main -> preflight (harness release check), the full CI suite, pack
+# Tag push X.Y.Z[-pre] on main -> preflight (harness release check), the full CI suite, pack
 # (bundle + .run + four tool platforms), a .run install smoke, then a GitHub Release with notes
 # from CHANGELOG.md and build provenance. Procedure: CONTRIBUTING.md "Releases (maintainers)".
 #
-# Only SemVer 2.0.0 tag names release: any other tag (v1, v1.2, vnext) ends green with every job
-# skipped. workflow_dispatch: empty tag = dev build of the selected ref (never published); a tag
-# rebuilds it and publishes only with publish=true (re-run after a failed release). A tag
-# dispatch must select the tag itself (--ref vX.Y.Z): the reusable CI suite tests github.sha,
-# so preflight fails when the selected ref is not the tagged commit. A re-run replaces a draft
-# left by a failed upload, never a published release.
+# Only bare SemVer 2.0.0 tag names release (no v prefix): any other tag (1.2, v1.2.3, vnext)
+# ends green with every job skipped. workflow_dispatch: empty tag = dev build of the selected
+# ref (never published); a tag rebuilds it and publishes only with publish=true (re-run after
+# a failed release). A tag dispatch must select the tag itself (--ref X.Y.Z): the reusable CI
+# suite tests github.sha, so preflight fails when the selected ref is not the tagged commit. A
+# re-run replaces a draft left by a failed upload, never a published release.
 
 on:
   push:
-    tags: ["v*"]
+    tags: ["*"]  # every tag; the gate job decides
   workflow_dispatch:
     inputs:
       tag:
@@ -51,9 +51,9 @@ jobs:
         env:
           TAG: ${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
         run: |
-          # Same expression as lib/harness/util.py SEMVER_RE with a mandatory v, as POSIX ERE
+          # Same expression as lib/harness/util.py SEMVER_RE (bare, no v prefix), as POSIX ERE
           # (tests/unit/test_semver.py keeps the two in step).
-          SEMVER_ERE='^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(\.(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$'
+          SEMVER_ERE='^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(\.(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$'
           if [ -z "$TAG" ]; then
             echo "semver=skip-preflight" >> "$GITHUB_OUTPUT"
             echo "tag=" >> "$GITHUB_OUTPUT"
@@ -65,7 +65,7 @@ jobs:
           else
             echo "semver=false" >> "$GITHUB_OUTPUT"
             echo "tag=" >> "$GITHUB_OUTPUT"
-            msg="skipped: $TAG is not a SemVer 2.0.0 tag (vX.Y.Z[-pre][+build]); nothing released"
+            msg="skipped: $TAG is not a SemVer 2.0.0 tag (X.Y.Z[-pre][+build], no v prefix); nothing released"
             echo "::notice::$msg"
             echo "$msg" >> "$GITHUB_STEP_SUMMARY"
           fi

@@ -97,7 +97,7 @@ first use.
 ## Release artifacts
 
 A release is a `git bundle` file, optional sidecar tool archives taken from the pinned lock
-files, `INSTALL.txt`, `SHA256SUMS` over all of them, and `harness-hub-vX.Y.Z.run`, a
+files, `INSTALL.txt`, `SHA256SUMS` over all of them, and `harness-hub-X.Y.Z.run`, a
 self-extracting envelope of the same files ([distribution](docs/distribution.md)). Releases
 never contain `local/`, credentials, provider CLIs or MCP packages.
 

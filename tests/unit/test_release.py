@@ -30,8 +30,8 @@ CHANGELOG = """# Changelog
 
 - the first thing
 
-[Unreleased]: https://example.com/compare/v{v}...HEAD
-[{v}]: https://example.com/releases/tag/v{v}
+[Unreleased]: https://example.com/compare/{v}...HEAD
+[{v}]: https://example.com/releases/tag/{v}
 """
 
 
@@ -72,9 +72,9 @@ class ReleaseCheckTest(unittest.TestCase):
         self.git("commit", "-q", "-m", "release %s" % version)
         if tag:
             if annotated:
-                self.git("tag", "-a", "v" + version, "-m", "harness-hub v" + version)
+                self.git("tag", "-a", version, "-m", "harness-hub " + version)
             else:
-                self.git("tag", "v" + version)
+                self.git("tag", version)
 
     def check(self, tag, **kw):
         kw.setdefault("remote", "origin")
@@ -85,7 +85,7 @@ class ReleaseCheckTest(unittest.TestCase):
         self.assertTrue(any(needle in p for p in res["problems"]), res["problems"])
 
     def test_ok(self):
-        res = self.check("v1.2.3")
+        res = self.check("1.2.3")
         self.assertTrue(res["ok"], res)
         self.assertEqual((res["version"], res["prerelease"]), ("1.2.3", False))
         self.assertEqual(res["commit"], self.git("rev-parse", "HEAD").strip())
@@ -96,57 +96,65 @@ class ReleaseCheckTest(unittest.TestCase):
         self.assertTrue(R.check(self.repo, None, fetch=False)["ok"])  # the tag on HEAD
 
     def test_lightweight_tag(self):
-        self.git("tag", "-d", "v1.2.3")
-        self.git("tag", "v1.2.3")
-        self.assertProblem(self.check("v1.2.3"), "lightweight")
+        self.git("tag", "-d", "1.2.3")
+        self.git("tag", "1.2.3")
+        self.assertProblem(self.check("1.2.3"), "lightweight")
 
     def test_missing_tag(self):
-        self.assertProblem(self.check("v9.9.9"), "does not exist")
+        self.assertProblem(self.check("9.9.9"), "does not exist")
 
     def test_version_mismatch(self):
         self.release("1.2.4", changelog=CHANGELOG.format(v="1.2.5"), tag=False)
-        self.git("tag", "-a", "v1.2.5", "-m", "r")
+        self.git("tag", "-a", "1.2.5", "-m", "r")
         self.git("update-ref", "refs/remotes/origin/main", "HEAD")
-        self.assertProblem(self.check("v1.2.5"), "VERSION at v1.2.5 is '1.2.4'")
+        self.assertProblem(self.check("1.2.5"), "VERSION at 1.2.5 is '1.2.4'")
 
     def test_missing_section(self):
         self.release("1.2.4", changelog="# Changelog\n\n## [Unreleased]\n\n## [1.2.3] - 2026-09-30\n- a\n")
         self.git("update-ref", "refs/remotes/origin/main", "HEAD")
-        res = self.check("v1.2.4")
+        res = self.check("1.2.4")
         self.assertProblem(res, "no '## [1.2.4] - YYYY-MM-DD' heading")
         self.assertTrue(any("link line" in w for w in res["warnings"]))
 
     def test_bad_date(self):
         self.release("1.2.4", changelog=CHANGELOG.format(v="1.2.4").replace("2026-09-30", "2026-13-40"))
         self.git("update-ref", "refs/remotes/origin/main", "HEAD")
-        self.assertProblem(self.check("v1.2.4"), "YYYY-MM-DD")
+        self.assertProblem(self.check("1.2.4"), "YYYY-MM-DD")
 
     def test_leftover_unreleased(self):
         text = CHANGELOG.format(v="1.2.4").replace("## [Unreleased]\n", "## [Unreleased]\n\n### Fixed\n\n- stray\n")
         self.release("1.2.4", changelog=text)
         self.git("update-ref", "refs/remotes/origin/main", "HEAD")
-        self.assertProblem(self.check("v1.2.4"), "[Unreleased] still holds")
+        self.assertProblem(self.check("1.2.4"), "[Unreleased] still holds")
 
     def test_non_semver_and_build_tags(self):
-        for bad in ("v1.2", "1.2.3", "vnext", "v01.2.3"):
+        for bad in ("1.2", "v1.2", "vnext", "01.2.3"):
             self.assertProblem(self.check(bad), "not SemVer 2.0.0")
-        self.git("tag", "-a", "v1.2.3+build.7", "-m", "r")
-        self.assertProblem(self.check("v1.2.3+build.7"), "+build")
+        self.git("tag", "-a", "1.2.3+build.7", "-m", "r")
+        self.assertProblem(self.check("1.2.3+build.7"), "+build")
+
+    def test_v_prefixed_tag_is_rejected(self):
+        # the tag exists and points at a valid release commit: only its name is wrong
+        self.git("tag", "-a", "v1.2.3", "-m", "r")
+        res = self.check("v1.2.3")
+        self.assertProblem(res, "tag names are bare SemVer: 1.2.3, not v1.2.3")
+        self.assertIsNone(res["version"])
+        self.assertProblem(self.check("v1.2"), "tag names are bare SemVer: X.Y.Z, not vX.Y.Z")
 
     def test_not_on_main(self):
         self.git("checkout", "-q", "-b", "side")
         self.release("1.2.4")
-        res = self.check("v1.2.4")
+        res = self.check("1.2.4")
         self.assertProblem(res, "is not on origin/main")
-        self.assertTrue(self.check("v1.2.4", fetch=False)["ok"])  # --no-remote rehearsal
+        self.assertTrue(self.check("1.2.4", fetch=False)["ok"])  # --no-remote rehearsal
 
     def test_dirty_tree_and_head_elsewhere(self):
         self.write("new.txt", "x\n")
-        self.assertProblem(self.check("v1.2.3"), "dirty")
+        self.assertProblem(self.check("1.2.3"), "dirty")
         os.unlink(os.path.join(self.repo, "new.txt"))
         self.git("commit", "-q", "--allow-empty", "-m", "after")
         self.git("update-ref", "refs/remotes/origin/main", "HEAD")
-        res = self.check("v1.2.3")
+        res = self.check("1.2.3")
         self.assertTrue(res["ok"], res)
         self.assertTrue(any("not the tag commit" in w for w in res["warnings"]))
 
@@ -158,7 +166,7 @@ class ReleaseCheckTest(unittest.TestCase):
         os.unlink(os.path.join(self.repo, "local/harness.toml"))
         self.release("1.2.4")
         self.git("update-ref", "refs/remotes/origin/main", "HEAD")
-        self.assertProblem(self.check("v1.2.4"), "local/")
+        self.assertProblem(self.check("1.2.4"), "local/")
 
     def test_tool_asset_clash(self):
         lock = {"tool": "a", "version": "1", "verified": True,
@@ -168,26 +176,26 @@ class ReleaseCheckTest(unittest.TestCase):
         self.write("tools/b.lock.json", json.dumps(lock))
         self.release("1.2.4")
         self.git("update-ref", "refs/remotes/origin/main", "HEAD")
-        self.assertProblem(self.check("v1.2.4"), "unique basenames")
+        self.assertProblem(self.check("1.2.4"), "unique basenames")
 
     def test_prerelease(self):
         self.release("1.3.0-rc.1")
         self.git("update-ref", "refs/remotes/origin/main", "HEAD")
-        res = self.check("v1.3.0-rc.1")
+        res = self.check("1.3.0-rc.1")
         self.assertTrue(res["ok"], res)
         self.assertTrue(res["prerelease"])
 
     # ------------------------------------------------------------------ notes
     def test_notes(self):
         rel = os.path.join(self.tmp, "rel")
-        P.pack(self.repo, rel, tag="v1.2.3", self_extract=True, log=lambda *a: None)
-        text = R.notes(self.repo, "v1.2.3", rel_dir=rel)
-        self.assertTrue(text.startswith("# harness-hub v1.2.3\n"))
+        P.pack(self.repo, rel, tag="1.2.3", self_extract=True, log=lambda *a: None)
+        text = R.notes(self.repo, "1.2.3", rel_dir=rel)
+        self.assertTrue(text.startswith("# harness-hub 1.2.3\n"))
         self.assertIn("### Added\n\n- the first thing", text)
         self.assertNotIn("[1.2.3]: https://", text)
-        self.assertIn("sh harness-hub-v1.2.3.run --check", text)
-        self.assertIn("git clone -b v1.2.3 harness-hub-v1.2.3.bundle ~/harness-hub", text)
-        self.assertIn("gh attestation verify harness-hub-v1.2.3.bundle -R owner/repo", text)
+        self.assertIn("sh harness-hub-1.2.3.run --check", text)
+        self.assertIn("git clone -b 1.2.3 harness-hub-1.2.3.bundle ~/harness-hub", text)
+        self.assertIn("gh attestation verify harness-hub-1.2.3.bundle -R owner/repo", text)
         self.assertIn("## SHA256SUMS\n\n```\n", text)
         with open(os.path.join(rel, "SHA256SUMS"), encoding="utf-8") as fh:
             self.assertIn(fh.read().rstrip("\n"), text)
@@ -195,11 +203,11 @@ class ReleaseCheckTest(unittest.TestCase):
 
     def test_notes_prerelease_and_missing_section(self):
         self.release("1.3.0-rc.1")
-        text = R.notes(self.repo, "v1.3.0-rc.1")
+        text = R.notes(self.repo, "1.3.0-rc.1")
         self.assertIn("Pre-release", text)
-        self.assertIn("--to v1.3.0-rc.1", text)
+        self.assertIn("--to 1.3.0-rc.1", text)
         with self.assertRaises(HarnessError):
-            R.notes(self.repo, "v9.9.9")
+            R.notes(self.repo, "9.9.9")
 
 
 if __name__ == "__main__":

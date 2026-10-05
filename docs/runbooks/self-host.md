@@ -19,8 +19,8 @@ git remote add origin git@git.example.com:platform/harness-hub.git
 git push origin --all && git push origin --tags
 
 # b) no internet on the build host: start from a release bundle
-harness verify harness-hub-vX.Y.Z.bundle            # or: git bundle verify FILE
-git clone --origin upstream harness-hub-vX.Y.Z.bundle harness-hub
+harness verify harness-hub-X.Y.Z.bundle             # or: git bundle verify FILE
+git clone --origin upstream harness-hub-X.Y.Z.bundle harness-hub
 cd harness-hub && git remote add origin git@git.example.com:platform/harness-hub.git
 git push origin --all && git push origin --tags
 ```
@@ -32,7 +32,7 @@ git push origin --all && git push origin --tags
 
 ```sh
 git fetch upstream --tags
-git merge vX.Y.Z                    # a release tag; or upstream/main if you follow main
+git merge X.Y.Z                     # a release tag; or upstream/main if you follow main
 git push origin HEAD:<branch> && git push origin --tags      # then open an MR into your default branch
 ```
 
@@ -41,7 +41,7 @@ git push origin HEAD:<branch> && git push origin --tags      # then open an MR i
 - Keep org changes in new files (org bundles, overlay) rather than edits to upstream files, so
   merges stay conflict-free.
 - Air-gapped: point the remote at a release bundle instead
-  (`git remote set-url upstream /path/harness-hub-vX.Y.Z.bundle`), then fetch as above.
+  (`git remote set-url upstream /path/harness-hub-X.Y.Z.bundle`), then fetch as above.
 
 ## 3. Add org bundles in-repo
 
@@ -89,9 +89,9 @@ git add org/harness.org.toml && git commit -m "org: overlay defaults"
 ## 6. Cut org releases
 
 ```sh
-git tag -a vX.Y.Z-acme.1 -m "acme release on upstream vX.Y.Z"
-git push origin vX.Y.Z-acme.1
-harness pack --out rel --tag vX.Y.Z-acme.1 --tools linux/amd64,darwin/arm64
+git tag -a X.Y.Z-acme.1 -m "acme release on upstream X.Y.Z"
+git push origin X.Y.Z-acme.1
+harness pack --out rel --tag X.Y.Z-acme.1 --tools linux/amd64,darwin/arm64
 harness verify rel/harness-hub-*.bundle
 ```
 
@@ -114,7 +114,7 @@ git clone git@git.example.com:platform/harness-hub.git ~/harness-hub \
 Offline developers:
 
 ```sh
-git clone harness-hub-vX.Y.Z-acme.1.bundle ~/harness-hub
+git clone harness-hub-X.Y.Z-acme.1.bundle ~/harness-hub
 git -C ~/harness-hub remote set-url origin git@git.example.com:platform/harness-hub.git   # once the host is reachable
 ~/harness-hub/bin/harness init --from ~/harness-hub/org/harness.org.toml --bundles core,acme-platform,gitlab,jira
 ~/harness-hub/bootstrap --offline --no-install-tools
@@ -129,7 +129,7 @@ git -C ~/harness-hub remote set-url origin git@git.example.com:platform/harness-
 ## 8. Developers upgrade
 
 ```sh
-harness upgrade --to vX.Y.Z-acme.2      # fetches from origin = your instance
+harness upgrade --to X.Y.Z-acme.2       # fetches from origin = your instance
 ```
 
 - `upgrade` prints the Migration notes, re-validates config, shows the plan and applies with

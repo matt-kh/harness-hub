@@ -2,12 +2,11 @@
 
 ``check [TAG]`` (default: the tag on HEAD) reports a problem (exit 1) when
 
-1. TAG is not SemVer 2.0.0 with a leading ``v`` (``vX.Y.Z`` or ``vX.Y.Z-pre.N``), or carries
+1. TAG is not bare SemVer 2.0.0 (``X.Y.Z`` or ``X.Y.Z-pre.N``; a ``v`` prefix is rejected), or carries
    ``+build`` metadata (tag names stay comparable across forges)
 2. TAG does not exist or is lightweight (releases need an annotated tag; a signed tag is
    reported, not required)
 3. ``VERSION`` at TAG (and in the working tree when HEAD is the tag commit) is not TAG
-   without the ``v``
 4. ``CHANGELOG.md`` at TAG has no ``## [X.Y.Z] - YYYY-MM-DD`` heading with a valid date, or
    its ``[Unreleased]`` section still holds entries (warning: the ``[X.Y.Z]: …`` link line
    is missing)
@@ -95,18 +94,22 @@ def check(home: str, tag: Optional[str] = None, remote: str = "origin", branch: 
         res["tag"] = tag
         if not tag:
             problems.append("HEAD carries no tag; pass TAG, or tag the release commit first: "
-                            "git tag -a vX.Y.Z -m \"harness-hub vX.Y.Z\"")
+                            "git tag -a X.Y.Z -m \"harness-hub X.Y.Z\"")
             return done()
-    # 1. SemVer 2.0.0, mandatory v, no +build
+    # 1. bare SemVer 2.0.0 (no v prefix), no +build
     v = parse_semver(tag)
-    if not tag.startswith("v") or v is None or not SEMVER_RE.match(tag):
-        problems.append("tag %s is not SemVer 2.0.0 with a leading v; use vX.Y.Z or vX.Y.Z-rc.N "
-                        "(git tag -d %s, then git tag -a vX.Y.Z -m ...)" % (tag, tag))
+    if v is None or not SEMVER_RE.match(tag):
+        hint = ""
+        if tag[:1] in ("v", "V"):
+            bare = tag[1:] if SEMVER_RE.match(tag[1:]) else "X.Y.Z"
+            hint = "tag names are bare SemVer: %s, not %s; " % (bare, tag if bare != "X.Y.Z" else "vX.Y.Z")
+        problems.append("tag %s is not SemVer 2.0.0; %suse X.Y.Z or X.Y.Z-rc.N, no v prefix "
+                        "(git tag -d %s, then git tag -a X.Y.Z -m ...)" % (tag, hint, tag))
         return done()
     if v[4]:
-        problems.append("tag %s carries +build metadata; release tags are vX.Y.Z[-pre] only "
+        problems.append("tag %s carries +build metadata; release tags are X.Y.Z[-pre] only "
                         "(re-tag without the +%s part)" % (tag, v[4]))
-    version = tag[1:].split("+", 1)[0]
+    version = tag.split("+", 1)[0]
     res["version"] = version
     res["prerelease"] = is_prerelease(tag)
     # 2. annotated (signed optional)
@@ -210,7 +213,7 @@ def _repo_slug(root: str) -> str:
 
 def notes(home: str, tag: str, rel_dir: Optional[str] = None) -> str:
     root = P.repo_root(home)
-    version = tag.lstrip("v").split("+", 1)[0]
+    version = tag.split("+", 1)[0]
     log = _show(root, "%s:CHANGELOG.md" % tag)
     if log is None:
         raise HarnessError("cannot read CHANGELOG.md at %s; does the tag exist? (git tag -l %s)" % (tag, tag))

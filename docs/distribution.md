@@ -28,7 +28,7 @@ release contains. Governed by [principle 4](../principles/04-install-as-a-platfo
 |---|---|---|
 | git remote (upstream or org) | the machine can reach the git host | `git clone <remote> ~/harness-hub && ~/harness-hub/bootstrap` |
 | bundle file | air-gapped, or the git host is unreachable | `git clone FILE.bundle ~/harness-hub`, or `harness bootstrap --from FILE.bundle` |
-| one file | air-gapped, and one file is easier to carry and check than a directory | `sh harness-hub-vX.Y.Z.run --check`, then `sh harness-hub-vX.Y.Z.run --offline --no-install-tools` |
+| one file | air-gapped, and one file is easier to carry and check than a directory | `sh harness-hub-X.Y.Z.run --check`, then `sh harness-hub-X.Y.Z.run --offline --no-install-tools` |
 | mirror of tool downloads | tools must come from an internal artifact store | `HARNESS_TOOLS_MIRROR=<base url>` |
 | carried tool archives | no artifact store either | `harness install <tool> --from FILE` |
 
@@ -37,11 +37,11 @@ release contains. Governed by [principle 4](../principles/04-install-as-a-platfo
 `harness pack` writes, into `--out DIR`:
 
 ```text
-harness-hub-vX.Y.Z.bundle   the repository: branches, tags, history (git bundle)
+harness-hub-X.Y.Z.bundle    the repository: branches, tags, history (git bundle)
 tools/<asset>               optional: the tools/*.lock.json assets for each --tools platform
 INSTALL.txt                 verify, clone, bootstrap
 SHA256SUMS                  sha256 of every file above (plus the .run line when it is written)
-harness-hub-vX.Y.Z.run      optional envelope (--self-extract): a POSIX sh header + an uncompressed
+harness-hub-X.Y.Z.run       optional envelope (--self-extract): a POSIX sh header + an uncompressed
                             tar of the files above; the bundle inside is the release
 ```
 
@@ -63,20 +63,20 @@ harness-hub-vX.Y.Z.run      optional envelope (--self-extract): a POSIX sh heade
   installs: against an existing clone it refuses and asks for `--dest NEW_DIR`.
 
 - Without a release tag on `HEAD` (or `--tag`), the version in the file name is
-  `v<VERSION>-g<short sha>`.
+  `<VERSION>-g<short sha>`.
 - On the target machine, with git, bash, python3 and jq only:
 
 ```sh
 shasum -a 256 -c SHA256SUMS                                   # or: sha256sum -c SHA256SUMS
-git clone harness-hub-vX.Y.Z.bundle ~/harness-hub
+git clone harness-hub-X.Y.Z.bundle ~/harness-hub
 ~/harness-hub/bootstrap --offline --no-install-tools
 harness install gh --from tools/gh_<version>_linux_amd64.tar.gz      # per sidecar archive, if any
 ```
 
 - From an existing hub, `harness bootstrap --from FILE.bundle` replaces the clone and
   bootstrap lines, and `harness verify FILE.bundle` replaces the checksum line.
-- With the `.run` only: `sh harness-hub-vX.Y.Z.run --check`, then
-  `sh harness-hub-vX.Y.Z.run --offline --no-install-tools`.
+- With the `.run` only: `sh harness-hub-X.Y.Z.run --check`, then
+  `sh harness-hub-X.Y.Z.run --offline --no-install-tools`.
 - Published releases also carry GitHub build provenance: `gh attestation verify FILE -R
   matt-kh/harness-hub` checks it online; `SHA256SUMS` is the offline check.
 
@@ -103,13 +103,13 @@ Reference with every flag: [CLI reference](reference/cli.md). Contract:
 
 ## Versioning
 
-- [SemVer 2.0.0](https://semver.org/spec/v2.0.0.html): annotated tags `vX.Y.Z` on `main`;
-  the `VERSION` file matches the tag without the `v`. Pushing the tag is the release: the
+- [SemVer 2.0.0](https://semver.org/spec/v2.0.0.html): annotated tags `X.Y.Z` on `main`,
+  bare (no `v` prefix); the `VERSION` file matches the tag. Pushing the tag is the release: the
   `release` workflow checks it, runs CI, packs it and publishes a GitHub Release of the same
-  name. Tag names that are not SemVer 2.0.0 release nothing.
-- Pre-releases `vX.Y.Z-rc.N` publish a GitHub pre-release; `harness upgrade` without `--to`
-  skips them (pass `--to vX.Y.Z-rc.N`). Instances that tag their own builds
-  (`vX.Y.Z-acme.N`) are pre-releases by this rule and upgrade with an explicit `--to TAG`.
+  name. Tag names that are not bare SemVer 2.0.0 (`v1.2.3` included) release nothing.
+- Pre-releases `X.Y.Z-rc.N` publish a GitHub pre-release; `harness upgrade` without `--to`
+  skips them (pass `--to X.Y.Z-rc.N`). Instances that tag their own builds
+  (`X.Y.Z-acme.N`) are pre-releases by this rule and upgrade with an explicit `--to TAG`.
 - Each release has a CHANGELOG section. A **Migration** paragraph is present whenever a config
   key, a default or a guard decision changes; `harness upgrade` prints every one between the
   applied version and the target.
@@ -124,19 +124,19 @@ Reference with every flag: [CLI reference](reference/cli.md). Contract:
   connected side                                   offline side
   ──────────────                                   ────────────
   git clone upstream (or org instance)
-  harness pack --out rel --tag vX.Y.Z \
+  harness pack --out rel --tag X.Y.Z \
        --tools linux/amd64,darwin/arm64 --self-extract
   (or download a published release)
         │
         ▼
-  rel/ harness-hub-vX.Y.Z.bundle
+  rel/ harness-hub-X.Y.Z.bundle
        tools/gh_<v>_linux_amd64.tar.gz …  ──(USB / data diode / share)──►  shasum -a 256 -c SHA256SUMS
        SHA256SUMS, INSTALL.txt                                              git clone FILE.bundle ~/harness-hub
                                                                             ~/harness-hub/bootstrap --offline --no-install-tools
                                                                             harness install gh --from tools/<archive>
                                                                             harness doctor --offline
 
-  or one file: harness-hub-vX.Y.Z.run ────────────────────────────────►   sh FILE.run --check
+  or one file: harness-hub-X.Y.Z.run ─────────────────────────────────►   sh FILE.run --check
                                                                             sh FILE.run --offline --no-install-tools
 
   later: pack the next tag the same way ──────────────────────────────►   git -C ~/harness-hub remote set-url origin NEW.bundle

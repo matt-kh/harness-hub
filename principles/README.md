@@ -31,7 +31,7 @@ touches that area.
 
 - Numbers are stable: never renumbered, never reused.
 - New principles are appended: `08-<slug>.md`, `09-<slug>.md`.
-- A retired principle keeps its file with a *Retired in vX.Y.Z: reason* line under the title.
+- A retired principle keeps its file with a *Retired in X.Y.Z: reason* line under the title.
 
 ## Change procedure
 

@@ -37,8 +37,8 @@ one `git bundle` file with the whole hub, optional tool archives, `SHA256SUMS` a
 On a connected machine with a clean clone (upstream or your org instance):
 
 ```sh
-harness pack --out /media/usb/rel --tag vX.Y.Z --tools linux/amd64,darwin/arm64
-harness verify /media/usb/rel/harness-hub-vX.Y.Z.bundle
+harness pack --out /media/usb/rel --tag X.Y.Z --tools linux/amd64,darwin/arm64
+harness verify /media/usb/rel/harness-hub-X.Y.Z.bundle
 ```
 
 - `--tools` downloads the `tools/*.lock.json` assets for those platforms with the same
@@ -50,7 +50,7 @@ On the offline machine:
 
 ```sh
 cd /media/usb/rel && shasum -a 256 -c SHA256SUMS
-git clone harness-hub-vX.Y.Z.bundle ~/harness-hub
+git clone harness-hub-X.Y.Z.bundle ~/harness-hub
 ~/harness-hub/bootstrap --offline --no-install-tools
 harness install gh --from /media/usb/rel/tools/gh_<version>_linux_amd64.tar.gz
 harness doctor --offline
@@ -62,26 +62,26 @@ harness doctor --offline
 ### One file: the `.run` envelope
 
 `harness pack ... --self-extract` (and every published release) adds
-`harness-hub-vX.Y.Z.run`: a POSIX sh header plus a tar of the directory above, so one file
+`harness-hub-X.Y.Z.run`: a POSIX sh header plus a tar of the directory above, so one file
 crosses the gap. On the connected side, check it before carrying it (and, for a published
-release, its provenance: `gh attestation verify harness-hub-vX.Y.Z.run -R matt-kh/harness-hub`):
+release, its provenance: `gh attestation verify harness-hub-X.Y.Z.run -R matt-kh/harness-hub`):
 
 ```sh
-sh harness-hub-vX.Y.Z.run --check        # payload size + sha256, every SHA256SUMS line
+sh harness-hub-X.Y.Z.run --check         # payload size + sha256, every SHA256SUMS line
 ```
 
 On the offline side (needs sh, tar, git, bash, python3, jq):
 
 ```sh
-sh harness-hub-vX.Y.Z.run --check
-sh harness-hub-vX.Y.Z.run --offline --no-install-tools      # --dest DIR, default ~/harness-hub
-harness install gh --from ~/.local/share/harness/releases/vX.Y.Z/tools/gh_<version>_linux_amd64.tar.gz
+sh harness-hub-X.Y.Z.run --check
+sh harness-hub-X.Y.Z.run --offline --no-install-tools       # --dest DIR, default ~/harness-hub
+harness install gh --from ~/.local/share/harness/releases/X.Y.Z/tools/gh_<version>_linux_amd64.tar.gz
 harness doctor --offline
 ```
 
-- The release files stay in `~/.local/share/harness/releases/vX.Y.Z/` (`--release-dir DIR`
+- The release files stay in `~/.local/share/harness/releases/X.Y.Z/` (`--release-dir DIR`
   to change it); the clone's `origin` is the bundle there.
-- To unpack only and follow `INSTALL.txt` by hand: `sh harness-hub-vX.Y.Z.run --extract DIR`.
+- To unpack only and follow `INSTALL.txt` by hand: `sh harness-hub-X.Y.Z.run --extract DIR`.
 
 ### Without `harness pack`
 
@@ -99,18 +99,18 @@ shasum -a 256 <file>                                                 # must equa
 `origin` at the new bundle file and upgrade:
 
 ```sh
-git -C ~/harness-hub remote set-url origin /media/usb/rel/harness-hub-vX.Y.Z.bundle
-harness upgrade --to vX.Y.Z
+git -C ~/harness-hub remote set-url origin /media/usb/rel/harness-hub-X.Y.Z.bundle
+harness upgrade --to X.Y.Z
 ```
 
 - A clone made from a bundle file already has that file as `origin`; replacing the file at the
   same path is enough.
 - With a `.run`: run the newer one with the same `--dest`. It fetches its tags into the
-  clone, points `origin` at its bundle and runs `harness upgrade --to vX.Y.Z`; pass
+  clone, points `origin` at its bundle and runs `harness upgrade --to X.Y.Z`; pass
   `--yes --offline` (and `--config FILE` if your config is not in `local/`):
 
   ```sh
-  sh harness-hub-vX.Y.Z.run --check && sh harness-hub-vX.Y.Z.run --yes --offline
+  sh harness-hub-X.Y.Z.run --check && sh harness-hub-X.Y.Z.run --yes --offline
   ```
 - Migration notes, config validation and the plan run as usual ([upgrade runbook](upgrade.md)).
 

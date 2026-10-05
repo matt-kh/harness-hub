@@ -76,7 +76,7 @@ class PackTest(unittest.TestCase):
     def test_pack_writes_bundle_sums_and_install(self):
         res = self.pack()
         head = self.git("rev-parse", "--short=7", "HEAD").strip()
-        name = "harness-hub-v1.2.3-g%s.bundle" % head
+        name = "harness-hub-1.2.3-g%s.bundle" % head
         self.assertEqual(os.path.basename(res["bundle"]), name)
         self.assertEqual(sorted(os.listdir(self.out)), sorted([name, "INSTALL.txt", "SHA256SUMS"]))
         sums = P.read_sums(os.path.join(self.out, "SHA256SUMS"))
@@ -88,17 +88,17 @@ class PackTest(unittest.TestCase):
         self.assertIn("HEAD", res["heads"])
 
     def test_exact_tag_names_the_bundle(self):
-        self.git("tag", "-a", "v1.2.3", "-m", "r")
+        self.git("tag", "-a", "1.2.3", "-m", "r")
         res = self.pack()
-        self.assertTrue(res["bundle"].endswith("harness-hub-v1.2.3.bundle"))
+        self.assertTrue(res["bundle"].endswith("harness-hub-1.2.3.bundle"))
 
     def test_tag_mode(self):
-        self.git("tag", "-a", "v1.2.3", "-m", "r")
-        res = self.pack(tag="v1.2.3")
-        self.assertEqual(res["heads"], ["refs/tags/v1.2.3"])
-        self.assertIn("git clone -b v1.2.3 ", self.read(os.path.join(self.out, "INSTALL.txt")))
+        self.git("tag", "-a", "1.2.3", "-m", "r")
+        res = self.pack(tag="1.2.3")
+        self.assertEqual(res["heads"], ["refs/tags/1.2.3"])
+        self.assertIn("git clone -b 1.2.3 ", self.read(os.path.join(self.out, "INSTALL.txt")))
         with self.assertRaises(HarnessError):
-            self.pack(tag="v9.9.9")
+            self.pack(tag="9.9.9")
 
     def test_verify_ok(self):
         res = self.pack()
@@ -234,34 +234,34 @@ class PackTest(unittest.TestCase):
 
     # ------------------------------------------------------------------ upgrade --to offline
     def test_upgrade_uses_local_tag_when_fetch_fails(self):
-        self.git("tag", "-a", "v1.2.3", "-m", "r")
+        self.git("tag", "-a", "1.2.3", "-m", "r")
         self.git("commit", "-q", "--allow-empty", "-m", "after")
         self.git("remote", "add", "origin", os.path.join(self.tmp, "nowhere.bundle"))
         logs = []
-        U.checkout_tag(self.repo, "v1.2.3", log=logs.append)
-        self.assertEqual(logs, ["note: fetch failed; using local tag v1.2.3"])
-        self.assertEqual(self.git("rev-parse", "HEAD").strip(), self.git("rev-parse", "v1.2.3^{commit}").strip())
+        U.checkout_tag(self.repo, "1.2.3", log=logs.append)
+        self.assertEqual(logs, ["note: fetch failed; using local tag 1.2.3"])
+        self.assertEqual(self.git("rev-parse", "HEAD").strip(), self.git("rev-parse", "1.2.3^{commit}").strip())
 
     def test_upgrade_missing_tag_names_the_bundle_flow(self):
         self.git("remote", "add", "origin", os.path.join(self.tmp, "nowhere.bundle"))
         with self.assertRaises(HarnessError) as cm:
-            U.checkout_tag(self.repo, "v9.9.9", log=lambda *a: None)
+            U.checkout_tag(self.repo, "9.9.9", log=lambda *a: None)
         self.assertIn("remote set-url origin /path/NEW.bundle", str(cm.exception))
         self.assertIn("refs/tags/*:refs/tags/*", str(cm.exception))
 
     def test_upgrade_from_a_newer_bundle(self):
-        self.git("tag", "-a", "v1.2.3", "-m", "r")
-        first = self.pack(tag="v1.2.3")["bundle"]
+        self.git("tag", "-a", "1.2.3", "-m", "r")
+        first = self.pack(tag="1.2.3")["bundle"]
         clone = os.path.join(self.tmp, "clone")
-        self.git("clone", "-q", "-b", "v1.2.3", first, clone, cwd=self.tmp)
+        self.git("clone", "-q", "-b", "1.2.3", first, clone, cwd=self.tmp)
         self.write("VERSION", "1.2.4\n")
         self.git("commit", "-q", "-am", "next")
-        self.git("tag", "-a", "v1.2.4", "-m", "r")
+        self.git("tag", "-a", "1.2.4", "-m", "r")
         self.out = os.path.join(self.tmp, "rel2")
-        newer = self.pack(tag="v1.2.4")["bundle"]
+        newer = self.pack(tag="1.2.4")["bundle"]
         self.git("remote", "set-url", "origin", newer, cwd=clone)
         logs = []
-        U.checkout_tag(clone, "v1.2.4", log=logs.append)
+        U.checkout_tag(clone, "1.2.4", log=logs.append)
         self.assertEqual(logs, [])
         self.assertEqual(self.read(os.path.join(clone, "VERSION")), "1.2.4\n")
         self.assertIn("remote set-url origin /path/NEW.bundle", self.read(os.path.join(self.out, "INSTALL.txt")))
@@ -290,8 +290,8 @@ class PackTest(unittest.TestCase):
         self.assertEqual([m.name for m in members], ["a.txt", "tools", "tools/t.tar.gz"])
         self.assertEqual({(m.uid, m.gid, m.uname, m.gname, m.mtime) for m in members}, {(0, 0, "", "", 1700000000)})
         self.assertEqual([m.mode for m in members], [0o644, 0o755, 0o644])
-        h1 = P.header_text("v1.2.3", "v1.2.3", "harness-hub-v1.2.3.bundle", one[0], one[1])
-        self.assertEqual(h1, P.header_text("v1.2.3", "v1.2.3", "harness-hub-v1.2.3.bundle", one[0], one[1]))
+        h1 = P.header_text("1.2.3", "1.2.3", "harness-hub-1.2.3.bundle", one[0], one[1])
+        self.assertEqual(h1, P.header_text("1.2.3", "1.2.3", "harness-hub-1.2.3.bundle", one[0], one[1]))
         skip = int(re.search(r"(?m)^HN_SKIP='(\d+)'$", h1).group(1))
         self.assertEqual(h1.count("\n") + 1, skip)  # the @SKIP@ line is the first payload line
         self.assertTrue(h1.endswith("\n__PAYLOAD_BELOW__\n"))
@@ -314,14 +314,14 @@ class PackTest(unittest.TestCase):
 
         self.assertEqual(block(os.path.join(REPO, "bundles/core/lib/compat.sh")), block(P.HEADER_TEMPLATE))
 
-    def _run_release(self, tag="v1.2.3"):
+    def _run_release(self, tag="1.2.3"):
         self.git("tag", "-a", tag, "-m", "r")
         return self.pack(tag=tag, self_extract=True)
 
     def test_self_extract_check_list_extract(self):
         res = self._run_release()
         run = res["run"]
-        self.assertEqual(os.path.basename(run), "harness-hub-v1.2.3.run")
+        self.assertEqual(os.path.basename(run), "harness-hub-1.2.3.run")
         self.assertTrue(os.access(run, os.X_OK))
         r = self.sh(run, "--check")
         self.assertEqual(r.returncode, 0, r.stderr)
@@ -329,24 +329,24 @@ class PackTest(unittest.TestCase):
         r = self.sh(run, "--list")
         self.assertEqual(r.returncode, 0, r.stderr)
         listed = r.stdout.decode().split()
-        for name in ("harness-hub-v1.2.3.bundle", "INSTALL.txt", "SHA256SUMS"):
+        for name in ("harness-hub-1.2.3.bundle", "INSTALL.txt", "SHA256SUMS"):
             self.assertIn(name, listed)
         x = os.path.join(self.tmp, "x")
         r = self.sh(run, "--extract", x)
         self.assertEqual(r.returncode, 0, r.stderr)
         inner = P.read_sums(os.path.join(x, "SHA256SUMS"))
-        self.assertEqual(sorted(inner), ["INSTALL.txt", "harness-hub-v1.2.3.bundle"])
-        for rel in ("harness-hub-v1.2.3.bundle", "INSTALL.txt"):
+        self.assertEqual(sorted(inner), ["INSTALL.txt", "harness-hub-1.2.3.bundle"])
+        for rel in ("harness-hub-1.2.3.bundle", "INSTALL.txt"):
             self.assertEqual(sha(os.path.join(x, rel)), sha(os.path.join(self.out, rel)))
         outer = P.read_sums(os.path.join(self.out, "SHA256SUMS"))
-        self.assertEqual(outer["harness-hub-v1.2.3.run"], sha(run))
-        self.assertEqual({k: v for k, v in outer.items() if k != "harness-hub-v1.2.3.run"}, inner)
-        self.assertIn("sh harness-hub-v1.2.3.run --check", self.read(os.path.join(self.out, "INSTALL.txt")))
+        self.assertEqual(outer["harness-hub-1.2.3.run"], sha(run))
+        self.assertEqual({k: v for k, v in outer.items() if k != "harness-hub-1.2.3.run"}, inner)
+        self.assertIn("sh harness-hub-1.2.3.run --check", self.read(os.path.join(self.out, "INSTALL.txt")))
         self.assertTrue(P.verify(res["bundle"])["ok"])
         rep = P.verify(run)
         self.assertTrue(rep["ok"], rep)
         self.assertEqual(rep["kind"], "run")
-        self.assertIn("harness-hub-v1.2.3.run", rep["checked"])
+        self.assertIn("harness-hub-1.2.3.run", rep["checked"])
 
     def test_self_extract_tamper_fails(self):
         run = self._run_release()["run"]
@@ -374,9 +374,9 @@ class PackTest(unittest.TestCase):
         r = self.sh(run, "--dest", hub, "--release-dir", rel, "--", "--extra", env={"HOME": home})
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn(b"fixture --extra", r.stdout)
-        self.assertEqual(self.git("rev-parse", "HEAD", cwd=hub), self.git("rev-parse", "v1.2.3^{commit}"))
+        self.assertEqual(self.git("rev-parse", "HEAD", cwd=hub), self.git("rev-parse", "1.2.3^{commit}"))
         self.assertEqual(self.git("remote", "get-url", "origin", cwd=hub).strip(),
-                         os.path.join(rel, "harness-hub-v1.2.3.bundle"))
+                         os.path.join(rel, "harness-hub-1.2.3.bundle"))
         # a non-empty directory that is not a clone is refused
         r = self.sh(run, "--dest", self.out, "--release-dir", rel, env={"HOME": home})
         self.assertEqual(r.returncode, 1)
@@ -385,18 +385,18 @@ class PackTest(unittest.TestCase):
         self.write("VERSION", "1.2.4\n")
         self.git("commit", "-q", "-am", "next")
         self.out = os.path.join(self.tmp, "rel2")
-        run2 = self._run_release("v1.2.4")["run"]
+        run2 = self._run_release("1.2.4")["run"]
         # the install command line works for upgrades: bootstrap-only flags (and values) are dropped
         r = self.sh(run2, "--dest", hub, "--offline", "--no-install-tools", "--bundles", "core",
                     "--yes", "--providers=claude", "--profile", "p", "--config", "c.toml", env={"HOME": home})
         self.assertEqual(r.returncode, 0, r.stderr)
-        self.assertIn(b"harness-stub upgrade --to v1.2.4 --offline --yes --config c.toml\n", r.stdout)
+        self.assertIn(b"harness-stub upgrade --to 1.2.4 --offline --yes --config c.toml\n", r.stdout)
         self.assertIn(b"note: install-only flags ignored for the upgrade: --no-install-tools --bundles core "
                       b"--providers=claude --profile p\n", r.stdout)
-        rel2 = os.path.join(home, ".local", "share", "harness", "releases", "v1.2.4")
+        rel2 = os.path.join(home, ".local", "share", "harness", "releases", "1.2.4")
         self.assertEqual(self.git("remote", "get-url", "origin", cwd=hub).strip(),
-                         os.path.join(rel2, "harness-hub-v1.2.4.bundle"))
-        self.assertIn("v1.2.4", self.git("tag", "--list", cwd=hub).split())
+                         os.path.join(rel2, "harness-hub-1.2.4.bundle"))
+        self.assertIn("1.2.4", self.git("tag", "--list", cwd=hub).split())
 
     def test_self_extract_refuses_a_clone_that_is_not_a_hub_before_writing(self):
         run = self._run_release()["run"]
@@ -431,11 +431,11 @@ class PackTest(unittest.TestCase):
         self.assertIn(b"HOME is not set; pass --dest DIR", r.stderr)
 
     def test_dev_build_run_refuses_an_existing_clone(self):
-        self.git("tag", "-a", "v1.2.3", "-m", "r")
+        self.git("tag", "-a", "1.2.3", "-m", "r")
         tagged = os.path.join(self.tmp, "inst")
         home = os.path.join(self.tmp, "home")
         os.makedirs(home)
-        r = self.sh(self.pack(tag="v1.2.3", self_extract=True)["run"], "--dest", tagged, env={"HOME": home})
+        r = self.sh(self.pack(tag="1.2.3", self_extract=True)["run"], "--dest", tagged, env={"HOME": home})
         self.assertEqual(r.returncode, 0, r.stderr)
         self.git("commit", "-q", "--allow-empty", "-m", "dev")
         self.out = os.path.join(self.tmp, "rel-dev")
@@ -449,7 +449,7 @@ class PackTest(unittest.TestCase):
     def test_pack_self_extract_dev_version(self):
         res = self.pack(self_extract=True)
         run = res["run"]
-        self.assertRegex(os.path.basename(run), r"^harness-hub-v1\.2\.3-g[0-9a-f]{7}\.run$")
+        self.assertRegex(os.path.basename(run), r"^harness-hub-1\.2\.3-g[0-9a-f]{7}\.run$")
         with open(run, "rb") as fh:
             self.assertIn(b"\nHN_TAG=''\n", fh.read(4096))
         home, hub = os.path.join(self.tmp, "home"), os.path.join(self.tmp, "hub2")

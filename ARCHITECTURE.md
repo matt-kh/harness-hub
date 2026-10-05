@@ -418,7 +418,7 @@ harness-hub-<version>.run     optional, --self-extract: POSIX sh header + uncomp
                               files above (the outer SHA256SUMS adds this file's line)
 ```
 
-`<version>` is `--tag`, else an exact tag on `HEAD`, else `v<VERSION>-g<sha7>`.
+`<version>` is `--tag`, else an exact tag on `HEAD`, else `<VERSION>-g<sha7>`.
 
 **`.run` envelope.** The header is the tracked template `lib/harness/selfextract-header.sh`
 (`#!/bin/sh`, POSIX, shellcheck-clean, parses under bash 3.2) with `@VERSION@ @TAG@ @BUNDLE@
@@ -447,24 +447,24 @@ The sha256 ladder `hn_sha256` is a copy of `bundles/core/lib/compat.sh`'s (a uni
 them identical). `verify FILE.run` runs `sh FILE.run --check`, then the `SHA256SUMS` check.
 
 **Versions and releases.** SemVer 2.0.0 (`util.SEMVER_RE`, `util.version_key` for §11
-precedence; loose strings fall back to `parse_version`). Release tags are annotated
-`vX.Y.Z[-pre]` on `main`, `VERSION` equals the tag without `v`. Pushing a tag matching `v*`
-runs `.github/workflows/release.yml`: a `gate` job lets only SemVer 2.0.0 names through (any
-other tag ends green with every job skipped), `preflight` runs `harness release check TAG
---json`, `checks` calls `ci.yml` (`workflow_call`), `build` packs with `--tools` for
-linux/darwin × amd64/arm64 and `--self-extract`, verifies, installs from the `.run` into a
-temp home with the fake CLIs and writes the notes (`harness release notes`), and `publish`
-(the only job with `contents: write`, `id-token: write`, `attestations: write`) refuses an
-existing release, attests build provenance for every asset, creates a draft release
+precedence; loose strings fall back to `parse_version`). Release tags are annotated bare SemVer
+`X.Y.Z[-pre]` (no `v` prefix) on `main`, `VERSION` equals the tag. Pushing any tag runs
+`.github/workflows/release.yml`: a `gate` job lets only bare SemVer 2.0.0 names through (any
+other tag, `v1.2.3` included, ends green with every job skipped), `preflight` runs `harness
+release check TAG --json`, `checks` calls `ci.yml` (`workflow_call`), `build` packs with
+`--tools` for linux/darwin × amd64/arm64 and `--self-extract`, verifies, installs from the
+`.run` into a temp home with the fake CLIs and writes the notes (`harness release notes`), and
+`publish` (the only job with `contents: write`, `id-token: write`, `attestations: write`)
+refuses an existing release, attests build provenance for every asset, creates a draft release
 (`--prerelease` for pre-release tags) and then publishes it. `workflow_dispatch` builds a dev
 artifact (empty tag) or rebuilds a tag (`publish=true` to publish). `release check` reports a
-problem for: a tag that is not SemVer with `v` or carries `+build`; a missing or lightweight
-tag; `VERSION` at the tag (or in the working tree when `HEAD` is the tag) not matching; no
-`## [X.Y.Z] - YYYY-MM-DD` heading with a valid date, or entries left under `[Unreleased]`;
-`local/` at the tag or in its history; a dirty tree; a tag not on `REMOTE/BRANCH` (skipped
-with `--no-remote`); tool assets of the release platforms sharing a basename. It warns when
-the CHANGELOG link line is missing or `HEAD` is not the tag commit, and reports signed tags.
-Remote-tracking refs and stashes are never bundled.
+problem for: a tag that is not bare SemVer (a `v` prefix is rejected) or carries `+build`; a
+missing or lightweight tag; `VERSION` at the tag (or in the working tree when `HEAD` is the
+tag) not matching; no `## [X.Y.Z] - YYYY-MM-DD` heading with a valid date, or entries left
+under `[Unreleased]`; `local/` at the tag or in its history; a dirty tree; a tag not on
+`REMOTE/BRANCH` (skipped with `--no-remote`); tool assets of the release platforms sharing a
+basename. It warns when the CHANGELOG link line is missing or `HEAD` is not the tag commit, and
+reports signed tags. Remote-tracking refs and stashes are never bundled.
 
 Excluded, and asserted: `pack` refuses a dirty working tree (uncommitted or untracked files
 would silently be missing) and refuses when any bundled ref tracks a `local/` path at its tip

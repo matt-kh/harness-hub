@@ -149,7 +149,7 @@ def release_version(root: str, tag: Optional[str]) -> str:
     except OSError:
         base = "0.0.0"
     sha = _git_ok(["rev-parse", "--short=7", "HEAD"], cwd=root).strip()
-    return "v%s-g%s" % (base.lstrip("v"), sha)
+    return "%s-g%s" % (base, sha)
 
 
 def run_name(version: str) -> str:

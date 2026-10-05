@@ -199,7 +199,7 @@ def build_parser() -> argparse.ArgumentParser:
     F = StableHelpFormatter
     r = rsub.add_parser("check", parents=[g], formatter_class=F,
                         help="preflight a release tag: SemVer, annotated, VERSION, CHANGELOG, local/, clean tree, on main")
-    r.add_argument("tag", nargs="?", metavar="TAG", help="vX.Y.Z[-pre] (default: the tag on HEAD)")
+    r.add_argument("tag", nargs="?", metavar="TAG", help="X.Y.Z[-pre], bare SemVer, no v prefix (default: the tag on HEAD)")
     r.add_argument("--remote", default="origin", metavar="NAME", help="remote holding the release branch (default origin)")
     r.add_argument("--branch", default="main", metavar="NAME", help="release branch the tag must be on (default main)")
     r.add_argument("--no-remote", action="store_true", help="skip the fetch and the on-branch check (local rehearsal)")

@@ -3,7 +3,7 @@
 ``--to TARGET`` (default ``latest``):
 
 * ``latest``: ``git fetch --tags`` (skipped offline), then check out the newest release tag
-  (highest SemVer 2.0.0 tag; pre-releases such as ``v1.3.0-rc.1`` are skipped). Without any
+  (highest SemVer 2.0.0 tag; pre-releases such as ``1.3.0-rc.1`` are skipped). Without any
   release tag the error names ``--to BRANCH`` and the bundle-file flow. It never moves
   backwards: when ``VERSION`` at that tag is not newer than the checkout's (a contributor on
   ``main`` ahead of the last release), it says so and exits 0 without planning.
@@ -69,11 +69,11 @@ def local_tags(home: str) -> List[str]:
 
 
 def latest_release_tag(home: str) -> Optional[str]:
-    """Highest SemVer release tag (``vX.Y.Z``) in the clone; pre-releases are skipped."""
+    """Highest bare SemVer release tag (``X.Y.Z``) in the clone; pre-releases and ``v``-prefixed names are skipped."""
     best: Optional[str] = None
     for tag in local_tags(home):
         v = parse_semver(tag)
-        if not v or v[3] or not tag.startswith("v"):
+        if not v or v[3]:
             continue
         if best is None or version_key(tag) > version_key(best):
             best = tag
@@ -122,7 +122,7 @@ def checkout_tag(home: str, tag: str, log=print, offline: bool = False, fetch: b
 
 
 def resolve_target(home: str, to: Optional[str], offline: bool = False, log=print) -> Tuple[str, str]:
-    """``("tag", "vX.Y.Z")`` or ``("branch", "main")`` for ``--to`` (None = ``latest``)."""
+    """``("tag", "X.Y.Z")`` or ``("branch", "main")`` for ``--to`` (None = ``latest``)."""
     if not to or to == "latest":
         ok, why = fetch_tags(home, offline)
         if not ok and why != "offline":
@@ -130,7 +130,7 @@ def resolve_target(home: str, to: Optional[str], offline: bool = False, log=prin
         tag = latest_release_tag(home)
         if not tag:
             raise HarnessError(
-                "no release tag (vX.Y.Z) in %s. Follow a branch with harness upgrade --to main, pick a tag with "
+                "no release tag (X.Y.Z) in %s. Follow a branch with harness upgrade --to main, pick a tag with "
                 "--to TAG, or bring a newer release from a bundle file: %s" % (home, _bundle_flow(home, "latest")))
         return "tag", tag
     if is_branch(home, to):
@@ -142,12 +142,12 @@ def resolve_target(home: str, to: Optional[str], offline: bool = False, log=prin
 
 
 def tag_version(home: str, tag: str) -> str:
-    """``VERSION`` as committed at ``tag``; the tag name without ``v`` when it has none."""
+    """``VERSION`` as committed at ``tag``; the tag name itself when it has none."""
     rc, out, _e = _git(home, ["show", "%s:VERSION" % tag])
     text = out.strip() if rc == 0 else ""
     if text:
         return text
-    return tag[1:] if tag.startswith("v") else tag
+    return tag
 
 
 def newer_release(home: str, tag: str, current: str) -> bool:

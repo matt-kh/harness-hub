@@ -35,14 +35,14 @@ render-check:
 install:
 	@pre-commit install --hook-type pre-commit --hook-type commit-msg --hook-type pre-push
 
-# Releases (CONTRIBUTING.md "Releases"): after `git tag -a vX.Y.Z`, before `git push origin vX.Y.Z`.
+# Releases (CONTRIBUTING.md "Releases"): after `git tag -a X.Y.Z`, before `git push origin X.Y.Z`.
 release-check:
-	@test -n "$(TAG)" || { echo "usage: make release-check TAG=vX.Y.Z"; exit 2; }
+	@test -n "$(TAG)" || { echo "usage: make release-check TAG=X.Y.Z"; exit 2; }
 	@$(HARNESS) release check $(TAG)
 
 # The release workflow's build job, locally, into build/release (TOOLS= for an offline rehearsal).
 release-build:
-	@test -n "$(TAG)" || { echo "usage: make release-build TAG=vX.Y.Z [TOOLS=os/arch,...]"; exit 2; }
+	@test -n "$(TAG)" || { echo "usage: make release-build TAG=X.Y.Z [TOOLS=os/arch,...]"; exit 2; }
 	@$(HARNESS) pack --out build/release --tag $(TAG) $(if $(TOOLS),--tools $(TOOLS)) --self-extract
 	@$(HARNESS) verify build/release/harness-hub-$(TAG).bundle
 	@sh build/release/harness-hub-$(TAG).run --check

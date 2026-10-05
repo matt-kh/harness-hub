@@ -27,11 +27,11 @@ Part of [PRINCIPLES.md](../PRINCIPLES.md). Read this before changing releases, v
 ## What it means in this repo
 
 - **Release artifact** ([distribution](../docs/distribution.md)):
-  - `harness-hub-vX.Y.Z.bundle`, the repository with its tags;
+  - `harness-hub-X.Y.Z.bundle`, the repository with its tags;
   - optional sidecar tool archives for the platforms a site asks for, taken from
     `tools/*.lock.json`;
   - `SHA256SUMS` over every file, and a short `INSTALL.txt`;
-  - optionally `harness-hub-vX.Y.Z.run`, the makeself-style **envelope**: a tracked POSIX sh
+  - optionally `harness-hub-X.Y.Z.run`, the makeself-style **envelope**: a tracked POSIX sh
     header plus an uncompressed tar of the files above. It is a carrier for people who want
     one file to move and check; the bundle inside is still what gets cloned and fetched, so
     the release stays a git repository.
@@ -49,7 +49,7 @@ Part of [PRINCIPLES.md](../PRINCIPLES.md). Read this before changing releases, v
   - On a new machine, `git clone FILE.bundle ~/harness-hub && ~/harness-hub/bootstrap`. From an
     existing hub, `harness bootstrap --from FILE.bundle [--dest DIR] [--origin URL]` clones the
     bundle, optionally points `origin` at a real remote, then runs the clone's own bootstrap.
-- **Versioning.** SemVer 2.0.0: annotated tags `vX.Y.Z` (pre-releases `vX.Y.Z-rc.N`) on
+- **Versioning.** SemVer 2.0.0: annotated tags `X.Y.Z` (pre-releases `X.Y.Z-rc.N`) on
   `main`, the `VERSION` file, and a CHANGELOG section per release with a **Migration**
   paragraph whenever config or guard decisions change. Tag push = release of the same name.
 - **Upgrades.** `harness upgrade [--to latest|TAG|BRANCH]` is `git fetch --tags` plus a
@@ -95,7 +95,7 @@ Part of [PRINCIPLES.md](../PRINCIPLES.md). Read this before changing releases, v
 
 Compliant:
 
-- A site downloads `harness-hub-v0.2.0.bundle` and `SHA256SUMS`, checks the sums, and clones
+- A site downloads `harness-hub-0.2.0.bundle` and `SHA256SUMS`, checks the sums, and clones
   the bundle on the offline machine.
 - An org mirror is updated with `git fetch upstream --tags` and a merge.
 

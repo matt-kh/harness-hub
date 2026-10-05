@@ -81,15 +81,15 @@ One file, if you have the `.run` envelope (it carries the bundle, the tool archi
 `SHA256SUMS`):
 
 ```sh
-sh harness-hub-vX.Y.Z.run --check                            # payload and SHA256SUMS
-sh harness-hub-vX.Y.Z.run --offline --no-install-tools       # clone to ~/harness-hub, bootstrap
+sh harness-hub-X.Y.Z.run --check                             # payload and SHA256SUMS
+sh harness-hub-X.Y.Z.run --offline --no-install-tools        # clone to ~/harness-hub, bootstrap
 ```
 
 Or from the bundle file and its directory:
 
 ```sh
 cd /media/usb/rel && shasum -a 256 -c SHA256SUMS           # or: sha256sum -c SHA256SUMS
-git clone harness-hub-vX.Y.Z.bundle ~/harness-hub
+git clone harness-hub-X.Y.Z.bundle ~/harness-hub
 ~/harness-hub/bootstrap --offline --no-install-tools
 harness install gh --from tools/gh_<version>_linux_amd64.tar.gz   # for each archive you need
 ```

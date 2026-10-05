@@ -158,12 +158,13 @@ def version_ge(have: str, want: str) -> bool:
     return a + (0,) * (n - len(a)) >= b + (0,) * (n - len(b))
 
 
-# SemVer 2.0.0 (https://semver.org/spec/v2.0.0.html), with an optional leading ``v``. The
+# SemVer 2.0.0 (https://semver.org/spec/v2.0.0.html), bare: release tags are ``X.Y.Z[-pre]``
+# with no ``v`` prefix, so ``v1.2.3`` does not match. The
 # release workflow inlines the same expression in shell (.github/workflows/release.yml, job gate).
 # ASCII digits only and \Z (not $, which also matches before a trailing newline), like the
 # POSIX ERE in .github/workflows/release.yml
 SEMVER_RE = re.compile(
-    r"^v?(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)"
+    r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)"
     r"(?:-((?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*))?"
     r"(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?\Z", re.ASCII)
 
@@ -187,7 +188,7 @@ def version_key(text: str) -> Tuple[Any, ...]:
 
     Pre-release ids compare numerically when numeric, numeric < alphanumeric, a shorter id
     list sorts first when it is a prefix, and a release sorts above all its pre-releases.
-    Strings that are not strict SemVer (``1.2``, ``v1.2.3-g0abc`` dev names) fall back to
+    Strings that are not strict SemVer (``1.2``, ``v1.2.3``) fall back to
     :func:`parse_version` padded to three parts and sort as releases.
     """
     v = parse_semver(text)

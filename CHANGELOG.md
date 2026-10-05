@@ -64,11 +64,13 @@ prints every one between your applied version and the new one.
   refuses an existing clone.
 - `harness verify FILE.run`: `sh FILE.run --check` plus the `SHA256SUMS` check.
 - `harness release check [TAG] [--remote NAME] [--branch NAME] [--no-remote] [--json]`: the
-  release preflight (SemVer 2.0.0 tag with `v` and no `+build`, annotated, `VERSION` and the
-  dated CHANGELOG section match, `[Unreleased]` emptied, no `local/`, clean tree, tag on
-  `origin/main`, unique release asset names) and `harness release notes TAG [--dir DIR]
-  [--out FILE]`; `make release-check TAG=…` and `make release-build TAG=… [TOOLS=…]`.
-- `.github/workflows/release.yml`: a tag push `v*` that is SemVer 2.0.0 runs the preflight,
+  release preflight (bare SemVer 2.0.0 tag `X.Y.Z[-pre]`, no `v` prefix and no `+build`,
+  annotated, `VERSION` and the dated CHANGELOG section match, `[Unreleased]` emptied, no
+  `local/`, clean tree, tag on `origin/main`, unique release asset names) and `harness release
+  notes TAG [--dir DIR] [--out FILE]`; `make release-check TAG=…` and `make release-build TAG=…
+  [TOOLS=…]`.
+- `.github/workflows/release.yml`: a tag push whose name is bare SemVer 2.0.0
+  (`X.Y.Z[-pre]`; a `v`-prefixed tag is skipped) runs the preflight,
   the CI suite (`ci.yml` is now also a reusable workflow), pack with the four tool platforms
   and `--self-extract`, a `.run` install smoke, and publishes a GitHub Release (pre-release
   for `-rc.N` tags) with notes from this file and build provenance; any other tag name ends
@@ -97,7 +99,7 @@ prints every one between your applied version and the new one.
   fast-forwards a branch; `harness doctor` runs after a successful apply and sets the exit
   status. The upgrade and air-gapped runbooks now describe what the code does.
 - CONTRIBUTING "Releases (maintainers)" is the tag-driven procedure (release PR, merge,
-  annotated tag, `make release-check`, push the tag, verify).
+  annotated bare SemVer tag `X.Y.Z`, `make release-check`, push the tag, verify).
 - Principles 4 and 5: the open question on signing is resolved (build provenance verified
   online, `SHA256SUMS` offline, annotated tags, signed tags optional); principle 5 lists the
   `.run` envelope. Statements unchanged, `principles_version` stays 1.

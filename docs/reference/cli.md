@@ -547,7 +547,7 @@ usage: harness release check [-h] [--config PATH] [--home DIR] [--json] [--offli
                              [TAG]
 
 positional arguments:
-  TAG            vX.Y.Z[-pre] (default: the tag on HEAD)
+  TAG            X.Y.Z[-pre], bare SemVer, no v prefix (default: the tag on HEAD)
 
 options:
   -h, --help     show this help message and exit
