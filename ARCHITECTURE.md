@@ -327,17 +327,18 @@ with stubs from `bundles/core/guard/tests/stubs/` on `PATH`.
 `bootstrap [--from FILE.bundle [--dest DIR] [--origin URL]]`, `init`, `bundles`,
 `catalog [--kind K] [--bundle B] [--domain D]`,
 `config validate|get|set|explain|migrate`, `plan`, `apply`, `sync`, `render`, `doctor`,
-`status [--matrix]`, `install <tool>`, `upgrade`, `pack [--out DIR] [--tag TAG] [--tools os/arch,...]`,
-`verify FILE.bundle`, `uninstall`, `test [suite]`, `lint`, `docs generate|check`,
+`status [--matrix]`, `install <tool>`, `upgrade [--to latest|TAG|BRANCH]`,
+`pack [--out DIR] [--tag TAG] [--tools os/arch,...] [--self-extract]`,
+`verify FILE.bundle|FILE.run`, `release check [TAG]|notes TAG`, `uninstall`, `test [suite]`, `lint`, `docs generate|check`,
 `steps [--pending]`, `version`. Global flags: `--config`, `--home`, `--json`, `--offline`,
 `--yes`, `--dry-run`. Environment: `HARNESS_HOME`, `HARNESS_CONFIG`, `HARNESS_OFFLINE`,
 `HARNESS_BUILD_DIR` (where `build/` products go; tests point it at a temp dir so a live hub's
 `build/config.json` is never overwritten), `NO_COLOR`.
 
-`pack`, `verify` and `bootstrap --from` are the distribution commands (§10). `lint` adds four
+`pack`, `verify`, `bootstrap --from`, `upgrade` and `release` are the distribution commands (§10). `lint` adds four
 principle checks to the manifest checks: `guides-sensors`, `guard-reasons` and `taxonomy` (§3) and
 `dependencies`: every binary a script in `bin/`, `bootstrap`, `bundles/**/*.sh`,
-`providers/**/*.sh` or `tools/gate/*.sh` invokes must be on the allow-list in
+`providers/**/*.sh`, `tools/gate/*.sh` or `lib/harness/*.sh` (the `.run` header) invokes must be on the allow-list in
 `lib/harness/lint.py` or declared by some bundle (`[requires.binaries]`, `[provides] bin`);
 the scan is a heuristic (`lib/harness/shell_scan.py`) and reports one warning per binary.
 `tests/unit/test_deps.py` holds the engine to stdlib-or-`_vendor` imports.
@@ -414,10 +415,57 @@ harness-hub-<version>.bundle  git bundle: --branches --tags HEAD (history includ
 tools/<asset>                 optional, --tools os/arch,...: tools/*.lock.json assets, sha256-checked
 INSTALL.txt                   verify / clone / bootstrap, plus the bootstrap --from and offline-upgrade forms
 SHA256SUMS                    sha256 of every file above (`sha256sum -c` / `shasum -a 256 -c`)
+harness-hub-<version>.run     optional, --self-extract: POSIX sh header + uncompressed tar of the
+                              files above (the outer SHA256SUMS adds this file's line)
 ```
 
-`<version>` is `--tag`, else an exact tag on `HEAD`, else `v<VERSION>-g<sha7>`.
-Remote-tracking refs and stashes are never bundled.
+`<version>` is `--tag`, else an exact tag on `HEAD`, else `<VERSION>-g<sha7>`.
+
+**`.run` envelope.** The header is the tracked template `lib/harness/selfextract-header.sh`
+(`#!/bin/sh`, POSIX, shellcheck-clean, parses under bash 3.2) with `@VERSION@ @TAG@ @BUNDLE@
+@PAYLOAD_SHA256@ @PAYLOAD_SIZE@ @SKIP@` substituted (values restricted to
+`[A-Za-z0-9._+-]`); its last line is `__PAYLOAD_BELOW__` and the payload starts on line
+`@SKIP@`, read with `tail -n +SKIP`. The payload is a GNU-format tar written by python
+`tarfile`: sorted names, parent directories as entries, uid/gid 0, empty owner names, mode
+0644 (0755 for directories), mtime of the released commit (`SOURCE_DATE_EPOCH` wins), so the
+same files give the same bytes; the header is deterministic too. The git bundle inside is not
+guaranteed byte-identical between builds, so `SHA256SUMS` and the build provenance identify a
+specific build.
+Flags: `--check` (payload size and sha256 against the header, then every inner `SHA256SUMS`
+line; installs nothing), `--list`, `--extract DIR`, `--dest DIR` (default `~/harness-hub`),
+`--release-dir DIR` (default `${XDG_DATA_HOME:-~/.local/share}/harness/releases/<version>/`,
+the same base as the engine's data dir; `--release-dir` or `HOME` is required, as is `--dest`
+or `HOME`), `--`; the first other word and everything after it are passed on, and a `--dest`
+or `--release-dir` among them is refused. Install: verify, unpack into the release dir (kept, so `origin` stays
+fetchable offline and `tools/` stays available to `harness install --from`), refuse a
+non-empty `--dest` that is not a hub clone, `git clone [-b TAG]`, `exec` the clone's
+`bootstrap`. Upgrade (when `--dest/.git` exists): first refuse a clone without `bin/harness`
+and `bootstrap` and a dev build (empty `@TAG@`; it installs only), then `git fetch BUNDLE
+'refs/tags/*:refs/tags/*'`, `origin` -> the bundle, `exec harness upgrade --to TAG` with the
+passed-on arguments minus the bootstrap-only flags (`--bundles`, `--providers`, `--profile`,
+`--email`, `--adopt`, `--from`, `--origin` with their values, `--no-install-tools`; printed).
+The sha256 ladder `hn_sha256` is a copy of `bundles/core/lib/compat.sh`'s (a unit test keeps
+them identical). `verify FILE.run` runs `sh FILE.run --check`, then the `SHA256SUMS` check.
+
+**Versions and releases.** SemVer 2.0.0 (`util.SEMVER_RE`, `util.version_key` for §11
+precedence; loose strings fall back to `parse_version`). Release tags are annotated bare SemVer
+`X.Y.Z[-pre]` (no `v` prefix) on `main`, `VERSION` equals the tag. Pushing any tag runs
+`.github/workflows/release.yml`: a `gate` job lets only bare SemVer 2.0.0 names through (any
+other tag, `v1.2.3` included, ends green with every job skipped), `preflight` runs `harness
+release check TAG --json`, `checks` calls `ci.yml` (`workflow_call`), `build` packs with
+`--tools` for linux/darwin × amd64/arm64 and `--self-extract`, verifies, installs from the
+`.run` into a temp home with the fake CLIs and writes the notes (`harness release notes`), and
+`publish` (the only job with `contents: write`, `id-token: write`, `attestations: write`)
+refuses an existing release, attests build provenance for every asset, creates a draft release
+(`--prerelease` for pre-release tags) and then publishes it. `workflow_dispatch` builds a dev
+artifact (empty tag) or rebuilds a tag (`publish=true` to publish). `release check` reports a
+problem for: a tag that is not bare SemVer (a `v` prefix is rejected) or carries `+build`; a
+missing or lightweight tag; `VERSION` at the tag (or in the working tree when `HEAD` is the
+tag) not matching; no `## [X.Y.Z] - YYYY-MM-DD` heading with a valid date, or entries left
+under `[Unreleased]`; `local/` at the tag or in its history; a dirty tree; a tag not on
+`REMOTE/BRANCH` (skipped with `--no-remote`); tool assets of the release platforms sharing a
+basename. It warns when the CHANGELOG link line is missing or `HEAD` is not the tag commit, and
+reports signed tags. Remote-tracking refs and stashes are never bundled.
 
 Excluded, and asserted: `pack` refuses a dirty working tree (uncommitted or untracked files
 would silently be missing) and refuses when any bundled ref tracks a `local/` path at its tip
@@ -443,4 +491,14 @@ bundle file, so `git fetch` from a newer bundle at the same path upgrades offlin
 `upgrade --to` tolerates a failed `git fetch --tags` when TAG is already in the clone
 ("fetch failed; using local tag"); otherwise it fails and names this flow.
 
-`tests/smoke/pack.sh` exercises pack → verify → `bootstrap --from` → `doctor --offline`.
+**`upgrade [--to latest|TAG|BRANCH] [--no-apply]`**: `latest` (the default) fetches tags
+(skipped with `--offline`) and checks out the highest SemVer release tag, pre-releases
+excluded, failing with the `--to BRANCH` and bundle-file alternatives when there is none; a
+local branch name (or one `origin/` knows) is checked out and fast-forwarded
+(`git pull --ff-only`); anything else is a tag. Then the CHANGELOG sections between the old
+and new `VERSION`, `plan`, `apply` (unless `--no-apply` / `--dry-run`) and `doctor`, whose
+exit status is returned.
+
+`tests/smoke/pack.sh` exercises pack → verify → `bootstrap --from` → `doctor --offline`, then
+`pack --self-extract` → `.run --check/--list/--extract` → `.run` install → `doctor --offline`
+→ `.run` upgrade.

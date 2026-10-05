@@ -59,7 +59,7 @@ repo; open the linked document when your change touches that area.
 | upstream | the public hub, the reference distribution |
 | org platform instance | an organisation's fork or mirror of the hub on its own git host, with org bundles and an org overlay |
 | workstation | one developer's clone plus its gitignored `local/` |
-| bundle file | a `git bundle` release artifact, `harness-hub-vX.Y.Z.bundle`; not to be confused with a harness bundle |
+| bundle file | a `git bundle` release artifact, `harness-hub-X.Y.Z.bundle`; not to be confused with a harness bundle |
 
 ## Applying the principles
 

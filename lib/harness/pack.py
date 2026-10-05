@@ -6,6 +6,15 @@ A release artifact is a directory::
     tools/<asset>                  optional: lock-file assets for the --tools platforms
     INSTALL.txt                    verify / clone / bootstrap, in three lines
     SHA256SUMS                     sha256 of every file above (``sha256sum -c`` / ``shasum -a 256 -c``)
+    harness-hub-<version>.run      optional (--self-extract): POSIX sh header + uncompressed tar of
+                                   the files above; ``sh FILE.run --check | --list | --extract DIR``,
+                                   or run it to install / upgrade a clone
+
+The git bundle is the release; the ``.run`` only carries it as one file. Its header is the
+tracked template ``lib/harness/selfextract-header.sh``; the payload tar is deterministic for
+identical inputs (sorted names, uid/gid 0, mode 0644/0755, mtime of the released commit or
+``SOURCE_DATE_EPOCH``). ``SHA256SUMS`` inside the payload lists the files above; the copy
+beside it adds the ``.run`` line (which the payload cannot contain).
 
 ``pack`` refuses on a dirty working tree (uncommitted or untracked files would silently be
 left out) and when any bundled ref has ever tracked a ``local/`` path (the private overlay
@@ -19,7 +28,8 @@ exit status is 1; without ``--tools`` nothing is downloaded and the exit status 
 
 ``verify FILE.bundle`` runs ``git bundle verify`` (in a throw-away repository, so it works
 anywhere), prints the heads and tags and, when a ``SHA256SUMS`` sits beside the file, checks
-every entry whose file is present.
+every entry whose file is present. ``verify FILE.run`` runs ``sh FILE.run --check`` and the
+same ``SHA256SUMS`` check.
 """
 from __future__ import annotations
 
@@ -28,6 +38,7 @@ import json
 import os
 import re
 import shutil
+import tarfile
 import tempfile
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
@@ -35,6 +46,10 @@ from .util import HarnessError, atomic_write, hub_home, run_argv, tilde
 
 PLATFORM_RE = re.compile(r"^(linux|darwin)/(amd64|arm64)$")
 GIT_TIMEOUT = 600.0
+HEADER_TEMPLATE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "selfextract-header.sh")
+PLACEHOLDER_RE = re.compile(r"@(VERSION|TAG|BUNDLE|PAYLOAD_SHA256|PAYLOAD_SIZE|SKIP)@")
+SAFE_VALUE_RE = re.compile(r"^[A-Za-z0-9._+-]*$")
+PAYLOAD_MARKER = "__PAYLOAD_BELOW__"
 
 
 def _git(args: Sequence[str], cwd: Optional[str] = None, timeout: float = GIT_TIMEOUT) -> Tuple[int, str, str]:
@@ -134,14 +149,31 @@ def release_version(root: str, tag: Optional[str]) -> str:
     except OSError:
         base = "0.0.0"
     sha = _git_ok(["rev-parse", "--short=7", "HEAD"], cwd=root).strip()
-    return "v%s-g%s" % (base.lstrip("v"), sha)
+    return "%s-g%s" % (base, sha)
 
 
-def install_text(name: str, version: str, tag: Optional[str], tool_files: Sequence[str]) -> str:
+def run_name(version: str) -> str:
+    return "harness-hub-%s.run" % version
+
+
+def install_text(name: str, version: str, tag: Optional[str], tool_files: Sequence[str],
+                 self_extract: bool = False) -> str:
     clone = "git clone %s%s ~/harness-hub" % ("-b %s " % tag if tag else "", name)
     lines = [
         "harness-hub %s: the whole hub as one git repository file (git bundle)." % version,
         "",
+    ]
+    if self_extract:
+        run = run_name(version)
+        lines += [
+            "One file: %s carries everything below (the bundle stays the release):" % run,
+            "",
+            "  sh %s --check                       # payload size, sha256, SHA256SUMS" % run,
+            "  sh %s --dest ~/harness-hub --offline --no-install-tools" % run,
+            "    (the same command with a newer .run upgrades that clone; --extract DIR unpacks only)",
+            "",
+        ]
+    lines += [
         "Install (git, bash, python3 >= 3.9 and jq on the target machine):",
         "",
         "  shasum -a 256 -c SHA256SUMS            # or: sha256sum -c SHA256SUMS",
@@ -207,8 +239,105 @@ def fetch_tools(root: str, out_dir: str, platforms: Sequence[str], offline: bool
     return written, problems
 
 
+# ----------------------------------------------------------------- self-extracting envelope
+
+
+def commit_time(root: str, rev: str = "HEAD") -> int:
+    """Committer time of ``rev``; ``SOURCE_DATE_EPOCH`` wins (reproducible builds convention)."""
+    env = os.environ.get("SOURCE_DATE_EPOCH", "").strip()
+    if env.isdigit():
+        return int(env)
+    out = _git_ok(["log", "-1", "--format=%ct", rev], cwd=root).strip()
+    return int(out) if out.isdigit() else 0
+
+
+def build_payload(out_dir: str, files: Sequence[str], dest: str, mtime: int) -> Tuple[str, int]:
+    """Uncompressed GNU tar of ``files`` (relative to ``out_dir``) at ``dest``; (sha256, size).
+
+    Deterministic for identical inputs: sorted names, parent directories as explicit entries,
+    uid/gid 0, empty user/group names, mode 0644 (0755 for directories), fixed ``mtime``.
+    """
+    names = set()
+    for f in files:
+        rel = f.replace(os.sep, "/")
+        if rel.startswith("/") or ".." in rel.split("/"):
+            raise HarnessError("payload path %s escapes the release directory" % f)
+        names.add(rel)
+        parts = rel.split("/")
+        for i in range(1, len(parts)):
+            names.add("/".join(parts[:i]) + "/")
+    part = dest + ".part"
+    with open(part, "wb") as fh:
+        with tarfile.open(fileobj=fh, mode="w", format=tarfile.GNU_FORMAT) as tf:
+            for rel in sorted(names):
+                info = tarfile.TarInfo(rel.rstrip("/"))
+                info.uid = info.gid = 0
+                info.uname = info.gname = ""
+                info.mtime = mtime
+                if rel.endswith("/"):
+                    info.type = tarfile.DIRTYPE
+                    info.mode = 0o755
+                    tf.addfile(info)
+                    continue
+                path = os.path.join(out_dir, rel)
+                info.size = os.path.getsize(path)
+                info.mode = 0o644
+                with open(path, "rb") as src:
+                    tf.addfile(info, src)
+    os.replace(part, dest)
+    return sha256_path(dest), os.path.getsize(dest)
+
+
+def header_text(version: str, tag: Optional[str], bundle: str, sha: str, size: int) -> str:
+    """The envelope header with every placeholder substituted (``@SKIP@`` = header lines + 1)."""
+    with open(HEADER_TEMPLATE, encoding="utf-8") as fh:
+        template = fh.read()
+    if not template.endswith(PAYLOAD_MARKER + "\n"):
+        raise HarnessError("%s must end with the line %s" % (HEADER_TEMPLATE, PAYLOAD_MARKER))
+    values = {"VERSION": version, "TAG": tag or "", "BUNDLE": bundle, "PAYLOAD_SHA256": sha,
+              "PAYLOAD_SIZE": str(size)}
+    for key, val in values.items():
+        if not SAFE_VALUE_RE.match(val):
+            raise HarnessError("refusing to write %s=%r into the .run header (allowed: A-Z a-z 0-9 . _ + -)" % (key, val))
+    # values never contain newlines, so the line count is final before @SKIP@ is filled in
+    values["SKIP"] = str(template.count("\n") + 1)
+    text = PLACEHOLDER_RE.sub(lambda m: values[m.group(1)], template)
+    left = PLACEHOLDER_RE.search(text)
+    if left:
+        raise HarnessError("placeholder %s left in the .run header" % left.group(0))
+    return text
+
+
+def write_self_extract(out_dir: str, version: str, tag: Optional[str], bundle: str, files: Sequence[str],
+                       mtime: int) -> str:
+    """Write ``harness-hub-<version>.run`` (mode 0755) into ``out_dir``; returns its path."""
+    dest = os.path.join(out_dir, run_name(version))
+    payload = dest + ".payload"
+    try:
+        sha, size = build_payload(out_dir, files, payload, mtime)
+        head = header_text(version, tag, bundle, sha, size).encode("utf-8")
+        part = dest + ".part"
+        with open(part, "wb") as out, open(payload, "rb") as src:
+            out.write(head)
+            shutil.copyfileobj(src, out, 1 << 20)
+        os.chmod(part, 0o755)
+        os.replace(part, dest)
+    finally:
+        for p in (payload, payload + ".part", dest + ".part"):
+            if os.path.exists(p):
+                os.unlink(p)
+    return dest
+
+
+def write_sums(out_dir: str, files: Sequence[str]) -> str:
+    path = os.path.join(out_dir, "SHA256SUMS")
+    sums = "".join("%s  %s\n" % (sha256_path(os.path.join(out_dir, f)), f) for f in files)
+    atomic_write(path, sums.encode("utf-8"), mode=0o644)
+    return path
+
+
 def pack(home: str, out_dir: str, tag: Optional[str] = None, platforms: Sequence[str] = (),
-         offline: bool = False, log=print) -> Dict[str, Any]:
+         offline: bool = False, log=print, self_extract: bool = False) -> Dict[str, Any]:
     root = repo_root(home)
     for p in platforms:
         if not PLATFORM_RE.match(p):
@@ -262,12 +391,19 @@ def pack(home: str, out_dir: str, tag: Optional[str] = None, platforms: Sequence
         tool_files, problems = fetch_tools(root, out_dir, platforms, offline, log=log)
     else:
         log("note  no --tools given: tool archives not included (harness pack --tools linux/amd64,...)")
-    atomic_write(os.path.join(out_dir, "INSTALL.txt"), install_text(name, version, tag, tool_files).encode("utf-8"), mode=0o644)
+    atomic_write(os.path.join(out_dir, "INSTALL.txt"),
+                 install_text(name, version, tag, tool_files, self_extract).encode("utf-8"), mode=0o644)
     files = [name, "INSTALL.txt"] + sorted(tool_files)
-    sums = "".join("%s  %s\n" % (sha256_path(os.path.join(out_dir, f)), f) for f in files)
-    atomic_write(os.path.join(out_dir, "SHA256SUMS"), sums.encode("utf-8"), mode=0o644)
+    write_sums(out_dir, files)  # the copy inside the payload
+    run = None
+    if self_extract:
+        mtime = commit_time(root, "refs/tags/%s" % tag if tag else "HEAD")
+        run = write_self_extract(out_dir, version, tag, name, files + ["SHA256SUMS"], mtime)
+        files = files + [os.path.basename(run)]
+        write_sums(out_dir, files)  # the copy beside it: inner lines + the .run
+        log("run    %s" % tilde(run))
     return {"bundle": dest, "version": version, "heads": [r for _s, r in heads], "files": files,
-            "out": out_dir, "problems": problems}
+            "out": out_dir, "problems": problems, "run": run}
 
 
 # ----------------------------------------------------------------- verify
@@ -278,15 +414,26 @@ def verify(path: str) -> Dict[str, Any]:
     if not os.path.isfile(path):
         raise HarnessError("%s: no such file" % tilde(path), 2)
     report: Dict[str, Any] = {"bundle": path, "ok": True, "problems": [], "warnings": []}
-    ok, text = git_bundle_verify(path)
-    report["git_verify"] = text
-    if not ok:
-        report["ok"] = False
-        report["problems"].append("git bundle verify: %s" % (text.splitlines()[-1] if text else "failed"))
-        return report
-    heads = bundle_heads(path)
-    report["heads"] = [r for _s, r in heads if not r.startswith("refs/tags/")]
-    report["tags"] = [r[len("refs/tags/"):] for _s, r in heads if r.startswith("refs/tags/")]
+    if path.endswith(".run"):
+        report["kind"] = "run"
+        rc, out, err = run_argv(["sh", path, "--check"], timeout=GIT_TIMEOUT)
+        report["run_check"] = (out + err).strip()
+        if rc != 0:
+            report["ok"] = False
+            last = ((err or out).strip().splitlines() or ["exit status %d" % rc])[-1]
+            report["problems"].append("sh %s --check: %s" % (os.path.basename(path), last))
+            return report
+    else:
+        report["kind"] = "bundle"
+        ok, text = git_bundle_verify(path)
+        report["git_verify"] = text
+        if not ok:
+            report["ok"] = False
+            report["problems"].append("git bundle verify: %s" % (text.splitlines()[-1] if text else "failed"))
+            return report
+        heads = bundle_heads(path)
+        report["heads"] = [r for _s, r in heads if not r.startswith("refs/tags/")]
+        report["tags"] = [r[len("refs/tags/"):] for _s, r in heads if r.startswith("refs/tags/")]
     sums_path = os.path.join(os.path.dirname(path), "SHA256SUMS")
     report["sha256sums"] = os.path.isfile(sums_path)
     if report["sha256sums"]:
@@ -323,13 +470,14 @@ def run_pack(ctx: Any, ns: Any) -> int:
         dirty = dirty_paths(root)
         print("would pack %s into %s%s" % (tilde(root), tilde(out), " (refused: dirty tree)" if dirty else ""))
         return 1 if dirty else 0
-    res = pack(home, out, tag=ns.tag, platforms=platforms, offline=ctx.offline)
+    res = pack(home, out, tag=ns.tag, platforms=platforms, offline=ctx.offline,
+               self_extract=bool(getattr(ns, "self_extract", False)))
     for p in res["problems"]:
         print("WARN  %s" % p)
     if ctx.json:
         print(json.dumps(res, indent=2, sort_keys=True))
     else:
-        for f in res["files"] + ["SHA256SUMS"]:
+        for f in res["files"] + ["SHA256SUMS"]:  # the .run, when written, is in files
             print("wrote %s" % tilde(os.path.join(res["out"], f)))
         print("pack: %s, %d file(s), %d tool problem(s)" % (res["version"], len(res["files"]) + 1, len(res["problems"])))
     return 1 if (platforms and res["problems"]) else 0
@@ -340,7 +488,9 @@ def run_verify(ctx: Any, ns: Any) -> int:
     if ctx.json:
         print(json.dumps(res, indent=2, sort_keys=True))
         return 0 if res["ok"] else 1
-    print("bundle  %s" % tilde(res["bundle"]))
+    print("%-7s %s" % ("run" if res.get("kind") == "run" else "bundle", tilde(res["bundle"])))
+    if res.get("run_check"):
+        print("check   %s" % res["run_check"].splitlines()[-1])
     for h in res.get("heads", []):
         print("head    %s" % h)
     for t in res.get("tags", []):
@@ -349,7 +499,7 @@ def run_verify(ctx: Any, ns: Any) -> int:
         for rel in res.get("checked", []):
             print("sha256  %s" % rel)
     else:
-        print("note    no SHA256SUMS beside the bundle; checked the bundle only")
+        print("note    no SHA256SUMS beside the file; checked the file only")
     for w in res["warnings"]:
         print("WARN    %s" % w)
     for p in res["problems"]:

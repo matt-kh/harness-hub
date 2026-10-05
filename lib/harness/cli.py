@@ -30,9 +30,10 @@ COMMANDS = [
     ("doctor", "PASS/WARN/FAIL checks with the manual step that fixes each failure"),
     ("status", "active bundles/providers, drift summary, capability matrix"),
     ("install", "install a pinned, sha256-verified tool into ~/.local/bin"),
-    ("upgrade", "update the hub checkout, print migration notes, re-plan"),
-    ("pack", "write the hub as a release artifact: git bundle + SHA256SUMS + INSTALL.txt (+ tools)"),
-    ("verify", "check a hub bundle file: git bundle verify, heads/tags, SHA256SUMS beside it"),
+    ("upgrade", "move the hub to the newest release tag (or --to TAG|BRANCH), print migration notes, re-plan, apply, doctor"),
+    ("pack", "write the hub as a release artifact: git bundle + SHA256SUMS + INSTALL.txt (+ tools, + .run)"),
+    ("verify", "check a hub bundle or .run file: git bundle verify or sh FILE.run --check, SHA256SUMS beside it"),
+    ("release", "maintainers: check a release tag (preflight) | write its release notes"),
     ("uninstall", "remove what the harness wrote (state-listed paths only)"),
     ("test", "run the engine, guard, bundle, skill and provider test suites"),
     ("lint", "validate manifests, cross-references, templates, private identifiers"),
@@ -177,7 +178,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--dest", metavar="DIR", help="install directory (default ~/.local/bin)")
 
     p = add("upgrade")
-    p.add_argument("--to", metavar="TAG", help="check out this tag (default: fast-forward the branch)")
+    p.add_argument("--to", metavar="TARGET",
+                   help="latest (default: newest release tag, pre-releases skipped) | TAG | BRANCH (fast-forward)")
     p.add_argument("--no-apply", action="store_true", help="stop after the plan")
 
     p = add("pack")
@@ -185,9 +187,27 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--tag", metavar="TAG", help="release this existing tag (bundle carries every tag; default: branches + tags + HEAD)")
     p.add_argument("--tools", action="append", metavar="OS/ARCH,...",
                    help="also download tools/*.lock.json assets for these platforms (e.g. linux/amd64,darwin/arm64)")
+    p.add_argument("--self-extract", action="store_true",
+                   help="also write harness-hub-<version>.run: a POSIX sh header + tar of the bundle, INSTALL.txt, "
+                        "SHA256SUMS and tools (sh FILE.run --check | --list | --extract DIR, or run it to install)")
 
     p = add("verify")
-    p.add_argument("file", metavar="FILE.bundle", help="the bundle file (SHA256SUMS beside it is checked too)")
+    p.add_argument("file", metavar="FILE", help="FILE.bundle or FILE.run (SHA256SUMS beside it is checked too)")
+
+    p = add("release")
+    rsub = p.add_subparsers(dest="action", metavar="action")
+    F = StableHelpFormatter
+    r = rsub.add_parser("check", parents=[g], formatter_class=F,
+                        help="preflight a release tag: SemVer, annotated, VERSION, CHANGELOG, local/, clean tree, on main")
+    r.add_argument("tag", nargs="?", metavar="TAG", help="X.Y.Z[-pre], bare SemVer, no v prefix (default: the tag on HEAD)")
+    r.add_argument("--remote", default="origin", metavar="NAME", help="remote holding the release branch (default origin)")
+    r.add_argument("--branch", default="main", metavar="NAME", help="release branch the tag must be on (default main)")
+    r.add_argument("--no-remote", action="store_true", help="skip the fetch and the on-branch check (local rehearsal)")
+    r = rsub.add_parser("notes", parents=[g], formatter_class=F,
+                        help="release notes: the CHANGELOG section, install and verify lines, SHA256SUMS")
+    r.add_argument("tag", metavar="TAG", help="the release tag")
+    r.add_argument("--dir", metavar="DIR", help="release directory whose SHA256SUMS is appended")
+    r.add_argument("--out", metavar="FILE", help="write the notes here (default: stdout)")
 
     p = add("uninstall")
     p.add_argument("--bundle", action="append", metavar="NAME", help="only paths owned by these bundles")
@@ -303,6 +323,12 @@ def dispatch(ctx: Ctx, ns: argparse.Namespace, parser: argparse.ArgumentParser) 
         from . import pack
 
         return pack.run_pack(ctx, ns) if cmd == "pack" else pack.run_verify(ctx, ns)
+    if cmd == "release":
+        from . import release
+
+        if not getattr(ns, "action", None):
+            raise HarnessError("usage: harness release check [TAG] | notes TAG [--dir DIR] [--out FILE]", 2)
+        return release.run(ctx, ns)
     if cmd == "uninstall":
         from . import uninstall
 

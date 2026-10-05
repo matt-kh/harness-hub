@@ -26,7 +26,8 @@ skills whose SKILL.md ``name`` differs from the directory, and three principle c
 * ``guard-reasons`` (principle 6): a deny/ask ``# rule:`` reason that does not state the
   alternative (none of the words use, instead, ask, run, mention, see)
 * ``dependencies`` (principle 1): a binary invoked by ``bin/*``, ``bootstrap``,
-  ``bundles/**/*.sh``, ``providers/**/*.sh`` or ``tools/gate/*.sh`` that is neither on
+  ``bundles/**/*.sh``, ``providers/**/*.sh``, ``tools/gate/*.sh`` or ``lib/harness/*.sh``
+  (the ``.run`` header) that is neither on
   :data:`ALLOWED_BINARIES` nor declared by a bundle (``[requires.binaries]``, ``[provides] bin``);
   one warning per binary with its first ``file:line`` (heuristic, see ``shell_scan``)
 * ``taxonomy`` (principle 6): a public bundle without ``[taxonomy]``; a public skill, agent,
@@ -59,7 +60,9 @@ ALLOWED_BINARIES = set(
     # POSIX utilities present on every Linux, WSL and macOS base system (found by the first scan)
     "dirname basename mkdir rm cp mv ls uname sleep diff cmp "
     # optional: only called behind `command -v` with a python fallback (core/lib/compat.sh hn_*)
-    "timeout gtimeout realpath".split())
+    "timeout gtimeout realpath "
+    # not a binary: the payload marker, last line of lib/harness/selfextract-header.sh (never executed)
+    "__PAYLOAD_BELOW__".split())
 BUILTIN_KEYS = {"hub.home", "hub.version", "hub.config", "provider.name", "provider.home", "provider.skills_dir"}
 
 
@@ -311,7 +314,7 @@ def shell_files(home: str) -> List[str]:
     import glob
 
     out = set()
-    for pat in ("bin/*", "bootstrap", "bundles/**/*.sh", "providers/**/*.sh", "tools/gate/*.sh"):
+    for pat in ("bin/*", "bootstrap", "bundles/**/*.sh", "providers/**/*.sh", "tools/gate/*.sh", "lib/harness/*.sh"):
         for p in glob.glob(os.path.join(home, pat), recursive=True):
             if not os.path.isfile(p):
                 continue

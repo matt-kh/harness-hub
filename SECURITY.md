@@ -83,7 +83,7 @@ the command:
 | When | Call | Opt out / offline |
 |---|---|---|
 | `harness install <tool>`, `bootstrap` installing a missing tool | HTTPS download of the pinned release asset listed in `tools/<tool>.lock.json` (e.g. GitHub Releases), sha256-verified | `--no-install-tools`, `--offline`, `--from FILE`, `HARNESS_TOOLS_MIRROR` |
-| `harness upgrade` | `git fetch` of this repository's remote | skip upgrade; pin with `--to TAG` |
+| `harness upgrade` | `git fetch --tags` of this repository's `origin` (and `git pull --ff-only` with `--to BRANCH`) | `--offline` uses the tags already in the clone; or point `origin` at a bundle file |
 | `harness pack --tools os/arch,...` | HTTPS download of the pinned `tools/<tool>.lock.json` assets for those platforms, sha256-verified (same code as `harness install`) | omit `--tools`, `--offline`, `HARNESS_TOOLS_MIRROR` |
 | `harness init --from <git url>` | `git clone`/`fetch` of the org overlay you name | pass a local path |
 | `harness doctor` (online checks) | runs **your** CLIs' own status commands: `gh auth status`, `glab auth status`, `jira whoami`, `gdoc auth status`, `kubectl version`, `ssh -T git@<host>` — they contact the hosts in your config | `--offline` (or `HARNESS_OFFLINE=1`) skips every network check |
@@ -97,10 +97,23 @@ first use.
 ## Release artifacts
 
 A release is a `git bundle` file, optional sidecar tool archives taken from the pinned lock
-files, and `SHA256SUMS` over all of them ([distribution](docs/distribution.md)). Check the
-sums (`shasum -a 256 -c SHA256SUMS`) before cloning; `harness verify FILE.bundle` also runs
-`git bundle verify`. Releases never contain `local/`, credentials, provider CLIs or MCP
-packages.
+files, `INSTALL.txt`, `SHA256SUMS` over all of them, and `harness-hub-X.Y.Z.run`, a
+self-extracting envelope of the same files ([distribution](docs/distribution.md)). Releases
+never contain `local/`, credentials, provider CLIs or MCP packages.
+
+- **Offline check**: `shasum -a 256 -c SHA256SUMS` before cloning; `harness verify
+  FILE.bundle` also runs `git bundle verify`.
+- **The `.run`**: its header is the tracked `lib/harness/selfextract-header.sh` (read it, or
+  `head -n 200 FILE.run`, before running one). `sh FILE.run --check` verifies the payload's
+  size and sha256 against the header and every `SHA256SUMS` line inside it, and installs
+  nothing; every install or upgrade run performs the same checks first. The header's sha256
+  is only as trustworthy as the file you received: check the `.run` line of the outer
+  `SHA256SUMS` or its provenance.
+- **Provenance (online)**: releases published by the `release` workflow carry GitHub build
+  provenance for every asset: `gh attestation verify FILE -R matt-kh/harness-hub`. Verify on
+  the connected side before carrying files across an air gap.
+- Release tags are annotated; signed tags are optional and reported by
+  `harness release check`.
 
 ## Supported versions
 
