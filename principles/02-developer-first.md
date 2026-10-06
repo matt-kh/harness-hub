@@ -84,6 +84,8 @@ Non-compliant:
 
 ## Open questions
 
-- How to measure "time to first useful session" without telemetry (a timed smoke test is a
-  candidate).
+- How to measure "time to first useful session" without telemetry. Two local proxies exist:
+  `tests/smoke/bootstrap.sh` prints the elapsed seconds of an offline bootstrap, and
+  `harness bootstrap` ends with "≈ N minutes of manual steps remain", summed from the pending
+  steps' `minutes`. Open: whether to track them over releases, and how to time the human part.
 - Whether non-coding disciplines (design, product) belong in public bundles or org bundles.

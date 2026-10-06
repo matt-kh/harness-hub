@@ -227,10 +227,14 @@ Rules:
   command; `harness lint` fails on dangling ids.
 - `[harness]` declares what the bundle steers with and what checks it (Fowler's harness
   engineering). Guide kinds: `rule`, `skill`, `permission`, `agent`, `template`; sensor kinds:
-  `guard`, `doctor`, `test`, `lint`, `review-agent`. `ref` is a bundle-relative path; for
-  `doctor` a `doctor_checks` id or `doctor_checks` (all of them), for `lint` a lint rule name
-  (`manifest`, `templates`, `guard-syntax`, `guard-reasons`, `guides-sensors`, `dependencies`,
-  `private-ids`). A ref that resolves to nothing is a lint error; a bundle with guides but no
+  `guard`, `doctor`, `test`, `lint`, `review-agent`, `provider-feature`. `ref` is a
+  bundle-relative path; for `doctor` a `doctor_checks` id or `doctor_checks` (all of them), for
+  `lint` a lint rule name (`manifest`, `templates`, `guard-syntax`, `guard-reasons`,
+  `guides-sensors`, `dependencies`, `private-ids`, `taxonomy`, `env-provides`,
+  `rule-guard-pairing`, `permissions-vs-guard`, `agent-tools`, `skill-description`,
+  `fragments-target`, `profile-sane`, `stability`), for `provider-feature` `<provider>:<feature>`
+  naming an entry of that provider's `features` (§4) — an inferential sensor that lives in the
+  product, such as `claude:auto-mode-classifier`. A ref that resolves to nothing is a lint error; a bundle with guides but no
   sensors, sensors but no guides, or (public bundles) no `[harness]` at all is a lint warning.
   `coverage_note` states what is deliberately not sensed. Rendered as "Guides and sensors" in
   `docs/bundles/<b>.md` and summarised in `docs/reference/harness-coverage.md`.
@@ -270,6 +274,8 @@ tests/*.in.json,*.out.json  shim fixtures
 ```
 
 ```toml
+features = ["auto-mode-classifier", "permission-prompt"]   # optional; provider-feature sensor refs (§3)
+
 [provider]
 name = "claude"; binary = "claude"; version_cmd = "claude --version"; min_version = "2.0.0"; home = "~/.claude"
 
@@ -347,15 +353,20 @@ with stubs from `bundles/core/guard/tests/stubs/` on `PATH`.
 `config validate|get|set|explain|migrate`, `plan`, `apply`, `sync`, `render`, `doctor`,
 `status [--matrix]`, `install <tool>`, `upgrade [--to latest|TAG|BRANCH]`,
 `pack [--out DIR] [--tag TAG] [--tools os/arch,...] [--self-extract]`,
-`verify FILE.bundle|FILE.run`, `release check [TAG]|notes TAG`, `uninstall`, `test [suite]`, `lint`, `docs generate|check`,
+`verify FILE.bundle|FILE.run`, `release check [TAG]|notes TAG`, `uninstall`, `test [suite]`, `lint [--skip RULE]`, `docs generate|check`,
 `repo [show] [DIR] | owns ID [DIR] | init [DIR] [--write]` (§11),
 `steps [--pending]`, `version`. Global flags: `--config`, `--home`, `--json`, `--offline`,
 `--yes`, `--dry-run`. Environment: `HARNESS_HOME`, `HARNESS_CONFIG`, `HARNESS_OFFLINE`,
 `HARNESS_BUILD_DIR` (where `build/` products go; tests point it at a temp dir so a live hub's
 `build/config.json` is never overwritten), `NO_COLOR`.
 
-`pack`, `verify`, `bootstrap --from`, `upgrade` and `release` are the distribution commands (§10). `lint` adds four
-principle checks to the manifest checks: `guides-sensors`, `guard-reasons` and `taxonomy` (§3) and
+`pack`, `verify`, `bootstrap --from`, `upgrade` and `release` are the distribution commands (§10). `lint` adds
+principle and consistency checks to the manifest checks: `guides-sensors`, `guard-reasons`,
+`taxonomy` (§3), `yields` (§11) and `rule-guard-pairing` (§3); `env-provides` (`[provides.env]` keys the guard would
+drop); `permissions-vs-guard` (each `Bash(<prefix>:*)` allow/deny rule run through the guard
+built from core + the bundle); `agent-tools` (read-only agents with write tools or a
+permissionMode, hard-coded models); `skill-description` (length, trigger phrase, workflow
+scope); `fragments-target`; `profile-sane`; `stability` (CONTRIBUTING "Stability levels"); and
 `dependencies`: every binary a script in `bin/`, `bootstrap`, `bundles/**/*.sh`,
 `providers/**/*.sh`, `tools/gate/*.sh` or `lib/harness/*.sh` (the `.run` header) invokes must be on the allow-list in
 `lib/harness/lint.py` or declared by some bundle (`[requires.binaries]`, `[provides] bin`);

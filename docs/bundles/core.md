@@ -189,9 +189,10 @@ Guides steer the agent before it acts; sensors detect at or after the action. Pa
 | sensor | test | `guard.d/tests.sh` | guard rows for both sections, including bypass attempts |
 | sensor | test | `tests/run.sh` | full guard suite, helper drift, bash -n of every script |
 | sensor | review-agent | `agents/code-reviewer.md` | inferential review of a diff against the conventions |
+| sensor | provider-feature | `claude:auto-mode-classifier` | reviews the Auto agent's actions |
 | sensor | lint | `yields` | principle 8: every component carries its repository-level yield (repo_owns line, Step 0, baseline sentence); credentials never yield |
 
-**Not covered:** The model policy in agents/Plan.md and agents/Auto.md is a guide only: no sensor checks which model a sub-agent ran on.
+**Not covered:** The model policy in agents/Plan.md and agents/Auto.md is a guide only: no sensor checks which model a sub-agent ran on. The conventions rule has no guard section of its own (judgement: precedence, external content as data); the credentials and git guard sections enforce rules whose text lives in rules/00-conventions.md.
 
 ## Uninstall
 

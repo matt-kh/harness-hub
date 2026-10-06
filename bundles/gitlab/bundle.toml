@@ -202,7 +202,7 @@ function = "govern"
 
 # Guides steer the agent before it acts; sensors detect at or after the action (principle 6).
 [harness]
-coverage_note = "`--squash-before-merge` / `--remove-source-branch` and description sections are guides only (project defaults may already squash); an MR created without -t is not title-checked."
+coverage_note = "`--squash-before-merge` / `--remove-source-branch` and description sections are guides only (project defaults may already squash); an MR created without -t is not title-checked. The gitlab-closing guard section enforces rule text that lives in rules/50-gitlab.md."
 guides = [
   { kind = "rule", ref = "rules/50-gitlab.md", note = "MR-based delivery, ticket keys mentioned never closed, stacked sub MRs" },
   { kind = "permission", ref = "permissions.toml", note = "read-only glab commands allowed" },

@@ -19,7 +19,7 @@ conflicts_with = []
 any_of = [["jira", "github"], ["gitlab", "github"]]
 owners = []
 docs = "docs/bundles/ticket-workflow.md"
-stability = "stable"
+stability = "beta"
 
 [requires.binaries.jq]
 min_version = "1.6"

@@ -187,7 +187,7 @@ Guides steer the agent before it acts; sensors detect at or after the action. Pa
 | sensor | test | `guard.d/tests.sh` | guard rows with a stubbed glab |
 | sensor | test | `tests/run.sh` | this bundle's rows against core + gitlab only |
 
-**Not covered:** `--squash-before-merge` / `--remove-source-branch` and description sections are guides only (project defaults may already squash); an MR created without -t is not title-checked.
+**Not covered:** `--squash-before-merge` / `--remove-source-branch` and description sections are guides only (project defaults may already squash); an MR created without -t is not title-checked. The gitlab-closing guard section enforces rule text that lives in rules/50-gitlab.md.
 
 ## Uninstall
 

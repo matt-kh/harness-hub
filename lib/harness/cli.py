@@ -221,7 +221,12 @@ def build_parser() -> argparse.ArgumentParser:
                    help="all | unit | guard | bundles | skills | providers | smoke | <bundle name>")
     p.add_argument("-v", "--verbose", action="store_true")
 
-    add("lint")
+    p = add("lint")
+    from .lint import SKIPPABLE_RULES
+
+    p.add_argument("--skip", action="append", default=[], metavar="RULE",
+                   help="skip a rule (repeatable; e.g. the slower permissions-vs-guard): %s"
+                   % ", ".join(SKIPPABLE_RULES))
 
     p = add("docs")
     p.add_argument("action", choices=["generate", "check"])
@@ -350,7 +355,7 @@ def dispatch(ctx: Ctx, ns: argparse.Namespace, parser: argparse.ArgumentParser) 
     if cmd == "lint":
         from . import lint
 
-        return lint.run(ctx)
+        return lint.run(ctx, _csv(ns.skip))
     if cmd == "docs":
         from . import docsgen
 

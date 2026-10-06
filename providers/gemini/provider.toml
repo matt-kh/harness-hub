@@ -1,4 +1,8 @@
 # Gemini CLI (Google). Written to the published hooks/skills spec; verify on install.
+# Product features a bundle may declare as `provider-feature` sensors ([harness] sensors,
+# ref "gemini:<feature>"); harness lint checks refs against this list.
+features = []
+
 [provider]
 name = "gemini"
 summary = "Gemini CLI"

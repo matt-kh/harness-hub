@@ -1,5 +1,9 @@
 # OpenAI Codex CLI. Written to the published config spec; verify on install.
 # No pre-tool command hook is wired in v1: the guard is ADVISORY on Codex.
+# Product features a bundle may declare as `provider-feature` sensors ([harness] sensors,
+# ref "codex:<feature>"); harness lint checks refs against this list.
+features = []
+
 [provider]
 name = "codex"
 summary = "OpenAI Codex CLI"

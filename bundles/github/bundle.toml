@@ -200,7 +200,7 @@ function = "govern"
 
 # Guides steer the agent before it acts; sensors detect at or after the action (principle 6).
 [harness]
-coverage_note = "Forks: the guard cannot read labels on a fork, so edits there ask instead of being label-gated. A PR created without -t (title from the commit or an editor) is not title-checked."
+coverage_note = "Forks: the guard cannot read labels on a fork, so edits there ask instead of being label-gated. A PR created without -t (title from the commit or an editor) is not title-checked. The github-closing guard section enforces rule text that lives in rules/60-github.md."
 guides = [
   { kind = "rule", ref = "rules/60-github.md", note = "PR-based delivery, issue state is human-only, -R owner/repo on every call" },
   { kind = "permission", ref = "permissions.toml", note = "read-only gh commands allowed; token printing denied" },

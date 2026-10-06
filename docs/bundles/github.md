@@ -203,7 +203,7 @@ Guides steer the agent before it acts; sensors detect at or after the action. Pa
 | sensor | test | `guard.d/tests.sh` | guard rows with a stubbed gh |
 | sensor | test | `tests/run.sh` | this bundle's rows against core + github only |
 
-**Not covered:** Forks: the guard cannot read labels on a fork, so edits there ask instead of being label-gated. A PR created without -t (title from the commit or an editor) is not title-checked.
+**Not covered:** Forks: the guard cannot read labels on a fork, so edits there ask instead of being label-gated. A PR created without -t (title from the commit or an editor) is not title-checked. The github-closing guard section enforces rule text that lives in rules/60-github.md.
 
 ## Uninstall
 

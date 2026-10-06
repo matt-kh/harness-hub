@@ -12,12 +12,12 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | id | domain | posture | functions | stability | summary |
 |---|---|---|---|---|---|
 | [`core`](bundles/core.md#components) | base | local | govern, plan, execute, review, setup | stable | Guard engine, credential and git rules, conventions, Plan / Auto / code-reviewer agents |
-| [`gdoc`](bundles/gdoc.md#components) | workspace | label-gated | govern, client, setup | stable | gdoc CLI for Google Docs / Drive / Sheets / Gmail with provenance-gated writes; drafts only, never sends |
+| [`gdoc`](bundles/gdoc.md#components) | workspace | label-gated | govern, client, setup | beta | gdoc CLI for Google Docs / Drive / Sheets / Gmail with provenance-gated writes; drafts only, never sends |
 | [`github`](bundles/github.md#components) | scm | label-gated | govern, setup | stable | GitHub CLI, PR-based workflow, GitHub Issues as the tracker, gh governance rules |
 | [`gitlab`](bundles/gitlab.md#components) | scm | label-gated | govern, setup | stable | GitLab via glab: MR-based workflow, agent-label write gates, stacked-MR rules, Jira closing-keyword deny |
 | [`jira`](bundles/jira.md#components) | tracker | label-gated | govern, client, setup | stable | Jira Server client (jira CLI + skill), read-only jira-mcp server, Jira write governance in the guard |
 | [`k8s`](bundles/k8s.md#components) | kubernetes | read-only | govern, client, investigate, plan, review, setup | stable | Read-only Kubernetes client (k8s CLI + skill), triage / audit / architect agents, kubeconfig and Secret guards |
-| [`ticket-workflow`](bundles/ticket-workflow.md#components) | delivery | label-gated | govern, workflow, setup | stable | /work-ticket (ticket → governed MR/PR, stacked delivery) and /create-ticket (one drafted ticket or issue) |
+| [`ticket-workflow`](bundles/ticket-workflow.md#components) | delivery | label-gated | govern, workflow, setup | beta | /work-ticket (ticket → governed MR/PR, stacked delivery) and /create-ticket (one drafted ticket or issue) |
 
 ## Skills
 
@@ -29,7 +29,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | `jira/skills/jira` | guide | tracker | client | label-gated | execute | declaration | Interact with the org's self-hosted Jira Server ({{ jira.url }}) — read/search/update tickets, sprints, versions, transitions, attachments, comments. |
 | `k8s/skills/k8s` | guide | kubernetes | client | read-only | execute | declaration | Read-only Kubernetes operator client for every context in the user's kubeconfig via the `k8s` CLI and explicit-context kubectl. |
 | `ticket-workflow/skills/create-ticket` | guide | delivery | workflow | label-gated | execute | declaration | Create ONE Jira ticket (self-hosted Jira Server 8.x) from the user's free-text ask in any project they can create in (discovered, never hardcoded). |
-| `ticket-workflow/skills/work-ticket` | guide | delivery | workflow | label-gated | execute | declaration | Governed Jira-ticket → GitLab-MR workflow for any repo (self-hosted Jira Server + GitLab). |
+| `ticket-workflow/skills/work-ticket` | guide | delivery | workflow | label-gated | execute | declaration | Governed Jira-ticket → GitLab-MR workflow for any repo. |
 
 ## Agents
 

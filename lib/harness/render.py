@@ -277,8 +277,13 @@ def section_function(base: str, bundle: str) -> str:
 def build_guard(engine: Bundle, bundles: Iterable[Bundle]) -> bytes:
     """engine.sh + sections (sorted, each wrapped in a function) + engine-flush.sh, byte-identical
     to build.sh. The wrapper lets a section ``return`` early (``repo_owns ... && return 0``)."""
+    return build_guard_from_sections(engine, guard_sections(bundles))
+
+
+def build_guard_from_sections(engine: Bundle, sections: Sequence[Tuple[str, str, str]]) -> bytes:
+    """engine.sh + the given ``guard_sections`` rows (in order, each wrapped in a function) + engine-flush.sh."""
     parts: List[bytes] = [read_bytes(engine.rel("guard", "engine.sh")) or b""]
-    for base, bname, full in guard_sections(bundles):
+    for base, bname, full in sections:
         fn = section_function(base, bname)
         parts.append(("\n# ==== section %s (bundle %s) ====\n%s() {\n" % (base, bname, fn)).encode("utf-8"))
         parts.append(read_bytes(full) or b"")

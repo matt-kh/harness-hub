@@ -1,4 +1,8 @@
 # OpenCode and Kilo (Kilo reads the same locations). Skills + instructions only in v1.
+# Product features a bundle may declare as `provider-feature` sensors ([harness] sensors,
+# ref "opencode:<feature>"); harness lint checks refs against this list.
+features = []
+
 [provider]
 name = "opencode"
 summary = "OpenCode / Kilo"
