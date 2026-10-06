@@ -9,7 +9,6 @@
 # rule: git push --all|--mirror -> ask : would publish every local branch; push the named branch instead
 # repo-override: WORK_TICKET_ALLOW_DEFAULT_PUSH_RE = "" -> regex on the repo top level; there a default-branch push asks instead of denying (personal repos)
 # repo-override: WORK_TICKET_BASE_BRANCH_RE = "^(master|main)$" -> default/base branches: pushes to them deny, sub MRs/PRs never target them
-# repo-override: WORK_TICKET_KEY_IN_BRANCH = "" -> =1 declares that the repository puts ticket keys in branch names (no behavioural change)
 # never-yields: the repository declaration lifts user-level rules, so the agent never writes it itself (principle 8)
 # rule: shell write to .harness.toml (> >> tee cp mv install ln dd of= sed -i perl -i, harness repo init --write) -> ask : the repository declaration lifts user-level rules; ask the user to review and commit it instead
 HT_WORD_RE='\.harness\.toml(["'"'"'[:space:];&|)]|$)'   # .harness.toml ending a word

@@ -60,7 +60,7 @@ class RepoRegionsTest(unittest.TestCase):
         self.assertNotIn("| `core/guard.d/20-credentials` |", body)
         self.assertNotIn("`k8s/guard.d/10-k8s`", body)
         self.assertIn("Never yield, whatever the file says: `core/guard.d/20-credentials`, `core/permissions`", body)
-        self.assertIn("| `delivery` | — | `ticket-workflow/skills/create-ticket`, `ticket-workflow/skills/work-ticket` |",
+        self.assertIn("| `delivery` | `ticket-workflow/guard.d/75-ticket-workflow` | `ticket-workflow/skills/create-ticket`, `ticket-workflow/skills/work-ticket` |",
                       body)
         overrides = dict((s, b) for s, b, _h in pages["docs/reference/hook-policy.md"])["bundles/*/guard.d#repo-overrides"]
         self.assertIn("| `WORK_TICKET_ALLOW_TRANSITION` | (empty) |", overrides)

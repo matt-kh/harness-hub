@@ -18,9 +18,9 @@ The exact decision for every command pattern is generated in the
 - **Humans merge and approve.** `glab mr merge|approve`, `gh pr merge`, `gh pr review` ask,
   always. The agent's hand-off tells you what is ready; you press the button.
 - Commit subjects and branch names carry **no ticket keys** by default; the key lives in the
-  MR/PR title or body. (A repository that puts keys in branch names declares
-  `WORK_TICKET_KEY_IN_BRANCH` in its `.harness.toml`, or owns the `delivery` domain, and its
-  own workflow applies.)
+  MR/PR title or body, and the guard asks on key-named branches and key-prefixed subjects.
+  (A repository that puts keys in branch names declares `WORK_TICKET_KEY_IN_BRANCH` in its
+  `.harness.toml`, or owns the `delivery` domain, and its own workflow applies.)
 - MR/PR creation is promptless when it carries an `agent-*` label; edits to agent-labelled
   MRs/PRs are promptless; edits to human ones ask.
 

@@ -84,8 +84,9 @@
 #                                   to a default branch asks instead of denying (personal repos)
 #   WORK_TICKET_ALLOW_TRANSITION=1  jira transition on a purely human ticket asks instead of
 #                                   denying (repos whose own workflow transitions tickets)
-#   WORK_TICKET_KEY_IN_BRANCH=1     reserved: declares that the repo puts ticket keys in branch
-#                                   names/commits; accepted, no behavioural change today
+#   WORK_TICKET_KEY_IN_BRANCH=1     the repo puts ticket keys in branch names/commit subjects:
+#                                   section 75 (ticket-workflow) then lets key-named branches and
+#                                   key-prefixed subjects pass instead of asking
 #   WORK_TICKET_JIRA_PY / WORK_TICKET_GLAB / WORK_TICKET_GH / WORK_TICKET_GDOC_PY  client paths
 #                                   (tests: stubs; WORK_TICKET_GH defaults to `gh` on PATH; the
 #                                   python clients default to <hooks dir>/../skills/<skill>/scripts/)
@@ -360,8 +361,8 @@ LABELED_DECISION="${WORK_TICKET_LABELED_DECISION:-allow}"
 BASE_BRANCH_RE="${WORK_TICKET_BASE_BRANCH_RE:-^(master|main)$}"   # sub MRs must never target these
 ALLOW_DEFAULT_PUSH_RE="${WORK_TICKET_ALLOW_DEFAULT_PUSH_RE:-}"   # repo top-level paths where a default-branch push asks
 ALLOW_TRANSITION="${WORK_TICKET_ALLOW_TRANSITION:-}"            # =1: human-ticket transition asks instead of deny
-# shellcheck disable=SC2034  # declared for the repo contract (header), read by no rule yet
-KEY_IN_BRANCH="${WORK_TICKET_KEY_IN_BRANCH:-}"                  # reserved (no-op today)
+# shellcheck disable=SC2034  # read by section 75 (ticket-workflow) when that bundle is active
+KEY_IN_BRANCH="${WORK_TICKET_KEY_IN_BRANCH:-}"                  # =1: key-named branches / key-prefixed subjects pass
 KEY_RE='[A-Z][A-Z0-9_]*-[0-9]+'
 
 # Normalised MR/PR/issue record used by gate_writes: {labels:[names], src, tgt, cross}

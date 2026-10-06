@@ -67,6 +67,10 @@ Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md
 
 - `ticket-workflow/rules/75-ticket-workflow` — control: guide · function: govern · yields: text
 
+**Guard sections**
+
+- `ticket-workflow/guard.d/75-ticket-workflow` — control: sensor · function: govern · decisions: ask 4 · yields: declaration
+
 **Permission lists**
 
 - `ticket-workflow/permissions` — function: govern · decisions: empty (no rules) · yields: config
@@ -111,7 +115,8 @@ In the repository's `.harness.toml` (provider-neutral, committed; `harness repo`
 - `[overrides] WORK_TICKET_ALLOW_TRANSITION = "1"` — a transition / close / reopen on a
   human ticket asks instead of denying.
 - `[overrides] WORK_TICKET_KEY_IN_BRANCH = "1"` — the repository puts ticket keys in branch
-  names (declaration only).
+  names and commit subjects: the guard lets key-named branches and key-prefixed subjects
+  pass instead of asking.
 - `[overrides] WORK_TICKET_ALLOW_DEFAULT_PUSH_RE = "<regex>"` — a default-branch push asks
   instead of denying (personal repositories).
 A provider `env` override (Claude Code: `.claude/settings.json` → `"env"`) of the same name
@@ -137,11 +142,13 @@ Guides steer the agent before it acts; sensors detect at or after the action. Pa
 | guide | rule | `rules/75-ticket-workflow.md` | ticket to MR/PR flow, label gate, key-free branches, stacked delivery |
 | guide | skill | `skills/work-ticket` | the governed ticket workflow and its preflight scripts |
 | guide | skill | `skills/create-ticket` | one drafted ticket or issue, rendered deterministically |
+| sensor | guard | `guard.d/75-ticket-workflow.sh` | key-free branches and subjects, sub worktree paths, squash delivery |
 | sensor | doctor | `doctor_checks` | a tracker CLI and an SCM CLI on PATH, both skills rendered |
-| sensor | test | `tests/run.sh` | every skill suite of this bundle |
+| sensor | test | `tests/run.sh` | this bundle's guard rows against core + ticket-workflow only, then every skill suite |
+| sensor | test | `guard.d/tests.sh` | rows for section 75 incl. bypasses |
 | sensor | test | `skills/create-ticket/scripts/tests/run.sh` | golden renders of every ticket class |
 
-**Not covered:** No permission rules and no guard section of its own: the write gates are sensed by the tracker and SCM bundles' guard sections (closing keywords, labels, stacked targets); work-ticket has no own test suite.
+**Not covered:** The size rubric, Q-checklist and MR body content are judgement calls (inferential: code-reviewer); SCM verb conventions are sensed by the gitlab/github guard sections; work-ticket has no own test suite yet.
 
 ## Uninstall
 
