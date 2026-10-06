@@ -62,20 +62,20 @@ Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md
 
 **Rules**
 
-- `github/rules/60-github` — control: guide · function: govern
+- `github/rules/60-github` — control: guide · function: govern · yields: text
 
 **Guard sections**
 
-- `github/guard.d/41-github-closing` — control: sensor · domain: tracker · function: govern · decisions: deny 1
-- `github/guard.d/60-github` — control: sensor · function: govern · decisions: deny 2 · ask 2 · allow 3
+- `github/guard.d/41-github-closing` — control: sensor · domain: tracker · function: govern · decisions: deny 1 · yields: declaration
+- `github/guard.d/60-github` — control: sensor · function: govern · decisions: deny 2 · ask 2 · allow 3 · yields: declaration
 
 **Permission lists**
 
-- `github/permissions` — control: guide · function: govern · decisions: deny 1 · ask 75 · allow 32
+- `github/permissions` — control: guide · function: govern · decisions: deny 1 · ask 75 · allow 32 · yields: config
 
 **Installers**
 
-- `github/install/gh` — function: setup
+- `github/install/gh` — function: setup · yields: n/a
 
 **Doctor checks** (function: setup · posture: read-only; table below): `github/doctor/gh-auth`, `github/doctor/gh-binary`, `github/doctor/gh-ssh`, `github/doctor/gh-token-mode`
 

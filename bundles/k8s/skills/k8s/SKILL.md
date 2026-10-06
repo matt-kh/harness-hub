@@ -12,10 +12,24 @@ model: {{ core.model_policy.execute }}
 
 # Kubernetes (read-only operator client)
 
-Generic client for every context in the user's kubeconfig. **Precedence:** if the current repo has
-its own GitOps/cluster skill (e.g. a GitOps repo's `/render-overlay` or `/promote`), that skill
-owns the *edit* — this one is the read-only client that explains what the cluster is actually
-doing. `infra-architect` stays design-only and is not a runtime tool.
+Generic client for every context in the user's kubeconfig.
+
+**Step 0 — repository-level harness (principle 8).** This is a user-level skill. Read the
+repository's declaration first:
+
+```bash
+harness repo owns k8s/skills/k8s   # rc 0 = owned (prints why) → stop; rc 1 = carry on
+```
+
+If it is owned (by id or by its domain `kubernetes`), or the repository ships its own skill for
+the same workflow, this skill yields: say so in one line, name the repository-level skill or
+convention, and stop — nothing below runs and nothing is merged. If the repository owns the
+*workflow* but not the client, stay available as the plain client underneath it. Never edit
+the repository's harness to fit this skill. `harness repo` explains everything the
+repository declares and any `.claude/skills|agents` name collisions.
+A repository's own GitOps or cluster skill (e.g. a GitOps repo's `/render-overlay` or
+`/promote`) owns the *edit* — this one stays the read-only client that explains what the
+cluster is actually doing. `infra-architect` stays design-only and is not a runtime tool.
 
 `<gitops root>` below is the local checkout of your GitOps repo, configured as `k8s.gitops_root`
 (`K8S_GITOPS_ROOT`); `k8s argocd` prints the resolved `local_path` of every Application, and the

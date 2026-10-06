@@ -14,8 +14,10 @@ pinned to {{ core.model_policy.plan }}, read-only tools) with:
   mergeable on its own; `depends_on` **only for true build/runtime dependencies** (a dependent
   part chains onto its blocker's branch and needs a rebase + retarget after the blocker
   merges) and **at most one blocker per part** — needing two means chain linearly or merge the
-  parts; no part may target the base branch directly; respect the deference rule. (Q8b =
-  single: parts converge into one MR on `<BR>` instead — same decomposition.)
+  parts; no part may target the base branch directly; respect the precedence rule
+  (principle 8: when `repo_skill`/`repo_owns` is set, the repository's branch and MR
+  conventions apply to every part). (Q8b = single: parts converge into one MR on `<BR>`
+  instead — same decomposition.)
 
 Required output — markdown summary **plus** one fenced JSON block, saved verbatim to
 `$SCRATCH/KEY-decomposition.json`:

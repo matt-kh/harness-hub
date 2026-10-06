@@ -62,3 +62,11 @@ cp "$H" "$lay/hooks/guard-bash.sh"; cp "$STUBS/gdoc-stub.py" "$lay/skills/gdoc/s
 WORK_TICKET_GDOC_PY='' H="$lay/hooks/guard-bash.sh" t allow 'gdoc append AGT1111111111111111111 "text"'
 WORK_TICKET_GDOC_PY='' H="$lay/hooks/guard-bash.sh" t ask   'gdoc append HUM1111111111111111111 "text"'
 rm -rf "$lay"
+# ---- repository-level declaration: .harness.toml (principle 8) ----------------------
+decl '[owns]' 'domains = ["workspace"]'
+r pass  'gdoc mail send 1a2b3c4d5e6f7g8h9i0jKLMN'             # the repository's harness decides
+decl '[owns]' 'domains = ["tracker"]'
+r ask   'gdoc mail send 1a2b3c4d5e6f7g8h9i0jKLMN'             # another domain: unchanged
+decl '[overrides]' 'WORK_TICKET_GDOC_PY = "/bin/true"'      # bypass: client paths are never repo-settable
+r ask   'gdoc mail send 1a2b3c4d5e6f7g8h9i0jKLMN'
+decl

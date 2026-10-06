@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/matt-kh/harness-hub/schema/repo.schema.json",
+  "title": "harness-hub repository-level declaration (<repo root>/.harness.toml)",
+  "description": "What a repository's own harness owns and the allow-listed guard overrides it sets (principle 8: user-level by design, repository-level wins). Readers parse a TOML subset: one statement per line, whole-line comments, no inline comments, escapes or multi-line arrays. `harness repo` validates against this schema.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "repo": {
+      "type": "object", "additionalProperties": false,
+      "description": "Informational.",
+      "properties": {
+        "name": {"type": "string", "description": "The repository's name."},
+        "harness": {"type": "string", "description": "Where the repository's own harness is described (a path or URL)."}
+      }
+    },
+    "owns": {
+      "type": "object", "additionalProperties": false,
+      "description": "What the repository's own harness covers: every hub component in these domains, or with these ids, yields here.",
+      "properties": {
+        "domains": {
+          "type": "array", "uniqueItems": true,
+          "items": {"type": "string", "enum": ["base", "scm", "tracker", "delivery", "kubernetes", "workspace"]},
+          "description": "Taxonomy domains (docs/reference/taxonomy.md). `base` has no effect on the guard: the credential section never yields."
+        },
+        "components": {
+          "type": "array", "uniqueItems": true,
+          "items": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*/(skills|agents|guard\\.d|rules)/[A-Za-z0-9._-]+$|^[a-z0-9][a-z0-9-]*/permissions$"},
+          "description": "Component ids as `harness catalog` prints them (e.g. core/guard.d/30-git, ticket-workflow/skills/work-ticket)."
+        }
+      }
+    },
+    "overrides": {
+      "type": "object",
+      "description": "Allow-listed WORK_TICKET_* guard settings (docs/reference/hook-policy.md#repo-overrides); client paths, credential settings and every other prefix are settable only from the developer's own environment. A variable of the same name in the real environment (a provider env override) wins.",
+      "propertyNames": {"pattern": "^WORK_TICKET_[A-Z0-9_]+$"},
+      "additionalProperties": {"type": "string"}
+    }
+  }
+}

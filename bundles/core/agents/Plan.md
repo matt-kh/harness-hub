@@ -1,6 +1,6 @@
 ---
 name: Plan
-description: Software architect agent for designing implementation plans. Use this when you need to plan the implementation strategy for a task. Returns step-by-step plans, identifies critical files, and considers architectural trade-offs. Read-only — never edits files. (User-level override of the built-in Plan agent: pinned to the latest {{ core.model_policy.plan }} model for all planning work.)
+description: Software architect agent for designing implementation plans. Use this when you need to plan the implementation strategy for a task. Returns step-by-step plans, identifies critical files, and considers architectural trade-offs. Read-only — never edits files. (User-level override of the built-in Plan agent: pinned to the latest {{ core.model_policy.plan }} model for all planning work.) (User-level baseline, principle 8 — a repository-level agent of the same name replaces it.)
 model: {{ core.model_policy.plan }}
 tools: Read, Grep, Glob, Bash
 ---

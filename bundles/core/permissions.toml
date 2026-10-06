@@ -1,12 +1,16 @@
 # Claude Code permission rules contributed by bundle `core` (merged into settings.json
 # `permissions` by the claude provider; other providers translate what they can).
-# git reads plus every credential-file Read deny (defence in depth: the files stay denied even when the tool's bundle is not installed; the guard's 20-credentials section covers the Bash side).
+# git reads, an ask on every write to a repository's .harness.toml (principle 8: the declaration lifts
+# user-level rules, so the user reviews it; this list never yields), plus every credential-file Read deny (defence in depth: the files stay denied even when the tool's bundle is not installed; the guard's 20-credentials section covers the Bash side).
 
 [permissions]
 allow = [
   "Bash(git worktree list:*)",
 ]
-ask = []
+ask = [
+  "Write(**/.harness.toml)",
+  "Edit(**/.harness.toml)",
+]
 deny = [
   "Read(~/.kube/**)",
   "Read(~/.config/jira)",

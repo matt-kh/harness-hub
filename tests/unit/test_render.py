@@ -220,6 +220,18 @@ class RenderHubTest(HubTestCase):
         with open(out, "rb") as fh:
             self.assertEqual(fh.read(), R.build_guard(hub.bundle("core"), hub.active_bundles))
 
+    def test_guard_sections_are_wrapped_in_functions(self):
+        """Principle 8: each section runs as a function so `repo_owns ... && return 0` can skip it."""
+        hub = self.hub()
+        data = R.build_guard(hub.bundle("core"), hub.active_bundles).decode()
+        self.assertIn("\n# ==== section 20-core.sh (bundle core) ====\nguard_section_core_20_core() {\n", data)
+        self.assertIn("\n}\nguard_section_core_20_core\n", data)
+        self.assertEqual(data.count("() {\n# shellcheck shell=bash\n# Section"), 3)
+        self.assertEqual(R.section_function("30-git.sh", "core"), "guard_section_core_30_git")
+        self.assertEqual(R.section_function("41-github-closing.sh", "my.org-b"), "guard_section_my_org_b_41_github_closing")
+        p = subprocess.run(["bash", "-n"], input=data.encode(), stderr=subprocess.PIPE)
+        self.assertEqual(p.returncode, 0, p.stderr.decode())
+
     def test_rendered_guard_decides_and_reads_guard_env(self):
         targets = R.Renderer(self.hub()).render(self.hub().filter_providers(["claude"]))
         by = {t.path: t for t in targets}

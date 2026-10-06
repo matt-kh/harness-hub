@@ -67,6 +67,31 @@ to behave, and you should run them with their strictest approval setting.
 - **Server-side settings.** Branch protection, required reviews and secret scanning on your
   SCM are the real enforcement; the guard is the only protection only where the plan offers
   none (for example private repos on GitHub Free).
+- **Repositories that declare their own harness.** A repository's `.harness.toml` is
+  repository content the guard reads from the hook's working directory — the agent's cwd, not
+  the command's target: `git -C ../other push` is judged under the cwd's declaration
+  ([repository-level harnesses](docs/repo-level.md)). It can only loosen rules that do not
+  protect the developer's own credentials: skip every rule of the guard sections whose domain
+  or id it owns — including the human-only merge and review asks (`scm`), the Secret-value and
+  kubeconfig-mutation denies (`kubernetes`) and the transition and closing-keyword denies
+  (`tracker`) — and set the allow-listed `WORK_TICKET_*` overrides in the
+  [hook policy](docs/reference/hook-policy.md#repo-overrides). It never lifts:
+  - the credential-file denies: `core/guard.d/20-credentials` (shell reads of the kubeconfig,
+    `~/.config/{gh,glab-cli,jira,gdoc}`, `~/.aws`, `~/.ssh`, `.env*`, agent credential files,
+    secret environment dumps) and `core/permissions` (the matching `Read(...)` denies);
+  - the commands that print a stored credential: `gh auth token`,
+    `gh auth status --show-token`, `gh config get oauth_token`, `kubectl config view --raw`
+    (the `# never-yields:` preludes of `github/guard.d/60-github` and `k8s/guard.d/25-k8s-rules`);
+  - the asks on writing `.harness.toml` itself: `Write`/`Edit` of `**/.harness.toml`
+    (`core/permissions`) and shell writes to it (`>`, `tee`, `cp`, `mv`, `sed -i`,
+    `harness repo init --write`; the prelude of `core/guard.d/30-git`). The declaration lifts
+    user-level rules, so an agent that wrote it would authorise itself; a human reviews and
+    commits it.
+
+  Client paths and engine or credential settings (`HARNESS_GUARD_ENV`, `HARNESS_CRED_EXTRA_RE`,
+  every `*_PY`, `GUARD_*`, `HARNESS_*` and `*CRED*` name) are ignored when they appear in the
+  file. Review a cloned repository's `.harness.toml` like any other committed agent
+  configuration; `harness repo` shows its effect.
 
 ## Where secrets live
 
@@ -83,7 +108,7 @@ the command:
 | When | Call | Opt out / offline |
 |---|---|---|
 | `harness install <tool>`, `bootstrap` installing a missing tool | HTTPS download of the pinned release asset listed in `tools/<tool>.lock.json` (e.g. GitHub Releases), sha256-verified | `--no-install-tools`, `--offline`, `--from FILE`, `HARNESS_TOOLS_MIRROR` |
-| `harness upgrade` | `git fetch` of this repository's remote | skip upgrade; pin with `--to TAG` |
+| `harness upgrade` | `git fetch --tags` of this repository's `origin` (and `git pull --ff-only` with `--to BRANCH`) | `--offline` uses the tags already in the clone; or point `origin` at a bundle file |
 | `harness pack --tools os/arch,...` | HTTPS download of the pinned `tools/<tool>.lock.json` assets for those platforms, sha256-verified (same code as `harness install`) | omit `--tools`, `--offline`, `HARNESS_TOOLS_MIRROR` |
 | `harness init --from <git url>` | `git clone`/`fetch` of the org overlay you name | pass a local path |
 | `harness doctor` (online checks) | runs **your** CLIs' own status commands: `gh auth status`, `glab auth status`, `jira whoami`, `gdoc auth status`, `kubectl version`, `ssh -T git@<host>` — they contact the hosts in your config | `--offline` (or `HARNESS_OFFLINE=1`) skips every network check |
@@ -97,10 +122,23 @@ first use.
 ## Release artifacts
 
 A release is a `git bundle` file, optional sidecar tool archives taken from the pinned lock
-files, and `SHA256SUMS` over all of them ([distribution](docs/distribution.md)). Check the
-sums (`shasum -a 256 -c SHA256SUMS`) before cloning; `harness verify FILE.bundle` also runs
-`git bundle verify`. Releases never contain `local/`, credentials, provider CLIs or MCP
-packages.
+files, `INSTALL.txt`, `SHA256SUMS` over all of them, and `harness-hub-X.Y.Z.run`, a
+self-extracting envelope of the same files ([distribution](docs/distribution.md)). Releases
+never contain `local/`, credentials, provider CLIs or MCP packages.
+
+- **Offline check**: `shasum -a 256 -c SHA256SUMS` before cloning; `harness verify
+  FILE.bundle` also runs `git bundle verify`.
+- **The `.run`**: its header is the tracked `lib/harness/selfextract-header.sh` (read it, or
+  `head -n 200 FILE.run`, before running one). `sh FILE.run --check` verifies the payload's
+  size and sha256 against the header and every `SHA256SUMS` line inside it, and installs
+  nothing; every install or upgrade run performs the same checks first. The header's sha256
+  is only as trustworthy as the file you received: check the `.run` line of the outer
+  `SHA256SUMS` or its provenance.
+- **Provenance (online)**: releases published by the `release` workflow carry GitHub build
+  provenance for every asset: `gh attestation verify FILE -R matt-kh/harness-hub`. Verify on
+  the connected side before carrying files across an air gap.
+- Release tags are annotated; signed tags are optional and reported by
+  `harness release check`.
 
 ## Supported versions
 

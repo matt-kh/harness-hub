@@ -9,7 +9,7 @@ organisation; the hub renders it, with the bundles you pick, into every provider
 - **For platform teams** rolling out one governed baseline to many developers, and for
   individual developers.
 - **The repository is the product.** Installing means owning a copy: no service, registry,
-  daemon or package manager. Seven [principles](PRINCIPLES.md) govern every change.
+  daemon or package manager. Eight [principles](PRINCIPLES.md) govern every change.
 
 ## Install
 
@@ -24,11 +24,14 @@ and an org overlay. Clone it the same way; set one up with the
 [self-host runbook](docs/runbooks/self-host.md).
 
 **From a bundle file** (air-gapped): a release is one `git bundle` file plus optional tool
-archives and `SHA256SUMS`, built with `harness pack`.
+archives and `SHA256SUMS`, built with `harness pack`; the same files also come as one
+self-extracting `harness-hub-X.Y.Z.run`.
 
 ```sh
+sh harness-hub-X.Y.Z.run --check && sh harness-hub-X.Y.Z.run --offline --no-install-tools
+# or, from the bundle file:
 shasum -a 256 -c SHA256SUMS
-git clone harness-hub-vX.Y.Z.bundle ~/harness-hub && ~/harness-hub/bootstrap --offline --no-install-tools
+git clone harness-hub-X.Y.Z.bundle ~/harness-hub && ~/harness-hub/bootstrap --offline --no-install-tools
 ```
 
 `bootstrap` writes `local/harness.toml`, shows the plan, applies it with backups, runs
@@ -65,6 +68,10 @@ A bundle is one capability, built along the lines of Martin Fowler's
   writes to human-owned tickets. Every reason names what to do instead.
 - Agents write promptlessly only to artefacts they own, marked by an `agent-*` label
   ([governance](docs/governance.md)).
+- **User-level by design.** Everything the hub installs is a baseline that yields to a
+  repository's own harness — declared in a committed `.harness.toml`, or found by name or
+  text — wholesale, never merged. Only the rules protecting your own credentials stay
+  ([principle 8](principles/08-user-level-by-design.md), [repository-level harnesses](docs/repo-level.md)).
 - Hundreds of table-driven test rows, bypass attempts included, specify the guard.
 - `harness plan` shows every path before `apply` writes; modified files are backed up;
   `uninstall` removes only state-listed paths. Your text outside managed blocks is untouched.
@@ -114,11 +121,13 @@ listed in [SECURITY.md](SECURITY.md).
 | [Getting started](docs/getting-started.md) | first run on Linux / WSL2 / macOS |
 | [Concepts](docs/concepts.md) | config, bundles, providers, guides and sensors |
 | [Governance](docs/governance.md) | the rules and why |
+| [Repository-level harnesses](docs/repo-level.md) | what the hub does in your repo, `.harness.toml`, provider collision facts |
 | [Distribution](docs/distribution.md) | tiers, release bundle |
 | [Self-host](docs/runbooks/self-host.md) | an org platform instance |
 | [Runbooks](docs/runbooks/new-machine.md) | new machine, upgrade, air-gapped, migration, rotation |
 | [Catalog](docs/catalog.md) | every bundle, skill, agent, rule, guard section and check, with its id and facets |
 | [Reference](docs/reference/cli.md) | CLI, config schema, hook policy, secrets, [taxonomy](docs/reference/taxonomy.md) |
+| [Roadmap](docs/roadmap.md) | planned bundles and extensions by tranche, reserved guard prefixes, rejected ideas |
 | [Architecture](ARCHITECTURE.md) | normative contracts |
 | [AGENTS.md](AGENTS.md) | for agents changing this repo |
 | [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Changelog](CHANGELOG.md) | |

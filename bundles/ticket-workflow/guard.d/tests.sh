@@ -67,3 +67,16 @@ t pass  'git merge --no-ff feat-x'
 t pass  'git merge --abort'
 t pass  'git merge "$SUB"'
 tr 'git merge --squash' 'git merge --no-ff feat-x-sub-01-schema'
+
+# ---- repository-level declaration: .harness.toml (principle 8) ----------------------
+decl '[overrides]' 'WORK_TICKET_KEY_IN_BRANCH = "1"'
+r pass  'git switch -c PROJ-123-x'
+r pass  'git commit -m "PROJ-123 fix parser"'
+r ask   'git merge --no-ff feat-x-sub-01-schema'              # the override lifts only the two key rules
+WORK_TICKET_KEY_IN_BRANCH='' r ask 'git switch -c PROJ-123-x'   # the real environment wins
+decl '[owns]' 'domains = ["delivery"]'
+r pass  'git switch -c PROJ-123-x'
+r pass  'git merge --no-ff feat-x-sub-01-schema'
+decl '[owns]' 'domains = ["scm"]'
+r ask   'git switch -c PROJ-123-x'                             # section 75 is delivery, not scm
+decl

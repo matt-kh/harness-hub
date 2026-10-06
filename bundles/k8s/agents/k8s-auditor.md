@@ -1,6 +1,6 @@
 ---
 name: k8s-auditor
-description: Read-only Kubernetes posture review of a context or namespace — pod security, PSA labels, RBAC, Secret hygiene, certificate expiry, capacity headroom, deprecated APIs, image and GitOps drift. Use when the user asks to audit, review, harden or assess the security/health posture of a cluster or namespace, or before an upgrade or a go-live. Returns Critical / Warnings / Suggestions with the fix as a chart-values or overlay change. (User-level baseline — a repo-level agent of the same name takes precedence.)
+description: Read-only Kubernetes posture review of a context or namespace — pod security, PSA labels, RBAC, Secret hygiene, certificate expiry, capacity headroom, deprecated APIs, image and GitOps drift. Use when the user asks to audit, review, harden or assess the security/health posture of a cluster or namespace, or before an upgrade or a go-live. Returns Critical / Warnings / Suggestions with the fix as a chart-values or overlay change. (User-level baseline, principle 8 — a repository-level agent of the same name replaces it.)
 tools: Read, Grep, Glob, Bash
 model: {{ core.model_policy.execute }}
 ---

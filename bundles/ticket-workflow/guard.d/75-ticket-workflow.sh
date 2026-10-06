@@ -5,6 +5,8 @@
 # rule: git commit whose first -m/--message starts with a ticket key -> ask : mention the key in the body or MR instead (WORK_TICKET_KEY_IN_BRANCH=1 passes)
 # rule: git worktree add PATH -b <-sub- branch> with basename(PATH) != <repo>_<branch> -> ask : subagent worktrees follow ../<repo>_<branch>; use that path instead
 # rule: git merge [--no-ff|--ff|--ff-only] <-sub- branch> without --squash -> ask : single delivery squash-merges parts; use git merge --squash instead
+# repo-override: WORK_TICKET_KEY_IN_BRANCH = "" -> =1: the repository puts ticket keys in branch names and commit subjects; key-named branches and key-prefixed subjects pass instead of asking
+repo_owns ticket-workflow/guard.d/75-ticket-workflow delivery && return 0   # principle 8: the repository's .harness.toml owns this section or domain delivery
 # ---- Ticket workflow (work-ticket conventions) ---------------------------------------
 # All decisions are deferred asks, so a later deny in the same command still wins. $VAR names,
 # messages and paths are not resolvable and fall through. WORK_TICKET_KEY_IN_BRANCH=1 switches

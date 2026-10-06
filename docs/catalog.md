@@ -23,72 +23,72 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 
 **Reach:** native on claude, codex, copilot, gemini, opencode.
 
-| id | control | domain | function | posture | model | summary |
-|---|---|---|---|---|---|---|
-| `gdoc/skills/gdoc` | guide | workspace | client | label-gated | execute | Read, write and search the user's corporate Google Workspace ({{ google.domain }}) — Google Docs, Drive, Sheets and Gmail — with the `gdoc` CLI. |
-| `jira/skills/jira` | guide | tracker | client | label-gated | execute | Interact with the org's self-hosted Jira Server ({{ jira.url }}) — read/search/update tickets, sprints, versions, transitions, attachments, comments. |
-| `k8s/skills/k8s` | guide | kubernetes | client | read-only | execute | Read-only Kubernetes operator client for every context in the user's kubeconfig via the `k8s` CLI and explicit-context kubectl. |
-| `ticket-workflow/skills/create-ticket` | guide | delivery | workflow | label-gated | execute | Create ONE Jira ticket (self-hosted Jira Server 8.x) from the user's free-text ask in any project they can create in (discovered, never hardcoded). |
-| `ticket-workflow/skills/work-ticket` | guide | delivery | workflow | label-gated | execute | Governed Jira-ticket → GitLab-MR workflow for any repo (self-hosted Jira Server + GitLab). |
+| id | control | domain | function | posture | model | yields | summary |
+|---|---|---|---|---|---|---|---|
+| `gdoc/skills/gdoc` | guide | workspace | client | label-gated | execute | declaration | Read, write and search the user's corporate Google Workspace ({{ google.domain }}) — Google Docs, Drive, Sheets and Gmail — with the `gdoc` CLI. |
+| `jira/skills/jira` | guide | tracker | client | label-gated | execute | declaration | Interact with the org's self-hosted Jira Server ({{ jira.url }}) — read/search/update tickets, sprints, versions, transitions, attachments, comments. |
+| `k8s/skills/k8s` | guide | kubernetes | client | read-only | execute | declaration | Read-only Kubernetes operator client for every context in the user's kubeconfig via the `k8s` CLI and explicit-context kubectl. |
+| `ticket-workflow/skills/create-ticket` | guide | delivery | workflow | label-gated | execute | declaration | Create ONE Jira ticket (self-hosted Jira Server 8.x) from the user's free-text ask in any project they can create in (discovered, never hardcoded). |
+| `ticket-workflow/skills/work-ticket` | guide | delivery | workflow | label-gated | execute | declaration | Governed Jira-ticket → GitLab-MR workflow for any repo (self-hosted Jira Server + GitLab). |
 
 ## Agents
 
 **Reach:** native on claude, copilot; inlined on codex, gemini, opencode.
 
-| id | control | domain | function | posture | model | summary |
-|---|---|---|---|---|---|---|
-| `core/agents/Auto` | guide | base | execute | local | execute | Execution agent pinned to {{ core.model_policy.execute }} — the auto-mode counterpart to Plan. |
-| `core/agents/Plan` | guide | base | plan | read-only | plan | Software architect agent for designing implementation plans. |
-| `core/agents/code-reviewer` | sensor (inferential) | base | review | read-only | execute | Expert code review specialist. |
-| `k8s/agents/infra-architect` | guide | kubernetes | plan | read-only | plan | Use this agent for expert guidance on infrastructure design, platform architecture, or DevOps strategy — advisory/planning only. |
-| `k8s/agents/k8s-auditor` | guide | kubernetes | review | read-only | execute | Read-only Kubernetes posture review of a context or namespace — pod security, PSA labels, RBAC, Secret hygiene, certificate expiry, capacity headroom, deprecat… |
-| `k8s/agents/k8s-triage` | guide | kubernetes | investigate | read-only | execute | Read-only Kubernetes incident triage. |
+| id | control | domain | function | posture | model | yields | summary |
+|---|---|---|---|---|---|---|---|
+| `core/agents/Auto` | guide | base | execute | local | execute | name | Execution agent pinned to {{ core.model_policy.execute }} — the auto-mode counterpart to Plan. |
+| `core/agents/Plan` | guide | base | plan | read-only | plan | name | Software architect agent for designing implementation plans. |
+| `core/agents/code-reviewer` | sensor (inferential) | base | review | read-only | execute | name | Expert code review specialist. |
+| `k8s/agents/infra-architect` | guide | kubernetes | plan | read-only | plan | name | Use this agent for expert guidance on infrastructure design, platform architecture, or DevOps strategy — advisory/planning only. |
+| `k8s/agents/k8s-auditor` | guide | kubernetes | review | read-only | execute | name | Read-only Kubernetes posture review of a context or namespace — pod security, PSA labels, RBAC, Secret hygiene, certificate expiry, capacity headroom, deprecat… |
+| `k8s/agents/k8s-triage` | guide | kubernetes | investigate | read-only | execute | name | Read-only Kubernetes incident triage. |
 
 ## Rules
 
 **Reach:** native on claude, codex, copilot, gemini, opencode.
 
-| id | control | domain | summary |
-|---|---|---|---|
-| `core/rules/00-conventions` | guide | base | Global conventions |
-| `k8s/rules/10-k8s` | guide | kubernetes | Kubernetes |
-| `gitlab/rules/50-gitlab` | guide | scm | GitLab ({{ gitlab.host }}) |
-| `github/rules/60-github` | guide | scm | GitHub ({{ github.host }}) |
-| `jira/rules/70-jira` | guide | tracker | Jira ({{ jira.url }}) |
-| `ticket-workflow/rules/75-ticket-workflow` | guide | delivery | Ticket workflow |
-| `gdoc/rules/80-gdoc` | guide | workspace | Google Workspace ({{ google.domain }}) |
+| id | control | domain | yields | summary |
+|---|---|---|---|---|
+| `core/rules/00-conventions` | guide | base | text | Global conventions |
+| `k8s/rules/10-k8s` | guide | kubernetes | text | Kubernetes |
+| `gitlab/rules/50-gitlab` | guide | scm | text | GitLab ({{ gitlab.host }}) |
+| `github/rules/60-github` | guide | scm | text | GitHub ({{ github.host }}) |
+| `jira/rules/70-jira` | guide | tracker | text | Jira ({{ jira.url }}) |
+| `ticket-workflow/rules/75-ticket-workflow` | guide | delivery | text | Ticket workflow |
+| `gdoc/rules/80-gdoc` | guide | workspace | text | Google Workspace ({{ google.domain }}) |
 
 ## Guard sections
 
 **Reach:** enforced on claude; partial on copilot, gemini; advisory on codex, opencode.
 
-| id | control | domain | decisions | note |
-|---|---|---|---|---|
-| [`k8s/guard.d/10-k8s`](reference/hook-policy.md) | sensor | kubernetes | helper (no rules) | kubectl/helm clause parsing shared by the rules section |
-| [`core/guard.d/20-credentials`](reference/hook-policy.md) | sensor | base | deny 7 | denies credential file reads and secret env dumps before they run |
-| [`k8s/guard.d/25-k8s-rules`](reference/hook-policy.md) | sensor | kubernetes | deny 4 · ask 7 | kubeconfig, Secret data, cluster, release, GitOps and IaC mutations |
-| [`core/guard.d/30-git`](reference/hook-policy.md) | sensor | scm | deny 1 · ask 5 | denies default-branch pushes; asks on force-push and destructive git |
-| [`gitlab/guard.d/40-gitlab-closing`](reference/hook-policy.md) | sensor | tracker | deny 1 | denies closing keywords with a ticket key |
-| [`github/guard.d/41-github-closing`](reference/hook-policy.md) | sensor | tracker | deny 1 | denies closing keywords that would change issue state |
-| [`gitlab/guard.d/50-gitlab`](reference/hook-policy.md) | sensor | scm | ask 2 · allow 3 | API writes, merges/approvals, stacked MR targets, label-gated edits |
-| [`github/guard.d/60-github`](reference/hook-policy.md) | sensor | scm | deny 2 · ask 2 · allow 3 | token printing, API writes, merges/reviews, provenance labels, stacked PR targets |
-| [`jira/guard.d/70-jira`](reference/hook-policy.md) | sensor | tracker | deny 3 · ask 1 · allow 4 | label-gated writes, provenance label on create, transitions denied on human tickets |
-| [`ticket-workflow/guard.d/75-ticket-workflow`](reference/hook-policy.md) | sensor | delivery | ask 4 | key-free branches and subjects, sub worktree paths, squash delivery |
-| [`gdoc/guard.d/80-gdoc`](reference/hook-policy.md) | sensor | workspace | deny 1 · ask 2 · allow 2 | GET-only api, provenance check before writes, ask on mark and mail send |
+| id | control | domain | decisions | yields | note |
+|---|---|---|---|---|---|
+| [`k8s/guard.d/10-k8s`](reference/hook-policy.md) | sensor | kubernetes | helper (no rules) | n/a | kubectl/helm clause parsing shared by the rules section |
+| [`core/guard.d/20-credentials`](reference/hook-policy.md) | sensor | base | deny 7 | never | denies credential file reads and secret env dumps before they run |
+| [`k8s/guard.d/25-k8s-rules`](reference/hook-policy.md) | sensor | kubernetes | deny 4 · ask 7 | declaration | kubeconfig, Secret data, cluster, release, GitOps and IaC mutations |
+| [`core/guard.d/30-git`](reference/hook-policy.md) | sensor | scm | deny 1 · ask 6 | declaration | denies default-branch pushes; asks on force-push and destructive git |
+| [`gitlab/guard.d/40-gitlab-closing`](reference/hook-policy.md) | sensor | tracker | deny 1 | declaration | denies closing keywords with a ticket key |
+| [`github/guard.d/41-github-closing`](reference/hook-policy.md) | sensor | tracker | deny 1 | declaration | denies closing keywords that would change issue state |
+| [`gitlab/guard.d/50-gitlab`](reference/hook-policy.md) | sensor | scm | ask 2 · allow 3 | declaration | API writes, merges/approvals, stacked MR targets, label-gated edits |
+| [`github/guard.d/60-github`](reference/hook-policy.md) | sensor | scm | deny 2 · ask 2 · allow 3 | declaration | token printing, API writes, merges/reviews, provenance labels, stacked PR targets |
+| [`jira/guard.d/70-jira`](reference/hook-policy.md) | sensor | tracker | deny 3 · ask 1 · allow 4 | declaration | label-gated writes, provenance label on create, transitions denied on human tickets |
+| [`ticket-workflow/guard.d/75-ticket-workflow`](reference/hook-policy.md) | sensor | delivery | ask 4 | declaration | key-free branches and subjects, sub worktree paths, squash delivery |
+| [`gdoc/guard.d/80-gdoc`](reference/hook-policy.md) | sensor | workspace | deny 1 · ask 2 · allow 2 | declaration | GET-only api, provenance check before writes, ask on mark and mail send |
 
 ## Permission lists
 
 **Reach:** native on claude; advisory on codex, copilot, gemini; none on opencode.
 
-| id | control | domain | decisions | note |
-|---|---|---|---|---|
-| `core/permissions` | guide | base | deny 11 · allow 1 | denies reads of credential files in the provider's own permission system |
-| `gdoc/permissions` | guide | workspace | ask 1 · allow 12 | read commands allowed, writes left to the guard |
-| `github/permissions` | guide | scm | deny 1 · ask 75 · allow 32 | read-only gh commands allowed; token printing denied |
-| `gitlab/permissions` | guide | scm | ask 11 · allow 13 | read-only glab commands allowed |
-| `jira/permissions` | guide | tracker | allow 12 | read commands allowed; writes left to the guard |
-| `k8s/permissions` | guide | kubernetes | deny 12 · ask 45 · allow 42 | read-only kubectl/helm allowed |
-| `ticket-workflow/permissions` |  | delivery | empty (no rules) |  |
+| id | control | domain | decisions | yields | note |
+|---|---|---|---|---|---|
+| `core/permissions` | guide | base | deny 11 · ask 2 · allow 1 | never | denies reads of credential files in the provider's own permission system |
+| `gdoc/permissions` | guide | workspace | ask 1 · allow 12 | config | read commands allowed, writes left to the guard |
+| `github/permissions` | guide | scm | deny 1 · ask 75 · allow 32 | config | read-only gh commands allowed; token printing denied |
+| `gitlab/permissions` | guide | scm | ask 11 · allow 13 | config | read-only glab commands allowed |
+| `jira/permissions` | guide | tracker | allow 12 | config | read commands allowed; writes left to the guard |
+| `k8s/permissions` | guide | kubernetes | deny 12 · ask 45 · allow 42 | config | read-only kubectl/helm allowed |
+| `ticket-workflow/permissions` |  | delivery | empty (no rules) | config |  |
 
 ## MCP servers
 
@@ -183,7 +183,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | [`k8s/steps/gitops-checkout`](bundles/k8s.md#gitops-checkout) | kubernetes | Clone your GitOps repo and set k8s.gitops_root (optional) |
 | [`k8s/steps/install-kubectl`](bundles/k8s.md#install-kubectl) | kubernetes | Install kubectl (and helm) |
 | [`k8s/steps/kubeconfig-contexts`](bundles/k8s.md#kubeconfig-contexts) | kubernetes | Merge your clusters' kubeconfig contexts (human-managed) |
-| [`ticket-workflow/steps/repo-overrides`](bundles/ticket-workflow.md#repo-overrides) | delivery | Know the per-repo opt-outs (read once) |
+| [`ticket-workflow/steps/repo-overrides`](bundles/ticket-workflow.md#repo-overrides) | delivery | Know how a repository yields and overrides (read once) |
 
 ## Providers
 

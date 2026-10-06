@@ -1,6 +1,6 @@
 ---
 name: code-reviewer
-description: Expert code review specialist. Proactively reviews code for quality, security, and maintainability. Use immediately after writing or modifying code. (User-level baseline — a repo-level code-reviewer with the same name takes precedence.)
+description: Expert code review specialist. Proactively reviews code for quality, security, and maintainability. Use immediately after writing or modifying code. (User-level baseline, principle 8 — a repository-level agent of the same name replaces it.)
 tools: Read, Grep, Glob, Bash
 model: {{ core.model_policy.execute }}
 ---

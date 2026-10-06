@@ -35,7 +35,7 @@ export HARNESS_GUARD_ENV="${HARNESS_GUARD_ENV:-$empty_env}"
 pass=0; fail=0
 # shellcheck source=lib.sh
 . "$here/lib.sh"
-trap 'rm -rf "$ghd" "$empty_env"' EXIT
+trap 'rm -rf "$ghd" "$rpd" "$empty_env"' EXIT
 
 for d in "$bundles_dir"/*/; do
   d=${d%/}; n=$(basename "$d")

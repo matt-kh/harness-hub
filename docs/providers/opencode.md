@@ -20,6 +20,11 @@ same skills and rules.
   enable both `claude` and `opencode`, the same rules may be loaded twice; that is harmless but
   wastes context. Enable only the provider you actually run, or accept the duplication.
 - Kilo keeps its own `~/.kilo/skills`; the hub does not write there.
+- Repository level: OpenCode and Kilo read `AGENTS.md` up the directory tree and
+  `.agents/skills`, which the hub does not manage. There is no hook, so `.harness.toml`
+  `[overrides]` has no effect here; `[owns]` is honoured by skills at preflight and the rules
+  tell the agent the repository's text wins
+  ([repository-level harnesses](../repo-level.md#other-providers)).
 
 ## Troubleshooting
 

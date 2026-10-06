@@ -32,7 +32,7 @@ principle, or before arguing that a principle no longer applies.
     serves;
   - `harness lint`, whose dependency and guides/sensors warnings implement principles 1 and 6.
 - **Stable numbering.** Numbers never change and are never reused. New principles are
-  appended (`08-…`). A retired principle keeps its file, marked *Retired* with the reason and
+  appended (`09-…`). A retired principle keeps its file, marked *Retired* with the reason and
   the release.
 - **Versioned.** `PRINCIPLES.md` carries `principles_version: N`; any change to a statement,
   an addition or a retirement increments it.
@@ -70,7 +70,7 @@ principle, or before arguing that a principle no longer applies.
 
 Compliant:
 
-- A PR adding `08-observability.md`, a summary line, `principles_version: 2` and a CHANGELOG
+- A PR adding `09-observability.md`, a summary line, `principles_version: 3` and a CHANGELOG
   "Principles" entry.
 - A PR refining the examples in principle 4 with no change to its statement.
 

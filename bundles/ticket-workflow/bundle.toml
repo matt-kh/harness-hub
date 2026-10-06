@@ -53,20 +53,25 @@ bin = []
 
 [[manual_steps]]
 id = "repo-overrides"
-title = "Know the per-repo opt-outs (read once)"
+title = "Know how a repository yields and overrides (read once)"
 once_per = "org"
 needs = []
 minutes = 2
-why = "Repos with their own ticket workflow replace these skills wholesale; a few guard behaviours can be switched off per repo, never globally."
+why = "The hub is a user-level baseline (principle 8): a repository that owns its ticket workflow replaces these skills wholesale, and a few guard behaviours can be switched per repository, never globally."
 how = """
-In a repo's `.claude/settings.json` → `"env"`:
-- `WORK_TICKET_ALLOW_TRANSITION=1` — `jira transition` / `gh issue close|reopen` on a human
-  ticket asks instead of denying (repos whose own workflow moves tickets).
-- `WORK_TICKET_KEY_IN_BRANCH=1` — the repo puts ticket keys in branch names and commit
-  subjects: the guard lets key-named branches and key-prefixed subjects pass instead of asking.
-- `WORK_TICKET_ALLOW_DEFAULT_PUSH_RE=<regex on the repo top level>` — a default-branch push
-  asks instead of denying (personal repos).
-A repo-level skill such as `work-jira-ticket` is detected at preflight and takes over.
+In the repository's `.harness.toml` (provider-neutral, committed; `harness repo` shows the effect):
+- `[owns] domains = ["delivery"]` — this repository runs its own ticket → MR/PR workflow;
+  `/work-ticket` and `/create-ticket` stop after their read-only preflight and hand over.
+- `[overrides] WORK_TICKET_ALLOW_TRANSITION = "1"` — a transition / close / reopen on a
+  human ticket asks instead of denying.
+- `[overrides] WORK_TICKET_KEY_IN_BRANCH = "1"` — the repository puts ticket keys in branch
+  names and commit subjects: the guard lets key-named branches and key-prefixed subjects
+  pass instead of asking.
+- `[overrides] WORK_TICKET_ALLOW_DEFAULT_PUSH_RE = "<regex>"` — a default-branch push asks
+  instead of denying (personal repositories).
+A provider `env` override (Claude Code: `.claude/settings.json` → `"env"`) of the same name
+wins per key. A repository workflow skill is also detected at preflight by its description.
+Full list and the credential exemption: docs/repo-level.md.
 """
 [manual_steps.verify]
 cmd = "true"
