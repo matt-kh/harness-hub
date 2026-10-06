@@ -173,9 +173,11 @@ Things to try, to see the harness working:
   ticket → branch → MR/PR flow; it labels what it touches `agent-worked`, mentions the ticket
   and never closes it.
 
-Repository-level configuration always wins: if a repo ships its own `CLAUDE.md`, `.claude/`
-settings, skills or guard for the same concern, that repo's behaviour replaces the
-user-level one for sessions in it (see [concepts](concepts.md#precedence)).
+The hub is a user-level baseline: when a repository ships its own harness (`CLAUDE.md` /
+`AGENTS.md`, `.claude/`, hooks, skills, a `.harness.toml`), the hub's components yield to it
+for every concern it covers ([principle 8](../principles/08-user-level-by-design.md)). Inside
+a repository, `harness repo` shows what yields there. Only the rules protecting your own
+credentials stay (credential files, commands that print a stored credential).
 
 ## Next
 

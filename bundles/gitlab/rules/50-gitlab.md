@@ -13,3 +13,5 @@
   the ticket. Mention the key instead.
 - Secret: `~/.config/glab-cli/config.yml` holds the token — never read or print it; check
   auth with `glab auth status`.
+
+A repository's own instructions for the same action replace this block.

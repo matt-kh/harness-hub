@@ -273,6 +273,7 @@ class Provider:
         self.verified: str = p.get("verified", "")
         self.targets: Dict[str, Dict[str, Any]] = data.get("targets", {})
         self.capabilities: Dict[str, Any] = data.get("capabilities", {})
+        self.precedence: Dict[str, Any] = data.get("precedence", {}) or {}
 
     def target(self, name: str) -> Optional[Dict[str, Any]]:
         t = self.targets.get(name)

@@ -6,6 +6,8 @@
 # rule: gdoc import|append|replace|sheet append|update on an agent-marked file -> allow : human files / lookup failure ask
 # rule: gdoc create | gdoc mail draft -> allow : create stamps provenance; nothing is sent
 # rule: gdoc mail send -> ask : outward and irreversible; use a mail draft instead and let the user send it
+# (WORK_TICKET_LABELED_DECISION does not apply here: writes to agent-marked files are always promptless)
+repo_owns gdoc/guard.d/80-gdoc workspace && return 0   # principle 8: the repository's .harness.toml owns this section or domain workspace
 # ---- Google Workspace (gdoc): governance gate ------------------------------------
 # create (script stamps properties.agent_provenance=agent-created) and mail draft: promptless.
 # import/append/replace/sheet append|update on files whose Drive property agent_provenance

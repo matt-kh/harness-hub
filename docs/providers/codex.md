@@ -25,6 +25,10 @@ follows, not enforcement.
 - Codex's hook support is newer and not yet verified by this project. When it is, the adapter
   gains a shim and the tier changes; `harness status --matrix` always tells the truth for the
   version you have.
+- Repository level: Codex reads `AGENTS.md` up the directory tree and `.agents/skills`, which
+  the hub does not manage. There is no hook, so `.harness.toml` `[overrides]` has no effect
+  here; `[owns]` is honoured by skills at preflight and the rules tell the agent the
+  repository's text wins ([repository-level harnesses](../repo-level.md#other-providers)).
 
 ## Troubleshooting
 

@@ -7,6 +7,22 @@
 # rule: git reset --hard | git clean -f/-d/-x -> ask : destructive working-tree command; use git stash, or ask the user first
 # rule: git push of a -sub- branch from (or via cd into) a sub worktree -> ask : only the main thread pushes stacked branches; run the push from the main checkout instead
 # rule: git push --all|--mirror -> ask : would publish every local branch; push the named branch instead
+# repo-override: WORK_TICKET_ALLOW_DEFAULT_PUSH_RE = "" -> regex on the repo top level; there a default-branch push asks instead of denying (personal repos)
+# repo-override: WORK_TICKET_BASE_BRANCH_RE = "^(master|main)$" -> default/base branches: pushes to them deny, sub MRs/PRs never target them
+# repo-override: WORK_TICKET_KEY_IN_BRANCH = "" -> =1 declares that the repository puts ticket keys in branch names (no behavioural change)
+# never-yields: the repository declaration lifts user-level rules, so the agent never writes it itself (principle 8)
+# rule: shell write to .harness.toml (> >> tee cp mv install ln dd of= sed -i perl -i, harness repo init --write) -> ask : the repository declaration lifts user-level rules; ask the user to review and commit it instead
+HT_WORD_RE='\.harness\.toml(["'"'"'[:space:];&|)]|$)'   # .harness.toml ending a word
+HT_START_RE='(^|[[:space:]"'"'"'/])'                    # start of a path word (or a directory separator)
+if printf '%s' "$flat" | grep -qE -e ">>?[[:space:]]*[\"']?([^[:space:];&|\"'<>]*/)?$HT_WORD_RE" \
+     -e "\\btee\\b[^;&|]*$HT_START_RE$HT_WORD_RE" \
+     -e "\\b(cp|mv|install|ln|rsync)[[:space:]][^;&|]*$HT_START_RE\\.harness\\.toml[\"']?[[:space:]]*(\$|[;&|)])" \
+     -e "\\bdd\\b[^;&|]*[[:space:]]of=[\"']?([^[:space:];&|\"']*/)?$HT_WORD_RE" \
+     -e "\\b(sed|perl)[[:space:]]([^;&|]*[[:space:]])?-([A-Za-z]*i|-in-place)[^;&|]*$HT_START_RE$HT_WORD_RE" \
+     -e '\bharness[[:space:]]+repo[[:space:]]+init\b[^;&|]*--write'; then
+  defer "shell write to .harness.toml — the repository declaration lifts user-level rules; ask the user to review and commit it (the agent never writes it itself)"
+fi
+repo_owns core/guard.d/30-git scm && return 0   # principle 8: the repository's .harness.toml owns this section or domain scm
 # ---- Git ------------------------------------------------------------------------
 # Default-branch push: MR-based workflow → deny (ask where WORK_TICKET_ALLOW_DEFAULT_PUSH_RE
 # matches the repo top level). Destination = each refspec's dst (after ':', refs/heads/
@@ -15,7 +31,7 @@
 GUARD_GIT="${GUARD_GIT:-git}"
 push_default_decide() {  # $1 = branch, $2 = repo dir
   local top; top=$(hn_timeout 5 "$GUARD_GIT" -C "$2" rev-parse --show-toplevel 2>/dev/null) || top="$2"
-  if [ -n "$ALLOW_DEFAULT_PUSH_RE" ] && printf '%s' "$top" | grep -qE "$ALLOW_DEFAULT_PUSH_RE"; then
+  if [ -n "$ALLOW_DEFAULT_PUSH_RE" ] && printf '%s' "$top" | grep -qE -e "$ALLOW_DEFAULT_PUSH_RE"; then
     ask "git push to default branch '$1' in $top (allowed here by WORK_TICKET_ALLOW_DEFAULT_PUSH_RE)"
   fi
   deny "git push to default branch '$1' — MR-based workflow — push a feature branch and open an MR"
@@ -46,12 +62,12 @@ if printf '%s' "$flat" | grep -qE '\bgit(\s+-C\s+\S+)?\s+push\b'; then
       for rs in "${pos[@]:1}"; do
         dst="${rs#+}"; dst="${dst##*:}"; dst="${dst#refs/heads/}"
         case "$dst" in *'$'*) continue ;; HEAD|'') need_cur=true; continue ;; esac
-        printf '%s' "$dst" | grep -qE "$BASE_BRANCH_RE" && push_default_decide "$dst" "$gdir"
+        printf '%s' "$dst" | grep -qE -e "$BASE_BRANCH_RE" && push_default_decide "$dst" "$gdir"
       done
     fi
     if $need_cur && [ -n "$gdir" ]; then
       cur=$(hn_timeout 5 "$GUARD_GIT" -C "$gdir" rev-parse --abbrev-ref HEAD 2>/dev/null) || cur=""
-      [ -n "$cur" ] && printf '%s' "$cur" | grep -qE "$BASE_BRANCH_RE" && push_default_decide "$cur" "$gdir"
+      [ -n "$cur" ] && printf '%s' "$cur" | grep -qE -e "$BASE_BRANCH_RE" && push_default_decide "$cur" "$gdir"
     fi
   done <<EOF
 $(printf '%s' "$flat" | grep -oE '\bgit(\s+-C\s+\S+)?\s+push\b[^;&|]*')

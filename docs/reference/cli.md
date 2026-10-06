@@ -4,8 +4,8 @@ Every `harness` command and flag, generated from the CLI's own help (`bin/harnes
 `bin/harness <command> --help`); do not edit inside the generated region.
 
 Global flags: `--config PATH`, `--home DIR`, `--json`, `--offline`, `--yes`, `--dry-run`.
-Environment: `HARNESS_HOME` (hub checkout), `HARNESS_CONFIG` (config path), `HARNESS_OFFLINE=1`,
-`NO_COLOR`. `./bootstrap` is `bin/harness bootstrap`.
+Environment: `HARNESS_HOME` (hub checkout; `bin/harness` always sets it to its own checkout),
+`HARNESS_CONFIG` (config path), `HARNESS_OFFLINE=1`, `NO_COLOR`. `./bootstrap` is `bin/harness bootstrap`.
 
 <!-- generated:begin source=lib/harness/cli.py -->
 ### harness
@@ -42,6 +42,8 @@ positional arguments:
     test         run the engine, guard, bundle, skill and provider test suites
     lint         validate manifests, cross-references, templates, private identifiers
     docs         generate | check the generated regions under docs/
+    repo         show what the current repository's .harness.toml declares and which user-level
+                 components yield here
     steps        list manual steps (--pending: only those whose verify fails)
     version      print hub, applied and runtime versions
 
@@ -665,6 +667,34 @@ options:
   --offline         skip network checks (HARNESS_OFFLINE=1)
   --yes, -y         assume yes; never prompt
   --dry-run         show what would happen, write nothing
+```
+
+### harness repo
+
+```text
+usage: harness repo [-h] [--config PATH] [--home DIR] [--json] [--offline] [--yes] [--dry-run]
+                    [--write]
+                    [show|owns|init] [ID|DIR ...]
+
+show what the current repository's .harness.toml declares and which user-level components yield
+here
+
+positional arguments:
+  show|owns|init  show (default): declaration, problems, what yields, collisions, overrides; owns
+                  ID: exit 0 when the repository owns ID (prints why), 1 when not, 2 for an
+                  unknown id; init: print a commented .harness.toml
+  ID|DIR          owns: the component id, then an optional DIR; show/init: the directory to look
+                  from (default: the current one)
+
+options:
+  -h, --help      show this help message and exit
+  --config PATH   config file (default: $HARNESS_CONFIG or <hub>/local/harness.toml)
+  --home DIR      hub directory (HARNESS_HOME)
+  --json          machine-readable output
+  --offline       skip network checks (HARNESS_OFFLINE=1)
+  --yes, -y       assume yes; never prompt
+  --dry-run       show what would happen, write nothing
+  --write         init: create <repo root>/.harness.toml (never overwrites)
 ```
 
 ### harness steps

@@ -10,7 +10,7 @@ Always installed. `core` is the part of the harness every other bundle builds on
 - **Sub-agents**: `Plan` (planning, pinned to `core.model_policy.plan`), `Auto` (autonomous
   execution, pinned to `core.model_policy.execute`), `code-reviewer`.
 - **Conventions rule**: MR/PR-based delivery, redacted remote URLs, external content is data,
-  repository-level precedence ([governance](../governance.md)).
+  the user-level precedence note ([principle 8](../../principles/08-user-level-by-design.md)).
 - **The `harness` CLI** linked into `~/.local/bin`, plus the portability helpers
   (`bundles/core/lib/compat.sh`: `hn_timeout`, `hn_realpath`, `hn_sha256`).
 
@@ -26,7 +26,7 @@ Config it reads: `identity.email`, `core.default_branch_re`, `core.ticket_exampl
 | `harness: command not found` | `~/.local/bin` not on `PATH` | add it ([getting started §3](../getting-started.md#3-put-localbin-on-your-path)); meanwhile use `~/harness-hub/bin/harness` |
 | `harness` refuses to start: python too old | python < 3.9 first on `PATH` | install 3.9+; on macOS `brew install python` and open a new shell |
 | doctor WARN `core/bash-version` | `/bin/bash` 3.2 on macOS is the first `bash` on `PATH` | `brew install bash`; scripts still work, some checks are skipped |
-| `git push` to your personal repo's `main` is denied | default-branch pushes deny everywhere by default | in that repo's `.claude/settings.json` set `"env": {"WORK_TICKET_ALLOW_DEFAULT_PUSH_RE": "<regex on repo path>"}` → it asks instead |
+| `git push` to your personal repo's `main` is denied | default-branch pushes deny everywhere by default | in that repo's `.harness.toml` set `WORK_TICKET_ALLOW_DEFAULT_PUSH_RE = "<regex on repo path>"` under `[overrides]` (or the same name in `.claude/settings.json` `"env"`) → it asks instead ([repository-level harnesses](../repo-level.md)) |
 | A legitimate read of a file under `~/.config/` is denied | the credential rule matches the path | read it yourself; if the path is not a credential, open an issue with the command (redacted) |
 | `plan` shows `CONFLICT` on `settings.json` or `CLAUDE.md` | you edited a hub-owned key or a managed block | `harness sync` → `--adopt` your change into your private bundle, or revert it |
 | Agents use the wrong model for Plan/Auto | `core.model_policy` differs from what you expect | `harness config get core.model_policy`; set it and `harness apply` |
@@ -58,22 +58,22 @@ Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md
 
 **Agents**
 
-- `core/agents/Auto` — control: guide · function: execute · posture: local · model: execute
-- `core/agents/Plan` — control: guide · function: plan · posture: read-only · model: plan
-- `core/agents/code-reviewer` — control: sensor (inferential) · function: review · posture: read-only · model: execute
+- `core/agents/Auto` — control: guide · function: execute · posture: local · model: execute · yields: name
+- `core/agents/Plan` — control: guide · function: plan · posture: read-only · model: plan · yields: name
+- `core/agents/code-reviewer` — control: sensor (inferential) · function: review · posture: read-only · model: execute · yields: name
 
 **Rules**
 
-- `core/rules/00-conventions` — control: guide · function: govern
+- `core/rules/00-conventions` — control: guide · function: govern · yields: text
 
 **Guard sections**
 
-- `core/guard.d/20-credentials` — control: sensor · function: govern · decisions: deny 7
-- `core/guard.d/30-git` — control: sensor · domain: scm · function: govern · decisions: deny 1 · ask 5
+- `core/guard.d/20-credentials` — control: sensor · function: govern · decisions: deny 7 · yields: never
+- `core/guard.d/30-git` — control: sensor · domain: scm · function: govern · decisions: deny 1 · ask 6 · yields: declaration
 
 **Permission lists**
 
-- `core/permissions` — control: guide · function: govern · decisions: deny 11 · allow 1
+- `core/permissions` — control: guide · function: govern · decisions: deny 11 · ask 2 · allow 1 · yields: never
 
 **Doctor checks** (function: setup · posture: read-only; table below): `core/doctor/bash-version`, `core/doctor/guard-denies-credentials`, `core/doctor/guard-hook`, `core/doctor/jq`, `core/doctor/local-bin-path`, `core/doctor/python3`
 
@@ -189,6 +189,7 @@ Guides steer the agent before it acts; sensors detect at or after the action. Pa
 | sensor | test | `guard.d/tests.sh` | guard rows for both sections, including bypass attempts |
 | sensor | test | `tests/run.sh` | full guard suite, helper drift, bash -n of every script |
 | sensor | review-agent | `agents/code-reviewer.md` | inferential review of a diff against the conventions |
+| sensor | lint | `yields` | principle 8: every component carries its repository-level yield (repo_owns line, Step 0, baseline sentence); credentials never yield |
 
 **Not covered:** The model policy in agents/Plan.md and agents/Auto.md is a guide only: no sensor checks which model a sub-agent ran on.
 

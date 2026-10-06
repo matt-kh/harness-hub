@@ -11,8 +11,9 @@ classified the same way:
   ``[taxonomy]`` table (bundle defaults plus ``[taxonomy.components]`` overrides keyed by the
   id without the ``<bundle>/`` prefix). Nothing goes into provider-format front matter.
 * **derived facets** — ``kind`` (path), ``control`` (``[harness]`` guides/sensors), ``model``
-  (front matter ``model:``), ``decisions`` (``# rule:`` comments, permission lists), bundle
-  ``functions``, profile ``domains``/``posture``, provider ``tier`` and per-kind ``reach``.
+  (front matter ``model:``), ``decisions`` (``# rule:`` comments, permission lists), ``yields``
+  (kind, never-list, helper sections; principle 8), bundle ``functions``, profile
+  ``domains``/``posture``, provider ``tier`` and per-kind ``reach``.
 
 The vocabulary below is the single source: ``schema/bundle.schema.json`` repeats the enums
 literally (a unit test keeps them equal), ``harness lint`` (rule ``taxonomy``) enforces them,
@@ -70,8 +71,17 @@ FACETS: Dict[str, "OrderedDict[str, str]"] = {
         ("local", "edits the checkout and its own branches; other remote writes pass the guard"),
         ("label-gated", "writes promptlessly only to agent-* artefacts; human ones ask"),
     ]),
+    # derived, never declared (principle 8: user-level by design, repository-level wins)
+    "yields": OrderedDict([
+        ("declaration", "returns early when the repository's .harness.toml owns its id or domain"),
+        ("name", "the provider shadows it with a repository component of the same name"),
+        ("text", "concatenated with the repository's instructions, which come last and win"),
+        ("config", "merged by the provider's permission system; a repository can add rules, never lift a deny"),
+        ("never", "the developer's own credentials: no repository setting lifts it"),
+        ("n/a", "no repository-level equivalent"),
+    ]),
 }
-FACET_ORDER = ("kind", "control", "domain", "function", "posture", "model", "decisions")
+FACET_ORDER = ("kind", "control", "domain", "function", "posture", "model", "decisions", "yields")
 POSTURE_ORDER = tuple(FACETS["posture"])
 
 # kinds whose function is fixed (never declared differently)
@@ -99,6 +109,30 @@ NO_POSTURE_REASON = {
 CONTROL_KINDS = ("skill", "agent", "rule", "guard", "permission", "doctor")
 
 RESERVED_BUNDLE_NAMES = ("providers", "profiles")
+
+# ---- principle 8: how each kind yields to a repository-level harness (derived facet)
+KIND_YIELDS = {"skill": "declaration", "guard": "declaration", "agent": "name", "rule": "text",
+               "permission": "config", "mcp": "n/a", "bin": "n/a", "installer": "n/a", "doctor": "n/a",
+               "step": "n/a"}
+YIELDS_KINDS = ("skill", "agent", "rule", "guard", "permission")
+# the only components that never yield: they protect the developer's own credentials (plus the
+# `# never-yields:` preludes of yielding guard sections: commands that print stored credentials
+# and shell writes to .harness.toml; see guard_head)
+NEVER_YIELDS = ("core/guard.d/20-credentials", "core/permissions")
+# guard variables a repository may never set from .harness.toml (client/engine paths, credential regex)
+REPO_OVERRIDE_DENY = ("HARNESS_GUARD_ENV", "HARNESS_CRED_EXTRA_RE", "GUARD_GIT", "GUARD_KUBECTL",
+                      "WORK_TICKET_JIRA_PY", "WORK_TICKET_GLAB", "WORK_TICKET_GH", "WORK_TICKET_GDOC_PY")
+# the only names a repository may set (engine.sh repo_load_decl and schema/repo.schema.json agree)
+REPO_OVERRIDE_PREFIX_RE = re.compile(r"^WORK_TICKET_[A-Z0-9_]+$")
+# `# repo-override: NAME = "default" -> effect` in a guard section: the allow-list (single source)
+REPO_OVERRIDE_RE = re.compile(r'^#\s*repo-override:\s*(?P<name>[A-Z][A-Z0-9_]*)\s*=\s*"(?P<default>[^"]*)"'
+                              r'\s*->\s*(?P<effect>.+?)\s*$')
+# the yield check every declaration guard section runs first
+REPO_OWNS_LINE_RE = re.compile(r"^\s*repo_owns\s+(?P<id>\S+)\s+(?P<domain>\S+)\s+&&\s+return 0\b", re.M)
+# a block of rule code that runs above the repo_owns line and therefore never yields
+NEVER_YIELDS_MARK_RE = re.compile(r"^#\s*never-yields:")
+# a plain assignment (a shared definition later sections use) may also precede the repo_owns line
+SHARED_DEF_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 
 # what each kind reaches, by status.MATRIX_ROWS label (guard: the provider tier); REACH_TEXT
 # holds the kinds that do not depend on a provider capability
@@ -167,6 +201,7 @@ class Component:
         self.control: Optional[str] = None
         self.model: Optional[str] = None
         self.decisions: Optional[str] = None
+        self.yields: Optional[str] = None
         self.note: str = ""
         self.summary: str = ""
         self.stability: str = ""
@@ -193,7 +228,7 @@ class Component:
     def to_dict(self) -> Dict[str, Any]:
         out: Dict[str, Any] = OrderedDict()
         for k in ("id", "kind", "bundle", "ref", "control", "domain", "function", "posture", "model",
-                  "decisions", "stability", "summary", "note"):
+                  "decisions", "yields", "stability", "summary", "note"):
             out[k] = getattr(self, k)
         return out
 
@@ -395,8 +430,78 @@ def components(b: Any) -> List[Component]:
             c.summary = (checks.get(c.ref) or {}).get("title", "")
         elif c.kind == "step":
             c.summary = (steps.get(c.ref) or {}).get("title", "")
+        c.yields = yields_of(c)
     return out
 
+
+def yields_of(c: Component) -> Optional[str]:
+    """The derived ``yields`` facet: never-list, then helper guard sections, then the kind."""
+    if c.id in NEVER_YIELDS:
+        return "never"
+    if c.kind == "guard" and c.decisions == "helper (no rules)":
+        return "n/a"
+    return KIND_YIELDS.get(c.kind)
+
+
+def guard_head(text: str) -> Dict[str, Any]:
+    """What runs above a guard section's ``repo_owns`` line (principle 8).
+
+    Returns ``{"owns": line number or None, "prelude": (first, last) line numbers of the
+    ``# never-yields:`` block or None, "stray": [(line number, text)] of code lines above the
+    repo_owns line that are neither in the prelude nor plain assignments}``. The prelude starts at
+    the ``# never-yields:`` comment and ends at the repo_owns line.
+    """
+    lines = text.splitlines()
+    owns = next((i for i, ln in enumerate(lines, 1) if REPO_OWNS_LINE_RE.match(ln)), None)
+    head: Dict[str, Any] = {"owns": owns, "prelude": None, "stray": []}
+    if owns is None:
+        return head
+    start = None
+    for i, ln in enumerate(lines[:owns - 1], 1):
+        s = ln.strip()
+        if start is None and NEVER_YIELDS_MARK_RE.match(s):
+            start = i
+            continue
+        if start is not None or not s or s.startswith("#") or SHARED_DEF_RE.match(s):
+            continue
+        head["stray"].append((i, s))
+    if start is not None:
+        head["prelude"] = (start, owns - 1)
+    return head
+
+
+def never_yield_rule_lines(text: str) -> List[int]:
+    """Line numbers of the ``# rule:`` comments inside a ``# never-yields:`` prelude."""
+    from .lint import RULE_LINE_RE
+
+    pre = guard_head(text)["prelude"]
+    if not pre:
+        return []
+    lines = text.splitlines()
+    return [i for i in range(pre[0], pre[1] + 1) if RULE_LINE_RE.match(lines[i - 1].strip())]
+
+
+def repo_overrides(bundles: Any) -> List[Dict[str, str]]:
+    """Every ``# repo-override:`` comment of every guard section, in section order."""
+    out: List[Dict[str, str]] = []
+    rows = []
+    for b in bundles:
+        for rel in b.guard_rules():
+            rows.append((os.path.basename(rel), b.name, rel, b))
+    for base, bname, rel, b in sorted(rows, key=lambda r: (r[0], r[1])):
+        for line in (read_text(b.rel(rel)) or "").splitlines():
+            m = REPO_OVERRIDE_RE.match(line.strip())
+            if m:
+                out.append(OrderedDict([("name", m.group("name")), ("default", m.group("default")),
+                                        ("effect", m.group("effect")), ("section", "%s/%s" % (bname, component_id(rel))),
+                                        ("bundle", bname)]))
+    return out
+
+
+def ownable_ids(bundles: Any) -> List[Component]:
+    """Components a repository can own by id or domain in ``.harness.toml`` (yields = declaration)."""
+    out = [c for b in bundles for c in components(b) if c.yields == "declaration"]
+    return sorted(out, key=lambda c: c.id)
 
 # ----------------------------------------------------------------- bundles, providers, profiles
 

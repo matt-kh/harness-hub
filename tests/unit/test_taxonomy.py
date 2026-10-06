@@ -341,3 +341,201 @@ class ReviewRegressionTest(HubTestCase):
             tax = b.taxonomy
             self.assertEqual(rows.get(b.name), "%s / %s" % (tax.get("domain"), tax.get("posture")),
                              "README row for %s differs from its [taxonomy]; update README.md" % b.name)
+
+
+class YieldsTest(HubTestCase):
+    """Principle 8: the derived ``yields`` facet, the ``yields`` lint rule, engine/taxonomy constants."""
+
+    def setUp(self):
+        super().setUp()
+        self.core = os.path.join(self.bundles, "core")
+        self.section = os.path.join(self.core, "guard.d", "20-core.sh")
+        self.section_text = self.read(self.section)
+
+    def bundle(self, origin="public"):
+        return M.load_bundle(self.core, origin)
+
+    def lint(self, origin="public"):
+        rep = L.Report()
+        L.lint_yields(self.bundle(origin), rep)
+        return rep
+
+    def set_section(self, text):
+        self.write(self.section, text)
+
+    # ------------------------------------------------------------------ derivation
+    def test_derived_from_kind(self):
+        got = {c.key: c.yields for c in T.components(self.bundle())}
+        self.assertEqual(got["rules/10-core"], "text")
+        self.assertEqual(got["skills/demo"], "declaration")
+        self.assertEqual(got["agents/planner"], "name")
+        self.assertEqual(got["guard.d/20-core"], "declaration")
+        self.assertEqual(got["permissions"], "never")   # the fixture bundle is named core: core/permissions
+        self.assertEqual(got["bin/demo"], "n/a")
+        self.assertEqual(got["doctor/core-ok"], "n/a")
+        self.assertEqual(set(T.KIND_YIELDS), set(T.KIND_DIR))
+        self.assertEqual(set(T.KIND_YIELDS.values()) | {"never"}, set(T.FACETS["yields"]))
+        self.assertIn("yields", T.FACET_ORDER)
+        self.assertIn("yields", T.components(self.bundle())[0].to_dict())
+
+    def test_helper_section_is_na(self):
+        self.set_section("# shellcheck shell=bash\nFOO_RE='x'\n")
+        self.assertEqual({c.key: c.yields for c in T.components(self.bundle())}["guard.d/20-core"], "n/a")
+
+    def test_never_only_on_the_credential_components(self):
+        public = M.discover_bundles([(os.path.join(REPO, "bundles"), "public")])
+        comps = [c for b in public.values() for c in T.components(b)]
+        self.assertEqual(sorted(c.id for c in comps if c.yields == "never"), sorted(T.NEVER_YIELDS))
+        by_id = {c.id: c for c in comps}
+        self.assertEqual(by_id["k8s/guard.d/10-k8s"].yields, "n/a")
+        self.assertEqual(by_id["core/guard.d/30-git"].yields, "declaration")
+        self.assertEqual(by_id["jira/permissions"].yields, "config")
+        owned = [c.id for c in T.ownable_ids(public.values())]
+        self.assertIn("core/guard.d/30-git", owned)
+        self.assertIn("ticket-workflow/skills/work-ticket", owned)
+        self.assertNotIn("core/guard.d/20-credentials", owned)
+        self.assertNotIn("k8s/guard.d/10-k8s", owned)
+
+    def test_engine_and_helpers_match_taxonomy(self):
+        import re
+
+        engine = self.read(os.path.join(REPO, "bundles", "core", "guard", "engine.sh"))
+        never = re.search(r"^REPO_NEVER_YIELDS='([^']*)'", engine, re.M).group(1).split()
+        deny = re.search(r"^REPO_OVERRIDE_DENY='([^']*)'", engine, re.M).group(1).split()
+        self.assertEqual(never, [i for i in T.NEVER_YIELDS if "guard.d" in i])
+        self.assertEqual(deny, list(T.REPO_OVERRIDE_DENY))
+        sh = self.read(os.path.join(REPO, "bundles", "core", "lib", "harness_repo.sh"))
+        self.assertIn("case \"$1\" in %s) return 1 ;; esac" % "|".join(T.NEVER_YIELDS), sh)
+        py = self.read(os.path.join(REPO, "bundles", "core", "lib", "harness_repo.py"))
+        self.assertIn("_HREPO_NEVER = (%s)" % ", ".join('"%s"' % i for i in T.NEVER_YIELDS), py)
+        for name in T.REPO_OVERRIDE_DENY:
+            self.assertIn(name, engine.split("# ---- Override env vars")[0], "engine header lists %s" % name)
+
+    def test_repo_schema_domains_equal_facets(self):
+        schema = M.load_schema("repo.schema.json", REPO)
+        self.assertEqual(schema["properties"]["owns"]["properties"]["domains"]["items"]["enum"],
+                         list(T.FACETS["domain"]))
+        pat = schema["properties"]["overrides"]["propertyNames"]["pattern"]
+        self.assertEqual(pat, T.REPO_OVERRIDE_PREFIX_RE.pattern)
+
+    def test_repo_overrides_parse(self):
+        public = M.discover_bundles([(os.path.join(REPO, "bundles"), "public")])
+        rows = T.repo_overrides([public[n] for n in sorted(public)])
+        names = sorted(set(r["name"] for r in rows))
+        self.assertEqual(names, ["WORK_TICKET_ALLOW_DEFAULT_PUSH_RE", "WORK_TICKET_ALLOW_TRANSITION",
+                                 "WORK_TICKET_BASE_BRANCH_RE", "WORK_TICKET_KEY_IN_BRANCH",
+                                 "WORK_TICKET_LABELED_DECISION"])
+        defaults = {}
+        for r in rows:
+            self.assertEqual(defaults.setdefault(r["name"], r["default"]), r["default"], r)
+            self.assertNotIn(r["name"], T.REPO_OVERRIDE_DENY)
+        self.assertEqual(defaults["WORK_TICKET_BASE_BRANCH_RE"], "^(master|main)$")
+        self.assertIn("core/guard.d/30-git", [r["section"] for r in rows])
+
+    def test_repo_bundles_lint_clean(self):
+        public = M.discover_bundles([(os.path.join(REPO, "bundles"), "public")])
+        for name, b in sorted(public.items()):
+            rep = L.Report()
+            L.lint_yields(b, rep)
+            self.assertEqual((rep.errors, rep.warnings), ([], []), name)
+        rep = L.Report()
+        L.lint_repo_overrides([public[n] for n in sorted(public)], rep)
+        self.assertEqual(rep.errors, [])
+        self.assertIn("yields", L.LINT_RULES)
+        core = self.read(os.path.join(REPO, "bundles", "core", "bundle.toml"))
+        self.assertIn('{ kind = "lint", ref = "yields"', core)
+
+    # ------------------------------------------------------------------ lint messages
+    def test_missing_line(self):
+        self.set_section(self.section_text.replace("repo_owns core/guard.d/20-core base && return 0", ": "))
+        rep = self.lint()
+        self.assertTrue(any("yields by declaration but has no repo_owns line; add "
+                            "`repo_owns core/guard.d/20-core base && return 0`" in e for e in rep.errors), rep.errors)
+        self.assertEqual(self.lint("private").errors, rep.errors)  # guard checks apply to every origin
+
+    def test_wrong_id_or_domain(self):
+        self.set_section(self.section_text.replace("repo_owns core/guard.d/20-core base", "repo_owns core/guard.d/20-core scm"))
+        rep = self.lint()
+        self.assertTrue(any("repo_owns names core/guard.d/20-core scm but the component is core/guard.d/20-core in "
+                            "domain base" in e and "fix the line" in e for e in rep.errors), rep.errors)
+
+    def test_line_in_a_section_that_never_yields(self):
+        self.set_section("# shellcheck shell=bash\nrepo_owns core/guard.d/20-core base && return 0\nFOO_RE='x'\n")
+        rep = self.lint()
+        self.assertTrue(any("has a repo_owns line but yields = n/a" in e and "remove the line" in e
+                            for e in rep.errors), rep.errors)
+
+    def test_repo_override_comments(self):
+        head = "# rule: fixture-deny ... -> deny : fixture deny rule\n"
+        for comment, want in (
+                ("# repo-override: WORK_TICKET_X = unquoted -> y", "malformed repo-override comment"),
+                ('# repo-override: GUARD_GIT = "" -> y', "settable only from the developer's own environment"),
+                ('# repo-override: PATH = "" -> y', "a repository may set only WORK_TICKET_* names"),
+                ('# repo-override: K8S_PROD_RE = "" -> y', "a repository may set only WORK_TICKET_* names"),
+        ):
+            self.set_section(self.section_text.replace(head, head + comment + "\n"))
+            rep = self.lint()
+            self.assertTrue(any(want in e for e in rep.errors), (comment, rep.errors))
+
+    def test_code_above_the_repo_owns_line(self):
+        line = "repo_owns core/guard.d/20-core base && return 0"
+        self.set_section(self.section_text.replace(line, 'case "$cmd" in x) deny "x; use y" ;; esac\n' + line))
+        rep = self.lint()
+        self.assertTrue(any("rule code above the repo_owns line" in e and "move it below the repo_owns line or "
+                            "into a `# never-yields:` prelude" in e for e in rep.errors), rep.errors)
+        # a never-yields prelude and plain shared assignments are fine
+        self.set_section(self.section_text.replace(line, "SHARED_RE='x'\n# never-yields: prints a credential\n"
+                                                   'case "$cmd" in x) deny "x; use y" ;; esac\n' + line))
+        self.assertEqual(self.lint().errors, [])
+        head = T.guard_head(self.read(self.section))
+        self.assertEqual(head["stray"], [])
+        self.assertEqual(head["prelude"], (7, 8))
+
+    def test_public_sections_start_with_the_repo_owns_line(self):
+        """Every declaration section's first command is repo_owns (after comments, shared
+        assignments or a `# never-yields:` prelude); preludes hold only the documented rules."""
+        public = M.discover_bundles([(os.path.join(REPO, "bundles"), "public")])
+        preludes = {}
+        for name, b in sorted(public.items()):
+            for c in T.components(b):
+                if c.kind != "guard":
+                    continue
+                head = T.guard_head(self.read(b.rel(c.ref)))
+                if c.yields == "declaration":
+                    self.assertIsNotNone(head["owns"], c.id)
+                    self.assertEqual(head["stray"], [], c.id)
+                    if head["prelude"]:
+                        preludes[c.id] = len(T.never_yield_rule_lines(self.read(b.rel(c.ref))))
+                else:
+                    self.assertIsNone(head["owns"], c.id)
+        self.assertEqual(preludes, {"core/guard.d/30-git": 1, "github/guard.d/60-github": 1,
+                                    "k8s/guard.d/25-k8s-rules": 1})
+
+    def test_conflicting_defaults(self):
+        head = "# rule: fixture-deny ... -> deny : fixture deny rule\n"
+        self.set_section(self.section_text.replace(head, head + '# repo-override: WORK_TICKET_X = "a" -> y\n'))
+        alpha = os.path.join(self.bundles, "alpha", "guard.d", "40-alpha.sh")
+        text = self.read(alpha)
+        self.write(alpha, text.replace("# rule:", '# repo-override: WORK_TICKET_X = "b" -> y\n# rule:', 1))
+        rep = L.Report()
+        L.lint_repo_overrides([M.load_bundle(self.core, "public"),
+                               M.load_bundle(os.path.join(self.bundles, "alpha"), "public")], rep)
+        self.assertTrue(any("declares repo-override WORK_TICKET_X with default" in e and "use one default" in e
+                            for e in rep.errors), rep.errors)
+
+    def test_text_warnings_public_only(self):
+        rep = self.lint()
+        self.assertTrue(any("core/skills/demo never reads the repository's declaration" in w and
+                            "harness repo owns core/skills/demo" in w for w in rep.warnings), rep.warnings)
+        self.assertTrue(any("core/agents/planner never says that a repository-level equivalent wins" in w
+                            for w in rep.warnings), rep.warnings)
+        self.assertTrue(any("core/rules/10-core never says" in w and "replace this block" in w
+                            for w in rep.warnings), rep.warnings)
+        self.assertEqual(self.lint("private").warnings, [])
+        skill = os.path.join(self.core, "skills", "demo", "SKILL.md")
+        self.write(skill, self.read(skill) + "\nharness repo owns core/skills/demo\n")
+        rule = os.path.join(self.core, "rules", "10-core.md")
+        self.write(rule, self.read(rule) + "\nA repository's own instructions for the same action replace this block.\n")
+        agent = os.path.join(self.core, "agents", "planner.md")
+        self.write(agent, self.read(agent).replace("description:", "description: Repository-level agents win.", 1))
+        self.assertEqual(self.lint().warnings, [])

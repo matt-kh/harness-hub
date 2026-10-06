@@ -126,3 +126,28 @@ tr 'context=dev-cluster ns=prod-db \[PROD\]' 'kubectl -n prod-db delete pod x'
 tr 'context=prod-cluster ns=shop \[PROD\]'      'helm --kube-context prod-cluster uninstall shop -n shop'
 tr 'context=dev2-cluster\)'                       'kubectl --context dev2-cluster exec -it x -- sh'
 K8S_PROD_RE='staging' tr 'context=staging-cluster \[PROD\]' 'kubectl --context staging-cluster delete pod x'
+# ---- repository-level declaration: .harness.toml (principle 8) ----------------------
+decl '[owns]' 'domains = ["kubernetes"]'
+r pass  'kubectl --context dev delete pod x'                  # the repository's harness decides
+r pass  'helm --kube-context dev upgrade app ./chart'
+r deny  'cat ~/.kube/config'                                  # bypass: kubeconfig reads are credentials (20) and never yield
+r deny  'cat $KUBECONFIG'
+decl '[owns]' 'components = ["k8s/guard.d/10-k8s"]'          # definitions only: nothing to yield
+r ask   'kubectl --context dev delete pod x'
+decl '[overrides]' 'GUARD_KUBECTL = "/bin/true"' 'K8S_PROD_RE = "^$"'   # bypass: not repo overrides
+r ask   'kubectl --context prod-eu delete pod x'
+# shellcheck disable=SC2154  # rpd: the fixture repository, defined in guard/tests/lib.sh
+tn ask  'GUARD_KUBECTL is settable only from your own environment' "$rpd" 'kubectl --context prod-eu delete pod x'
+tn ask  'K8S_PROD_RE is not a repo override' "$rpd" 'kubectl --context prod-eu delete pod x'
+# never yields: kubectl config view --raw prints stored credentials (prelude above repo_owns)
+decl '[owns]' 'domains = ["scm", "kubernetes", "tracker", "workspace"]'
+r deny  'kubectl config view --raw'
+r deny  'kubectl --context dev config view --raw=true'
+r deny  'cd sub && kubectl config view --minify --raw'         # bypass: wrapped, extra flags
+r deny  'sh -c "kubectl config view --raw"'
+r pass  'kubectl config view'
+# documented consequence: owning kubernetes lifts the Secret-value deny and the kubeconfig-mutation deny
+r pass  'kubectl get secret x -o yaml'
+r pass  'kubectl config use-context dev'
+decl
+t deny  'sh -c "kubectl config view --raw"'                    # quoted end of the flag (was a gap)

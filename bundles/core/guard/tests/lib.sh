@@ -6,6 +6,11 @@
 #   tr 'reason-regex' 'cmd'      the hook's reason must match (decision must not be pass)
 #   g  EXPECTED 'cmd'            like t, but in a real temporary directory ($ghd/<repo>): gh
 #                                lookups cd into the command's cwd, so gh write gates need one
+#   decl LINE...                 write the fixture repository's .harness.toml ($rpd holds .git,
+#                                $rpd/sub nests in it; principle 8); `decl` alone removes it
+#   r  EXPECTED 'cmd'            like t, with cwd = the fixture repository $rpd
+#   tn EXPECTED 'stderr-regex' CWD 'cmd'   decision AND the hook's stderr note must match (rows
+#                                whose decision alone would pass vacuously, e.g. ignored overrides)
 # EXPECTED is allow | ask | deny | pass (pass = no output, the provider decides).
 # Prefix env assignments work as usual: `WORK_TICKET_ALLOW_TRANSITION=1 t ask '…'`.
 # NOTE: `tr` shadows the tr(1) command inside the test shell; the guard runs in its own bash.
@@ -22,7 +27,8 @@ export WORK_TICKET_GDOC_PY="$STUBS/gdoc-stub.py"
 export GUARD_KUBECTL="$STUBS/kubectl-stub.sh"
 export GUARD_GIT="$STUBS/git-stub.sh"   # current branch via GIT_STUB_BRANCH (unset = not a repo)
 export WORK_TICKET_GH="$STUBS/gh-stub.sh"
-unset GIT_STUB_BRANCH GIT_STUB_TOPLEVEL WORK_TICKET_ALLOW_DEFAULT_PUSH_RE WORK_TICKET_ALLOW_TRANSITION WORK_TICKET_KEY_IN_BRANCH
+unset GIT_STUB_BRANCH GIT_STUB_TOPLEVEL WORK_TICKET_ALLOW_DEFAULT_PUSH_RE WORK_TICKET_ALLOW_TRANSITION WORK_TICKET_KEY_IN_BRANCH \
+      WORK_TICKET_LABELED_DECISION WORK_TICKET_BASE_BRANCH_RE HARNESS_CRED_EXTRA_RE
 T_REPO="${T_REPO:-shop}"                     # repo directory name used by the rows
 T_CWD="/home/u/dev/$T_REPO"                   # default cwd = a main checkout (need not exist)
 pass=${pass:-0}; fail=${fail:-0}
@@ -46,3 +52,19 @@ tr() {  # reason-regex command  -- asserts the hook reason matches (decision mus
 # real directories for rows whose lookups cd into the cwd (gh); removed by run.sh on exit
 ghd=$(mktemp -d); mkdir -p "$ghd/$T_REPO" "$ghd/${T_REPO}_feat-x-sub-01-schema"
 g() { tc "$1" "$ghd/$T_REPO" "$2"; }
+# a real fixture repository for .harness.toml rows (principle 8); removed by run.sh on exit
+rpd=$(mktemp -d); mkdir -p "$rpd/.git" "$rpd/sub"
+decl() { if [ $# -eq 0 ]; then rm -f "$rpd/.harness.toml"; else printf '%s\n' "$@" > "$rpd/.harness.toml"; fi; }
+r() { tc "$1" "$rpd" "$2"; }
+tn() {  # expected stderr-regex cwd command
+  local exp="$1" re="$2" cwd="$3" cmd="$4" out err d ef
+  ef=$(mktemp)
+  out=$(jq -cn --arg cwd "$cwd" --arg c "$cmd" '{cwd:$cwd,tool_input:{command:$c}}' | bash "$H" 2>"$ef")
+  err=$(cat "$ef"); rm -f "$ef"
+  d=$(jq -r '.hookSpecificOutput.permissionDecision // "pass"' <<<"${out:-{\}}")
+  if [ "$d" = "$exp" ] && printf '%s' "$err" | grep -qE -e "$re"; then
+    pass=$((pass+1)); printf 'PASS %-5s | stderr~/%s/ | [%s] %s\n' "$d" "$re" "$(basename "$cwd")" "$cmd"
+  else
+    fail=$((fail+1)); printf 'FAIL want=%s got=%s, stderr !~ /%s/ | [%s] %s\n   stderr=%s\n' "$exp" "$d" "$re" "$(basename "$cwd")" "$cmd" "$err"
+  fi
+}

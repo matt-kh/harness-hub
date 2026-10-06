@@ -70,7 +70,8 @@ Layering, lowest to highest precedence:
 5. environment `HARNESS_<SECTION>_<KEY>` (e.g. `HARNESS_JIRA_URL`)
 
 Resolution: `--config PATH` > `$HARNESS_CONFIG` > `$HARNESS_HOME/local/harness.toml`.
-`HARNESS_HOME` defaults to the directory that contains `bin/harness`.
+`bin/harness` sets `HARNESS_HOME` to the checkout it lives in (an inherited value naming another
+checkout is ignored with a note); `python3 -m harness` and rendered scripts read the variable as is.
 
 Canonical keys (bundles declare what they need under `[requires.config]`; the compiled schema
 is the union):
@@ -137,7 +138,8 @@ warn_only = []                          # doctor check ids downgraded to WARN
 ```
 
 The engine compiles the layered result to `build/config.json` (for itself and for python
-tools) and `build/guard.env` (flat `KEY=value` lines sourced by the guard; see §5). Every
+tools) and `build/guard.env` (flat `KEY=value` lines parsed by the guard, never sourced; see
+§5). Every
 bundle contributes its env names in `[provides.env]`.
 
 Build directory: `$HARNESS_BUILD_DIR` if set; else `<hub>/build` only when the config is the
@@ -248,7 +250,10 @@ Rules:
   take no posture and have a fixed function (as do CLIs, MCP servers and doctor checks).
   Kind, control, model and decisions are derived. Facets never go into provider-format
   front matter. `harness lint` (rule `taxonomy`) checks all of this; `harness catalog` and
-  `docs/catalog.md` list every component.
+  `docs/catalog.md` list every component. `yields` is derived from the kind (declaration,
+  name, text, config, never, n/a); `never` is reserved for `core/guard.d/20-credentials` and
+  `core/permissions`; a declaration guard section starts with
+  `repo_owns <id> <domain> && return 0` (§5, §11).
 - Numeric prefixes order rule fragments and guard sections across bundles
   (`10` k8s, `20` credentials, `25` k8s rules, `30` git, `40`/`41` closing keywords
   (gitlab/github), `50` gitlab, `60` github, `70` jira, `75` ticket workflow, `80` gdoc,
@@ -304,8 +309,21 @@ exit  : 0 always; malformed input → deny (fail closed)
 `guard.d/NN-*.sh` is a section that only uses those helpers. **Render concatenates**
 `engine.sh` + active sections sorted by prefix + `engine-flush.sh` into one
 `hooks/guard-bash.sh` per provider home, so runtime cost equals today's single file and the
-audit surface is one file. The concatenated script sources `hooks/guard.env` (from
-`build/guard.env`) at start; environment variables already set win.
+audit surface is one file. The concatenated script parses `hooks/guard.env` (from
+`build/guard.env`; flat `KEY=value`, never sourced) at start; environment variables already
+set win.
+
+**Repository yield.** Before the sections run, the engine resolves the repository root from
+the hook's `cwd` (not from a command's target directory) and reads `.harness.toml` (§11)
+without a subshell per line, so a full-size file stays inside the hook's time budget. Every
+section runs as a function; a yielding section's first command is the yield check, and it
+emits nothing when the repository owns its domain or id. Only plain shared assignments and a
+marked `# never-yields:` prelude may precede the check: the prelude holds the rules no
+repository lifts (commands that print a stored credential; the ask on shell writes to
+`.harness.toml`). `20-credentials` carries no check (and is hard-listed in
+`REPO_NEVER_YIELDS`). Override precedence: environment > `.harness.toml` `[overrides]` >
+`guard.env` > default; only allow-listed `WORK_TICKET_*` names (the `# repo-override:`
+comments) are read from the file.
 
 Provider shims translate envelopes:
 
@@ -330,6 +348,7 @@ with stubs from `bundles/core/guard/tests/stubs/` on `PATH`.
 `status [--matrix]`, `install <tool>`, `upgrade [--to latest|TAG|BRANCH]`,
 `pack [--out DIR] [--tag TAG] [--tools os/arch,...] [--self-extract]`,
 `verify FILE.bundle|FILE.run`, `release check [TAG]|notes TAG`, `uninstall`, `test [suite]`, `lint`, `docs generate|check`,
+`repo [show] [DIR] | owns ID [DIR] | init [DIR] [--write]` (§11),
 `steps [--pending]`, `version`. Global flags: `--config`, `--home`, `--json`, `--offline`,
 `--yes`, `--dry-run`. Environment: `HARNESS_HOME`, `HARNESS_CONFIG`, `HARNESS_OFFLINE`,
 `HARNESS_BUILD_DIR` (where `build/` products go; tests point it at a temp dir so a live hub's
@@ -502,3 +521,43 @@ exit status is returned.
 `tests/smoke/pack.sh` exercises pack → verify → `bootstrap --from` → `doctor --offline`, then
 `pack --self-extract` → `.run --check/--list/--extract` → `.run` install → `doctor --offline`
 → `.run` upgrade.
+
+### 11. Repository-level declaration: `.harness.toml`
+
+A repository declares what its own harness covers in `.harness.toml`, provider-neutral and
+committed ([principle 8](principles/08-user-level-by-design.md); authors' guide:
+[docs/repo-level.md](docs/repo-level.md)).
+
+- **Location.** The repository root: the git root of the hook's `cwd` for the guard, of the
+  working directory for skill preflights (the directory holding `.git`, a directory or a
+  worktree file).
+- **`[repo]`** — `name`, `harness` (where the repository's own harness is described);
+  informational.
+- **`[owns] domains`** — taxonomy domain values (`base`, `scm`, `tracker`, `delivery`,
+  `kubernetes`, `workspace`); every component in an owned domain yields there.
+- **`[owns] components`** — catalog ids (`core/guard.d/30-git`,
+  `ticket-workflow/skills/work-ticket`).
+- **`[overrides]`** — allow-listed `WORK_TICKET_*` names with string values: exactly the
+  `# repo-override: NAME = "default" -> effect` comments in guard sections, documented in the
+  [hook policy](docs/reference/hook-policy.md#repo-overrides). Client paths,
+  `HARNESS_GUARD_ENV`, `HARNESS_CRED_EXTRA_RE` and every `*_PY`, `GUARD_*`, `HARNESS_*` or
+  `*CRED*` name are deny-listed and never read from the file. Per key: environment >
+  `.harness.toml` > `guard.env` > default.
+- **Format.** A TOML subset the guard parses in bash 3.2: `[section]`, `key = "str"` or
+  `'str'`, `key = ["a", "b"]`, one statement per line, `#` comment lines; no inline comments,
+  escapes, multi-line arrays or inline tables; `[owns]` keys are arrays; a repeated key is
+  ignored (the first one counts); at most 16 KiB and 400 lines, else the whole file is
+  ignored. Schema: `schema/repo.schema.json`.
+- **Readers.** The guard engine (§5), the skills' preflight scripts (`harness repo owns ID`)
+  and `harness repo` (§6). Unknown keys, unknown names and lines outside the subset are
+  ignored and reported (one stderr note per line from the guard, at most five per command,
+  then a count; a problem from `harness repo`), never fatal: the file fails open.
+- **Writers.** A human: the file lifts user-level rules, so `Write`/`Edit` of
+  `**/.harness.toml` ask (`core/permissions`) and shell writes to it ask (the
+  `core/guard.d/30-git` prelude); neither yields.
+- **Credential exemption.** `core/guard.d/20-credentials`, `core/permissions` and the
+  `# never-yields:` preludes (in `github/guard.d/60-github` and `k8s/guard.d/25-k8s-rules`
+  the commands that print a stored credential) never yield; naming them, or the domain
+  `base`, in `[owns]` has no effect on them.
+- Changing the allow-list or the file's keys is a contract change: schema bump and a
+  CHANGELOG Migration paragraph.

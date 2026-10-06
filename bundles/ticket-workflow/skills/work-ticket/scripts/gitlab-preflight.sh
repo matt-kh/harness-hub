@@ -22,7 +22,7 @@ except OSError:
 # <<< hn_timeout
 # shellcheck source=lib/repo-facts.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/repo-facts.sh"
-rf_load                                   # root host def dirty precommit repo_skill
+rf_load                                   # root host def dirty precommit repo_skill repo_decl repo_owns
 api() { (cd "$root" && hn_timeout 20 glab api "$@" 2>/dev/null); }
 proj=$(api "projects/:id") || proj='{}'
 [ -n "$proj" ] && jq -e . <<<"$proj" >/dev/null 2>&1 || proj='{}'
@@ -193,6 +193,7 @@ if [ -n "$me" ] && [ "$(jq -r '.id // empty' <<<"$proj")" != "" ]; then
 fi
 
 jq -n --arg root "$root" --arg host "$host" --arg def "$def" --arg tmpl "$tmpl" --arg skill "$repo_skill" \
+      --arg rdecl "$repo_decl" --argjson rowns "$repo_owns" \
       --arg access "$access" --arg glver "$gl_ver" --argjson stackui "$stack_ui" --argjson prot "$prot_json" \
       --argjson proj "$proj" --argjson mr "$mr_pipeline" --argjson checks "$ci_checks" --argjson cost "$ci_cost" \
       --argjson precommit "$precommit" --argjson dirty "$dirty" '
@@ -204,4 +205,5 @@ jq -n --arg root "$root" --arg host "$host" --arg def "$def" --arg tmpl "$tmpl" 
  protected_branches:$prot,
  mr_template:(if $tmpl=="" then null else $tmpl end),
  ci:({mr_pipeline:$mr, checks:$checks, precommit:$precommit} + $cost),
- repo_skill:(if $skill=="" then null else $skill end)}'
+ repo_skill:(if $skill=="" then null else $skill end),
+ repo_declaration:(if $rdecl=="" then null else $rdecl end), repo_owns:$rowns}'

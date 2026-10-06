@@ -21,9 +21,11 @@ the hook reads `{"tool_name":"Bash","tool_input":{"command":…},"cwd":…}` and
 `hookSpecificOutput.permissionDecision` = `allow | ask | deny` with a reason, or prints
 nothing to let Claude Code's own permission rules decide.
 
-Hooks from the user level and from a repository's `.claude/settings.json` **both** run. A
-repo cannot lift a user-level deny with its own hook; it sets the override variables in its
-`"env"` block instead ([precedence](../concepts.md#precedence)).
+Hooks from the user level and from a repository's `.claude/settings.json` all run and the
+most restrictive decision wins, so a repository hook cannot lift a hub deny; the hub's guard
+yields from inside instead, by reading the repository's `.harness.toml`. Skills resolve the
+other way (personal shadows project; use `skillOverrides`), sub-agents the expected way
+(project wins). The full facts table: [repository-level harnesses](../repo-level.md#claude-code-what-stacks-what-shadows).
 
 ## Quirks
 

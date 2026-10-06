@@ -12,6 +12,12 @@ Errors (exit 1):
 * ``tools/gate/private-ids.sh`` (when present) reporting private identifiers
 
 * ``[harness]`` refs that name no file, doctor check or lint rule of the bundle
+* ``yields`` (principle 8): a guard section whose ``yields`` is ``declaration`` without its
+  ``repo_owns <id> <domain> && return 0`` line, or whose line names another id or domain; a
+  ``repo_owns`` line in a ``never`` or ``n/a`` section; rule code above the ``repo_owns`` line
+  outside a ``# never-yields:`` prelude (plain shared assignments are fine); a malformed
+  ``# repo-override:`` comment, a name that is not ``WORK_TICKET_*`` or is on the deny-list, or
+  one name with two defaults
 * ``taxonomy`` (principle 6, variety reduction): a ``[taxonomy.components]`` key that names no
   component; a posture on a kind that takes none (rule, guard, permission, installer, step,
   doctor); a function that contradicts a kind's fixed one; a component posture stronger than
@@ -30,6 +36,9 @@ skills whose SKILL.md ``name`` differs from the directory, and three principle c
   (the ``.run`` header) that is neither on
   :data:`ALLOWED_BINARIES` nor declared by a bundle (``[requires.binaries]``, ``[provides] bin``);
   one warning per binary with its first ``file:line`` (heuristic, see ``shell_scan``)
+* ``yields`` (principle 8): a public skill whose SKILL.md and scripts never run
+  ``harness repo owns`` (the Step 0 paragraph); a public agent or rule that never says a
+  repository-level equivalent wins
 * ``taxonomy`` (principle 6): a public bundle without ``[taxonomy]``; a public skill, agent,
   CLI or MCP server without a function or posture; a read-only agent whose front matter sets
   a non-default ``permissionMode``; a public skill, agent, rule, guard section or permission
@@ -50,7 +59,10 @@ ID_SHAPE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 RULE_LINE_RE = re.compile(r"^#\s*rule:\s*(?P<pat>.+?)\s+->\s+(?P<dec>allow|ask|deny|pass|defer)\s*:\s*(?P<reason>.+?)\s*$")
 ALTERNATIVE_RE = re.compile(r"\b(use|instead|ask|run|mention|see)\b", re.I)
 LINT_RULES = {"manifest", "templates", "guard-syntax", "guard-reasons", "guides-sensors", "dependencies", "private-ids",
-              "taxonomy"}
+              "taxonomy", "yields"}
+# principle 8: a public skill's Step 0, an agent's baseline sentence, a rule's closing sentence
+YIELD_SKILL_RE = re.compile(r"\b(harness repo owns|hrepo_owns|repo_owns)\b")
+YIELD_TEXT_RE = re.compile(r"repo(sitory)?[- ]level|repository's own", re.I)
 
 # Principle 1 (lightweight): binaries any script may call without a bundle declaring them.
 ALLOWED_BINARIES = set(
@@ -195,6 +207,7 @@ def lint_bundle(b: M.Bundle, all_bundles: Dict[str, M.Bundle], schema: Dict[str,
                          "alternative (use / run / ask / see / mention ... instead)" % (where, rel, i, m.group("dec"), m.group("reason")))
     lint_harness(b, rep)
     lint_taxonomy(b, rep)
+    lint_yields(b, rep)
     # templates
     used: Set[str] = set()
     leaves = set(C.schema_leaf_keys(schema))
@@ -309,6 +322,93 @@ def lint_taxonomy(b: M.Bundle, rep: Report) -> None:
                      "so its control facet is known" % (where, c.id))
 
 
+def lint_yields(b: M.Bundle, rep: Report) -> None:
+    """Principle 8: every component carries its repository-level yield mechanism."""
+    from . import taxonomy as T
+    from .util import HarnessError
+
+    where = "%s: yields:" % b.name
+    public = b.origin == "public"
+    try:
+        comps = T.components(b)
+    except HarnessError:
+        return  # lint_taxonomy reported it
+    for c in comps:
+        if c.kind == "guard":
+            text = read_text(b.rel(c.ref)) or ""
+            lines = [m for m in T.REPO_OWNS_LINE_RE.finditer(text)]
+            if c.yields == "declaration":
+                if not lines:
+                    rep.err("%s %s yields by declaration but has no repo_owns line; add `repo_owns %s %s && return 0` "
+                            "as its first command after the # rule: comments (only plain shared assignments that later "
+                            "sections use, and a `# never-yields:` prelude, may precede it)" % (where, c.id, c.id, c.domain or "<domain>"))
+                for m in lines:
+                    if m.group("id") != c.id or m.group("domain") != (c.domain or ""):
+                        rep.err("%s %s: repo_owns names %s %s but the component is %s in domain %s (set in "
+                                "[taxonomy]); fix the line to `repo_owns %s %s && return 0`"
+                                % (where, c.id, m.group("id"), m.group("domain"), c.id, c.domain, c.id, c.domain))
+            elif lines:
+                why = ("credential rules never yield to a repository" if c.yields == "never"
+                       else "a definitions-only section is never skipped (later sections need its definitions)")
+                rep.err("%s %s has a repo_owns line but yields = %s: %s; remove the line" % (where, c.id, c.yields, why))
+            for i, line in enumerate(text.splitlines(), 1):
+                s = line.strip()
+                if not re.match(r"^#\s*repo-override:", s):
+                    continue
+                m = T.REPO_OVERRIDE_RE.match(s)
+                if not m:
+                    rep.err("%s %s:%d malformed repo-override comment; write "
+                            "`# repo-override: NAME = \"default\" -> effect`" % (where, c.ref, i))
+                elif m.group("name") in T.REPO_OVERRIDE_DENY:
+                    rep.err("%s %s:%d %s is a client/engine path or credential setting, settable only from the "
+                            "developer's own environment; remove the comment" % (where, c.ref, i, m.group("name")))
+                elif not T.REPO_OVERRIDE_PREFIX_RE.match(m.group("name")):
+                    rep.err("%s %s:%d %s cannot be a repo override: a repository may set only WORK_TICKET_* names; "
+                            "rename it WORK_TICKET_<NAME>, or leave it settable from the developer's environment "
+                            "only and remove the comment" % (where, c.ref, i, m.group("name")))
+            if c.yields == "declaration" and lines:
+                head = T.guard_head(text)
+                for ln, code in head["stray"]:
+                    rep.err("%s %s:%d rule code above the repo_owns line (%s) would run even when the repository "
+                            "owns the section; move it below the repo_owns line or into a `# never-yields:` "
+                            "prelude (only for commands that print the developer's stored credentials)"
+                            % (where, c.ref, ln, code[:40]))
+        elif not public:
+            continue
+        elif c.kind == "skill" and c.yields == "declaration":
+            texts = [read_text(b.rel(c.ref, "SKILL.md")) or ""]
+            sdir = b.rel(c.ref, "scripts")
+            for root, dirs, files in os.walk(sdir):
+                dirs[:] = sorted(d for d in dirs if d != "__pycache__")
+                for f in sorted(files):
+                    try:
+                        texts.append(read_text(os.path.join(root, f)) or "")
+                    except UnicodeDecodeError:
+                        continue
+            if not any(YIELD_SKILL_RE.search(t) for t in texts):
+                rep.warn("%s %s never reads the repository's declaration; add the 'Step 0 — repository-level "
+                         "harness' paragraph with `harness repo owns %s` (CONTRIBUTING, standard texts)"
+                         % (where, c.id, c.id))
+        elif c.kind in ("agent", "rule"):
+            if not YIELD_TEXT_RE.search(read_text(b.rel(c.ref)) or ""):
+                what = ("end the description with `(User-level baseline, principle 8 — a repository-level agent of "
+                        "the same name replaces it.)`" if c.kind == "agent" else
+                        "end it with `A repository's own instructions for the same action replace this block.`")
+                rep.warn("%s %s never says that a repository-level equivalent wins; %s" % (where, c.id, what))
+
+
+def lint_repo_overrides(bundles: List[M.Bundle], rep: Report) -> None:
+    """One override name, one default: the allow-list is generated from every section."""
+    from . import taxonomy as T
+
+    seen: Dict[str, tuple] = {}
+    for o in T.repo_overrides(bundles):
+        first = seen.setdefault(o["name"], (o["default"], o["section"]))
+        if first[0] != o["default"]:
+            rep.err("yields: %s declares repo-override %s with default %r but %s declares %r; use one default "
+                    "everywhere" % (o["section"], o["name"], o["default"], first[1], first[0]))
+
+
 def shell_files(home: str) -> List[str]:
     """The scripts the dependency rule scans (sorted, relative to ``home``)."""
     import glob
@@ -396,6 +496,7 @@ def run_lint(hub: Any) -> Report:
         for n in data.get("providers", []):
             if n not in hub.providers:
                 rep.err("profiles/%s.toml: unknown provider %s" % (prof, n))
+    lint_repo_overrides([hub.bundles[n] for n in sorted(hub.bundles)], rep)
     lint_dependencies(hub, rep)
     gate = os.path.join(home, "tools", "gate", "private-ids.sh")
     if os.path.isfile(gate) and os.environ.get("HARNESS_LINT_SKIP_GATE") != "1":

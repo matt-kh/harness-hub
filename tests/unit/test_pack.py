@@ -16,6 +16,7 @@ from helpers import REPO  # noqa: E402,F401  (puts lib/ on sys.path)
 
 from harness import bootstrap as B
 from harness import pack as P
+from harness import test as T
 from harness import upgrade as U
 from harness.util import HarnessError
 
@@ -31,11 +32,29 @@ def sha(path):
         return hashlib.sha256(fh.read()).hexdigest()
 
 
+class SuiteEnvTest(unittest.TestCase):
+    def test_git_discovery_vars_are_dropped(self):
+        saved = {k: os.environ.get(k) for k in ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "KEEP_ME")}
+        os.environ.update({"GIT_DIR": "/x/.git", "GIT_WORK_TREE": "/x", "GIT_INDEX_FILE": "/x/i", "KEEP_ME": "1"})
+        try:
+            env = T.suite_env("/hub", "/build")
+        finally:
+            for k, v in saved.items():
+                os.environ.pop(k, None) if v is None else os.environ.__setitem__(k, v)
+        for k in ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE"):
+            self.assertNotIn(k, env)
+        self.assertEqual(env["KEEP_ME"], "1")
+        self.assertEqual((env["HARNESS_HOME"], env["HARNESS_BUILD_DIR"]), ("/hub", "/build"))
+
+
 class PackTest(unittest.TestCase):
     def setUp(self):
-        self._env = {k: os.environ.get(k) for k in list(GIT_ENV) + ["HARNESS_TOOLS_MIRROR"]}
+        self._env = {k: os.environ.get(k) for k in list(GIT_ENV) + ["HARNESS_TOOLS_MIRROR"] + list(T.GIT_DISCOVERY_ENV)}
         os.environ.update(GIT_ENV)
         os.environ.pop("HARNESS_TOOLS_MIRROR", None)
+        # git exports these to hooks; left in place, the fixture repo below would be the real checkout
+        for k in T.GIT_DISCOVERY_ENV:
+            os.environ.pop(k, None)
         self.tmp = tempfile.mkdtemp(prefix="harness-pack-")
         self.repo = os.path.join(self.tmp, "hub")
         self.out = os.path.join(self.tmp, "rel")

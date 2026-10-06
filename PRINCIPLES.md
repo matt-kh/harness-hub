@@ -1,8 +1,8 @@
 # Principles
 
-principles_version: 1
+principles_version: 2
 
-The seven principles below are the core of harness-hub. Every change to this repository
+The eight principles below are the core of harness-hub. Every change to this repository
 serves at least one of them or is neutral to all of them. Read this page before changing the
 repo; open the linked document when your change touches that area.
 
@@ -37,6 +37,10 @@ repo; open the linked document when your change touches that area.
 7. **Extensible core.** These principles are the core of the repo and change only through a
    reviewed PR with a version bump; numbers are stable and new principles are
    appended. → [07-extensible-core](principles/07-extensible-core.md)
+8. **User-level by design: repository-level wins.** The hub installs a user-level baseline;
+   every component yields wholesale to an equivalent repository-level harness, declared in
+   `.harness.toml` or found by name or text — except the denies that protect the
+   developer's own credentials. → [08-user-level-by-design](principles/08-user-level-by-design.md)
 
 ## Vocabulary
 
@@ -59,6 +63,11 @@ repo; open the linked document when your change touches that area.
 | upstream | the public hub, the reference distribution |
 | org platform instance | an organisation's fork or mirror of the hub on its own git host, with org bundles and an org overlay |
 | workstation | one developer's clone plus its gitignored `local/` |
+| user-level harness | what the hub renders into a provider's home directory: a baseline for every repository |
+| repository-level harness | a repository's own agent files: `CLAUDE.md` / `AGENTS.md`, `.claude/` or the provider's equivalent (skills, agents, hooks, settings) and `.harness.toml` |
+| yield | how a hub component steps aside for a repository-level equivalent: `declaration`, `name`, `text` or `config`; `never` for the developer's own credentials (credential-file denies, `# never-yields:` preludes); `n/a` where nothing repository-level corresponds |
+| `.harness.toml` | the provider-neutral declaration at a repository root: `[owns]` (domains, component ids) and `[overrides]` (allow-listed names) |
+| owns | a repository's claim, in `.harness.toml`, that its harness covers a domain or a component id; the hub's matching components yield there |
 | bundle file | a `git bundle` release artifact, `harness-hub-X.Y.Z.bundle`; not to be confused with a harness bundle |
 
 ## Applying the principles

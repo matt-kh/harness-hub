@@ -163,3 +163,38 @@ t pass  'git commit -m "see #12"'
 t pass  'git commit -m "implements #12"'
 t pass  'git commit -m "prefix #12 cleanup"'
 tr 'GitHub close the issue' 'git commit -m "Fixes #12"'
+# ---- repository-level declaration: .harness.toml (principle 8) ----------------------
+decl '[overrides]' 'WORK_TICKET_ALLOW_TRANSITION = "1"'
+r ask   'gh issue close 3'
+WORK_TICKET_ALLOW_TRANSITION=0 r deny 'gh issue close 3'     # the real environment wins
+decl '[overrides]' 'WORK_TICKET_LABELED_DECISION = "ask"'
+r ask   'gh issue comment 1 -b hi'
+decl '[overrides]' 'WORK_TICKET_GH = "/bin/true"'           # bypass: client paths are never repo-settable
+# shellcheck disable=SC2154  # rpd: the fixture repository, defined in guard/tests/lib.sh
+tn deny 'WORK_TICKET_GH is settable only from your own environment' "$rpd" 'gh issue close 3'
+decl '[owns]' 'domains = ["scm"]'
+r pass  'gh issue close 3'
+r pass  'gh issue create --title x'
+r deny  'git commit -m "Fixes #12"'                           # 41-github-closing is tracker: unchanged
+decl '[owns]' 'domains = ["tracker"]'
+r pass  'git commit -m "Fixes #12"'
+r deny  'gh issue close 3'
+decl '[owns]' 'components = ["github/guard.d/41-github-closing"]'
+r deny  'gh issue close 3'                                    # 60-github still runs on 41's shared definitions
+r ask   'gh pr merge 100'
+# never yields: commands that print the developer's stored credential (prelude above repo_owns)
+decl '[owns]' 'domains = ["scm", "kubernetes", "tracker", "workspace"]'
+r deny  'gh auth token'
+r deny  'gh auth status --show-token'
+r deny  'gh auth status -t'
+r deny  'gh config get oauth_token'
+r deny  'cd sub && gh auth token'                              # bypass: wrapped
+r deny  'sh -c "gh auth token | cat"'
+decl '[owns]' 'components = ["github/guard.d/60-github"]'
+r deny  'gh auth token'
+r pass  'gh auth status'
+# documented consequence: owning scm lifts the human-only merge ask and the issue-state deny
+decl '[owns]' 'domains = ["scm", "kubernetes", "tracker", "workspace"]'
+r pass  'gh pr merge 100'
+r pass  'gh issue close 3'
+decl

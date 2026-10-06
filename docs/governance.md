@@ -12,13 +12,15 @@ The exact decision for every command pattern is generated in the
 
 - Agents work on a branch and open a merge request (GitLab) or pull request (GitHub).
 - **Pushing to a default branch is denied** (`core.default_branch_re`, default
-  `^(master|main)$`). A personal repo can make it ask instead
-  (`WORK_TICKET_ALLOW_DEFAULT_PUSH_RE`, set per repo, see [concepts](concepts.md#precedence)).
+  `^(master|main)$`) (a repository can make it ask instead with the
+  `WORK_TICKET_ALLOW_DEFAULT_PUSH_RE` override in its `.harness.toml` or provider `env`; see
+  [repository-level harnesses](repo-level.md)).
 - **Humans merge and approve.** `glab mr merge|approve`, `gh pr merge`, `gh pr review` ask,
   always. The agent's hand-off tells you what is ready; you press the button.
 - Commit subjects and branch names carry **no ticket keys** by default; the key lives in the
-  MR/PR title or body. (Repos that want keys in branch names declare it with
-  `WORK_TICKET_KEY_IN_BRANCH=1`, and their own workflow applies.)
+  MR/PR title or body. (A repository that puts keys in branch names declares
+  `WORK_TICKET_KEY_IN_BRANCH` in its `.harness.toml`, or owns the `delivery` domain, and its
+  own workflow applies.)
 - MR/PR creation is promptless when it carries an `agent-*` label; edits to agent-labelled
   MRs/PRs are promptless; edits to human ones ask.
 
@@ -47,8 +49,9 @@ agent's comments on that ticket stop prompting.
 
 - Agents **never transition, close or reopen** a ticket or issue that a human owns. The guard
   denies it. Moving a ticket to *In Progress*, *Done* or *Closed* is your decision.
-- A repo whose own workflow transitions tickets can opt in per repo
-  (`WORK_TICKET_ALLOW_TRANSITION=1`): the deny becomes an ask.
+- A repository whose own workflow transitions tickets can opt in per repository
+  with `WORK_TICKET_ALLOW_TRANSITION = "1"` in its `.harness.toml` (or provider `env`): the
+  deny becomes an ask.
 
 ## 4. Closing keywords are denied
 
@@ -125,8 +128,13 @@ you send it.
 
 ## Adapting the rules
 
-Everything above is configurable in `harness.toml` (label names, regexes, default branches,
-`ask_as` per provider) or per repo through the override variables listed in
-[concepts](concepts.md#precedence). A repository with its own workflow skill, guard or
-conventions for the same action replaces the user-level behaviour completely. What you cannot
-do from a repo is lift a user-level deny with a repo hook — by design.
+Everything above is configurable in `harness.toml` (label names, regexes, default
+branches, `ask_as` per provider). Per repository, the hub is a user-level baseline that
+yields to the repository's own harness ([principle 8](../principles/08-user-level-by-design.md)):
+a repository declares the domains or components it owns and the allow-listed overrides it
+needs in `.harness.toml`, and the matching hub components step aside wholesale. The rules
+a repository cannot change protect the developer's own credentials: the denies on reading
+credential files and on commands that print a stored credential (`gh auth token`,
+`kubectl config view --raw`, …), plus the ask before an agent writes `.harness.toml` itself.
+They belong to the developer, not the repository. How to declare, what each provider
+does on a collision: [repository-level harnesses](repo-level.md).

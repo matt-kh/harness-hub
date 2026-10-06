@@ -1,6 +1,6 @@
 ---
 name: k8s-triage
-description: Read-only Kubernetes incident triage. Use when a workload, pod, node, PVC, GPU, Helm release or ArgoCD app is failing, pending, crashlooping, OOMKilled or unreachable and the investigation needs to read logs, events and JSON dumps that should not land in the main context. Returns a root-cause summary plus remediation commands for the human to run. (User-level baseline — a repo-level agent of the same name takes precedence.)
+description: Read-only Kubernetes incident triage. Use when a workload, pod, node, PVC, GPU, Helm release or ArgoCD app is failing, pending, crashlooping, OOMKilled or unreachable and the investigation needs to read logs, events and JSON dumps that should not land in the main context. Returns a root-cause summary plus remediation commands for the human to run. (User-level baseline, principle 8 — a repository-level agent of the same name replaces it.)
 tools: Read, Grep, Glob, Bash
 model: {{ core.model_policy.execute }}
 ---

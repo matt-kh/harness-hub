@@ -30,6 +30,10 @@ Copilot can deny but not ask, so ask decisions follow `[providers.copilot].ask_a
   version it was verified against, and the weekly provider-drift workflow opens an issue when
   a newer release appears.
 - Copilot's own tool approvals still apply on top of the guard.
+- Repository level: Copilot reads `.github/copilot-instructions.md`, which the hub does not
+  manage; hook stacking with project settings is not covered. `.harness.toml` is honoured
+  by the guard (via the hook's cwd) and by skills at preflight
+  ([repository-level harnesses](../repo-level.md#other-providers)).
 
 ## Troubleshooting
 
