@@ -51,7 +51,7 @@ Org-specific issue-type rules and field ids come from jira.issue_types / jira.fi
 - **Recommends:** `jira`, `gitlab`, `github`
 - **Needs one of:** `jira`, `github`
 - **Needs one of:** `gitlab`, `github`
-- **Stability:** stable
+- **Stability:** beta
 - **Domain / posture:** delivery / label-gated
 
 ## Components

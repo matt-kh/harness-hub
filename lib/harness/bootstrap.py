@@ -12,7 +12,8 @@
 5. apply       backups + atomic writes + state; missing tools with a lock are installed
                unless --no-install-tools / --offline
 6. doctor      offline-aware
-7. handoff     pending manual steps grouped by what they need (none / browser / admin)
+7. handoff     pending manual steps grouped by what they need (none / browser / admin), then
+               "≈ N minutes of manual steps remain" summed from their ``minutes``
 """
 from __future__ import annotations
 
@@ -208,7 +209,15 @@ def run(ctx: Any, ns: Any) -> int:
     print(ST.render_text(rows, "Manual steps you must do" if rows else ""), end="")
     starts = " ".join("`%s`" % p.binary for p in hub.active_providers if p.binary)
     print("Then start your agent: %s" % starts)
+    # principle 2's time-to-first-useful-session proxy: the human minutes still ahead
+    print(remaining_line(rows))
     return 0
+
+
+def remaining_line(rows: Sequence[Any]) -> str:
+    """The last bootstrap line: the declared ``minutes`` of the manual steps still to do."""
+    minutes = sum(int(r.get("minutes") or 0) for r in rows)
+    return "\u2248 %d minute%s of manual steps remain (harness steps --pending)" % (minutes, "" if minutes == 1 else "s")
 
 
 # ----------------------------------------------------------------- bootstrap --from FILE.bundle

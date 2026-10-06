@@ -224,7 +224,7 @@ function = "client"
 
 # Guides steer the agent before it acts; sensors detect at or after the action (principle 6).
 [harness]
-coverage_note = "The agents' read-only stance is enforced for shell commands by the guard; MCP or API access outside the shell is not sensed."
+coverage_note = "The agents' read-only stance is enforced for shell commands by the guard; MCP or API access outside the shell is not sensed. The k8s-rules guard section enforces rule text that lives in rules/10-k8s.md."
 guides = [
   { kind = "rule", ref = "rules/10-k8s.md", note = "read-only by default, explicit --context, Secret keys only, prod remediations are suggestions" },
   { kind = "skill", ref = "skills/k8s", note = "the k8s CLI: contexts, triage views, secret-keys, redact" },

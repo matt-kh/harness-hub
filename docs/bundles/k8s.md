@@ -211,7 +211,7 @@ Guides steer the agent before it acts; sensors detect at or after the action. Pa
 | sensor | test | `tests/run.sh` | this bundle's rows against core + k8s only |
 | sensor | test | `skills/k8s/scripts/tests/run.sh` | the k8s CLI against stubbed kubectl and helm |
 
-**Not covered:** The agents' read-only stance is enforced for shell commands by the guard; MCP or API access outside the shell is not sensed.
+**Not covered:** The agents' read-only stance is enforced for shell commands by the guard; MCP or API access outside the shell is not sensed. The k8s-rules guard section enforces rule text that lives in rules/10-k8s.md.
 
 ## Uninstall
 

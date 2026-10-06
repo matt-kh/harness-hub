@@ -7,6 +7,11 @@
   "additionalProperties": false,
   "required": ["provider", "targets", "capabilities"],
   "properties": {
+    "features": {
+      "type": "array", "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
+      "description": "Product features that act as sensors (e.g. an auto-mode action classifier). A bundle's [harness] names one as { kind = \"provider-feature\", ref = \"<provider>:<feature>\" }; harness lint checks the ref against this list. Optional; empty when the product has none the hub relies on."
+    },
     "provider": {
       "type": "object", "additionalProperties": false,
       "required": ["name", "home"],

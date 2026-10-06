@@ -230,11 +230,17 @@ class ClassifyTest(HubTestCase):
         self.write(path, self.read(path).replace("model:", "permissionMode: auto\nmodel:", 1))
         self.set_taxonomy('[taxonomy]\ndomain = "base"\nposture = "local"\nfunction = "plan"\n'
                           '[taxonomy.components]\n"agents/planner" = { posture = "read-only" }\n')
-        warns = self.lint().warnings
-        self.assertEqual(len(warns), 1, warns)
-        self.assertIn('permissionMode: auto; set posture = "local"', warns[0])
-        self.set_taxonomy('[taxonomy]\ndomain = "base"\nposture = "local"\nfunction = "plan"\n')
+        # the check lives in the agent-tools rule; the taxonomy rule no longer repeats it
         self.assertEqual(self.lint().warnings, [])
+        rep = L.Report()
+        L.lint_agent_tools(self.bundle(), rep)
+        self.assertEqual(len(rep.warnings), 1, rep.warnings)
+        self.assertIn('agent-tools: core/agents/planner has posture read-only but its front matter sets '
+                      'permissionMode: auto; set posture = "local"', rep.warnings[0])
+        self.set_taxonomy('[taxonomy]\ndomain = "base"\nposture = "local"\nfunction = "plan"\n')
+        rep = L.Report()
+        L.lint_agent_tools(self.bundle(), rep)
+        self.assertEqual(rep.warnings, [])
 
     def test_unclassified_control_warns(self):
         self.set_taxonomy('[taxonomy]\ndomain = "base"\nposture = "local"\nfunction = "client"\n', harness="")

@@ -90,10 +90,11 @@ Read [ARCHITECTURE §3](ARCHITECTURE.md#3-bundles-bundlesname) first. Checklist:
       command; every `[[doctor_checks]]` has a `fix` that names a manual step or a command.
 - [ ] Doctor checks that need the network set `offline_skip = true`.
 - [ ] `[harness]` declares the bundle's **guides** (`rule`, `skill`, `permission`, `agent`,
-      `template`) and **sensors** (`guard`, `doctor`, `test`, `lint`, `review-agent`) as
-      `{kind, ref, note}`, each `ref` naming a real path or id in the bundle, plus a
-      `coverage_note` saying what the pairing does not cover. `harness lint` shows no
-      unpaired-guide or unpaired-sensor warning.
+      `template`) and **sensors** (`guard`, `doctor`, `test`, `lint`, `review-agent`,
+      `provider-feature`) as `{kind, ref, note}`, each `ref` naming a real path or id in the
+      bundle (a `provider-feature` ref is `<provider>:<feature>` from that provider's
+      `features`), plus a `coverage_note` saying what the pairing does not cover. `harness lint`
+      shows no unpaired-guide, unpaired-sensor or `rule-guard-pairing` warning.
 - [ ] Every guard `# rule:` reason states the alternative (what to run, use or ask instead).
 - [ ] `[taxonomy]` classifies the bundle: `domain` and `posture`, a `function` default if its
       skills and agents share one, and `[taxonomy.components]` overrides where a component
@@ -162,6 +163,23 @@ or mirror) under `bundles/<org>-<topic>/`; see the
 
 Org-specific content (your hosts, your cluster list, your ticket types) belongs in a
 **private bundle** under `local/bundles/<org>/`, same layout, never in a public one.
+
+## Stability levels
+
+`[bundle].stability` says how far a bundle can be trusted. Each level includes the one
+before it; `harness lint` (rule `stability`) checks what it can and warns when a `stable`
+bundle falls short.
+
+| Level | Criteria |
+|---|---|
+| `experimental` | The manifest validates (`harness lint` shows no error). It may lack `[harness]` or tests. Never named in a `profiles/*.toml`. |
+| `beta` | `[harness]` is paired with no lint warning; guard sections have rows in `guard.d/tests.sh`, including bypass attempts; `docs/bundles/<b>.md` exists with a **Troubleshooting** section; every skill and CLI has a test suite (`skills/<s>/scripts/tests/run.sh` or a `tests/run.sh` beside the CLI); `coverage_note` names only judgement gaps, not missing tests. |
+| `stable` | Everything in beta, plus: one released minor version with no CHANGELOG **Migration** touching its keys or decisions; `owners` is non-empty; verified on every provider tier it claims, or the [capability matrix](docs/reference/capability-matrix.md) marks the bundle's behaviour there as advisory. |
+| `deprecated` | A CHANGELOG entry announces it and its `summary` names the successor bundle. |
+
+Moving a bundle between levels is a CHANGELOG `### Stability` entry. Lint enforces the
+test-suite part of `stable` (a skill or CLI without `tests/run.sh`, or a `coverage_note` that
+admits "no … suite", warns); the other criteria are checked in review.
 
 ## Adding a provider
 

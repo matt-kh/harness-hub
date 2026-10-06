@@ -1,22 +1,18 @@
 ---
 name: work-ticket
 description: >-
-  Governed Jira-ticket → GitLab-MR workflow for any repo (self-hosted Jira Server + GitLab).
-  Reads and verifies the ticket
-  against the code in the current repo, triages and sizes it, gates every Jira write behind
-  the `{{ core.agent_labels.worked }}` label, implements on a `<short-name>` branch (no ticket key in branch names or commits — the key lives on the MR) (subagents in local
-  worktrees), runs only the checks CI lacks, and opens MRs that mention the key (never closes
-  or transitions it). S/M: parts merged locally, ONE MR. L/XL: decomposition planned by the
-  Plan agent ({{ core.model_policy.plan }}), optional agent-created sub-tickets (Issue split, where the project permits),
-  opt-in ultracode workflow, and **stacked MRs by default** — one MR per part targeting the
-  ticket branch plus the main MR; humans merge bottom-up in the UI, the agent never merges. Use when the user asks to work on / pick up /
-  start / implement / fix a ticket key ({{ core.ticket_example }}, any PROJECT-123) or runs
-  /work-ticket KEY. NOT for plain lookups (use the `jira` skill) or ad-hoc ticket creation.
-  In a repo that owns the ticket workflow (`.harness.toml` `[owns]`, or its own workflow skill
-  found at preflight) it runs only the read-only preflight and hands over completely. Also drives GitHub repos
-  (github.com, `gh`): a GitHub Issue (#N, N, owner/repo#N or issue URL) → GitHub PR(s) with the
-  same governance (agent-worked label gate, #N mention never a closing keyword, stacked PRs,
-  fork flow = single PR).
+  Governed Jira-ticket → GitLab-MR workflow for any repo. Verifies the ticket against the code,
+  gates every Jira write behind the `{{ core.agent_labels.worked }}` label, implements
+  on a `<short-name>` branch (no ticket key in branches or commits), runs only the checks CI
+  lacks, and opens MRs that mention the key (never closes or transitions it). S/M: ONE MR. L/XL:
+  Plan agent ({{ core.model_policy.plan }}) decomposes, optional sub-tickets, stacked MRs by
+  default that humans merge bottom-up. Use when the user
+  asks to work on / pick up / start / implement / fix a ticket key ({{ core.ticket_example }},
+  any PROJECT-123) or runs /work-ticket KEY. NOT for plain lookups (use the `jira` skill) or
+  ad-hoc ticket creation. In a repo that owns the ticket workflow (`.harness.toml` `[owns]`, or its own workflow
+  skill found at preflight) it runs only the read-only preflight and hands over completely. Also drives GitHub repos (`gh`): a GitHub
+  Issue (#N, owner/repo#N or URL) → PR(s) with the same governance (#N mention never a closing
+  keyword, stacked PRs, fork flow = single PR).
 argument-hint: <TICKET-KEY | #N | N | owner/repo#N | issue-URL> [--base <branch>] [--no-subagents] [--size S|M|L|XL] [--mode ultracode|subagents|single] [--delivery stacked|single]
 model: {{ core.model_policy.execute }}
 ---

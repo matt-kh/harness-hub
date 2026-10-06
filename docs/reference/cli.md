@@ -635,6 +635,7 @@ options:
 
 ```text
 usage: harness lint [-h] [--config PATH] [--home DIR] [--json] [--offline] [--yes] [--dry-run]
+                    [--skip RULE]
 
 validate manifests, cross-references, templates, private identifiers
 
@@ -646,6 +647,9 @@ options:
   --offline      skip network checks (HARNESS_OFFLINE=1)
   --yes, -y      assume yes; never prompt
   --dry-run      show what would happen, write nothing
+  --skip RULE    skip a rule (repeatable; e.g. the slower permissions-vs-guard): agent-tools,
+                 dependencies, env-provides, fragments-target, permissions-vs-guard, private-ids,
+                 profile-sane, rule-guard-pairing, skill-description, stability
 ```
 
 ### harness docs

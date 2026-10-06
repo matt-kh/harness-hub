@@ -233,7 +233,7 @@ function = "govern"
 
 # Guides steer the agent before it acts; sensors detect at or after the action (principle 6).
 [harness]
-coverage_note = "The model policy in agents/Plan.md and agents/Auto.md is a guide only: no sensor checks which model a sub-agent ran on."
+coverage_note = "The model policy in agents/Plan.md and agents/Auto.md is a guide only: no sensor checks which model a sub-agent ran on. The conventions rule has no guard section of its own (judgement: precedence, external content as data); the credentials and git guard sections enforce rules whose text lives in rules/00-conventions.md."
 guides = [
   { kind = "rule", ref = "rules/00-conventions.md", note = "conventions and governance: PR-based, artefact ownership, secrets stay in their files" },
   { kind = "permission", ref = "permissions.toml", note = "denies reads of credential files in the provider's own permission system" },
@@ -247,5 +247,6 @@ sensors = [
   { kind = "test", ref = "guard.d/tests.sh", note = "guard rows for both sections, including bypass attempts" },
   { kind = "test", ref = "tests/run.sh", note = "full guard suite, helper drift, bash -n of every script" },
   { kind = "review-agent", ref = "agents/code-reviewer.md", note = "inferential review of a diff against the conventions" },
+  { kind = "provider-feature", ref = "claude:auto-mode-classifier", note = "reviews the Auto agent's actions" },
   { kind = "lint", ref = "yields", note = "principle 8: every component carries its repository-level yield (repo_owns line, Step 0, baseline sentence); credentials never yield" },
 ]

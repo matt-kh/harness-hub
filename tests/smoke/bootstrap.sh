@@ -8,7 +8,10 @@
 # CLAUDE.md text survive, the hook is executable and fails closed, `doctor --offline` exits 0,
 # a second `apply` is `Plan: 0 changes`, and nothing is written outside the managed paths.
 # Set HARNESS_BUNDLES_ROOT to run it against another bundle tree (e.g. tests/fixtures/bundles).
+# Prints the elapsed seconds at the end (principle 2's time-to-first-useful-session proxy, with
+# the "≈ N minutes of manual steps remain" line bootstrap ends with).
 set -eu
+SECONDS=0
 here=$(cd "$(dirname "$0")/../.." && pwd)
 cfg="$here/tests/fixtures/harness.ci.toml"
 # macOS $TMPDIR ends in "/": strip it so no "//" reaches paths the engine normalises
@@ -40,6 +43,9 @@ before="$tmp/before.txt"; after="$tmp/after.txt"
 step "bootstrap"
 "$here/bootstrap" --bundles core --providers claude --yes --offline --config "$cfg" > "$tmp/bootstrap.log" 2>&1 \
   || { cat "$tmp/bootstrap.log"; die "bootstrap exited non-zero"; }
+bootstrap_secs=$SECONDS
+tail -n 1 "$tmp/bootstrap.log" | grep -qE 'minutes? of manual steps remain \(harness steps --pending\)$' \
+  || fail "bootstrap does not end with the remaining manual-step minutes"
 
 s="$HOME/.claude/settings.json"
 step "settings.json"
@@ -84,4 +90,4 @@ if [ -n "$live_sum" ]; then
 fi
 
 [ "$failures" -eq 0 ] || die "$failures check(s) failed"
-echo "smoke bootstrap: ok"
+echo "smoke bootstrap: ok (bootstrap ${bootstrap_secs}s, total ${SECONDS}s elapsed)"

@@ -186,7 +186,7 @@ Guides steer the agent before it acts; sensors detect at or after the action. Pa
 | sensor | test | `guard.d/tests.sh` | guard rows with a stubbed glab |
 | sensor | test | `tests/run.sh` | this bundle's rows against core + gitlab only |
 
-**Not covered:** MR title and description conventions are guides only; nothing checks them before the MR is created.
+**Not covered:** MR title and description conventions are guides only; nothing checks them before the MR is created. The gitlab-closing guard section enforces rule text that lives in rules/50-gitlab.md.
 
 ## Uninstall
 

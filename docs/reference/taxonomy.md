@@ -81,9 +81,15 @@ comments and permission lists), a bundle's **functions**, a profile's **domains*
   function that contradicts a kind's fixed one; a component posture stronger than the
   bundle's; a bundle named `providers` or `profiles`; an unknown value (schema).
 - Warnings: a public bundle without `[taxonomy]`; a public skill, agent, CLI or MCP server
-  without a function or posture; a read-only agent whose front matter sets
-  `permissionMode: auto`; a skill, agent, rule, guard section or non-empty permission list
-  that `[harness]` declares as neither guide nor sensor (public bundles); the deprecated `[bundle].tags`.
+  without a function or posture; a skill, agent, rule, guard section or non-empty permission
+  list that `[harness]` declares as neither guide nor sensor (public bundles); the deprecated
+  `[bundle].tags`.
+- The posture is also checked against agent front matter by rule `agent-tools`: a read-only
+  agent that sets `permissionMode: auto` (or `acceptEdits`, `bypassPermissions`) or lists
+  `Edit`, `Write`, `MultiEdit` or `NotebookEdit` in `tools:` warns; a public agent whose
+  `model:` is a literal model id instead of `{{ core.model_policy.plan|execute }}` is an error.
+  Rule `skill-description` uses the function: a `workflow` skill's description needs a
+  "NOT for" scope and its front matter an `argument-hint`.
 
 Rule `yields` ([principle 8](../../principles/08-user-level-by-design.md)) checks that each
 component carries its yield mechanism:
