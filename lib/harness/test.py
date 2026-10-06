@@ -17,6 +17,11 @@ is non-zero when any suite fails.
 Every child suite gets ``HARNESS_BUILD_DIR`` set to its own fresh temporary directory, so no
 suite (the bootstrap smoke applies a fixture config) can overwrite the live
 ``<hub>/build/config.json`` that rendered skills read.
+
+Git's repository-discovery variables (``GIT_DIR``, ``GIT_WORK_TREE``, ``GIT_INDEX_FILE``, …)
+are dropped from every child environment: git exports them to hooks, and a suite run from the
+pre-push hook would otherwise point its throw-away fixture repositories at the real checkout
+(``git add -A`` in a fixture then stages the deletion of the whole hub).
 """
 from __future__ import annotations
 
@@ -33,6 +38,19 @@ from typing import Any, List, Tuple
 from .util import atomic_write, hub_home
 
 SUITES = ("unit", "guard", "bundles", "skills", "providers", "smoke")
+
+
+# Exported by git to hook processes; a fixture ``git init`` under them re-targets the checkout.
+GIT_DISCOVERY_ENV = ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_COMMON_DIR", "GIT_OBJECT_DIRECTORY",
+                     "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_PREFIX", "GIT_NAMESPACE", "GIT_IMPLICIT_WORK_TREE")
+
+
+def suite_env(home: str, build_dir: str) -> dict:
+    """The environment every child suite runs with: hub + fresh build dir, no git discovery vars."""
+    env = {k: v for k, v in os.environ.items() if k not in GIT_DISCOVERY_ENV}
+    env["HARNESS_HOME"] = home
+    env["HARNESS_BUILD_DIR"] = build_dir
+    return env
 
 
 def build_all_guard(home: str, build_dir: str) -> str:
@@ -103,10 +121,8 @@ def run(ctx: Any, suite: str = "all", verbose: bool = False) -> int:
     failed = 0
     width = max(len(n) for n, _a, _e in suites)
     for name, argv, extra in suites:
-        env = dict(os.environ)
-        env["HARNESS_HOME"] = home
         build_dir = tempfile.mkdtemp(prefix="harness-test-build-")
-        env["HARNESS_BUILD_DIR"] = build_dir
+        env = suite_env(home, build_dir)
         try:
             if extra.pop("__build_guard__", None):
                 try:

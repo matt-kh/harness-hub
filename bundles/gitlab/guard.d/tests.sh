@@ -93,3 +93,18 @@ printf '%s\n' "HARNESS_BUNDLES='core gitlab'" "HARNESS_GITLAB_MR_TITLE_RE='^(PRO
 HARNESS_GUARD_ENV=$genv t ask  'glab mr create -s f -b main -t "ABC-1 fix parser"'
 HARNESS_GUARD_ENV=$genv t allow 'glab mr create -s f -b main -t "OPS-1 fix parser"'
 rm -f "$genv"
+
+# ---- repository-level declaration: .harness.toml (principle 8) ----------------------
+decl '[overrides]' 'WORK_TICKET_LABELED_DECISION = "ask"'
+r ask   'glab mr note 100 -m "hi"'
+WORK_TICKET_LABELED_DECISION=allow r allow 'glab mr note 100 -m "hi"'   # the real environment wins
+decl '[overrides]' 'WORK_TICKET_GLAB = "/bin/true"'         # bypass: client paths are never repo-settable
+r ask   'glab mr note 200 -m "hi"'
+decl '[owns]' 'domains = ["scm"]'
+r pass  'glab mr merge 100'
+r pass  'glab mr note 200 -m "hi"'
+r deny  'git commit -m "Closes LBL-1 parser"'                 # 40-gitlab-closing is tracker: unchanged
+decl '[owns]' 'domains = ["tracker"]'
+r pass  'git commit -m "Closes LBL-1 parser"'
+r ask   'glab mr merge 100'
+decl

@@ -7,6 +7,8 @@
 #                                               jira.fields.problem_description] -> has_problem_description
 #                                               (unset: always false; the type's field_ids still list it)
 #   HARNESS_GITHUB_HOST                         [github.host] (default github.com)
+# Principle 8: repo_declaration / repo_owns say whether the current repository's .harness.toml owns
+# ticket-workflow/skills/create-ticket (or the domain delivery) -> the skill hands over.
 set -uo pipefail
 # >>> hn_timeout
 hn_timeout() {  # SECS CMD [ARGS...]
@@ -34,6 +36,87 @@ hcfg() {  # KEY [DEFAULT]
   return 0
 }
 # <<< hcfg
+# >>> hrepo
+hrepo_root() {  # [DIR] -> first ancestor holding .git (dir or worktree file); rc 1 outside a checkout
+  local d="${1:-$PWD}" n=0
+  case "$d" in /*) ;; *) return 1 ;; esac
+  while [ -n "$d" ] && [ "$n" -lt 64 ]; do
+    if [ -e "$d/.git" ]; then printf '%s\n' "$d"; return 0; fi
+    d=${d%/*}; n=$((n+1))
+  done
+  return 1
+}
+hrepo_file() {  # [DIR] -> <root>/.harness.toml; rc 1 when absent
+  local r; r=$(hrepo_root "${1:-}") || return 1
+  [ -f "$r/.harness.toml" ] && [ -r "$r/.harness.toml" ] || return 1
+  printf '%s\n' "$r/.harness.toml"
+}
+hrepo_trim_to() {  # VAR STR -> VAR = STR without surrounding whitespace (printf -v: no subshell per line)
+  local _hs="$2"
+  _hs="${_hs#"${_hs%%[![:space:]]*}"}"
+  printf -v "$1" '%s' "${_hs%"${_hs##*[![:space:]]}"}"
+}
+hrepo_unquote_to() {  # VAR STR -> VAR = x for "x" | 'x'; rc 1 on anything else (no escapes in the subset)
+  local _hv
+  case "$2" in
+    \"*\") _hv=${2#\"}; _hv=${_hv%\"}; case "$_hv" in *[\"\\]*) return 1 ;; esac ;;
+    \'*\') _hv=${2#\'}; _hv=${_hv%\'}; case "$_hv" in *\'*) return 1 ;; esac ;;
+    *) return 1 ;;
+  esac
+  printf -v "$1" '%s' "$_hv"
+}
+hrepo_get() {  # FILE SECTION KEY -> value(s), one per line; rc 1 when absent (first occurrence wins)
+  local f="$1" want="$2" key="$3" sec="" line k v item rest out="" n=0 found=1 nl='
+'
+  [ -f "$f" ] && [ -r "$f" ] || return 1
+  [ "$(($(wc -c < "$f")))" -le 16384 ] || return 1
+  while IFS= read -r line || [ -n "$line" ]; do
+    n=$((n+1)); [ "$n" -le 400 ] || return 1
+    hrepo_trim_to line "$line"
+    case "$line" in
+      ''|'#'*) continue ;;
+      '['*']') hrepo_trim_to sec "${line#\[}"; hrepo_trim_to sec "${sec%\]}"; continue ;;
+      '['*) sec=""; continue ;;
+    esac
+    [ "$found" = 1 ] && [ "$sec" = "$want" ] || continue
+    hrepo_trim_to k "${line%%=*}"
+    [ "$k" != "$line" ] && [ "$k" = "$key" ] || continue
+    hrepo_trim_to v "${line#*=}"
+    case "$v" in
+      '['*']')
+        rest=${v#\[}; rest=${rest%\]}
+        while [ -n "$rest" ]; do
+          item=${rest%%,*}
+          if [ "$item" = "$rest" ]; then rest=""; else rest=${rest#*,}; fi
+          hrepo_trim_to item "$item"; [ -n "$item" ] || continue
+          hrepo_unquote_to item "$item" || continue
+          out="$out$item$nl"
+        done ;;
+      *) [ "$want" != owns ] || continue          # [owns] keys are arrays only
+         hrepo_unquote_to v "$v" || continue; out="$v$nl" ;;
+    esac
+    found=0
+  done < "$f"
+  [ "$found" = 1 ] || printf '%s' "$out"
+  return $found
+}
+hrepo_owns() {  # ID DOMAIN [DIR] -> rc 0 when the repository declares the component or its domain
+  local f v nl='
+'
+  case "$1" in core/guard.d/20-credentials|core/permissions) return 1 ;; esac   # never yield
+  f=$(hrepo_file "${3:-}") || return 1
+  # no pipes: callers run under `set -o pipefail`, where an early `grep -q` exit is a SIGPIPE failure
+  v=$(hrepo_get "$f" owns components 2>/dev/null)
+  case "$nl$v$nl" in *"$nl$1$nl"*) return 0 ;; esac
+  [ -n "${2:-}" ] || return 1
+  v=$(hrepo_get "$f" owns domains 2>/dev/null)
+  case "$nl$v$nl" in *"$nl$2$nl"*) return 0 ;; esac
+  return 1
+}
+# <<< hrepo
+repo_decl=$(hrepo_file "$PWD") || repo_decl=""
+repo_owns=false
+if hrepo_owns ticket-workflow/skills/create-ticket delivery "$PWD"; then repo_owns=true; fi
 P="${1:-}"; [ -n "$P" ] || { echo '{"error":"usage: create-facts.sh PROJECT|owner/repo"}'; exit 1; }
 
 # ---------------------------------------------------------------- GitHub (read-only)
@@ -61,12 +144,14 @@ if [[ "$P" == */* ]]; then
     [ -n "$templates" ] || templates='[]'
   fi
   jq -n --arg me "$me" --arg p "$P" --arg err "$err" --argjson repo "$repo" \
-        --argjson labels "$labels" --argjson milestones "$milestones" --argjson templates "$templates" '
+        --argjson labels "$labels" --argjson milestones "$milestones" --argjson templates "$templates" \
+        --arg rdecl "$repo_decl" --argjson rowns "$repo_owns" '
   {provider:"github", me:$me, project:($repo.nameWithOwner // $p),
    creatable:($repo.hasIssuesEnabled == true),
    can_assign:(($repo.viewerPermission // "") | IN("WRITE","MAINTAIN","ADMIN")),
    viewer_permission:($repo.viewerPermission // null),
-   labels:$labels, milestones:$milestones, templates:$templates}
+   labels:$labels, milestones:$milestones, templates:$templates,
+   repo_declaration:(if $rdecl == "" then null else $rdecl end), repo_owns:$rowns}
   + (if $err != "" then {error:$err} else {} end)'
   exit 0
 fi
@@ -112,7 +197,8 @@ labels=$(jira api "/rest/api/2/search?jql=project%3D$P%20AND%20labels%20is%20not
 
 jq -n --arg me "$me" --arg p "$P" --argjson creatable "$creatable" --argjson can_assign "$can_assign" --argjson can_attach "$can_attach" \
       --argjson types "$types" --argjson versions "$versions" --argjson components "$components" \
-      --argjson priorities "$priorities" --argjson labels "$labels" '
+      --argjson priorities "$priorities" --argjson labels "$labels" \
+      --arg rdecl "$repo_decl" --argjson rowns "$repo_owns" '
 {me:$me, project:$p, creatable:$creatable, can_assign:$can_assign, can_attach:$can_attach,
  types:$types, versions_unreleased:$versions, components:$components, priorities:$priorities,
- labels_in_use:$labels}'
+ labels_in_use:$labels, repo_declaration:(if $rdecl == "" then null else $rdecl end), repo_owns:$rowns}'

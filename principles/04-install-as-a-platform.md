@@ -38,10 +38,12 @@ installed, upgraded, released or reached over the network.
   - `HARNESS_TOOLS_MIRROR` rewrites download URLs to an internal mirror; the hash check is
     unchanged.
   - A release is a single `git bundle` file plus optional tool archives and `SHA256SUMS`
-    ([principle 5](05-distributed-as-a-git-repo.md)).
+    ([principle 5](05-distributed-as-a-git-repo.md)); the optional `.run` envelope carries
+    them as one file (`sh FILE.run --check`, then `sh FILE.run --offline --no-install-tools`),
+    and a newer `.run` upgrades the same clone offline.
 - **Proxies and internal CAs** work through the standard variables (`HTTPS_PROXY`,
   `SSL_CERT_FILE`, `CURL_CA_BUNDLE`) ([air-gapped runbook](../docs/runbooks/air-gapped.md)).
-- **Upgrades are git operations** (`harness upgrade [--to TAG]`), with migration notes from
+- **Upgrades are git operations** (`harness upgrade [--to latest|TAG|BRANCH]`), with migration notes from
   the CHANGELOG and a plan before anything is written.
 
 ## What it rules out
@@ -90,6 +92,7 @@ Non-compliant:
 
 ## Open questions
 
-- Signed releases (signed tags or a signature over `SHA256SUMS`) and which tool to require for
-  verification without adding a dependency.
+- Signed releases: resolved in [principle 5](05-distributed-as-a-git-repo.md#open-questions)
+  (build provenance verified online with `gh attestation verify`, `SHA256SUMS` offline,
+  annotated tags, signed tags optional).
 - A documented cadence for org instances to sync from upstream.

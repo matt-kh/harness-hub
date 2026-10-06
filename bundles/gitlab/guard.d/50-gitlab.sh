@@ -10,6 +10,9 @@
 # rule: glab mr create -t TITLE not matching HARNESS_GITLAB_MR_TITLE_RE -> ask : MR titles start with the ticket key; use a title like 'PROJ-123 fix parser' instead, or set gitlab.mr_title_re (empty disables)
 # rule: glab mr create -t with $VAR or backticks -> ask : the title cannot be checked; use a literal title instead
 # rule: glab mr update|note|close REF on an agent-labelled MR -> allow : human MRs ask; -sub- retarget to base -> deny
+# repo-override: WORK_TICKET_BASE_BRANCH_RE = "^(master|main)$" -> default/base branches: pushes to them deny, sub MRs/PRs never target them
+# repo-override: WORK_TICKET_LABELED_DECISION = "allow" -> allow|ask: the decision for writes to agent-labelled tickets, issues, MRs and PRs
+repo_owns gitlab/guard.d/50-gitlab scm && return 0   # principle 8: the repository's .harness.toml owns this section or domain scm
 # ---- GitLab (glab) --------------------------------------------------------------
 GLAB="${WORK_TICKET_GLAB:-glab}"
 # MR title convention (gitlab.mr_title_re → HARNESS_GITLAB_MR_TITLE_RE). guard.env omits empty

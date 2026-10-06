@@ -60,10 +60,17 @@ function = "client"            # optional default for skills and agents
   `read-only` < `local` < `label-gated`. Declared for skills, agents, CLIs and MCP servers;
   doctor checks are always read-only; rules, guard sections, permission lists, installers and
   manual steps take none (their decisions are derived, or a human performs them).
+- **yields** — how the component steps aside for a repository-level equivalent
+  ([principle 8](../../principles/08-user-level-by-design.md)); derived from the kind:
+  `declaration` (reads `.harness.toml` `[owns]`: skills, guard sections), `name` (the
+  provider resolves a name collision: agents), `text` (concatenated instructions whose text
+  says the repository wins: rules), `config` (changed per key, never wholesale: permission
+  lists), `never` (only `core/guard.d/20-credentials` and `core/permissions`), `n/a` (CLIs,
+  MCP servers, installers, doctor checks, manual steps, definitions-only guard sections).
 
 Derived, never declared: **kind** (the path), **control** (guide, sensor, or inferential
 sensor, from `[harness]`), **model** (the front matter `model:`, shown as `plan`/`execute`
-when it names the model policy), **decisions** (`deny N · ask N · allow N` from `# rule:`
+when it names the model policy), **yields** (above), **decisions** (`deny N · ask N · allow N` from `# rule:`
 comments and permission lists), a bundle's **functions**, a profile's **domains** and
 **posture**, a provider's **tier** and each kind's **reach**. Every facet is single-valued.
 
@@ -77,6 +84,16 @@ comments and permission lists), a bundle's **functions**, a profile's **domains*
   without a function or posture; a read-only agent whose front matter sets
   `permissionMode: auto`; a skill, agent, rule, guard section or non-empty permission list
   that `[harness]` declares as neither guide nor sensor (public bundles); the deprecated `[bundle].tags`.
+
+Rule `yields` ([principle 8](../../principles/08-user-level-by-design.md)) checks that each
+component carries its yield mechanism:
+
+- Errors: a `declaration` guard section without its `repo_owns <id> <domain> && return 0`
+  line, or with a wrong id or domain; a `repo_owns` line in a `never` or `n/a` section; a
+  malformed or deny-listed `# repo-override:` comment, or two that give the same name
+  different defaults.
+- Warnings: a public skill whose preflight does not run `harness repo owns` (the Step 0
+  paragraph); an agent or rule without its repository-level sentence.
 
 ## Naming new components
 
@@ -116,7 +133,7 @@ A value exists only while a component uses it. To add one:
 | `base` | the harness itself: engine, credentials, conventions, core agents | 15 (core) |
 | `scm` | source hosts, branches, MRs/PRs | 24 (core, github, gitlab) |
 | `tracker` | tickets, issues, their state | 15 (github, gitlab, jira) |
-| `delivery` | ticket-to-merge workflow spanning tracker and SCM | 8 (ticket-workflow) |
+| `delivery` | ticket-to-merge workflow spanning tracker and SCM | 9 (ticket-workflow) |
 | `kubernetes` | clusters, Helm, GitOps, IaC targeting them | 18 (k8s) |
 | `workspace` | docs, drive, sheets, mail | 15 (gdoc) |
 
@@ -124,7 +141,7 @@ A value exists only while a component uses it. To add one:
 
 | value | meaning | components using it |
 |---|---|---|
-| `govern` | constrains the agent and says what to do instead | 24 (core, gdoc, github, gitlab, jira, k8s, ticket-workflow) |
+| `govern` | constrains the agent and says what to do instead | 25 (core, gdoc, github, gitlab, jira, k8s, ticket-workflow) |
 | `client` | thin interface to one system | 7 (gdoc, jira, k8s) |
 | `workflow` | multi-step governed procedure | 2 (ticket-workflow) |
 | `investigate` | diagnoses to a root cause, never applies the fix | 1 (k8s) |
@@ -141,23 +158,34 @@ A value exists only while a component uses it. To add one:
 | `local` | edits the checkout and its own branches; other remote writes pass the guard | 1 (core) |
 | `label-gated` | writes promptlessly only to agent-* artefacts; human ones ask | 6 (gdoc, jira, ticket-workflow) |
 
+### yields
+
+| value | meaning | components using it |
+|---|---|---|
+| `declaration` | returns early when the repository's .harness.toml owns its id or domain | 14 (core, gdoc, github, gitlab, jira, k8s, ticket-workflow) |
+| `name` | the provider shadows it with a repository component of the same name | 6 (core, k8s) |
+| `text` | concatenated with the repository's instructions, which come last and win | 7 (core, gdoc, github, gitlab, jira, k8s, ticket-workflow) |
+| `config` | merged by the provider's permission system; a repository can add rules, never lift a deny | 6 (gdoc, github, gitlab, jira, k8s, ticket-workflow) |
+| `never` | the developer's own credentials: no repository setting lifts it | 2 (core) |
+| `n/a` | no repository-level equivalent | 61 (core, gdoc, github, gitlab, jira, k8s, ticket-workflow) |
+
 ### Facets by kind
 
-| kind | id | control | domain | function | posture | model | decisions |
-|---|---|---|---|---|---|---|---|
-| bundle | `<bundle>` | — | declared (required on public) | derived: union | declared (required on public) | — | — |
-| skill | `<bundle>/skills/<name>` | derived: `[harness]` | inherited, overridable | declared (required) | declared (required) | derived: front matter | — |
-| agent | `<bundle>/agents/<name>` | derived: `[harness]` | inherited, overridable | declared (required) | declared (required) | derived: front matter | — |
-| rule | `<bundle>/rules/<name>` | derived: `[harness]` | inherited, overridable | fixed: govern | not allowed | — | — |
-| guard | `<bundle>/guard.d/<name>` | derived: `[harness]` | inherited, overridable | fixed: govern | not allowed | — | derived: `# rule:` comments |
-| permission | `<bundle>/permissions` | derived: `[harness]` | inherited, overridable | fixed: govern | not allowed | — | derived: allow/ask/deny lists |
-| mcp | `<bundle>/mcp/<name>` | — | inherited, overridable | fixed: client | declared (required) | — | — |
-| bin | `<bundle>/bin/<name>` | — | inherited, overridable | fixed: client | declared (required) | — | — |
-| installer | `<bundle>/install/<name>` | — | inherited, overridable | fixed: setup | not allowed | — | — |
-| doctor | `<bundle>/doctor/<name>` | derived: `[harness]` | inherited, overridable | fixed: setup | fixed: read-only | — | — |
-| step | `<bundle>/steps/<name>` | — | inherited, overridable | fixed: setup | not allowed | — | — |
-| provider | `providers/<name>` | — | — | — | — (tier instead) | — | — |
-| profile | `profiles/<name>` | — | derived: union | — | derived: max | — | — |
+| kind | id | control | domain | function | posture | model | decisions | yields |
+|---|---|---|---|---|---|---|---|---|
+| bundle | `<bundle>` | — | declared (required on public) | derived: union | declared (required on public) | — | — | — |
+| skill | `<bundle>/skills/<name>` | derived: `[harness]` | inherited, overridable | declared (required) | declared (required) | derived: front matter | — | derived: `declaration` |
+| agent | `<bundle>/agents/<name>` | derived: `[harness]` | inherited, overridable | declared (required) | declared (required) | derived: front matter | — | derived: `name` |
+| rule | `<bundle>/rules/<name>` | derived: `[harness]` | inherited, overridable | fixed: govern | not allowed | — | — | derived: `text` |
+| guard | `<bundle>/guard.d/<name>` | derived: `[harness]` | inherited, overridable | fixed: govern | not allowed | — | derived: `# rule:` comments | derived: `declaration` (`n/a` without `# rule:` comments; `never` for `core/guard.d/20-credentials`) |
+| permission | `<bundle>/permissions` | derived: `[harness]` | inherited, overridable | fixed: govern | not allowed | — | derived: allow/ask/deny lists | derived: `config` (`never` for `core/permissions`) |
+| mcp | `<bundle>/mcp/<name>` | — | inherited, overridable | fixed: client | declared (required) | — | — | derived: `n/a` |
+| bin | `<bundle>/bin/<name>` | — | inherited, overridable | fixed: client | declared (required) | — | — | derived: `n/a` |
+| installer | `<bundle>/install/<name>` | — | inherited, overridable | fixed: setup | not allowed | — | — | derived: `n/a` |
+| doctor | `<bundle>/doctor/<name>` | derived: `[harness]` | inherited, overridable | fixed: setup | fixed: read-only | — | — | derived: `n/a` |
+| step | `<bundle>/steps/<name>` | — | inherited, overridable | fixed: setup | not allowed | — | — | derived: `n/a` |
+| provider | `providers/<name>` | — | — | — | — (tier instead) | — | — | — |
+| profile | `profiles/<name>` | — | derived: union | — | derived: max | — | — | — |
 
 ### Reach by kind
 

@@ -1,7 +1,6 @@
 # shellcheck shell=bash
 
 # Section 60 (bundle github): gh governance.
-# rule: gh auth token | gh auth status --show-token | gh config get oauth_token -> deny : prints the token; run plain 'gh auth status' instead
 # rule: gh api -X non-GET | --input | fields without a method | graphql mutation -> ask : API write; ask the user, or use the matching gh subcommand
 # rule: gh pr merge|review, release/repo/workflow/secret/auth/gist/... mutations -> ask : team-visible; ask the user (merges, reviews and releases are human-only)
 # rule: gh label create agent-* -> allow : governance label; other labels ask
@@ -11,8 +10,17 @@
 # rule: gh pr create -t with $VAR or backticks -> ask : the title cannot be checked; use a literal title instead
 # rule: gh issue create without -l agent-drafted|agent-created -> deny : provenance label required; use -l agent-drafted (or agent-created) instead
 # rule: gh pr|issue edit|comment|close|reopen on an agent-labelled ref -> allow : human refs ask; human issue close|reopen -> deny; fork PRs ask
+# repo-override: WORK_TICKET_BASE_BRANCH_RE = "^(master|main)$" -> default/base branches: pushes to them deny, sub MRs/PRs never target them
+# repo-override: WORK_TICKET_ALLOW_TRANSITION = "" -> =1: a state change (transition, close, reopen) on a purely human ticket or issue asks instead of denying
+# repo-override: WORK_TICKET_LABELED_DECISION = "allow" -> allow|ask: the decision for writes to agent-labelled tickets, issues, MRs and PRs
+# never-yields: prints the developer's stored credential (principle 8 exemption; runs even when the repository owns scm)
+# rule: gh auth token | gh auth status --show-token | gh config get oauth_token -> deny : prints the token; run plain 'gh auth status' instead
+printf '%s' "$flat" | grep -qE '\bgh\s+auth\s+token\b' && deny "gh auth token prints the GitHub OAuth token — gh authenticates by itself; check auth with 'gh auth status'"
+printf '%s' "$flat" | grep -qE '\bgh\s+auth\s+status\b[^;&|]*[[:space:]](--show-token|-t)([[:space:]=]|$)' && deny "gh auth status --show-token/-t prints the token — run plain 'gh auth status'"
+printf '%s' "$flat" | grep -qE '\bgh\s+config\s+get\b[^;&|]*\boauth_token\b' && deny "gh config get oauth_token prints the token — check auth with 'gh auth status'"
+repo_owns github/guard.d/60-github scm && return 0   # principle 8: the repository's .harness.toml owns this section or domain scm
 # ---- GitHub (gh) ------------------------------------------------------------------
-# Reads are free (settings.json allow). Order: token denies → gh api (per clause) → team-visible
+# Reads are free (settings.json allow). Order: token denies (prelude, above) → gh api (per clause) → team-visible
 # ask → label create → pr create (per clause) → issue create (per clause) → PR/issue write gates.
 # Asks are deferred so a deny anywhere in the command wins.
 # GitHub lookups: run in the command's cwd (repo resolution), never prompt, never page.
@@ -38,10 +46,7 @@ GH_TEAM_RE="${GHP}(pr\s+${GHR}(merge|review|update-branch|lock|unlock)|issue\s+$
 GH_PR_BOOL_RE='^--?(d|draft|undo|edit-last|create-if-none|delete-last|y|yes|w|web|delete-branch|remove-milestone|dry-run|e|editor)$'
 GH_ISSUE_BOOL_RE='^--?(e|editor|w|web|edit-last|create-if-none|delete-last|y|yes|remove-milestone|remove-parent)$'
 if printf '%s' "$flat" | grep -qE "${GHP}(pr|issue|label|api|release|repo|run|workflow|secret|variable|gist|auth|config|alias|ext(ension)?s?|ssh-key|gpg-key|project|cache)\b"; then
-  # -- 1. tokens are never printed (gh uses them internally)
-  printf '%s' "$flat" | grep -qE '\bgh\s+auth\s+token\b' && deny "gh auth token prints the GitHub OAuth token — gh authenticates by itself; check auth with 'gh auth status'"
-  printf '%s' "$flat" | grep -qE '\bgh\s+auth\s+status\b[^;&|]*[[:space:]](--show-token|-t)([[:space:]=]|$)' && deny "gh auth status --show-token/-t prints the token — run plain 'gh auth status'"
-  printf '%s' "$flat" | grep -qE '\bgh\s+config\s+get\b[^;&|]*\boauth_token\b' && deny "gh config get oauth_token prints the token — check auth with 'gh auth status'"
+  # -- 1. tokens: denied in the never-yields prelude above
 
   # -- 2. gh api (per clause): explicit non-GET → ask; --input → ask; fields without a method
   #       (gh auto-POSTs) → ask; explicit GET/HEAD + fields → pass (query params); graphql passes

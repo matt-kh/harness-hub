@@ -5,6 +5,8 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  # called by release.yml (job checks) so a release runs the same suite; secrets: inherit there
+  workflow_call:
 
 permissions:
   contents: read

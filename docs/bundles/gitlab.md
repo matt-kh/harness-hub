@@ -54,16 +54,16 @@ Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md
 
 **Rules**
 
-- `gitlab/rules/50-gitlab` — control: guide · function: govern
+- `gitlab/rules/50-gitlab` — control: guide · function: govern · yields: text
 
 **Guard sections**
 
-- `gitlab/guard.d/40-gitlab-closing` — control: sensor · domain: tracker · function: govern · decisions: deny 1
-- `gitlab/guard.d/50-gitlab` — control: sensor · function: govern · decisions: ask 6 · allow 3
+- `gitlab/guard.d/40-gitlab-closing` — control: sensor · domain: tracker · function: govern · decisions: deny 1 · yields: declaration
+- `gitlab/guard.d/50-gitlab` — control: sensor · function: govern · decisions: ask 6 · allow 3 · yields: declaration
 
 **Permission lists**
 
-- `gitlab/permissions` — control: guide · function: govern · decisions: ask 11 · allow 13
+- `gitlab/permissions` — control: guide · function: govern · decisions: ask 11 · allow 13 · yields: config
 
 **Doctor checks** (function: setup · posture: read-only; table below): `gitlab/doctor/gitlab-ssh`, `gitlab/doctor/glab-auth`, `gitlab/doctor/glab-binary`, `gitlab/doctor/glab-token-mode`
 

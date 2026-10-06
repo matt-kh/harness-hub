@@ -11,3 +11,5 @@
   exist only for the fields configured in `jira.fields`.
 - Secret: `~/.config/jira` holds the personal access token — never read or print it; check auth
   with `jira whoami`.
+
+A repository's own instructions for the same action replace this block.

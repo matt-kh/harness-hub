@@ -11,11 +11,13 @@ Pages and sources:
 * ``docs/providers/<p>.md``          ``providers/<p>/provider.toml``
 * ``docs/reference/config-schema.md`` ``schema/harness-config.schema.json`` (compiled with bundles)
 * ``docs/reference/cli.md``           ``lib/harness/cli.py`` (argparse help, 100 columns)
-* ``docs/reference/hook-policy.md``   ``bundles/*/guard.d`` (``# rule: <pattern> -> <decision> : <reason>``)
+* ``docs/reference/hook-policy.md``   ``bundles/*/guard.d`` (``# rule: <pattern> -> <decision> : <reason>``) and
+                                      ``bundles/*/guard.d#repo-overrides`` (``# repo-override: NAME = "default" -> effect``)
 * ``docs/reference/secrets.md``       ``bundles/*/bundle.toml`` (every ``[requires.secrets]``)
 * ``docs/reference/capability-matrix.md`` ``providers/*/provider.toml``
 * ``docs/reference/harness-coverage.md`` ``bundles/*/bundle.toml#harness`` (guides × sensors per bundle)
 * ``docs/reference/taxonomy.md``      ``lib/harness/taxonomy.py`` (facet values, facets and reach by kind)
+* ``docs/repo-level.md``             ``lib/harness/taxonomy.py#repo`` (what yields to a repository, by domain and id)
 * ``docs/catalog.md``                 ``bundles/*/bundle.toml#catalog`` (every component by kind) and
                                       ``bundles/*/bundle.toml#posture`` (domain × posture matrix)
 * ``templates/harness.toml.tmpl``     whole file, from the compiled schema
@@ -215,16 +217,17 @@ def catalog_body(bundles: Sequence[M.Bundle], providers: Sequence[M.Provider], h
                              ", ".join(e["functions"]), e["stability"], b.summary])
             out.append(table(["id", "domain", "posture", "functions", "stability", "summary"], rows))
         elif kind in ("skill", "agent"):
-            out.append(table(["id", "control", "domain", "function", "posture", "model", "summary"], [
-                [code(c.id), c.control or "", c.domain or "", c.function or "", c.posture or "", c.model or "", c.blurb]
-                for c in group]))
+            out.append(table(["id", "control", "domain", "function", "posture", "model", "yields", "summary"], [
+                [code(c.id), c.control or "", c.domain or "", c.function or "", c.posture or "", c.model or "",
+                 c.yields or "", c.blurb] for c in group]))
         elif kind == "rule":
-            out.append(table(["id", "control", "domain", "summary"], [
-                [code(c.id), c.control or "", c.domain or "", c.blurb] for c in group]))
+            out.append(table(["id", "control", "domain", "yields", "summary"], [
+                [code(c.id), c.control or "", c.domain or "", c.yields or "", c.blurb] for c in group]))
         elif kind in ("guard", "permission"):
             ids = ["[%s](reference/hook-policy.md)" % code(c.id) if kind == "guard" else code(c.id) for c in group]
-            out.append(table(["id", "control", "domain", "decisions", "note"], [
-                [i, c.control or "", c.domain or "", c.decisions or "", c.blurb] for i, c in zip(ids, group)]))
+            out.append(table(["id", "control", "domain", "decisions", "yields", "note"], [
+                [i, c.control or "", c.domain or "", c.decisions or "", c.yields or "", c.blurb]
+                for i, c in zip(ids, group)]))
         elif kind == "mcp":
             out.append(table(["id", "domain", "posture", "note"], [
                 [code(c.id), c.domain or "", c.posture or "", c.blurb] for c in group]))
@@ -292,7 +295,15 @@ def _facet_by_kind(kind: str) -> List[str]:
     model = "derived: front matter" if kind in ("skill", "agent") else "—"
     decisions = ("derived: `# rule:` comments" if kind == "guard" else "derived: allow/ask/deny lists"
                  if kind == "permission" else "—")
-    return [kind, shape, control, domain, function, posture, model, decisions]
+    if kind in T.KIND_YIELDS:
+        yields = "derived: %s" % code(T.KIND_YIELDS[kind])
+        if kind == "guard":
+            yields += " (`n/a` without `# rule:` comments; `never` for `core/guard.d/20-credentials`)"
+        elif kind == "permission":
+            yields += " (`never` for `core/permissions`)"
+    else:
+        yields = "—"
+    return [kind, shape, control, domain, function, posture, model, decisions, yields]
 
 
 def vocabulary_body(bundles: Sequence[M.Bundle], providers: Sequence[M.Provider]) -> str:
@@ -310,7 +321,7 @@ def vocabulary_body(bundles: Sequence[M.Bundle], providers: Sequence[M.Provider]
             rows.append([code(v), meaning, "%d (%s)" % (len(using), ", ".join(where)) if using else "0"])
         out.append(table(["value", "meaning", "components using it"], rows))
     out.append("### Facets by kind\n")
-    out.append(table(["kind", "id", "control", "domain", "function", "posture", "model", "decisions"],
+    out.append(table(["kind", "id", "control", "domain", "function", "posture", "model", "decisions", "yields"],
                      [_facet_by_kind(k) for k in T.KINDS]))
     out.append("### Reach by kind\n")
     out.append(table(["kind", "reach"], [[k, T.reach_line(k, list(providers))] for k in T.KINDS]))
@@ -444,9 +455,101 @@ def hook_rules(bundles: Sequence[M.Bundle]) -> List[Tuple[str, str, str, str, st
     return rows
 
 
+def hook_yields(bundles: Sequence[M.Bundle]) -> Dict[Tuple[str, str, str], str]:
+    """(section, bundle, pattern) -> how the rule yields to a repository (principle 8).
+
+    ``never`` for the credential section and for the rules of a ``# never-yields:`` prelude;
+    otherwise ``owns <domain>`` for a section that yields by declaration (``n/a`` without one).
+    """
+    from . import taxonomy as T
+    from .util import HarnessError
+
+    out: Dict[Tuple[str, str, str], str] = {}
+    for b in bundles:
+        try:
+            comps = {T.component_id(c.ref): c for c in T.components(b) if c.kind == "guard"}
+        except HarnessError:
+            comps = {}
+        for rel in b.guard_rules():
+            text = read_text(b.rel(rel)) or ""
+            lines = text.splitlines()
+            never = set(T.never_yield_rule_lines(text))
+            c = comps.get(T.component_id(rel))
+            for i, line in enumerate(lines, 1):
+                m = RULE_RE.match(line.strip())
+                if not m:
+                    continue
+                if i in never or (c is not None and c.yields == "never"):
+                    how = "never"
+                elif c is not None and c.yields == "declaration":
+                    how = "owns %s" % (c.domain or c.id)
+                else:
+                    how = "n/a"
+                out[(os.path.basename(rel), b.name, m.group("pat"))] = how
+    return out
+
+
 def hook_body(bundles: Sequence[M.Bundle]) -> str:
-    rows = [[s, b, code(p), d, r] for s, b, p, d, r in hook_rules(bundles)]
-    return table(["section", "bundle", "pattern", "decision", "reason"], rows)
+    ys = hook_yields(bundles)
+    rows = [[s, b, code(p), d, r, ys.get((s, b, p), "n/a")] for s, b, p, d, r in hook_rules(bundles)]
+    return (table(["section", "bundle", "pattern", "decision", "reason", "yields"], rows)
+            + "\n`yields`: `owns <domain>` = the rule is skipped in a repository whose `.harness.toml` owns that "
+            "domain or the section's id; `never` = no repository lifts it: the developer's own credentials "
+            "(credential files, commands that print stored credentials) and the ask on shell writes to "
+            "`.harness.toml` (a `# never-yields:` prelude above the section's `repo_owns` line).\n")
+
+
+def repo_overrides_body(bundles: Sequence[M.Bundle]) -> str:
+    """``docs/reference/hook-policy.md#repo-overrides``: the names a repository may set (principle 8)."""
+    from . import taxonomy as T
+
+    by_name: Dict[str, Dict[str, Any]] = {}
+    for o in T.repo_overrides(bundles):
+        e = by_name.setdefault(o["name"], {"default": o["default"], "effect": o["effect"], "sections": []})
+        if o["section"] not in e["sections"]:
+            e["sections"].append(o["section"])
+    config_keys: Dict[str, List[str]] = {}
+    for b in bundles:
+        for k, v in b.env().items():
+            for key in re.findall(r"\{\{\s*([A-Za-z0-9_.]+)\s*\}\}", str(v)):
+                config_keys.setdefault(k, []).append(key)
+    rows = []
+    for name in sorted(by_name):
+        e = by_name[name]
+        src = ["`.harness.toml` `[overrides]`", "provider env (wins)"]
+        src += ["`guard.env` ← %s" % ", ".join(code(k) for k in config_keys[name])] if name in config_keys else []
+        rows.append([code(name), code(e["default"]) if e["default"] else "(empty)", e["effect"],
+                     ", ".join(code(sid) for sid in e["sections"]), " · ".join(src)])
+    deny = ", ".join(code(n) for n in T.REPO_OVERRIDE_DENY)
+    return (table(["name", "default", "effect", "honoured by", "set from"], rows)
+            + "\nPrecedence per name: environment > `.harness.toml` `[overrides]` > `guard.env` > default. "
+            "Never settable from `.harness.toml` (only from the developer's own environment): %s.\n" % deny)
+
+
+def repo_yields_body(bundles: Sequence[M.Bundle]) -> str:
+    """``docs/repo-level.md#reference-what-yields``: what a ``.harness.toml`` can own (principle 8)."""
+    from . import taxonomy as T
+
+    ownable = T.ownable_ids(bundles)
+    rows = []
+    for d in T.FACETS["domain"]:
+        guards = [c for c in ownable if c.domain == d and c.kind == "guard"]
+        skills = [c for c in ownable if c.domain == d and c.kind == "skill"]
+        rows.append([code(d), ", ".join(code(c.id) for c in guards) or "—", ", ".join(code(c.id) for c in skills) or "—"])
+    out = ["Components that yield by declaration: listing a domain in `[owns] domains` covers every row of "
+           "that domain; `[owns] components` takes the ids below.\n",
+           table(["domain", "guard sections that yield", "skills that yield"], rows),
+           table(["id", "kind", "domain", "bundle"],
+                 [[code(c.id), c.kind, c.domain or "", c.bundle] for c in ownable])]
+    never = [c for b in bundles for c in T.components(b) if c.yields == "never"]
+    by_name = {b.name: b for b in bundles}
+    preludes = [c for c in ownable if c.kind == "guard"
+                and T.never_yield_rule_lines(read_text(by_name[c.bundle].rel(c.ref)) or "")]
+    out.append("Never yield, whatever the file says: %s, and the `# never-yields:` prelude rules of %s "
+               "(marked `never` in the [hook policy](reference/hook-policy.md)). Agents yield by name, rules by "
+               "text and permission lists by config ([taxonomy](reference/taxonomy.md)).\n"
+               % (", ".join(code(c.id) for c in never), ", ".join(code(c.id) for c in preludes) or "no section"))
+    return "\n".join(out)
 
 
 def secrets_body(bundles: Sequence[M.Bundle]) -> str:
@@ -616,7 +719,10 @@ def expected(home: str) -> Dict[str, List[Tuple[str, str, str]]]:
     pages.setdefault(ref + "config-schema.md", []).append(
         ("schema/harness-config.schema.json", config_body(schema), "# Configuration reference"))
     pages.setdefault(ref + "cli.md", []).append(("lib/harness/cli.py", cli_body(), "# CLI reference"))
-    pages.setdefault(ref + "hook-policy.md", []).append(("bundles/*/guard.d", hook_body(bundles), "# Hook policy"))
+    pages.setdefault(ref + "hook-policy.md", []).extend([
+        ("bundles/*/guard.d", hook_body(bundles), "# Hook policy"),
+        ("bundles/*/guard.d#repo-overrides", repo_overrides_body(bundles), "# Hook policy"),
+    ])
     pages.setdefault(ref + "secrets.md", []).append(("bundles/*/bundle.toml", secrets_body(bundles), "# Secrets"))
     pages.setdefault(ref + "capability-matrix.md", []).append(
         ("providers/*/provider.toml", matrix_body(providers), "# Capability matrix"))
@@ -624,6 +730,8 @@ def expected(home: str) -> Dict[str, List[Tuple[str, str, str]]]:
         ("bundles/*/bundle.toml#harness", coverage_body(bundles), "# Harness coverage"))
     pages.setdefault(ref + "taxonomy.md", []).append(
         ("lib/harness/taxonomy.py", vocabulary_body(bundles, providers), "# Taxonomy"))
+    pages.setdefault("docs/repo-level.md", []).append(
+        ("lib/harness/taxonomy.py#repo", repo_yields_body(bundles), "# Repository-level harnesses"))
     pages.setdefault("docs/catalog.md", []).extend([
         ("bundles/*/bundle.toml#catalog", catalog_body(bundles, providers, home), "# Catalog"),
         ("bundles/*/bundle.toml#posture", posture_body(bundles), "# Catalog"),

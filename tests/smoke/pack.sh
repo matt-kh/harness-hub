@@ -8,6 +8,12 @@
 #   5. bootstrap --from <bundle> --dest TMP/hub --bundles core --providers claude --yes
 #      --offline --config <snapshot>/tests/fixtures/harness.ci.toml   (temp HOME, fakes on PATH)
 #   6. the installed hub's doctor --offline exits 0
+#   7. harness pack --tag 0.0.0-smoke --self-extract: sh FILE.run --check, --list, --extract DIR
+#      (every file byte-identical), harness verify FILE.run, a tampered .run fails --check
+#   8. sh FILE.run --dest TMP/hub2 ... into a second temp HOME: the clone is at the tag commit,
+#      origin is under $HOME/.local/share/harness/releases/0.0.0-smoke/, doctor --offline is 0
+#   9. the same .run on the same --dest (the documented --offline --no-install-tools command line)
+#      takes the upgrade path: harness upgrade --to the tag, --no-install-tools dropped with a note
 # Nothing outside the temp directory is written (HARNESS_BUILD_DIR keeps build/ products there).
 set -eu
 here=$(cd "$(dirname "$0")/../.." && pwd)
@@ -38,7 +44,7 @@ done) < "$tmp/files"
 git -C "$src" init -q
 git -C "$src" add -A
 git -C "$src" commit -q -m "smoke snapshot"
-git -C "$src" tag -a v0.0.0-smoke -m smoke
+git -C "$src" tag -a 0.0.0-smoke -m smoke
 
 step "pack"
 rel="$tmp/rel"
@@ -48,9 +54,9 @@ for f in "$rel"/*.bundle; do [ -f "$f" ] && b=$f; done
 [ -n "$b" ] || { cat "$tmp/pack.log"; die "no .bundle written"; }
 [ -s "$rel/INSTALL.txt" ] || die "INSTALL.txt missing"
 [ -s "$rel/SHA256SUMS" ] || die "SHA256SUMS missing"
-case "$(basename "$b")" in harness-hub-v0.0.0-smoke.bundle) ;; *) die "unexpected bundle name $(basename "$b")" ;; esac
+case "$(basename "$b")" in harness-hub-0.0.0-smoke.bundle) ;; *) die "unexpected bundle name $(basename "$b")" ;; esac
 grep -q "  $(basename "$b")\$" "$rel/SHA256SUMS" || die "SHA256SUMS does not list the bundle"
-git bundle list-heads "$b" | grep -q ' refs/tags/v0.0.0-smoke$' || die "bundle lacks the tag"
+git bundle list-heads "$b" | grep -q ' refs/tags/0.0.0-smoke$' || die "bundle lacks the tag"
 
 step "verify"
 "$src/bin/harness" verify "$b" > "$tmp/verify.log" 2>&1 || { cat "$tmp/verify.log"; die "verify exited non-zero"; }
@@ -89,4 +95,55 @@ step "doctor --offline in the installed hub"
 "$dest/bin/harness" doctor --offline --config "$src/tests/fixtures/harness.ci.toml" > "$tmp/doctor.log" 2>&1 \
   || { cat "$tmp/doctor.log"; die "doctor --offline exited non-zero"; }
 
-echo "smoke pack: ok ($(basename "$b"))"
+step "pack --self-extract"
+relx="$tmp/relx"
+"$src/bin/harness" pack --out "$relx" --tag 0.0.0-smoke --self-extract > "$tmp/packx.log" 2>&1 \
+  || { cat "$tmp/packx.log"; die "pack --self-extract exited non-zero"; }
+run="$relx/harness-hub-0.0.0-smoke.run"
+[ -f "$run" ] || { cat "$tmp/packx.log"; die "no .run written"; }
+grep -q "  harness-hub-0.0.0-smoke.run\$" "$relx/SHA256SUMS" || die "SHA256SUMS does not list the .run"
+
+step ".run --check / --list / --extract"
+sh "$run" --check > "$tmp/check.log" 2>&1 || { cat "$tmp/check.log"; die ".run --check exited non-zero"; }
+grep -q 'payload ok' "$tmp/check.log" || { cat "$tmp/check.log"; die ".run --check did not report ok"; }
+sh "$run" --list > "$tmp/list.log" 2>&1 || { cat "$tmp/list.log"; die ".run --list exited non-zero"; }
+for f in harness-hub-0.0.0-smoke.bundle INSTALL.txt SHA256SUMS; do
+  grep -q "^$f\$" "$tmp/list.log" || { cat "$tmp/list.log"; die ".run --list does not name $f"; }
+done
+sh "$run" --extract "$tmp/x" > "$tmp/extract.log" 2>&1 || { cat "$tmp/extract.log"; die ".run --extract exited non-zero"; }
+cmp "$tmp/x/harness-hub-0.0.0-smoke.bundle" "$relx/harness-hub-0.0.0-smoke.bundle" || die "extracted bundle differs"
+cmp "$tmp/x/INSTALL.txt" "$relx/INSTALL.txt" || die "extracted INSTALL.txt differs"
+grep -v '\.run$' "$relx/SHA256SUMS" | cmp - "$tmp/x/SHA256SUMS" || die "inner SHA256SUMS is not the outer one minus the .run line"
+"$src/bin/harness" verify "$run" > "$tmp/verifyx.log" 2>&1 || { cat "$tmp/verifyx.log"; die "verify FILE.run exited non-zero"; }
+
+step "a tampered .run fails --check"
+size=$(wc -c < "$run" | tr -d ' ')
+head -c $((size - 512)) "$run" > "$tmp/bad.run"
+if sh "$tmp/bad.run" --check > "$tmp/badrun.log" 2>&1; then die ".run --check accepted a truncated file"; fi
+grep -q 'truncated' "$tmp/badrun.log" || { cat "$tmp/badrun.log"; die "truncation error does not say truncated"; }
+
+step "install from the .run (second temp HOME)"
+mkdir -p "$tmp/home2"
+dest2="$tmp/hub2"
+HOME="$tmp/home2" sh "$run" --dest "$dest2" --bundles core --providers claude --yes --offline --no-install-tools \
+  --config "$src/tests/fixtures/harness.ci.toml" > "$tmp/runinstall.log" 2>&1 \
+  || { cat "$tmp/runinstall.log"; die ".run install exited non-zero"; }
+[ "$(git -C "$dest2" rev-parse HEAD)" = "$(git -C "$src" rev-parse '0.0.0-smoke^{commit}')" ] \
+  || die "the .run clone is not at the tag commit"
+case "$(git -C "$dest2" remote get-url origin)" in
+  "$tmp/home2/.local/share/harness/releases/0.0.0-smoke/"*) ;;
+  *) die "origin $(git -C "$dest2" remote get-url origin) is not under the release dir" ;;
+esac
+HOME="$tmp/home2" "$dest2/bin/harness" doctor --offline --config "$src/tests/fixtures/harness.ci.toml" \
+  > "$tmp/doctor2.log" 2>&1 || { cat "$tmp/doctor2.log"; die "doctor --offline after the .run install exited non-zero"; }
+
+step "the same .run on the same --dest upgrades"
+# exactly the documented command (README, getting started): the install-only flag is dropped
+HOME="$tmp/home2" sh "$run" --dest "$dest2" --offline --no-install-tools --yes \
+  --config "$src/tests/fixtures/harness.ci.toml" \
+  > "$tmp/runupgrade.log" 2>&1 || { cat "$tmp/runupgrade.log"; die ".run upgrade path exited non-zero"; }
+grep -q 'upgrading ' "$tmp/runupgrade.log" || { cat "$tmp/runupgrade.log"; die ".run did not take the upgrade path"; }
+grep -q 'install-only flags ignored for the upgrade: --no-install-tools$' "$tmp/runupgrade.log" \
+  || { cat "$tmp/runupgrade.log"; die ".run upgrade did not report the dropped --no-install-tools"; }
+
+echo "smoke pack: ok ($(basename "$b"), $(basename "$run"))"

@@ -29,6 +29,7 @@ hn_realpath() {  # PATH
   python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$1"
 }
 
+# Twin: lib/harness/selfextract-header.sh carries an identical copy (tests/unit/test_pack.py checks).
 hn_sha256() {  # FILE
   if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1" | awk '{print $1}'
   elif command -v shasum >/dev/null 2>&1; then shasum -a 256 "$1" | awk '{print $1}'

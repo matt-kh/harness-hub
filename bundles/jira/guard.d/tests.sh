@@ -6,7 +6,7 @@
 t pass  'jira get LBL-1'
 t pass  'jira links LBL-1'
 t pass  'jira api /rest/api/2/issueLinkType'
-t pass  'git commit -m "LBL-1 fix parser"'
+WORK_TICKET_KEY_IN_BRANCH=1 t pass 'git commit -m "LBL-1 fix parser"'   # key-prefixed subjects ask in section 75 otherwise
 t pass  'git push -u origin LBL-1-feature'
 t pass  'glab mr view 100 -F json'
 t pass  'glab mr list --search LBL-1'
@@ -92,3 +92,21 @@ rm -rf "$lay"
 HARNESS_JIRA_LINK_TYPES='Relates, Depends (on)' t allow 'jira link LBL-1 "Depends (on)" LBL-2'
 HARNESS_JIRA_LINK_TYPES='Relates, Depends (on)' t deny  'jira link LBL-1 Blocks LBL-2'
 HARNESS_JIRA_LINK_TYPES='Relates' HARNESS_JIRA_LINK_TYPES_RE='^(blocks)$' t allow 'jira link LBL-1 Blocks LBL-2'
+# ---- repository-level declaration: .harness.toml (principle 8) ----------------------
+decl '[overrides]' 'WORK_TICKET_ALLOW_TRANSITION = "1"'
+r ask   'jira transition HUM-1 "In Progress"'                 # the repository's workflow transitions tickets
+r allow 'jira transition LBL-1 "In Progress"'
+WORK_TICKET_ALLOW_TRANSITION=0 r deny 'jira transition HUM-1 "In Progress"'   # the real environment wins
+decl '[overrides]' 'WORK_TICKET_LABELED_DECISION = "ask"'
+r ask   'jira comment LBL-1 "hi"'
+decl '[overrides]' 'WORK_TICKET_JIRA_PY = "/bin/true"'      # bypass: client paths are never repo-settable
+r deny  'jira transition HUM-1 "In Progress"'
+decl '[owns]' 'domains = ["tracker"]'
+r pass  'jira transition HUM-1 "In Progress"'                 # the repository owns the tracker: its harness decides
+r pass  'jira create PROJ Task "x"'
+r pass  'jira comment HUM-1 "hi"'
+decl '[owns]' 'components = ["jira/guard.d/70-jira"]'
+r pass  'jira transition HUM-1 "In Progress"'
+decl '[owns]' 'domains = ["scm"]'
+r deny  'jira transition HUM-1 "In Progress"'                 # another domain: unchanged
+decl

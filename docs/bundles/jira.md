@@ -6,7 +6,8 @@ MCP server, and the Jira write gate.
 - Reads are free: `jira get`, `jira search`, `jira fields PROJ`, sprints, versions, links.
 - Creates need a provenance label; writes to tickets carrying an `agent-*` label are
   promptless; writes to purely human tickets **ask**; state transitions on human tickets are
-  **denied** (`WORK_TICKET_ALLOW_TRANSITION=1` per repo turns that into ask).
+  **denied** (`WORK_TICKET_ALLOW_TRANSITION = "1"` in a repository's `.harness.toml` turns
+  that into ask; [repository-level harnesses](../repo-level.md)).
 - The MCP server (`mcp-atlassian` through `uvx`) runs with `READ_ONLY_MODE=true` and receives
   the token by file reference, never inline.
 - Plain text in comments and descriptions (Jira wiki markup), never Cloud's ADF.
@@ -57,27 +58,27 @@ Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md
 
 **Skills**
 
-- `jira/skills/jira` — control: guide · function: client · posture: label-gated · model: execute
+- `jira/skills/jira` — control: guide · function: client · posture: label-gated · model: execute · yields: declaration
 
 **Rules**
 
-- `jira/rules/70-jira` — control: guide · function: govern
+- `jira/rules/70-jira` — control: guide · function: govern · yields: text
 
 **Guard sections**
 
-- `jira/guard.d/70-jira` — control: sensor · function: govern · decisions: deny 3 · ask 1 · allow 4
+- `jira/guard.d/70-jira` — control: sensor · function: govern · decisions: deny 3 · ask 1 · allow 4 · yields: declaration
 
 **Permission lists**
 
-- `jira/permissions` — control: guide · function: govern · decisions: allow 12
+- `jira/permissions` — control: guide · function: govern · decisions: allow 12 · yields: config
 
 **MCP servers**
 
-- `jira/mcp/jira-mcp` — function: client · posture: read-only
+- `jira/mcp/jira-mcp` — function: client · posture: read-only · yields: n/a
 
 **CLIs**
 
-- `jira/bin/jira` — function: client · posture: label-gated
+- `jira/bin/jira` — function: client · posture: label-gated · yields: n/a
 
 **Doctor checks** (function: setup · posture: read-only; table below): `jira/doctor/jira-auth`, `jira/doctor/jira-cli`, `jira/doctor/jira-token-file`, `jira/doctor/uvx`
 
