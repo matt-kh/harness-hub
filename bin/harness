@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # harness — launcher for the harness-hub engine (lib/harness, python stdlib only).
 #
-# Locates HARNESS_HOME (the directory that contains bin/harness, following symlinks such as
+# Sets HARNESS_HOME to the directory that contains bin/harness (following symlinks such as
 # ~/.local/bin/harness), checks the runtime prerequisites and hands over to
 # `python3 -m harness`. Must parse under bash 3.2 (macOS /bin/bash): no mapfile, no
 # associative arrays, no readlink -f.
@@ -15,7 +15,15 @@ while [ -L "$src" ]; do
   case "$src" in /*) ;; *) src="$dir/$src" ;; esac
 done
 self_home=$(cd -P "$(dirname "$src")/.." && pwd)
-HARNESS_HOME=${HARNESS_HOME:-$self_home}
+# A checkout's bin/harness always runs that checkout. An inherited HARNESS_HOME (a shell profile or
+# provider settings pinning the main checkout) would otherwise make a worktree's hooks and `make`
+# targets lint and test the other checkout; it stays relevant only for `python3 -m harness` and
+# the rendered scripts. `--home DIR` remains the explicit override.
+if [ -n "${HARNESS_HOME:-}" ] && [ "$(cd -P "$HARNESS_HOME" 2>/dev/null && pwd)" != "$self_home" ]; then
+  printf 'harness: running the checkout at %s (HARNESS_HOME=%s is another checkout; use its own bin/harness to run it)\n' \
+    "$self_home" "$HARNESS_HOME" >&2
+fi
+HARNESS_HOME=$self_home
 export HARNESS_HOME
 
 die() { printf 'harness: %s\n' "$*" >&2; exit 127; }

@@ -1,7 +1,6 @@
 # shellcheck shell=bash
 
 # Section 25 (bundle k8s): kubeconfig, Secret data, cluster and infra mutations.
-# rule: kubectl config view --raw -> deny : prints credentials; use plain 'kubectl config view' (redacted) instead
 # rule: kubectl config use-context|set-*|delete-*|rename-context -> deny : kubeconfig is human-managed; pass --context on every command instead (see the k8s rule)
 # rule: aws eks update-kubeconfig | eksctl utils write-kubeconfig -> deny : kubeconfig is human-managed; pass --context on every command instead (see the k8s rule)
 # rule: kubectl get secret(s) -o yaml|json|jsonpath|template | get --raw .../secrets -> deny : Secret values are never printed; use 'k8s secret-keys NS NAME' or pipe through 'k8s redact' instead
@@ -12,9 +11,12 @@
 # rule: helm install|upgrade|uninstall|rollback|test|push|registry login -> ask : release mutation; use 'helm template' read-only, or hand the command to the user instead
 # rule: argocd app(set) sync|delete|set|... | flux reconcile|... | eksctl create|... -> ask : GitOps / cluster mutation; change the GitOps repo instead, or hand the command to the user
 # rule: pulumi up|destroy|refresh|import | terraform apply|destroy|import -> ask : IaC state mutation; run a preview / plan instead, or hand the command to the user
+# never-yields: prints the developer's stored credential (principle 8 exemption; runs even when the repository owns kubernetes)
+# rule: kubectl config view --raw -> deny : prints credentials; use plain 'kubectl config view' (redacted) instead
+printf '%s' "$flat" | grep -qE "${KC}config\s+view\b[^;&|]*\s--raw(=true)?([[:space:]\"')]|$)" && deny "kubectl config view --raw prints credentials — drop --raw (kubectl redacts by default)"
+repo_owns k8s/guard.d/25-k8s-rules kubernetes && return 0   # principle 8: the repository's .harness.toml owns this section or domain kubernetes
 # ---- Kubernetes rules (run after the credential clause loop, as before the split) ----
-# kubeconfig: deny raw credentials, deny context-cluster-user edits
-printf '%s' "$flat" | grep -qE "${KC}config\s+view\b[^;&|]*\s--raw(=true)?(\s|$)" && deny "kubectl config view --raw prints credentials — drop --raw (kubectl redacts by default)"
+# kubeconfig: raw credentials are denied in the never-yields prelude above; deny context-cluster-user edits
 printf '%s' "$flat" | grep -qE "${KC}config\s+(use-context|set-context|set-cluster|set-credentials|set|unset|delete-context|delete-cluster|delete-user|rename-context)\b" && deny "kubeconfig mutation — never switch or edit contexts; pass --context <ctx> on every command"
 printf '%s' "$flat" | grep -qE '\baws\s+eks\s+update-kubeconfig\b|\beksctl\s+utils\s+write-kubeconfig\b' && deny "kubeconfig mutation — kubeconfig is human-managed"
 # Secret data output: DENY unless piped through the k8s redactor (user decision: values never)

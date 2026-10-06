@@ -248,4 +248,5 @@ sensors = [
   { kind = "test", ref = "tests/run.sh", note = "full guard suite, helper drift, bash -n of every script" },
   { kind = "review-agent", ref = "agents/code-reviewer.md", note = "inferential review of a diff against the conventions" },
   { kind = "provider-feature", ref = "claude:auto-mode-classifier", note = "reviews the Auto agent's actions" },
+  { kind = "lint", ref = "yields", note = "principle 8: every component carries its repository-level yield (repo_owns line, Step 0, baseline sentence); credentials never yield" },
 ]

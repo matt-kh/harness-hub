@@ -32,7 +32,8 @@ need it and which layer the current value came from. The path is `--config PATH`
 `$HARNESS_CONFIG` > `$HARNESS_HOME/local/harness.toml`.
 
 The engine compiles the layered result to `build/config.json` (for itself and the python
-tools) and `build/guard.env` (flat `KEY=value` lines the guard sources at start-up).
+tools) and `build/guard.env` (flat `KEY=value` lines the guard parses at start-up — never
+sourced; a variable already set in the environment wins).
 
 ## Bundles
 
@@ -159,25 +160,25 @@ into the bundle source so it survives the next `apply` (and can be committed).
 
 ## Precedence
 
-Two rules decide which instruction or guard wins:
+The hub is a **user-level harness by design** ([principle 8](../principles/08-user-level-by-design.md)):
+everything it renders is a baseline that yields to an equivalent repository-level harness,
+wholesale and never merged. A component yields in one of three ways:
 
-1. **Repository-level beats user-level, wholesale.** A repo's own `CLAUDE.md` / `AGENTS.md`,
-   `.claude/` settings, skills, hooks or documented conventions for the same action
-   **replace** the user-level behaviour for sessions in that repo; they are never merged.
-   User-level skills detect a repo-level equivalent in their preflight and hand over to it.
-2. **Hooks stack, so a repo cannot un-deny.** Provider hooks from all levels run; a user-level
-   deny cannot be lifted by a repo hook. Repos therefore switch off individual user-level guard
-   behaviours through environment overrides in their own settings (for Claude Code,
-   `.claude/settings.json` → `"env"`), for example:
+1. **Declaration.** The repository's `.harness.toml` names the domains or component ids it
+   owns (`[owns]`) and sets allow-listed overrides (`[overrides]`). The guard reads it from
+   the hook's working directory; skills read it at preflight; `harness repo` shows the effect.
+2. **Name.** Where the provider resolves a collision by name (Claude Code sub-agents), the
+   repository's component replaces the hub's. Note the opposite for Claude Code skills: a
+   hub skill shadows a repository skill of the same name until the repository turns it off
+   with `skillOverrides`.
+3. **Text and config.** Instruction files are concatenated, never replaced: the hub's rule
+   text tells the agent the repository's wins where they differ. Provider `env` overrides
+   win per key: environment > `.harness.toml` > `guard.env` > default.
 
-   | Variable | Effect in that repo |
-   |---|---|
-   | `WORK_TICKET_ALLOW_DEFAULT_PUSH_RE` | regex on the repo path; a push to its default branch asks instead of denying (personal repos) |
-   | `WORK_TICKET_ALLOW_TRANSITION=1` | ticket state changes on human tickets ask instead of denying (repos whose own workflow transitions tickets) |
-   | `WORK_TICKET_KEY_IN_BRANCH=1` | declares the repo puts ticket keys in branch names |
-   | `WORK_TICKET_LABELED_DECISION` | `allow` or `ask` for writes to agent-labelled artefacts |
-
-   The full list, with defaults, is in the [hook policy reference](reference/hook-policy.md).
+The exception: the developer's own credentials never yield — the denies on reading
+credential files (`core/guard.d/20-credentials`, `core/permissions`) and the `# never-yields:`
+preludes (commands that print a stored credential; the ask on writing `.harness.toml`). Details, the Claude Code
+facts table and the `.harness.toml` reference: [repository-level harnesses](repo-level.md).
 
 ## The `agent-*` label model
 

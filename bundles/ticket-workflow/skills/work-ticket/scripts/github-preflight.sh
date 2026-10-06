@@ -27,7 +27,7 @@ except OSError:
 # <<< hn_timeout
 # shellcheck source=lib/repo-facts.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/repo-facts.sh"
-rf_load                                   # root host def dirty precommit repo_skill
+rf_load                                   # root host def dirty precommit repo_skill repo_decl repo_owns
 
 GH="${WORK_TICKET_GH:-gh}"
 export GH_PROMPT_DISABLED=1 GH_NO_UPDATE_NOTIFIER=1 GH_PAGER=cat NO_COLOR=1
@@ -382,6 +382,7 @@ ci_cost=$(json_or "$ci_cost" '{"heuristic":"failed"}')
 
 warn_json=$(printf '%s\n' "${warnings[@]+"${warnings[@]}"}" | jq -R 'select(length>0)' | jq -sc .)
 jq -n --arg root "$root" --arg host "$host" --arg def "$def" --arg tmpl "$tmpl" --arg skill "$repo_skill" \
+      --arg rdecl "$repo_decl" --argjson rowns "$repo_owns" \
       --arg me "$me" --arg plan "$plan" --arg origin "$origin_repo" --arg base "$base_repo" --arg perm "$perm" \
       --arg codeowners "$codeowners" --arg contributing "$contributing" \
       --arg iref "$issue_ref" --arg irepo "$issue_repo" --arg inum "$issue_num" \
@@ -413,5 +414,5 @@ def nn: if . == "" then null else . end;
  issue:(if $inum == "" then null else {ref:$iref, repo:(($irepo|nn) // ($base|nn)), number:($inum|tonumber)} end),
  existing_prs:$prs, stack_detected:([$prs[].headRefName | select(test("-sub-"))] | length > 0),
  ci:({checks:$checks, precommit:$precommit} + $cost),
- repo_skill:($skill|nn),
+ repo_skill:($skill|nn), repo_declaration:($rdecl|nn), repo_owns:$rowns,
  warnings:$warn}'

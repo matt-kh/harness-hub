@@ -8,6 +8,8 @@
 # rule: <reader> path matching HARNESS_CRED_EXTRA_RE -> deny : org-specific credential paths; run the tool's own auth status command instead
 # rule: env | printenv (no command) -> deny : dumps the whole environment; print named non-secret variables instead
 # rule: printenv NAME | echo $NAME (NAME looks secret) -> deny : prints a secret; test presence with [ -n "${VAR:+x}" ] instead
+# Never yields to a repository (principle 8): these files belong to the developer, not the repository —
+# no repo_owns line here, and the engine refuses it too (REPO_NEVER_YIELDS).
 # ---- Credentials: shared regexes (also used by 25-k8s-rules for kubeconfig paths) ----
 HOME_RE='(~|\$HOME|\$\{HOME\}|/home/[^/ ]+|/root)'
 KUBE_FILE_RE='(\$\{?KUBECONFIG\}?|'"$HOME_RE"'/\.kube/)'

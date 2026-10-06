@@ -14,6 +14,14 @@ home = "~/.claude"
 verified = "Claude Code 2.1.x, 2026-09-30 (local)"
 docs = "docs/providers/claude.md"
 
+# Name collisions with a repository's .claude/ (principle 8; read by `harness repo`): a personal
+# skill shadows a project skill of the same name, a project sub-agent wins over a personal one.
+[precedence]
+skills = "user"
+agents = "project"
+repo_dir = ".claude"
+skill_override_hint = '"skillOverrides": {"<name>": "off"}'
+
 [targets]
 instructions = { path = "~/.claude/CLAUDE.md", mode = "managed-block" }
 skills       = { path = "~/.claude/skills/<name>", mode = "dir" }

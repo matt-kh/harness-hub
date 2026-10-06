@@ -70,7 +70,8 @@ Layering, lowest to highest precedence:
 5. environment `HARNESS_<SECTION>_<KEY>` (e.g. `HARNESS_JIRA_URL`)
 
 Resolution: `--config PATH` > `$HARNESS_CONFIG` > `$HARNESS_HOME/local/harness.toml`.
-`HARNESS_HOME` defaults to the directory that contains `bin/harness`.
+`bin/harness` sets `HARNESS_HOME` to the checkout it lives in (an inherited value naming another
+checkout is ignored with a note); `python3 -m harness` and rendered scripts read the variable as is.
 
 Canonical keys (bundles declare what they need under `[requires.config]`; the compiled schema
 is the union):
@@ -137,7 +138,8 @@ warn_only = []                          # doctor check ids downgraded to WARN
 ```
 
 The engine compiles the layered result to `build/config.json` (for itself and for python
-tools) and `build/guard.env` (flat `KEY=value` lines sourced by the guard; see §5). Every
+tools) and `build/guard.env` (flat `KEY=value` lines parsed by the guard, never sourced; see
+§5). Every
 bundle contributes its env names in `[provides.env]`.
 
 Build directory: `$HARNESS_BUILD_DIR` if set; else `<hub>/build` only when the config is the
@@ -252,11 +254,15 @@ Rules:
   take no posture and have a fixed function (as do CLIs, MCP servers and doctor checks).
   Kind, control, model and decisions are derived. Facets never go into provider-format
   front matter. `harness lint` (rule `taxonomy`) checks all of this; `harness catalog` and
-  `docs/catalog.md` list every component.
+  `docs/catalog.md` list every component. `yields` is derived from the kind (declaration,
+  name, text, config, never, n/a); `never` is reserved for `core/guard.d/20-credentials` and
+  `core/permissions`; a declaration guard section starts with
+  `repo_owns <id> <domain> && return 0` (§5, §11).
 - Numeric prefixes order rule fragments and guard sections across bundles
   (`10` k8s, `20` credentials, `25` k8s rules, `30` git, `40`/`41` closing keywords
   (gitlab/github), `50` gitlab, `60` github, `70` jira, `75` ticket workflow, `80` gdoc,
   `90+` private); a rule and the guard section that enforces it share `NN-<topic>`.
+  Bands reserved for planned bundles are listed in [docs/roadmap.md](docs/roadmap.md).
 
 ### 4. Providers: `providers/<name>/`
 
@@ -309,8 +315,21 @@ exit  : 0 always; malformed input → deny (fail closed)
 `guard.d/NN-*.sh` is a section that only uses those helpers. **Render concatenates**
 `engine.sh` + active sections sorted by prefix + `engine-flush.sh` into one
 `hooks/guard-bash.sh` per provider home, so runtime cost equals today's single file and the
-audit surface is one file. The concatenated script sources `hooks/guard.env` (from
-`build/guard.env`) at start; environment variables already set win.
+audit surface is one file. The concatenated script parses `hooks/guard.env` (from
+`build/guard.env`; flat `KEY=value`, never sourced) at start; environment variables already
+set win.
+
+**Repository yield.** Before the sections run, the engine resolves the repository root from
+the hook's `cwd` (not from a command's target directory) and reads `.harness.toml` (§11)
+without a subshell per line, so a full-size file stays inside the hook's time budget. Every
+section runs as a function; a yielding section's first command is the yield check, and it
+emits nothing when the repository owns its domain or id. Only plain shared assignments and a
+marked `# never-yields:` prelude may precede the check: the prelude holds the rules no
+repository lifts (commands that print a stored credential; the ask on shell writes to
+`.harness.toml`). `20-credentials` carries no check (and is hard-listed in
+`REPO_NEVER_YIELDS`). Override precedence: environment > `.harness.toml` `[overrides]` >
+`guard.env` > default; only allow-listed `WORK_TICKET_*` names (the `# repo-override:`
+comments) are read from the file.
 
 Provider shims translate envelopes:
 
@@ -332,22 +351,24 @@ with stubs from `bundles/core/guard/tests/stubs/` on `PATH`.
 `bootstrap [--from FILE.bundle [--dest DIR] [--origin URL]]`, `init`, `bundles`,
 `catalog [--kind K] [--bundle B] [--domain D]`,
 `config validate|get|set|explain|migrate`, `plan`, `apply`, `sync`, `render`, `doctor`,
-`status [--matrix]`, `install <tool>`, `upgrade`, `pack [--out DIR] [--tag TAG] [--tools os/arch,...]`,
-`verify FILE.bundle`, `uninstall`, `test [suite]`, `lint [--skip RULE]`, `docs generate|check`,
+`status [--matrix]`, `install <tool>`, `upgrade [--to latest|TAG|BRANCH]`,
+`pack [--out DIR] [--tag TAG] [--tools os/arch,...] [--self-extract]`,
+`verify FILE.bundle|FILE.run`, `release check [TAG]|notes TAG`, `uninstall`, `test [suite]`, `lint [--skip RULE]`, `docs generate|check`,
+`repo [show] [DIR] | owns ID [DIR] | init [DIR] [--write]` (§11),
 `steps [--pending]`, `version`. Global flags: `--config`, `--home`, `--json`, `--offline`,
 `--yes`, `--dry-run`. Environment: `HARNESS_HOME`, `HARNESS_CONFIG`, `HARNESS_OFFLINE`,
 `HARNESS_BUILD_DIR` (where `build/` products go; tests point it at a temp dir so a live hub's
 `build/config.json` is never overwritten), `NO_COLOR`.
 
-`pack`, `verify` and `bootstrap --from` are the distribution commands (§10). `lint` adds
+`pack`, `verify`, `bootstrap --from`, `upgrade` and `release` are the distribution commands (§10). `lint` adds
 principle and consistency checks to the manifest checks: `guides-sensors`, `guard-reasons`,
-`taxonomy` and `rule-guard-pairing` (§3); `env-provides` (`[provides.env]` keys the guard would
+`taxonomy` (§3), `yields` (§11) and `rule-guard-pairing` (§3); `env-provides` (`[provides.env]` keys the guard would
 drop); `permissions-vs-guard` (each `Bash(<prefix>:*)` allow/deny rule run through the guard
 built from core + the bundle); `agent-tools` (read-only agents with write tools or a
 permissionMode, hard-coded models); `skill-description` (length, trigger phrase, workflow
 scope); `fragments-target`; `profile-sane`; `stability` (CONTRIBUTING "Stability levels"); and
 `dependencies`: every binary a script in `bin/`, `bootstrap`, `bundles/**/*.sh`,
-`providers/**/*.sh` or `tools/gate/*.sh` invokes must be on the allow-list in
+`providers/**/*.sh`, `tools/gate/*.sh` or `lib/harness/*.sh` (the `.run` header) invokes must be on the allow-list in
 `lib/harness/lint.py` or declared by some bundle (`[requires.binaries]`, `[provides] bin`);
 the scan is a heuristic (`lib/harness/shell_scan.py`) and reports one warning per binary.
 `tests/unit/test_deps.py` holds the engine to stdlib-or-`_vendor` imports.
@@ -424,10 +445,57 @@ harness-hub-<version>.bundle  git bundle: --branches --tags HEAD (history includ
 tools/<asset>                 optional, --tools os/arch,...: tools/*.lock.json assets, sha256-checked
 INSTALL.txt                   verify / clone / bootstrap, plus the bootstrap --from and offline-upgrade forms
 SHA256SUMS                    sha256 of every file above (`sha256sum -c` / `shasum -a 256 -c`)
+harness-hub-<version>.run     optional, --self-extract: POSIX sh header + uncompressed tar of the
+                              files above (the outer SHA256SUMS adds this file's line)
 ```
 
-`<version>` is `--tag`, else an exact tag on `HEAD`, else `v<VERSION>-g<sha7>`.
-Remote-tracking refs and stashes are never bundled.
+`<version>` is `--tag`, else an exact tag on `HEAD`, else `<VERSION>-g<sha7>`.
+
+**`.run` envelope.** The header is the tracked template `lib/harness/selfextract-header.sh`
+(`#!/bin/sh`, POSIX, shellcheck-clean, parses under bash 3.2) with `@VERSION@ @TAG@ @BUNDLE@
+@PAYLOAD_SHA256@ @PAYLOAD_SIZE@ @SKIP@` substituted (values restricted to
+`[A-Za-z0-9._+-]`); its last line is `__PAYLOAD_BELOW__` and the payload starts on line
+`@SKIP@`, read with `tail -n +SKIP`. The payload is a GNU-format tar written by python
+`tarfile`: sorted names, parent directories as entries, uid/gid 0, empty owner names, mode
+0644 (0755 for directories), mtime of the released commit (`SOURCE_DATE_EPOCH` wins), so the
+same files give the same bytes; the header is deterministic too. The git bundle inside is not
+guaranteed byte-identical between builds, so `SHA256SUMS` and the build provenance identify a
+specific build.
+Flags: `--check` (payload size and sha256 against the header, then every inner `SHA256SUMS`
+line; installs nothing), `--list`, `--extract DIR`, `--dest DIR` (default `~/harness-hub`),
+`--release-dir DIR` (default `${XDG_DATA_HOME:-~/.local/share}/harness/releases/<version>/`,
+the same base as the engine's data dir; `--release-dir` or `HOME` is required, as is `--dest`
+or `HOME`), `--`; the first other word and everything after it are passed on, and a `--dest`
+or `--release-dir` among them is refused. Install: verify, unpack into the release dir (kept, so `origin` stays
+fetchable offline and `tools/` stays available to `harness install --from`), refuse a
+non-empty `--dest` that is not a hub clone, `git clone [-b TAG]`, `exec` the clone's
+`bootstrap`. Upgrade (when `--dest/.git` exists): first refuse a clone without `bin/harness`
+and `bootstrap` and a dev build (empty `@TAG@`; it installs only), then `git fetch BUNDLE
+'refs/tags/*:refs/tags/*'`, `origin` -> the bundle, `exec harness upgrade --to TAG` with the
+passed-on arguments minus the bootstrap-only flags (`--bundles`, `--providers`, `--profile`,
+`--email`, `--adopt`, `--from`, `--origin` with their values, `--no-install-tools`; printed).
+The sha256 ladder `hn_sha256` is a copy of `bundles/core/lib/compat.sh`'s (a unit test keeps
+them identical). `verify FILE.run` runs `sh FILE.run --check`, then the `SHA256SUMS` check.
+
+**Versions and releases.** SemVer 2.0.0 (`util.SEMVER_RE`, `util.version_key` for §11
+precedence; loose strings fall back to `parse_version`). Release tags are annotated bare SemVer
+`X.Y.Z[-pre]` (no `v` prefix) on `main`, `VERSION` equals the tag. Pushing any tag runs
+`.github/workflows/release.yml`: a `gate` job lets only bare SemVer 2.0.0 names through (any
+other tag, `v1.2.3` included, ends green with every job skipped), `preflight` runs `harness
+release check TAG --json`, `checks` calls `ci.yml` (`workflow_call`), `build` packs with
+`--tools` for linux/darwin × amd64/arm64 and `--self-extract`, verifies, installs from the
+`.run` into a temp home with the fake CLIs and writes the notes (`harness release notes`), and
+`publish` (the only job with `contents: write`, `id-token: write`, `attestations: write`)
+refuses an existing release, attests build provenance for every asset, creates a draft release
+(`--prerelease` for pre-release tags) and then publishes it. `workflow_dispatch` builds a dev
+artifact (empty tag) or rebuilds a tag (`publish=true` to publish). `release check` reports a
+problem for: a tag that is not bare SemVer (a `v` prefix is rejected) or carries `+build`; a
+missing or lightweight tag; `VERSION` at the tag (or in the working tree when `HEAD` is the
+tag) not matching; no `## [X.Y.Z] - YYYY-MM-DD` heading with a valid date, or entries left
+under `[Unreleased]`; `local/` at the tag or in its history; a dirty tree; a tag not on
+`REMOTE/BRANCH` (skipped with `--no-remote`); tool assets of the release platforms sharing a
+basename. It warns when the CHANGELOG link line is missing or `HEAD` is not the tag commit, and
+reports signed tags. Remote-tracking refs and stashes are never bundled.
 
 Excluded, and asserted: `pack` refuses a dirty working tree (uncommitted or untracked files
 would silently be missing) and refuses when any bundled ref tracks a `local/` path at its tip
@@ -453,4 +521,54 @@ bundle file, so `git fetch` from a newer bundle at the same path upgrades offlin
 `upgrade --to` tolerates a failed `git fetch --tags` when TAG is already in the clone
 ("fetch failed; using local tag"); otherwise it fails and names this flow.
 
-`tests/smoke/pack.sh` exercises pack → verify → `bootstrap --from` → `doctor --offline`.
+**`upgrade [--to latest|TAG|BRANCH] [--no-apply]`**: `latest` (the default) fetches tags
+(skipped with `--offline`) and checks out the highest SemVer release tag, pre-releases
+excluded, failing with the `--to BRANCH` and bundle-file alternatives when there is none; a
+local branch name (or one `origin/` knows) is checked out and fast-forwarded
+(`git pull --ff-only`); anything else is a tag. Then the CHANGELOG sections between the old
+and new `VERSION`, `plan`, `apply` (unless `--no-apply` / `--dry-run`) and `doctor`, whose
+exit status is returned.
+
+`tests/smoke/pack.sh` exercises pack → verify → `bootstrap --from` → `doctor --offline`, then
+`pack --self-extract` → `.run --check/--list/--extract` → `.run` install → `doctor --offline`
+→ `.run` upgrade.
+
+### 11. Repository-level declaration: `.harness.toml`
+
+A repository declares what its own harness covers in `.harness.toml`, provider-neutral and
+committed ([principle 8](principles/08-user-level-by-design.md); authors' guide:
+[docs/repo-level.md](docs/repo-level.md)).
+
+- **Location.** The repository root: the git root of the hook's `cwd` for the guard, of the
+  working directory for skill preflights (the directory holding `.git`, a directory or a
+  worktree file).
+- **`[repo]`** — `name`, `harness` (where the repository's own harness is described);
+  informational.
+- **`[owns] domains`** — taxonomy domain values (`base`, `scm`, `tracker`, `delivery`,
+  `kubernetes`, `workspace`); every component in an owned domain yields there.
+- **`[owns] components`** — catalog ids (`core/guard.d/30-git`,
+  `ticket-workflow/skills/work-ticket`).
+- **`[overrides]`** — allow-listed `WORK_TICKET_*` names with string values: exactly the
+  `# repo-override: NAME = "default" -> effect` comments in guard sections, documented in the
+  [hook policy](docs/reference/hook-policy.md#repo-overrides). Client paths,
+  `HARNESS_GUARD_ENV`, `HARNESS_CRED_EXTRA_RE` and every `*_PY`, `GUARD_*`, `HARNESS_*` or
+  `*CRED*` name are deny-listed and never read from the file. Per key: environment >
+  `.harness.toml` > `guard.env` > default.
+- **Format.** A TOML subset the guard parses in bash 3.2: `[section]`, `key = "str"` or
+  `'str'`, `key = ["a", "b"]`, one statement per line, `#` comment lines; no inline comments,
+  escapes, multi-line arrays or inline tables; `[owns]` keys are arrays; a repeated key is
+  ignored (the first one counts); at most 16 KiB and 400 lines, else the whole file is
+  ignored. Schema: `schema/repo.schema.json`.
+- **Readers.** The guard engine (§5), the skills' preflight scripts (`harness repo owns ID`)
+  and `harness repo` (§6). Unknown keys, unknown names and lines outside the subset are
+  ignored and reported (one stderr note per line from the guard, at most five per command,
+  then a count; a problem from `harness repo`), never fatal: the file fails open.
+- **Writers.** A human: the file lifts user-level rules, so `Write`/`Edit` of
+  `**/.harness.toml` ask (`core/permissions`) and shell writes to it ask (the
+  `core/guard.d/30-git` prelude); neither yields.
+- **Credential exemption.** `core/guard.d/20-credentials`, `core/permissions` and the
+  `# never-yields:` preludes (in `github/guard.d/60-github` and `k8s/guard.d/25-k8s-rules`
+  the commands that print a stored credential) never yield; naming them, or the domain
+  `base`, in `[owns]` has no effect on them.
+- Changing the allow-list or the file's keys is a contract change: schema bump and a
+  CHANGELOG Migration paragraph.

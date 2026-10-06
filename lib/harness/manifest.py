@@ -275,6 +275,7 @@ class Provider:
         self.capabilities: Dict[str, Any] = data.get("capabilities", {})
         # product features a bundle's [harness] may name as `provider-feature` sensors
         self.features: List[str] = list(data.get("features", []))
+        self.precedence: Dict[str, Any] = data.get("precedence", {}) or {}
 
     def target(self, name: str) -> Optional[Dict[str, Any]]:
         t = self.targets.get(name)

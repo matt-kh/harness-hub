@@ -12,9 +12,21 @@ model: {{ core.model_policy.execute }}
 
 # Google Workspace (Docs / Drive / Sheets / Gmail)
 
-Generic client for the one corporate account ({{ identity.email }}). **Precedence:** if the
-current repo has its own document workflow skill, that skill owns the workflow — use this one as
-the plain client underneath it.
+Generic client for the one corporate account ({{ identity.email }}).
+
+**Step 0 — repository-level harness (principle 8).** This is a user-level skill. Read the
+repository's declaration first:
+
+```bash
+harness repo owns gdoc/skills/gdoc   # rc 0 = owned (prints why) → stop; rc 1 = carry on
+```
+
+If it is owned (by id or by its domain `workspace`), or the repository ships its own skill for
+the same workflow, this skill yields: say so in one line, name the repository-level skill or
+convention, and stop — nothing below runs and nothing is merged. If the repository owns the
+*workflow* but not the client, stay available as the plain client underneath it. Never edit
+the repository's harness to fit this skill. `harness repo` explains everything the
+repository declares and any `.claude/skills|agents` name collisions.
 
 ## Tooling
 

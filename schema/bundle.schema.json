@@ -161,6 +161,8 @@
                  "description": "What the component does for the agent."},
     "posture": {"type": "string", "enum": ["read-only", "local", "label-gated"],
                 "description": "The strongest effect without a human prompt, weakest first."},
+    "yields": {"type": "string", "enum": ["declaration", "name", "text", "config", "never", "n/a"],
+               "description": "Derived, never declared: how a component steps aside for a repository-level equivalent (principle 8)."},
     "component_class": {
       "type": "object", "additionalProperties": false,
       "properties": {

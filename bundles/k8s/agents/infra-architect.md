@@ -1,6 +1,6 @@
 ---
 name: infra-architect
-description: "Use this agent for expert guidance on infrastructure design, platform architecture, or DevOps strategy — advisory/planning only. Call it when: designing new infrastructure components or Kubernetes cluster strategies; planning cloud migrations, hybrid, bare-metal, or virtualization deployments; architecting CI/CD pipelines (GitLab CI) or GitOps workflows; evaluating technology stack decisions; reviewing infrastructure-as-code (Pulumi) implementations; or writing technical design documents / architecture proposals with trade-off analysis."
+description: "Use this agent for expert guidance on infrastructure design, platform architecture, or DevOps strategy — advisory/planning only. Call it when: designing new infrastructure components or Kubernetes cluster strategies; planning cloud migrations, hybrid, bare-metal, or virtualization deployments; architecting CI/CD pipelines (GitLab CI) or GitOps workflows; evaluating technology stack decisions; reviewing infrastructure-as-code (Pulumi) implementations; or writing technical design documents / architecture proposals with trade-off analysis. (User-level baseline, principle 8 — a repository-level agent of the same name replaces it.)"
 model: {{ core.model_policy.plan }}
 tools: Read, Grep, Glob, Bash
 color: cyan

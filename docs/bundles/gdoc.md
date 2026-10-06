@@ -65,23 +65,23 @@ Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md
 
 **Skills**
 
-- `gdoc/skills/gdoc` — control: guide · function: client · posture: label-gated · model: execute
+- `gdoc/skills/gdoc` — control: guide · function: client · posture: label-gated · model: execute · yields: declaration
 
 **Rules**
 
-- `gdoc/rules/80-gdoc` — control: guide · function: govern
+- `gdoc/rules/80-gdoc` — control: guide · function: govern · yields: text
 
 **Guard sections**
 
-- `gdoc/guard.d/80-gdoc` — control: sensor · function: govern · decisions: deny 1 · ask 2 · allow 2
+- `gdoc/guard.d/80-gdoc` — control: sensor · function: govern · decisions: deny 1 · ask 2 · allow 2 · yields: declaration
 
 **Permission lists**
 
-- `gdoc/permissions` — control: guide · function: govern · decisions: ask 1 · allow 12
+- `gdoc/permissions` — control: guide · function: govern · decisions: ask 1 · allow 12 · yields: config
 
 **CLIs**
 
-- `gdoc/bin/gdoc` — function: client · posture: label-gated
+- `gdoc/bin/gdoc` — function: client · posture: label-gated · yields: n/a
 
 **Doctor checks** (function: setup · posture: read-only; table below): `gdoc/doctor/gdoc-auth`, `gdoc/doctor/gdoc-cli`, `gdoc/doctor/gdoc-client`, `gdoc/doctor/gdoc-modes`
 

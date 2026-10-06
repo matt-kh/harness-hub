@@ -1,0 +1,230 @@
+name: release
+
+# Tag push X.Y.Z[-pre] on main -> preflight (harness release check), the full CI suite, pack
+# (bundle + .run + four tool platforms), a .run install smoke, then a GitHub Release with notes
+# from CHANGELOG.md and build provenance. Procedure: CONTRIBUTING.md "Releases (maintainers)".
+#
+# Only bare SemVer 2.0.0 tag names release (no v prefix): any other tag (1.2, v1.2.3, vnext)
+# ends green with every job skipped. workflow_dispatch: empty tag = dev build of the selected
+# ref (never published); a tag rebuilds it and publishes only with publish=true (re-run after
+# a failed release). A tag dispatch must select the tag itself (--ref X.Y.Z): the reusable CI
+# suite tests github.sha, so preflight fails when the selected ref is not the tagged commit. A
+# re-run replaces a draft left by a failed upload, never a published release.
+
+on:
+  push:
+    tags: ["*"]  # every tag; the gate job decides
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "existing release tag to rebuild (empty: dev build of the selected ref, never published)"
+        required: false
+        default: ""
+      publish:
+        description: "publish the GitHub Release (tag builds only; tag pushes always publish)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.event_name == 'push' && github.ref_name || inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  NO_COLOR: "1"
+  # HARNESS_OFFLINE stays unset: pack --tools downloads the pinned tool archives
+  CI_CONFIG: tests/fixtures/harness.ci.toml
+  RELEASE_PLATFORMS: linux/amd64,linux/arm64,darwin/amd64,darwin/arm64
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      semver: ${{ steps.gate.outputs.semver }}
+      tag: ${{ steps.gate.outputs.tag }}
+    steps:
+      - name: SemVer 2.0.0 tag gate
+        id: gate
+        env:
+          TAG: ${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
+        run: |
+          # Same expression as lib/harness/util.py SEMVER_RE (bare, no v prefix), as POSIX ERE
+          # (tests/unit/test_semver.py keeps the two in step).
+          SEMVER_ERE='^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(\.(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$'
+          if [ -z "$TAG" ]; then
+            echo "semver=skip-preflight" >> "$GITHUB_OUTPUT"
+            echo "tag=" >> "$GITHUB_OUTPUT"
+            echo "dev build of ${GITHUB_REF_NAME}: no tag given, nothing will be published" >> "$GITHUB_STEP_SUMMARY"
+          elif printf '%s\n' "$TAG" | grep -Eq "$SEMVER_ERE"; then
+            echo "semver=true" >> "$GITHUB_OUTPUT"
+            echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+            echo "release build of $TAG" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "semver=false" >> "$GITHUB_OUTPUT"
+            echo "tag=" >> "$GITHUB_OUTPUT"
+            msg="skipped: $TAG is not a SemVer 2.0.0 tag (X.Y.Z[-pre][+build], no v prefix); nothing released"
+            echo "::notice::$msg"
+            echo "$msg" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  preflight:
+    needs: gate
+    if: needs.gate.outputs.semver == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      tag: ${{ steps.check.outputs.tag }}
+      version: ${{ steps.check.outputs.version }}
+      prerelease: ${{ steps.check.outputs.prerelease }}
+    env:
+      TAG: ${{ needs.gate.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: refs/tags/${{ needs.gate.outputs.tag }}
+      - name: Fetch tags (keep annotated tag objects)
+        run: git fetch --tags --force
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: The selected ref is the tagged commit (workflow_dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          tagged=$(git rev-parse "$TAG^{commit}")
+          if [ "$tagged" != "$GITHUB_SHA" ]; then
+            echo "::error::the selected ref ($GITHUB_SHA) is not $TAG ($tagged); re-run with --ref $TAG so the CI suite tests the tagged commit"
+            exit 1
+          fi
+      - name: harness release check
+        id: check
+        run: |
+          out="$RUNNER_TEMP/check.json"
+          rc=0
+          bin/harness release check "$TAG" --remote origin --branch main --json > "$out" || rc=$?
+          jq -r '.info[] | "info  " + .' "$out"
+          jq -r '.warnings[] | "::warning::" + .' "$out"
+          jq -r '.problems[] | "::error::" + .' "$out"
+          [ "$rc" = 0 ] || exit "$rc"
+          {
+            echo "tag=$(jq -r .tag "$out")"
+            echo "version=$(jq -r .version "$out")"
+            echo "prerelease=$(jq -r .prerelease "$out")"
+          } >> "$GITHUB_OUTPUT"
+
+  checks:
+    needs: gate
+    if: needs.gate.outputs.semver == 'true' || needs.gate.outputs.semver == 'skip-preflight'
+    uses: ./.github/workflows/ci.yml
+    secrets: inherit  # pragma: allowlist secret
+
+  build:
+    needs: [gate, preflight, checks]
+    if: >-
+      ${{ !cancelled() && needs.checks.result == 'success' &&
+          (needs.preflight.result == 'success' ||
+           (needs.preflight.result == 'skipped' && needs.gate.outputs.semver == 'skip-preflight')) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      TAG: ${{ needs.gate.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.gate.outputs.tag && format('refs/tags/{0}', needs.gate.outputs.tag) || '' }}
+      - name: Fetch tags (keep annotated tag objects)
+        run: git fetch --tags --force
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: harness pack --self-extract
+        run: |
+          rel="$RUNNER_TEMP/rel"
+          args=(--out "$rel" --tools "$RELEASE_PLATFORMS" --self-extract)
+          if [ -n "$TAG" ]; then args+=(--tag "$TAG"); fi
+          bin/harness pack "${args[@]}"
+      - name: Verify the bundle and the .run
+        run: |
+          rel="$RUNNER_TEMP/rel"
+          for f in "$rel"/*.bundle "$rel"/*.run; do bin/harness verify "$f"; done
+          run=$(ls "$rel"/*.run)
+          sh "$run" --check
+          sh "$run" --list
+          (cd "$rel" && sha256sum -c SHA256SUMS)
+      - name: Install from the .run into a temp HOME (fake CLIs), doctor
+        run: |
+          rel="$RUNNER_TEMP/rel"
+          run=$(ls "$rel"/*.run)
+          h=$(mktemp -d)
+          export PATH="$PWD/tests/fakes/bin:$PATH"
+          HOME="$h" sh "$run" --dest "$h/hub" --bundles core --providers claude --yes --offline \
+            --no-install-tools --config "$PWD/$CI_CONFIG"
+          HOME="$h" "$h/hub/bin/harness" doctor --offline --config "$PWD/$CI_CONFIG"
+          case "$(git -C "$h/hub" remote get-url origin)" in
+            "$h/.local/share/harness/releases/"*) ;;
+            *) echo "::error::origin of the installed clone is not under the release dir"; exit 1 ;;
+          esac
+      - name: Release notes
+        if: needs.gate.outputs.tag != ''
+        run: bin/harness release notes "$TAG" --dir "$RUNNER_TEMP/rel" --out "$RUNNER_TEMP/rel/NOTES.md"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rel
+          path: ${{ runner.temp }}/rel
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    needs: [gate, preflight, build]
+    if: >-
+      ${{ !cancelled() && needs.build.result == 'success' && needs.gate.outputs.semver == 'true' &&
+          (github.event_name == 'push' || inputs.publish) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    env:
+      TAG: ${{ needs.preflight.outputs.tag }}
+      PRERELEASE: ${{ needs.preflight.outputs.prerelease }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: rel
+          path: rel
+      - name: Check the downloaded files
+        run: (cd rel && sha256sum -c SHA256SUMS)
+      - name: Never overwrite a release (a draft from a failed upload is replaced)
+        run: |
+          # empty: no release yet; true: a draft left by a failed run (deleted, the tag stays)
+          isDraft=$(gh release view "$TAG" -R "${{ github.repository }}" --json isDraft -q .isDraft 2>/dev/null || true)
+          if [ "$isDraft" = true ]; then
+            echo "deleting the draft release $TAG left by an earlier run (the tag stays)"
+            gh release delete "$TAG" -R "${{ github.repository }}" --yes
+          elif [ "$isDraft" = false ]; then
+            echo "::error::release $TAG already exists; never move or overwrite a published release: fix forward with a new tag"
+            exit 1
+          fi
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            rel/*.bundle
+            rel/*.run
+            rel/SHA256SUMS
+            rel/INSTALL.txt
+            rel/tools/*
+      - name: Create the GitHub Release (draft, then publish)
+        run: |
+          flags=(--verify-tag --draft --title "harness-hub $TAG" --notes-file rel/NOTES.md)
+          if [ "$PRERELEASE" = true ]; then flags+=(--prerelease); fi
+          assets=(rel/*.bundle rel/*.run rel/SHA256SUMS rel/INSTALL.txt)
+          for f in rel/tools/*; do if [ -f "$f" ]; then assets+=("$f"); fi; done
+          gh release create "$TAG" -R "${{ github.repository }}" "${flags[@]}" "${assets[@]}"
+          gh release edit "$TAG" -R "${{ github.repository }}" --draft=false
+          echo "published https://github.com/${{ github.repository }}/releases/tag/$TAG" >> "$GITHUB_STEP_SUMMARY"

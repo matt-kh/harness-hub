@@ -52,30 +52,30 @@ Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md
 
 **Skills**
 
-- `k8s/skills/k8s` — control: guide · function: client · posture: read-only · model: execute
+- `k8s/skills/k8s` — control: guide · function: client · posture: read-only · model: execute · yields: declaration
 
 **Agents**
 
-- `k8s/agents/infra-architect` — control: guide · function: plan · posture: read-only · model: plan
-- `k8s/agents/k8s-auditor` — control: guide · function: review · posture: read-only · model: execute
-- `k8s/agents/k8s-triage` — control: guide · function: investigate · posture: read-only · model: execute
+- `k8s/agents/infra-architect` — control: guide · function: plan · posture: read-only · model: plan · yields: name
+- `k8s/agents/k8s-auditor` — control: guide · function: review · posture: read-only · model: execute · yields: name
+- `k8s/agents/k8s-triage` — control: guide · function: investigate · posture: read-only · model: execute · yields: name
 
 **Rules**
 
-- `k8s/rules/10-k8s` — control: guide · function: govern
+- `k8s/rules/10-k8s` — control: guide · function: govern · yields: text
 
 **Guard sections**
 
-- `k8s/guard.d/10-k8s` — control: sensor · function: govern · decisions: helper (no rules)
-- `k8s/guard.d/25-k8s-rules` — control: sensor · function: govern · decisions: deny 4 · ask 7
+- `k8s/guard.d/10-k8s` — control: sensor · function: govern · decisions: helper (no rules) · yields: n/a
+- `k8s/guard.d/25-k8s-rules` — control: sensor · function: govern · decisions: deny 4 · ask 7 · yields: declaration
 
 **Permission lists**
 
-- `k8s/permissions` — control: guide · function: govern · decisions: deny 12 · ask 45 · allow 42
+- `k8s/permissions` — control: guide · function: govern · decisions: deny 12 · ask 45 · allow 42 · yields: config
 
 **CLIs**
 
-- `k8s/bin/k8s` — function: client · posture: read-only
+- `k8s/bin/k8s` — function: client · posture: read-only · yields: n/a
 
 **Doctor checks** (function: setup · posture: read-only; table below): `k8s/doctor/clusters-doc`, `k8s/doctor/helm-binary`, `k8s/doctor/k8s-cli`, `k8s/doctor/kube-contexts`, `k8s/doctor/kubectl-binary`
 

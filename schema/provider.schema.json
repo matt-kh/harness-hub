@@ -27,6 +27,16 @@
         "docs": {"type": "string"}
       }
     },
+    "precedence": {
+      "type": "object", "additionalProperties": false,
+      "description": "How the provider resolves a collision between a user-level (hub) component and a repository-level one (principle 8). Read by `harness repo`.",
+      "properties": {
+        "skills": {"type": "string", "enum": ["user", "project", "unknown"], "description": "Which skill wins on a name collision: user (the hub's personal skill shadows the repository's), project, or unknown."},
+        "agents": {"type": "string", "enum": ["user", "project", "unknown"], "description": "Which sub-agent wins on a name collision."},
+        "repo_dir": {"type": "string", "description": "The repository-level config directory holding skills/ and agents/ (e.g. .claude)."},
+        "skill_override_hint": {"type": "string", "description": "Settings snippet a repository adds to turn a user-level skill off; <name> is replaced by the skill name."}
+      }
+    },
     "targets": {
       "type": "object", "additionalProperties": false,
       "properties": {

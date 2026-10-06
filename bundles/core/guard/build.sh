@@ -16,6 +16,17 @@
 #   3. bundles/core/guard/engine-flush.sh
 # Only files matching guard.d/[0-9][0-9]-*.sh are sections; guard.d/tests.sh is test data.
 # The order is load-bearing: allow/ask/deny exit immediately, so an earlier section wins.
+# Every section is wrapped in a function, defined and called in place:
+#     # ==== section NN-x.sh (bundle b) ====
+#     guard_section_<bundle>_<stem>() {        (non [A-Za-z0-9_] characters become _)
+#     <section text>
+#     }
+#     guard_section_<bundle>_<stem>
+# so a section may `return` early: a yielding section starts with
+# `repo_owns <id> <domain> && return 0` (principle 8), preceded only by shared assignments
+# and an optional `# never-yields:` prelude (credential-printing commands). Variables a section assigns without
+# `local` stay global, so definitions shared by later sections (10-k8s, 20-credentials,
+# 41-github-closing) keep working.
 set -eu
 [ $# -ge 1 ] || { echo "usage: build.sh OUT [BUNDLE_DIR ...]" >&2; exit 2; }
 out=$1; shift
@@ -49,8 +60,11 @@ tmp="$out.tmp.$$"
   cat "$core/guard/engine.sh"
   printf '%s\n' "$list" | while IFS="$(printf '\t')" read -r base bundle path; do
     [ -n "$base" ] || continue
-    printf '\n# ==== section %s (bundle %s) ====\n' "$base" "$bundle"
+    fn="guard_section_${bundle}_${base%.sh}"
+    fn=${fn//[!A-Za-z0-9_]/_}
+    printf '\n# ==== section %s (bundle %s) ====\n%s() {\n' "$base" "$bundle" "$fn"
     cat "$path"
+    printf '\n}\n%s\n' "$fn"
   done
   printf '\n# ==== flush ====\n'
   cat "$core/guard/engine-flush.sh"

@@ -5,7 +5,7 @@ symlink to this file.
 
 ## Read first
 
-1. [PRINCIPLES.md](PRINCIPLES.md) — the seven principles; open the per-principle document in
+1. [PRINCIPLES.md](PRINCIPLES.md) — the eight principles; open the per-principle document in
    `principles/` when your change touches that area.
 2. [ARCHITECTURE.md](ARCHITECTURE.md) — the normative contracts: layout, config, bundle
    manifest, provider adapters, guard, engine commands, distribution.
@@ -33,7 +33,7 @@ make render-check   # render twice into one fresh HOME; diff must be empty
 |---|---|
 | `bootstrap`, `bin/harness` | entry point and launcher (bash; execs `python3 -m harness`) |
 | `lib/harness/` | engine, python 3.9+ stdlib only; `_vendor/tomli` for python < 3.11 |
-| `schema/` | JSON Schemas for `harness.toml`, `bundle.toml`, `provider.toml` |
+| `schema/` | JSON Schemas for `harness.toml`, `bundle.toml`, `provider.toml` and a repository's `.harness.toml` |
 | `bundles/<name>/` | one capability each: rules, skills, agents, `guard.d/`, permissions, doctor, manual steps |
 | `providers/<name>/` | adapters: target paths, write modes, capabilities, hook shims |
 | `profiles/` | named bundle and provider selections |
@@ -66,6 +66,14 @@ make render-check   # render twice into one fresh HOME; diff must be empty
   `[taxonomy]` only, never in skill or agent front matter. New components follow the naming
   convention in [docs/reference/taxonomy.md](docs/reference/taxonomy.md); `harness lint`
   warns on anything unclassified.
+- **Every component yields to a repository-level equivalent** — by `.harness.toml`
+  declaration, provider name resolution, or rule text — and its `yields` facet says how.
+  Only the developer's own credentials never yield: the credential-file denies
+  (`core/guard.d/20-credentials`, `core/permissions`) and the `# never-yields:` preludes
+  (commands that print a stored credential; the ask on writing `.harness.toml`). Guard
+  sections start with the `repo_owns` line (after shared assignments and an optional
+  prelude); skills carry the Step 0 paragraph; agent descriptions carry the baseline
+  sentence; never hard-code one organisation's repository-skill name ([principle 8](principles/08-user-level-by-design.md)).
 - **Guard behaviour changes come with test rows** in `bundles/<b>/guard.d/tests.sh`,
   including bypass attempts.
 - **Generated regions are never hand-edited** (`<!-- generated:begin … -->` to

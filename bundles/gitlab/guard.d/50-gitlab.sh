@@ -6,6 +6,9 @@
 # rule: glab label create -n agent-* -> allow : governance label; other labels ask
 # rule: glab mr create -> allow : creates are ungated (a -sub- source without target / with a base target -> deny)
 # rule: glab mr update|note|close REF on an agent-labelled MR -> allow : human MRs ask; -sub- retarget to base -> deny
+# repo-override: WORK_TICKET_BASE_BRANCH_RE = "^(master|main)$" -> default/base branches: pushes to them deny, sub MRs/PRs never target them
+# repo-override: WORK_TICKET_LABELED_DECISION = "allow" -> allow|ask: the decision for writes to agent-labelled tickets, issues, MRs and PRs
+repo_owns gitlab/guard.d/50-gitlab scm && return 0   # principle 8: the repository's .harness.toml owns this section or domain scm
 # ---- GitLab (glab) --------------------------------------------------------------
 GLAB="${WORK_TICKET_GLAB:-glab}"
 # fetch_glab_mr REF [REPO] -> normalised MR JSON (IID or branch); rc 1 on failure

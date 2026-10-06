@@ -2,18 +2,22 @@
 
 Identity: {{ identity.email }}.
 
-Precedence note: repo-level CLAUDE.md / AGENTS.md / .claude/ config always takes priority over
-these user-level instructions. The user-level files only add defaults and context.
-The user-level harness never puts ticket keys or `#N` in branch names or commit subjects (mention
-the key in the MR/PR or commit body). Where a repo has its own skill, guard, hook or documented
-convention for the same action, the repo behaviour **replaces** the user-level one wholesale
-(never merged) — user-level skills detect this in preflight and hand over; repos switch off
-single user-level guard behaviours via `.claude/settings.json` `env` overrides
-(`WORK_TICKET_ALLOW_TRANSITION`, `WORK_TICKET_KEY_IN_BRANCH`,
-`WORK_TICKET_ALLOW_DEFAULT_PUSH_RE`; documented atop the rendered `hooks/guard-bash.sh`).
+Precedence (user-level by design): this file and everything the harness hub installs is a
+user-level baseline. A repository's own harness — its `CLAUDE.md` / `AGENTS.md`, `.claude/`
+(or the provider's equivalent) and its `.harness.toml` — wins for every concern it covers,
+wholesale and never merged: skills hand over at preflight, repository agents of the same
+name replace these, and the repository's instructions win where the two texts differ.
+Repositories declare what they own and the few guard overrides they need in `.harness.toml`
+(`harness repo` shows the effect; the names are listed in the hub's hook-policy reference).
+The one exception: the developer's own credentials never yield — the denies on reading
+credential files and on commands that print a stored credential protect the developer, not
+the repository. Never write a `.harness.toml` yourself (it lifts user-level rules): print a
+draft with `harness repo init` and ask the user to review and commit it.
 
 ## Conventions
 - Workflow is MR/PR-based (GitLab/GitHub). Never push directly to a default branch.
+- Branch names and commit subjects carry no ticket keys or `#N` by default (mention the key
+  in the MR/PR or commit body).
 - NEVER echo or log git remote URLs verbatim if they contain credentials
   (`https://user:token@...`) — redact the credential part.
 - Python: prefer `uv` where a repo uses it (uv.lock present); otherwise follow the repo.
@@ -38,7 +42,7 @@ single user-level guard behaviours via `.claude/settings.json` `env` overrides
 - Every agent-created ticket carries a provenance label; `/create-ticket` drafts with
   `{{ core.agent_labels.drafted }}` and stops there.
 - Skills never modify the user-level harness (the provider home or the harness hub checkout);
-  repo-level `CLAUDE.md` / `.claude/` is updated in the ticket MR whenever the code change makes
-  it stale.
+  a repository's own harness (`CLAUDE.md` / `AGENTS.md`, `.claude/`, `.harness.toml`) is
+  updated only in the ticket MR whenever the code change makes it stale — never to fit the hub.
 - Model policy: planning agents run on `{{ core.model_policy.plan }}`, execution agents on
   `{{ core.model_policy.execute }}`.

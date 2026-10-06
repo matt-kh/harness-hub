@@ -268,17 +268,26 @@ def find_guard_engine(bundles: Sequence[Bundle]) -> Optional[Bundle]:
     return None
 
 
+def section_function(base: str, bundle: str) -> str:
+    """Shell function name a guard section is wrapped in (same rule as build.sh)."""
+    stem = base[:-3] if base.endswith(".sh") else base
+    return re.sub(r"[^A-Za-z0-9_]", "_", "guard_section_%s_%s" % (bundle, stem))
+
+
 def build_guard(engine: Bundle, bundles: Iterable[Bundle]) -> bytes:
-    """engine.sh + sections (sorted) + engine-flush.sh, byte-identical to build.sh."""
+    """engine.sh + sections (sorted, each wrapped in a function) + engine-flush.sh, byte-identical
+    to build.sh. The wrapper lets a section ``return`` early (``repo_owns ... && return 0``)."""
     return build_guard_from_sections(engine, guard_sections(bundles))
 
 
 def build_guard_from_sections(engine: Bundle, sections: Sequence[Tuple[str, str, str]]) -> bytes:
-    """engine.sh + the given ``guard_sections`` rows (in order) + engine-flush.sh."""
+    """engine.sh + the given ``guard_sections`` rows (in order, each wrapped in a function) + engine-flush.sh."""
     parts: List[bytes] = [read_bytes(engine.rel("guard", "engine.sh")) or b""]
     for base, bname, full in sections:
-        parts.append(("\n# ==== section %s (bundle %s) ====\n" % (base, bname)).encode("utf-8"))
+        fn = section_function(base, bname)
+        parts.append(("\n# ==== section %s (bundle %s) ====\n%s() {\n" % (base, bname, fn)).encode("utf-8"))
         parts.append(read_bytes(full) or b"")
+        parts.append(("\n}\n%s\n" % fn).encode("utf-8"))
     parts.append(b"\n# ==== flush ====\n")
     parts.append(read_bytes(engine.rel("guard", "engine-flush.sh")) or b"")
     return b"".join(parts)
