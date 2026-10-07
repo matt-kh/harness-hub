@@ -142,6 +142,14 @@ prints every one between your applied version and the new one.
 - `harness bootstrap` ends with "≈ N minutes of manual steps remain (harness steps
   --pending)", summed from the pending steps' `minutes`; `tests/smoke/bootstrap.sh` prints
   the elapsed seconds.
+- `gitlab` bundle: MR title and `--fill` sensors. `glab mr create` asks on `-f/--fill`
+  (generated text may carry a closing keyword or a key-less title), on `--related-issue`, on a
+  literal `-t/--title` that does not match the new `gitlab.mr_title_re` (ticket key first) and
+  on a `$VAR`/backtick title; an MR created without `-t` is not title-checked. Guard rows
+  include `cd … &&`, `sh -c` and multi-clause bypass attempts.
+- `github` bundle: PR title and `--fill` sensors. `gh pr create` asks on
+  `-f/--fill/--fill-first/--fill-verbose`, on a literal `-t/--title` matching the new
+  `github.pr_title_forbid_re` (issue refs belong in the body) and on a `$VAR`/backtick title.
 
 ### Deprecated
 
@@ -213,6 +221,16 @@ prints every one between your applied version and the new one.
 
 ### Migration
 
+- MR/PR title conventions: two new optional config keys. `gitlab.mr_title_re` (default
+  `"^[A-Z][A-Z0-9_]*-[0-9]+ "`, a ticket key and a space first; env
+  `HARNESS_GITLAB_MR_TITLE_RE`) is the ERE a `glab mr create -t` title must match;
+  `github.pr_title_forbid_re` (default `"#[0-9]+"`; env `HARNESS_GITHUB_PR_TITLE_FORBID_RE`)
+  is the ERE a `gh pr create -t` title must not match. Guard decisions change from allow to
+  ask for `glab mr create --fill|--related-issue`, `gh pr create --fill|--fill-first|--fill-verbose`
+  (and `-f`), and for literal titles that break the convention. Setting either key to an empty
+  string (`mr_title_re = ""` under `[gitlab]`, `pr_title_forbid_re = ""` under `[github]`)
+  disables the title check; the `--fill` asks stay. Run `harness apply` to re-render the guard
+  and `guard.env`.
 - Component taxonomy: `schema_version` stays `"1"` and every new key is optional, so
   existing manifests keep loading. In every public or private `bundle.toml`, delete
   `tags = [...]` from `[bundle]` and add a `[taxonomy]` section with `domain` (base, scm,

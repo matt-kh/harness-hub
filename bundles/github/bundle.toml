@@ -43,6 +43,12 @@ pattern = '^[A-Za-z0-9-]+$'
 description = "Your GitHub login. Shown in the instructions; repos you own are trusted in the provider's auto-mode trust text."
 example = "octocat"
 
+[requires.config."github.pr_title_forbid_re"]
+type = "string"
+default = "#[0-9]+"
+description = "ERE a PR title must NOT match (issue refs belong in the body); empty disables. HARNESS_GITHUB_PR_TITLE_FORBID_RE."
+example = "#[0-9]+|WIP"
+
 [requires.secrets.gh_token]
 where = "~/.config/gh/hosts.yml"
 written_by = "gh auth login"
@@ -62,6 +68,7 @@ bin = []
 
 [provides.env]
 WORK_TICKET_GH = "gh"
+HARNESS_GITHUB_PR_TITLE_FORBID_RE = "{{ github.pr_title_forbid_re }}"
 
 [[manual_steps]]
 id = "install-gh"
@@ -193,14 +200,14 @@ function = "govern"
 
 # Guides steer the agent before it acts; sensors detect at or after the action (principle 6).
 [harness]
-coverage_note = "Forks: the guard cannot read labels on a fork, so edits there ask instead of being label-gated. The github-closing guard section enforces rule text that lives in rules/60-github.md."
+coverage_note = "Forks: the guard cannot read labels on a fork, so edits there ask instead of being label-gated. A PR created without -t (title from the commit or an editor) is not title-checked. The github-closing guard section enforces rule text that lives in rules/60-github.md."
 guides = [
   { kind = "rule", ref = "rules/60-github.md", note = "PR-based delivery, issue state is human-only, -R owner/repo on every call" },
   { kind = "permission", ref = "permissions.toml", note = "read-only gh commands allowed; token printing denied" },
 ]
 sensors = [
   { kind = "guard", ref = "guard.d/41-github-closing.sh", note = "denies closing keywords that would change issue state" },
-  { kind = "guard", ref = "guard.d/60-github.sh", note = "token printing, API writes, merges/reviews, provenance labels, stacked PR targets" },
+  { kind = "guard", ref = "guard.d/60-github.sh", note = "token printing, API writes, merges/reviews, provenance labels, stacked PR targets; PR creates with --fill* or a -t title matching github.pr_title_forbid_re ask" },
   { kind = "doctor", ref = "doctor_checks", note = "gh binary, auth, SSH and token file mode" },
   { kind = "test", ref = "guard.d/tests.sh", note = "guard rows with a stubbed gh" },
   { kind = "test", ref = "tests/run.sh", note = "this bundle's rows against core + github only" },

@@ -5,6 +5,9 @@
 # rule: gh pr merge|review, release/repo/workflow/secret/auth/gist/... mutations -> ask : team-visible; ask the user (merges, reviews and releases are human-only)
 # rule: gh label create agent-* -> allow : governance label; other labels ask
 # rule: gh pr create -> allow : creates are ungated (same -sub- stacked rules as glab)
+# rule: gh pr create -f|--fill|--fill-first|--fill-verbose -> ask : generated text may contain a closing keyword; pass -t and -F body-file instead
+# rule: gh pr create -t TITLE matching HARNESS_GITHUB_PR_TITLE_FORBID_RE -> ask : issue refs belong in the PR body (mention #N there), not the title; set github.pr_title_forbid_re to change the convention (empty disables)
+# rule: gh pr create -t with $VAR or backticks -> ask : the title cannot be checked; use a literal title instead
 # rule: gh issue create without -l agent-drafted|agent-created -> deny : provenance label required; use -l agent-drafted (or agent-created) instead
 # rule: gh pr|issue edit|comment|close|reopen on an agent-labelled ref -> allow : human refs ask; human issue close|reopen -> deny; fork PRs ask
 # repo-override: WORK_TICKET_BASE_BRANCH_RE = "^(master|main)$" -> default/base branches: pushes to them deny, sub MRs/PRs never target them
@@ -34,6 +37,11 @@ fetch_gh_issue() {
   [ -n "$o" ] || return 1
   printf '%s' "$o" | jq -ce '{labels} | '"$NORM_JQ" 2>/dev/null
 }
+# PR title convention (github.pr_title_forbid_re → HARNESS_GITHUB_PR_TITLE_FORBID_RE). guard.env omits
+# empty values, so an empty key in a guard.env rendered with this bundle (HARNESS_BUNDLES lists
+# github) means "disabled"; without a guard.env (tests, hand-installed hook) the default applies.
+if [ -n "${HARNESS_GITHUB_PR_TITLE_FORBID_RE+x}" ]; then GH_TITLE_FORBID_RE=$HARNESS_GITHUB_PR_TITLE_FORBID_RE
+else case " ${HARNESS_BUNDLES:-} " in *" github "*) GH_TITLE_FORBID_RE="" ;; *) GH_TITLE_FORBID_RE='#[0-9]+' ;; esac; fi
 GH_TEAM_RE="${GHP}(pr\s+${GHR}(merge|review|update-branch|lock|unlock)|issue\s+${GHR}(delete|transfer|pin|unpin|lock|unlock|develop)|release\s+${GHR}(create|edit|delete|delete-asset|upload)|repo\s+${GHR}(delete|archive|unarchive|fork|create|rename|edit|sync|deploy-key|autolink)|label\s+${GHR}(edit|delete|clone)|workflow\s+${GHR}(run|enable|disable)|run\s+${GHR}(cancel|rerun|delete)|(secret|variable)\s+${GHR}(set|delete)|gist\s+(create|edit|delete|rename)|auth\s+(login|logout|refresh|setup-git|switch)|(ssh-key|gpg-key)\s+(add|delete)|alias\s+(set|import|delete)|ext(ension)?s?\s+(install|upgrade|remove)|project\s+(close|copy|create|delete|edit|field-create|field-delete|item-add|item-archive|item-create|item-delete|item-edit|link|unlink|mark-template)|cache\s+${GHR}delete)\b"
 GH_PR_BOOL_RE='^--?(d|draft|undo|edit-last|create-if-none|delete-last|y|yes|w|web|delete-branch|remove-milestone|dry-run|e|editor)$'
 GH_ISSUE_BOOL_RE='^--?(e|editor|w|web|edit-last|create-if-none|delete-last|y|yes|remove-milestone|remove-parent)$'
@@ -117,13 +125,15 @@ EOF
 
   # -- 5. gh pr create (per clause): head = -H/--head (user:branch → branch), else the current
   #       branch of cwd (none inside a sub worktree → deny); base = -B/--base; -sub- rules as glab.
-  #       --web / --dry-run create nothing here → no decision.
+  #       --web / --dry-run create nothing here → no decision. --fill* and a title matching
+  #       HARNESS_GITHUB_PR_TITLE_FORBID_RE (or a $VAR/backtick title) ask (deferred).
   if printf '%s' "$flat" | grep -qE "${GHP}pr\s+${GHR}create\b"; then
     while IFS= read -r clause; do
       [ -n "$clause" ] || continue
-      words=$(shell_words "$clause") || { defer "gh pr create — could not parse the command line (unbalanced quotes)"; continue; }
+      # a clause cut out of `sh -c "…"` ends in the wrapper's quote: retry without it
+      words=$(shell_words "$clause") || words=$(shell_words "${clause%[\"\']}") || { defer "gh pr create — could not parse the command line (unbalanced quotes)"; continue; }
       toks=(); [ -z "$words" ] || while IFS= read -r _w; do toks+=("$_w"); done <<<"$words"
-      phead=""; pbase=""; pweb=false; i=0
+      phead=""; pbase=""; pweb=false; pfill=false; ptitle=""; phas_title=false; i=0
       while [ "$i" -lt "${#toks[@]}" ]; do
         tok=${toks[i]}; i=$((i+1))
         case "$tok" in
@@ -132,7 +142,10 @@ EOF
           -B|--base) pbase=${toks[i]:-}; i=$((i+1)) ;;
           --base=*)  pbase=${tok#*=} ;;
           -w|--web|--dry-run) pweb=true ;;
-          -d|--draft|-f|--fill|--fill-first|--fill-verbose|--no-maintainer-edit|-e|--editor|--*=*) ;;
+          -f|--fill|--fill-first|--fill-verbose|--fill=*|--fill-first=*|--fill-verbose=*) pfill=true ;;
+          -t|--title) ptitle=${toks[i]:-}; phas_title=true; i=$((i+1)) ;;
+          --title=*)  ptitle=${tok#*=}; phas_title=true ;;
+          -d|--draft|--no-maintainer-edit|-e|--editor|--*=*) ;;
           -?*) i=$((i+1)) ;;        # -t -b -F -l -a -r -m -p -T -R --recover take a value
         esac
       done
@@ -143,6 +156,14 @@ EOF
       fi
       case "$phead" in *'$'*) defer "gh pr create with a \$VAR head — use a literal branch name"; continue ;; esac
       sub_create_rules PR "${phead#*:}" "$pbase"
+      $pfill && defer "gh pr create --fill: generated text may contain a closing keyword; pass -t and -F body-file instead"
+      if $phas_title && [ -n "$GH_TITLE_FORBID_RE" ]; then
+        case "$ptitle" in
+          *'$'*|*'`'*) defer "gh pr create with a \$VAR/backtick title cannot be checked against github.pr_title_forbid_re; use a literal title instead" ;;
+          *) printf '%s' "$ptitle" | grep -qE -- "$GH_TITLE_FORBID_RE" \
+               && defer "PR title '$ptitle' matches github.pr_title_forbid_re ($GH_TITLE_FORBID_RE): issue refs belong in the PR body (mention #N there), not the title; set github.pr_title_forbid_re to change the convention" ;;
+        esac
+      fi
       pending_allow="gh pr create (creates are ungated; pass --label agent-worked so follow-up edits stay promptless)"
     done <<EOF
 $(printf '%s' "$flat" | grep -oE "${GHP}pr\s+${GHR}create\b[^;&|]*")

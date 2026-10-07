@@ -3,3 +3,4 @@
 [gitlab]
 personal_repo_re = ""
 hosts_re = ""
+mr_title_re = "^[A-Z][A-Z0-9_]*-[0-9]+ "

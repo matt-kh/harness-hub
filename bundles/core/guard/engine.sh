@@ -94,6 +94,9 @@
 #   HARNESS_CRED_EXTRA_RE           extra credential path regex, denied for readers like the
 #                                   built-in list (credentials.extra_paths_re; empty = none)
 #   HARNESS_TICKET_EXAMPLE          example key shown in reasons (core.ticket_example, PROJ-123)
+#   HARNESS_GITLAB_MR_TITLE_RE      ERE a `glab mr create -t` title must match (gitlab.mr_title_re)
+#   HARNESS_GITHUB_PR_TITLE_FORBID_RE  ERE a `gh pr create -t` title must not match
+#                                   (github.pr_title_forbid_re); both: empty = check disabled
 #   HARNESS_GUARD_ENV               path of the env file parsed at start (default <hooks dir>/guard.env)
 #   GUARD_KUBECTL / GUARD_GIT       kubectl / git binaries the hook shells out to (tests: stubs)
 #   K8S_PROD_RE                     regex marking prod contexts/namespaces (same as the k8s CLI)
