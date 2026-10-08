@@ -9,7 +9,7 @@
 # rule: glab mr create --related-issue -> ask : links (and may close) a GitLab issue; mention the key in the description instead
 # rule: glab mr create -t TITLE not matching HARNESS_GITLAB_MR_TITLE_RE -> ask : MR titles start with the ticket key; use a title like 'PROJ-123 fix parser' instead, or set gitlab.mr_title_re (empty disables)
 # rule: glab mr create -t with $VAR or backticks -> ask : the title cannot be checked; use a literal title instead
-# rule: glab mr update|note|close REF on an agent-labelled MR -> allow : human MRs ask; -sub- retarget to base -> deny
+# rule: glab mr update|note|close|rebase REF on an agent-labelled MR -> allow : human MRs ask (label it first: glab mr update REF --label agent-worked); -sub- retarget to base -> deny, retarget to the ticket branch instead; no/$VAR ref -> ask, pass a literal number
 # repo-override: WORK_TICKET_BASE_BRANCH_RE = "^(master|main)$" -> default/base branches: pushes to them deny, sub MRs/PRs never target them
 # repo-override: WORK_TICKET_LABELED_DECISION = "allow" -> allow|ask: the decision for writes to agent-labelled tickets, issues, MRs and PRs
 repo_owns gitlab/guard.d/50-gitlab scm && return 0   # principle 8: the repository's .harness.toml owns this section or domain scm
@@ -86,7 +86,7 @@ EOF
     pending_allow="glab mr create (creates are ungated; pass --label agent-worked so follow-up edits stay promptless)"
   fi
 
-  # glab mr update|note|close <ref>: gate on the MR's existing labels
-  gate_writes '\bglab\s+mr\s+(update|note|close)\b' fetch_glab_mr '^(-l|--label)$' '^--target-branch$' '' \
-    '^(--(draft|ready|wip|yes|lock-discussion|unlock-discussion|remove-source-branch|squash-before-merge|unique)|-r|-y)$' "glab mr" '!'
+  # glab mr update|note|close|rebase <ref>: gate on the MR's existing labels
+  gate_writes '\bglab\s+mr\s+(update|note|close|rebase)\b' fetch_glab_mr '^(-l|--label)$' '^--target-branch$' '' \
+    '^(--(draft|ready|wip|yes|lock-discussion|unlock-discussion|remove-source-branch|squash-before-merge|unique|skip-ci)|-r|-y)$' "glab mr" '!'
 fi

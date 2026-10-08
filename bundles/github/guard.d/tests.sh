@@ -46,7 +46,6 @@ tr 'gh auth token prints' 'gh auth token'
 t ask   'gh pr merge 100 --squash'
 t ask   'gh -R o/r pr merge 100'
 t ask   'gh pr review 100 --approve'
-t ask   'gh pr update-branch 100'
 t ask   'gh issue delete 1 --yes'
 t ask   'gh issue transfer 1 o/other'
 t ask   'gh issue develop 1 --checkout'
@@ -63,6 +62,17 @@ t ask   'gh alias set co "pr checkout"'
 t ask   'gh extension install owner/gh-x'
 t ask   'gh release create v1.0.0'
 tr 'human-only' 'gh pr merge 100'
+# gh pr update-branch: decided by the PR label gate (no longer an always-ask team action)
+g allow 'gh pr update-branch 100'
+g allow 'gh pr update-branch 110 --rebase'
+g allow 'gh pr update-branch 110 -R o/r --rebase'
+g ask   'gh pr update-branch 200'
+g ask   'gh pr update-branch 120'                                  # fork PR
+g ask   'gh pr update-branch'                                      # no ref: labels cannot be checked
+g ask   'gh pr update-branch "$N"'
+g ask   'GH_REPO=o/r gh pr update-branch 110'
+g ask   'gh pr update-branch 110 && gh pr merge 110'               # merge stays human-only
+g ask   'sh -c "gh pr update-branch 200"'
 # label create (positional name)
 t allow 'gh label create agent-worked -c 7057ff -d "Worked by an AI agent"'
 t allow 'gh label create -R o/r agent-drafted --force'
