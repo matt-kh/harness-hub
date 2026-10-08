@@ -70,7 +70,6 @@ ask = [
   "Bash(gh pr merge:*)",
   "Bash(gh pr review:*)",
   "Bash(gh pr unlock:*)",
-  "Bash(gh pr update-branch:*)",
   "Bash(gh project close:*)",
   "Bash(gh project copy:*)",
   "Bash(gh project create:*)",

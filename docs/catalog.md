@@ -84,7 +84,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 |---|---|---|---|---|---|
 | `core/permissions` | guide | base | deny 11 · ask 2 · allow 1 | never | denies reads of credential files in the provider's own permission system |
 | `gdoc/permissions` | guide | workspace | ask 1 · allow 12 | config | read commands allowed, writes left to the guard |
-| `github/permissions` | guide | scm | deny 1 · ask 75 · allow 32 | config | read-only gh commands allowed; token printing denied |
+| `github/permissions` | guide | scm | deny 1 · ask 74 · allow 32 | config | read-only gh commands allowed; token printing denied |
 | `gitlab/permissions` | guide | scm | ask 11 · allow 13 | config | read-only glab commands allowed |
 | `jira/permissions` | guide | tracker | allow 12 | config | read commands allowed; writes left to the guard |
 | `k8s/permissions` | guide | kubernetes | deny 12 · ask 45 · allow 42 | config | read-only kubectl/helm allowed |

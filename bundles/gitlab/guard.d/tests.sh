@@ -48,6 +48,21 @@ t  allow 'glab mr update 110 --description-file /tmp/x.md && glab mr update 100 
 t  allow 'glab mr update 110 --ready'
 t  ask   'glab mr update 210 --target-branch feat-x'
 t  allow 'glab mr update 100 --target-branch main'
+# glab mr rebase: server-side rebase joins the MR label gate
+t  allow 'glab mr rebase 110'
+t  allow 'glab mr rebase 110 --skip-ci'
+t  allow 'glab mr rebase 100'
+t  ask   'glab mr rebase 200'
+t  ask   'glab mr rebase 210'
+t  ask   'glab mr rebase 300'                                       # unknown MR: lookup fails
+t  ask   'glab mr rebase'                                           # no ref: labels cannot be checked
+t  ask   'glab mr rebase "$IID"'
+t  ask   'glab mr rebase 110 && glab mr rebase 200'                 # every clause is gated
+t  ask   'sh -c "glab mr rebase 200"'
+t  ask   'cd ../shop && glab mr rebase 200'
+WORK_TICKET_LABELED_DECISION=ask t ask 'glab mr rebase 110'
+t  deny  'glab mr rebase 110 && glab mr update 110 --target-branch master'
+tr 'label' 'glab mr rebase 200'
 # ---- refactor regressions (shared gate / per-clause parsing) ----------------------
 t  deny  'glab mr create -s feat-x -b master --title a -y && glab mr create -s feat-x-sub-01-schema -b master --title b -y'
 t  pass  'glab api projects/1/labels | grep -F agent'          # payload check is per api clause now
