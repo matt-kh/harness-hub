@@ -1,0 +1,44 @@
+# exit=1
+# stderr:
+# stdout:
+{
+  "verb": "plan",
+  "provider": "github",
+  "repo": "o/r",
+  "selection": {
+    "mode": "stack",
+    "stack": "feat-x",
+    "label": null,
+    "refs": []
+  },
+  "notes": [
+    "no server-side gate on main (private repository): mq run is the queue, and mq.require_checks is the only guard against merging an unchecked PR"
+  ],
+  "queue": [
+    {
+      "ref": 10,
+      "title": "PROJ-123 feature x",
+      "source": "feat-x",
+      "target": "main",
+      "state": "open",
+      "draft": true,
+      "labels": [
+        "agent-worked"
+      ],
+      "sha": "featx-3",
+      "checks": "none",
+      "behind": null,
+      "merge_status": "CLEAN",
+      "auto_merge": false,
+      "next": {
+        "kind": "stop",
+        "step": "S0",
+        "message": "every part merged: mark the main PR ready (`mq sync` does it for an agent-labelled PR)",
+        "commands": [
+          "gh pr ready 10 -R o/r"
+        ]
+      }
+    }
+  ],
+  "exit": 1
+}

@@ -1,0 +1,18 @@
+# exit=0
+# stderr:
+# stdout:
+{
+  "verb": "sync",
+  "provider": "github",
+  "repo": "o/r",
+  "selection": {
+    "mode": "label",
+    "stack": null,
+    "label": "merge-queue",
+    "refs": []
+  },
+  "actions": [],
+  "skipped": [],
+  "hints": [],
+  "exit": 0
+}

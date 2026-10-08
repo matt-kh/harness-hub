@@ -1,0 +1,71 @@
+{
+  "repo": {
+    "isPrivate": false,
+    "visibility": "PUBLIC",
+    "autoMergeAllowed": true
+  },
+  "protection": {
+    "main": null
+  },
+  "rules": {
+    "main": [
+      {
+        "type": "pull_request"
+      },
+      {
+        "type": "required_status_checks"
+      },
+      {
+        "type": "merge_queue"
+      }
+    ]
+  },
+  "prs": {
+    "21": [
+      {
+        "title": "PROJ-123 fix a",
+        "labels": [
+          "merge-queue",
+          "agent-worked"
+        ],
+        "headRefName": "fix-a",
+        "mergeStateStatus": "BLOCKED"
+      },
+      {
+        "autoMergeRequest": {
+          "mergeMethod": "SQUASH"
+        }
+      },
+      {
+        "state": "MERGED"
+      }
+    ],
+    "22": [
+      {
+        "title": "PROJ-123 fix b",
+        "labels": [
+          "merge-queue",
+          "agent-worked"
+        ],
+        "headRefName": "fix-b",
+        "mergeStateStatus": "BLOCKED"
+      },
+      {
+        "autoMergeRequest": {
+          "mergeMethod": "SQUASH"
+        }
+      },
+      {
+        "autoMergeRequest": null
+      },
+      {
+        "autoMergeRequest": {
+          "mergeMethod": "SQUASH"
+        }
+      },
+      {
+        "state": "MERGED"
+      }
+    ]
+  }
+}

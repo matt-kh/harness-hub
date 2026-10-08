@@ -1,0 +1,26 @@
+# exit=1
+# stderr:
+# stdout:
+{
+  "verb": "sync",
+  "provider": "gitlab",
+  "repo": "o/r",
+  "selection": {
+    "mode": "label",
+    "stack": null,
+    "label": "merge-queue",
+    "refs": []
+  },
+  "actions": [],
+  "skipped": [],
+  "hints": [
+    {
+      "ref": 21,
+      "message": "pipeline failed on head21-1",
+      "commands": [
+        "glab ci view fix-a"
+      ]
+    }
+  ],
+  "exit": 1
+}

@@ -1,0 +1,70 @@
+# exit=0
+# stderr:
+# stdout:
+{
+  "verb": "plan",
+  "provider": "gitlab",
+  "repo": "o/r",
+  "selection": {
+    "mode": "stack",
+    "stack": "feat-x",
+    "label": null,
+    "refs": []
+  },
+  "notes": [
+    "merge_method = merge: a small race remains between the target-SHA check and the merge; `mq check --fix` prints the switch to rebase_merge"
+  ],
+  "queue": [
+    {
+      "ref": 11,
+      "title": "PROJ-123 part 1: api",
+      "source": "feat-x-sub-01-api",
+      "target": "feat-x",
+      "state": "open",
+      "draft": false,
+      "labels": [
+        "agent-worked"
+      ],
+      "sha": "head11-1",
+      "checks": "success",
+      "behind": 0,
+      "merge_status": "mergeable",
+      "auto_merge": false,
+      "next": {
+        "kind": "act",
+        "step": "S2",
+        "message": "target feat-x moved to featx-2 since the pipeline's base featx-1",
+        "commands": [
+          "glab mr rebase 11",
+          "glab mr merge 11 --auto-merge=false --sha '<new-head>' --yes --squash --remove-source-branch"
+        ]
+      }
+    },
+    {
+      "ref": 12,
+      "title": "PROJ-123 part 2: ui",
+      "source": "feat-x-sub-02-ui",
+      "target": "feat-x",
+      "state": "open",
+      "draft": false,
+      "labels": [
+        "agent-worked"
+      ],
+      "sha": "head12-1",
+      "checks": "success",
+      "behind": 0,
+      "merge_status": "mergeable",
+      "auto_merge": false,
+      "next": {
+        "kind": "act",
+        "step": "S2",
+        "message": "target feat-x moved to featx-3 since the pipeline's base featx-1 (re-evaluated when it reaches the head of the queue)",
+        "commands": [
+          "glab mr rebase 12",
+          "glab mr merge 12 --auto-merge=false --sha '<new-head>' --yes --squash --remove-source-branch"
+        ]
+      }
+    }
+  ],
+  "exit": 0
+}

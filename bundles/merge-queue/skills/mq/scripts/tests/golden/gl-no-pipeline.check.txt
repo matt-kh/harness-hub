@@ -1,0 +1,46 @@
+# exit=1
+# stderr:
+# stdout:
+{
+  "verb": "check",
+  "provider": "gitlab",
+  "repo": "o/r",
+  "findings": [
+    {
+      "severity": "ok",
+      "key": "merge_method",
+      "message": "rebase_merge: GitLab itself refuses a stale source (need_rebase)"
+    },
+    {
+      "severity": "warn",
+      "key": "pipelines_must_succeed",
+      "message": "off: mq waits client-side and merges itself; turn it on so a killed mq run loses nothing"
+    },
+    {
+      "severity": "info",
+      "key": "allow_merge_on_skipped_pipeline",
+      "message": "off: a skipped pipeline stops the train"
+    },
+    {
+      "severity": "ok",
+      "key": "squash_option",
+      "message": "default_on"
+    },
+    {
+      "severity": "ok",
+      "key": "remove_source_branch_after_merge",
+      "message": "off"
+    },
+    {
+      "severity": "ok",
+      "key": "access",
+      "message": "access level 40"
+    },
+    {
+      "severity": "ok",
+      "key": "ci",
+      "message": "MR pipelines configured"
+    }
+  ],
+  "exit": 1
+}

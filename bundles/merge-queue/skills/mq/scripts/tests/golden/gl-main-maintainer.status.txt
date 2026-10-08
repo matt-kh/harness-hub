@@ -1,0 +1,99 @@
+# exit=1
+# stderr:
+# stdout:
+{
+  "verb": "status",
+  "provider": "gitlab",
+  "repo": "o/r",
+  "selection": {
+    "mode": "stack",
+    "stack": "feat-x",
+    "label": null,
+    "refs": []
+  },
+  "rows": [
+    {
+      "ref": 11,
+      "title": "PROJ-123 part 1: api",
+      "source": "feat-x-sub-01-api",
+      "target": "feat-x",
+      "state": "merged",
+      "draft": false,
+      "labels": [
+        "agent-worked"
+      ],
+      "sha": "head11-1",
+      "checks": "none",
+      "behind": null,
+      "merge_status": "",
+      "auto_merge": false,
+      "next": {
+        "kind": "done",
+        "step": "S0",
+        "message": "merged",
+        "commands": []
+      }
+    },
+    {
+      "ref": 12,
+      "title": "PROJ-123 part 2: ui",
+      "source": "feat-x-sub-02-ui",
+      "target": "feat-x",
+      "state": "merged",
+      "draft": false,
+      "labels": [
+        "agent-worked"
+      ],
+      "sha": "head12-1",
+      "checks": "none",
+      "behind": null,
+      "merge_status": "",
+      "auto_merge": false,
+      "next": {
+        "kind": "done",
+        "step": "S0",
+        "message": "merged",
+        "commands": []
+      }
+    },
+    {
+      "ref": 10,
+      "title": "PROJ-123 feature x",
+      "source": "feat-x",
+      "target": "main",
+      "state": "open",
+      "draft": false,
+      "labels": [
+        "agent-worked"
+      ],
+      "sha": "featx-3",
+      "checks": "success",
+      "behind": 0,
+      "merge_status": "mergeable",
+      "auto_merge": false,
+      "next": {
+        "kind": "act",
+        "step": "S4",
+        "message": "merge featx-3 (pipeline success)",
+        "commands": [
+          "glab mr merge 10 --auto-merge=false --sha featx-3 --yes --squash --remove-source-branch"
+        ]
+      }
+    }
+  ],
+  "cleanup": [
+    {
+      "ref": 11,
+      "branch": "feat-x-sub-01-api",
+      "path": "/home/u/dev/r_feat-x-sub-01-api",
+      "command": "git worktree remove /home/u/dev/r_feat-x-sub-01-api"
+    },
+    {
+      "ref": 12,
+      "branch": "feat-x-sub-02-ui",
+      "path": "/home/u/dev/r_feat-x-sub-02-ui",
+      "command": "git worktree remove /home/u/dev/r_feat-x-sub-02-ui"
+    }
+  ],
+  "exit": 1
+}

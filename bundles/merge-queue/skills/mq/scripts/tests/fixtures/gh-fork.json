@@ -1,0 +1,14 @@
+{
+  "prs": {
+    "21": [
+      {
+        "title": "PROJ-123 contributed fix",
+        "labels": [
+          "merge-queue"
+        ],
+        "headRefName": "patch-1",
+        "isCrossRepository": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "checks": {
+    "11": [
+      {
+        "rows": [],
+        "rc": 1,
+        "err": "no checks reported on the 'feat-x-sub-01-api' branch"
+      }
+    ]
+  },
+  "workflows": {
+    "total_count": 0
+  },
+  "prs": {
+    "11": [
+      {
+        "title": "PROJ-123 part 1: api",
+        "headRefName": "feat-x-sub-01-api",
+        "baseRefName": "feat-x"
+      },
+      {},
+      {},
+      {},
+      {
+        "state": "MERGED"
+      }
+    ]
+  }
+}

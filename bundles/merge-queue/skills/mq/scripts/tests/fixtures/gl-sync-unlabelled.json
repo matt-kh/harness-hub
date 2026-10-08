@@ -1,0 +1,62 @@
+{
+  "mrs": {
+    "10": [
+      {
+        "title": "PROJ-123 feature x",
+        "draft": true,
+        "labels": [],
+        "source_branch": "feat-x",
+        "target_branch": "main"
+      }
+    ],
+    "11": [
+      {
+        "title": "PROJ-123 part 1: api",
+        "source_branch": "feat-x-sub-01-api",
+        "target_branch": "feat-x",
+        "diverged_commits_count": 2,
+        "detailed_merge_status": "need_rebase"
+      },
+      {
+        "rebase_in_progress": true
+      },
+      {
+        "rebase_in_progress": false,
+        "sha": "head11-2",
+        "diverged_commits_count": 0,
+        "detailed_merge_status": "mergeable",
+        "head_pipeline": {
+          "status": "success"
+        }
+      },
+      {
+        "state": "merged"
+      }
+    ],
+    "12": [
+      {
+        "title": "PROJ-123 part 2: ui",
+        "labels": [],
+        "source_branch": "feat-x-sub-02-ui",
+        "target_branch": "feat-x",
+        "diverged_commits_count": 2,
+        "detailed_merge_status": "need_rebase"
+      },
+      {
+        "rebase_in_progress": true
+      },
+      {
+        "rebase_in_progress": false,
+        "sha": "head12-2",
+        "diverged_commits_count": 0,
+        "detailed_merge_status": "mergeable",
+        "head_pipeline": {
+          "status": "success"
+        }
+      },
+      {
+        "state": "merged"
+      }
+    ]
+  }
+}

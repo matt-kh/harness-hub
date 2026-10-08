@@ -1,0 +1,29 @@
+{
+  "prs": {
+    "11": [
+      {
+        "title": "PROJ-123 part 1: api",
+        "state": "MERGED",
+        "headRefName": "feat-x-sub-01-api",
+        "baseRefName": "feat-x"
+      }
+    ],
+    "12": [
+      {
+        "title": "PROJ-123 part 2: ui",
+        "state": "MERGED",
+        "headRefName": "feat-x-sub-02-ui",
+        "baseRefName": "feat-x"
+      }
+    ],
+    "10": [
+      {
+        "title": "PROJ-123 feature x",
+        "isDraft": true,
+        "headRefName": "feat-x",
+        "baseRefName": "main",
+        "headRefOid": "featx-3"
+      }
+    ]
+  }
+}

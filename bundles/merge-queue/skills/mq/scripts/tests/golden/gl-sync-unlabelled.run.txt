@@ -1,0 +1,69 @@
+# exit=3
+# stderr:
+[!11] S2: 2 commit(s) behind feat-x
++ glab mr rebase 11
+[!11] S2: rebase in progress — waiting
+[!11] S4: merge head11-2 (pipeline success)
++ glab mr merge 11 --auto-merge=false --sha head11-2 --yes --squash --remove-source-branch
+[!11] merged
+[!12] S2: 2 commit(s) behind feat-x
++ glab mr rebase 12
+[!12] S2: rebase in progress — waiting
+[!12] S4: merge head12-2 (pipeline success)
++ glab mr merge 12 --auto-merge=false --sha head12-2 --yes --squash --remove-source-branch
+[!12] merged
+[!10] stopped at S0: every part merged: mark the main MR ready (`mq sync` does it for an agent-labelled MR) — the train stops here
+# stdout:
+{
+  "verb": "run",
+  "provider": "gitlab",
+  "repo": "o/r",
+  "selection": {
+    "mode": "stack",
+    "stack": "feat-x",
+    "label": null,
+    "refs": []
+  },
+  "notes": [],
+  "queue": [
+    {
+      "ref": 11,
+      "source": "feat-x-sub-01-api",
+      "target": "feat-x",
+      "outcome": "merged",
+      "step": "S0",
+      "message": "merged",
+      "commands": [],
+      "ran": [
+        "glab mr rebase 11",
+        "glab mr merge 11 --auto-merge=false --sha head11-2 --yes --squash --remove-source-branch"
+      ]
+    },
+    {
+      "ref": 12,
+      "source": "feat-x-sub-02-ui",
+      "target": "feat-x",
+      "outcome": "merged",
+      "step": "S0",
+      "message": "merged",
+      "commands": [],
+      "ran": [
+        "glab mr rebase 12",
+        "glab mr merge 12 --auto-merge=false --sha head12-2 --yes --squash --remove-source-branch"
+      ]
+    },
+    {
+      "ref": 10,
+      "source": "feat-x",
+      "target": "main",
+      "outcome": "stopped",
+      "step": "S0",
+      "message": "every part merged: mark the main MR ready (`mq sync` does it for an agent-labelled MR)",
+      "commands": [
+        "glab mr update 10 --ready"
+      ],
+      "ran": []
+    }
+  ],
+  "exit": 3
+}

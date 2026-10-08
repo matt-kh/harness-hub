@@ -1,0 +1,40 @@
+# exit=3
+# stderr:
+[!11] S2: rebase in progress — waiting
+[!11] stopped at S2: server-side rebase stuck for more than 10 minutes — the train stops here
+# stdout:
+{
+  "verb": "run",
+  "provider": "gitlab",
+  "repo": "o/r",
+  "selection": {
+    "mode": "stack",
+    "stack": "feat-x",
+    "label": null,
+    "refs": []
+  },
+  "notes": [],
+  "queue": [
+    {
+      "ref": 11,
+      "source": "feat-x-sub-01-api",
+      "target": "feat-x",
+      "outcome": "stopped",
+      "step": "S2",
+      "message": "server-side rebase stuck for more than 10 minutes",
+      "commands": [
+        "git fetch origin && git rebase origin/feat-x feat-x-sub-01-api && git push --force-with-lease origin feat-x-sub-01-api"
+      ],
+      "ran": []
+    },
+    {
+      "ref": 12,
+      "outcome": "not reached",
+      "step": "",
+      "message": "",
+      "commands": [],
+      "ran": []
+    }
+  ],
+  "exit": 3
+}

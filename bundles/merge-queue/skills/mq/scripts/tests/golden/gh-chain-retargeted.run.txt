@@ -1,0 +1,34 @@
+# exit=3
+# stderr:
+note: no server-side gate on main (private repository): mq run is the queue, and mq.require_checks is the only guard against merging an unchecked PR
+[#12] stopped at S1: carries the pre-squash commits of merged #11; rebase them away — the train stops here
+# stdout:
+{
+  "verb": "run",
+  "provider": "github",
+  "repo": "o/r",
+  "selection": {
+    "mode": "stack",
+    "stack": "feat-x",
+    "label": null,
+    "refs": []
+  },
+  "notes": [
+    "no server-side gate on main (private repository): mq run is the queue, and mq.require_checks is the only guard against merging an unchecked PR"
+  ],
+  "queue": [
+    {
+      "ref": 12,
+      "source": "feat-x-sub-02-ui",
+      "target": "feat-x",
+      "outcome": "stopped",
+      "step": "S1",
+      "message": "carries the pre-squash commits of merged #11; rebase them away",
+      "commands": [
+        "git fetch origin && git rebase --onto origin/feat-x head11-1 feat-x-sub-02-ui && git push --force-with-lease origin feat-x-sub-02-ui"
+      ],
+      "ran": []
+    }
+  ],
+  "exit": 3
+}

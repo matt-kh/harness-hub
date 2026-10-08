@@ -1,0 +1,45 @@
+{
+  "mrs": {
+    "10": [
+      {
+        "title": "PROJ-123 feature x",
+        "draft": false,
+        "source_branch": "feat-x",
+        "target_branch": "main",
+        "sha": "featx-3"
+      }
+    ],
+    "11": [
+      {
+        "title": "PROJ-123 part 1: api",
+        "state": "merged",
+        "source_branch": "feat-x-sub-01-api",
+        "target_branch": "feat-x"
+      }
+    ],
+    "12": [
+      {
+        "title": "PROJ-123 part 2: ui",
+        "state": "merged",
+        "source_branch": "feat-x-sub-02-ui",
+        "target_branch": "feat-x"
+      }
+    ]
+  },
+  "writes": {
+    "merge-10": [
+      {
+        "rc": 1,
+        "err": "ERROR: 403 Forbidden - You are not allowed to merge this merge request"
+      }
+    ]
+  },
+  "project": {
+    "permissions": {
+      "project_access": {
+        "access_level": 30
+      },
+      "group_access": null
+    }
+  }
+}

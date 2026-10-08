@@ -1,0 +1,90 @@
+# exit=1
+# stderr:
+# stdout:
+{
+  "verb": "plan",
+  "provider": "github",
+  "repo": "o/r",
+  "selection": {
+    "mode": "stack",
+    "stack": "feat-x",
+    "label": null,
+    "refs": []
+  },
+  "notes": [
+    "no server-side gate on main (private repository): mq run is the queue, and mq.require_checks is the only guard against merging an unchecked PR"
+  ],
+  "queue": [
+    {
+      "ref": 11,
+      "title": "PROJ-123 part 1: api",
+      "source": "feat-x-sub-01-api",
+      "target": "feat-x",
+      "state": "open",
+      "draft": false,
+      "labels": [
+        "agent-worked"
+      ],
+      "sha": "head11-1",
+      "checks": "none",
+      "behind": 2,
+      "merge_status": "BEHIND",
+      "auto_merge": false,
+      "next": {
+        "kind": "act",
+        "step": "S2",
+        "message": "2 commit(s) behind feat-x",
+        "commands": [
+          "gh pr update-branch 11 -R o/r --rebase",
+          "gh pr merge 11 -R o/r --squash --match-head-commit '<new-head>' --delete-branch"
+        ]
+      }
+    },
+    {
+      "ref": 12,
+      "title": "PROJ-123 part 2: ui",
+      "source": "feat-x-sub-02-ui",
+      "target": "feat-x",
+      "state": "open",
+      "draft": false,
+      "labels": [],
+      "sha": "head12-1",
+      "checks": "none",
+      "behind": 2,
+      "merge_status": "BEHIND",
+      "auto_merge": false,
+      "next": {
+        "kind": "act",
+        "step": "S2",
+        "message": "2 commit(s) behind feat-x (re-evaluated when it reaches the head of the queue)",
+        "commands": [
+          "gh pr update-branch 12 -R o/r --rebase",
+          "gh pr merge 12 -R o/r --squash --match-head-commit '<new-head>' --delete-branch"
+        ]
+      }
+    },
+    {
+      "ref": 10,
+      "title": "PROJ-123 feature x",
+      "source": "feat-x",
+      "target": "main",
+      "state": "open",
+      "draft": true,
+      "labels": [],
+      "sha": "head10-1",
+      "checks": "none",
+      "behind": null,
+      "merge_status": "CLEAN",
+      "auto_merge": false,
+      "next": {
+        "kind": "stop",
+        "step": "S0",
+        "message": "every part merged: mark the main PR ready (`mq sync` does it for an agent-labelled PR)",
+        "commands": [
+          "gh pr ready 10 -R o/r"
+        ]
+      }
+    }
+  ],
+  "exit": 1
+}

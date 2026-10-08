@@ -1,0 +1,26 @@
+# exit=1
+# stderr:
+# stdout:
+{
+  "verb": "sync",
+  "provider": "gitlab",
+  "repo": "o/r",
+  "selection": {
+    "mode": "stack",
+    "stack": "feat-x",
+    "label": null,
+    "refs": []
+  },
+  "actions": [],
+  "skipped": [],
+  "hints": [
+    {
+      "ref": 11,
+      "message": "merge conflict with feat-x; rebase locally and push",
+      "commands": [
+        "git fetch origin && git rebase origin/feat-x feat-x-sub-01-api && git push --force-with-lease origin feat-x-sub-01-api"
+      ]
+    }
+  ],
+  "exit": 1
+}

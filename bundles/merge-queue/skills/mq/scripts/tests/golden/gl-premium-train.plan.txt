@@ -1,0 +1,68 @@
+# exit=0
+# stderr:
+# stdout:
+{
+  "verb": "plan",
+  "provider": "gitlab",
+  "repo": "o/r",
+  "selection": {
+    "mode": "stack",
+    "stack": "feat-x",
+    "label": null,
+    "refs": []
+  },
+  "notes": [
+    "native merge train available (merge_trains_enabled): `--auto-merge` adds each MR to it"
+  ],
+  "queue": [
+    {
+      "ref": 11,
+      "title": "PROJ-123 part 1: api",
+      "source": "feat-x-sub-01-api",
+      "target": "feat-x",
+      "state": "open",
+      "draft": false,
+      "labels": [
+        "agent-worked"
+      ],
+      "sha": "head11-1",
+      "checks": "success",
+      "behind": 0,
+      "merge_status": "mergeable",
+      "auto_merge": false,
+      "next": {
+        "kind": "act",
+        "step": "S4",
+        "message": "arm auto-merge on head11-1 (merge train)",
+        "commands": [
+          "glab mr merge 11 --auto-merge --sha head11-1 --yes --squash --remove-source-branch"
+        ]
+      }
+    },
+    {
+      "ref": 12,
+      "title": "PROJ-123 part 2: ui",
+      "source": "feat-x-sub-02-ui",
+      "target": "feat-x",
+      "state": "open",
+      "draft": false,
+      "labels": [
+        "agent-worked"
+      ],
+      "sha": "head12-1",
+      "checks": "success",
+      "behind": 0,
+      "merge_status": "mergeable",
+      "auto_merge": false,
+      "next": {
+        "kind": "act",
+        "step": "S4",
+        "message": "arm auto-merge on head12-1 (merge train) (re-evaluated when it reaches the head of the queue)",
+        "commands": [
+          "glab mr merge 12 --auto-merge --sha head12-1 --yes --squash --remove-source-branch"
+        ]
+      }
+    }
+  ],
+  "exit": 0
+}

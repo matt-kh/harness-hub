@@ -1,0 +1,43 @@
+# exit=0
+# stderr:
+# stdout:
+{
+  "verb": "status",
+  "provider": "github",
+  "repo": "o/r",
+  "selection": {
+    "mode": "label",
+    "stack": null,
+    "label": "merge-queue",
+    "refs": []
+  },
+  "rows": [
+    {
+      "ref": 21,
+      "title": "PROJ-123 fix a",
+      "source": "fix-a",
+      "target": "main",
+      "state": "open",
+      "draft": false,
+      "labels": [
+        "merge-queue",
+        "agent-worked"
+      ],
+      "sha": "head21-1",
+      "checks": "pending",
+      "behind": 0,
+      "merge_status": "BLOCKED",
+      "auto_merge": false,
+      "next": {
+        "kind": "act",
+        "step": "S4",
+        "message": "arm auto-merge on head21-1",
+        "commands": [
+          "gh pr merge 21 -R o/r --auto --squash --match-head-commit head21-1"
+        ]
+      }
+    }
+  ],
+  "cleanup": [],
+  "exit": 0
+}

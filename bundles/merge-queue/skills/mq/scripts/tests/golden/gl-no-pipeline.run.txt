@@ -1,0 +1,32 @@
+# exit=3
+# stderr:
+[!11] S3: no pipeline on head11-1 yet — waiting
+[!11] stopped at S3: no pipeline on this head (CI rules filter on the target branch?); mq.require_checks is on — fix CI or set HARNESS_MQ_REQUIRE_CHECKS=false — the train stops here
+# stdout:
+{
+  "verb": "run",
+  "provider": "gitlab",
+  "repo": "o/r",
+  "selection": {
+    "mode": "refs",
+    "stack": null,
+    "label": null,
+    "refs": [
+      11
+    ]
+  },
+  "notes": [],
+  "queue": [
+    {
+      "ref": 11,
+      "source": "feat-x-sub-01-api",
+      "target": "feat-x",
+      "outcome": "stopped",
+      "step": "S3",
+      "message": "no pipeline on this head (CI rules filter on the target branch?); mq.require_checks is on \u2014 fix CI or set HARNESS_MQ_REQUIRE_CHECKS=false",
+      "commands": [],
+      "ran": []
+    }
+  ],
+  "exit": 3
+}

@@ -1,0 +1,42 @@
+{
+  "compare": {
+    "feat-x...head12-1": [
+      {
+        "behind_by": 1
+      }
+    ]
+  },
+  "checks": {
+    "12": [
+      {
+        "rows": [
+          {
+            "bucket": "pending",
+            "state": "IN_PROGRESS",
+            "name": "test"
+          }
+        ],
+        "rc": 8
+      },
+      {}
+    ]
+  },
+  "prs": {
+    "12": [
+      {
+        "title": "PROJ-123 part 2: ui",
+        "headRefName": "feat-x-sub-02-ui",
+        "baseRefName": "feat-x",
+        "mergeStateStatus": "BEHIND"
+      },
+      {
+        "headRefOid": "head12-2",
+        "mergeStateStatus": "CLEAN"
+      },
+      {},
+      {
+        "state": "MERGED"
+      }
+    ]
+  }
+}

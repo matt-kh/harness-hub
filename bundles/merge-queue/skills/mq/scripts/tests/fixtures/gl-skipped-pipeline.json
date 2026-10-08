@@ -1,0 +1,30 @@
+{
+  "project": {
+    "allow_merge_on_skipped_pipeline": true
+  },
+  "mrs": {
+    "11": [
+      {
+        "title": "PROJ-123 part 1: api",
+        "source_branch": "feat-x-sub-01-api",
+        "target_branch": "feat-x",
+        "head_pipeline": {
+          "status": "skipped"
+        }
+      },
+      {
+        "state": "merged"
+      }
+    ],
+    "12": [
+      {
+        "title": "PROJ-123 part 2: ui",
+        "source_branch": "feat-x-sub-02-ui",
+        "target_branch": "feat-x",
+        "head_pipeline": {
+          "status": "manual"
+        }
+      }
+    ]
+  }
+}

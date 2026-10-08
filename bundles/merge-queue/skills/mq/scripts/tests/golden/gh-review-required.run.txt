@@ -1,0 +1,29 @@
+# exit=3
+# stderr:
+[#21] stopped at S4: review decision REVIEW_REQUIRED; ask a reviewer — the train stops here
+# stdout:
+{
+  "verb": "run",
+  "provider": "github",
+  "repo": "o/r",
+  "selection": {
+    "mode": "label",
+    "stack": null,
+    "label": "merge-queue",
+    "refs": []
+  },
+  "notes": [],
+  "queue": [
+    {
+      "ref": 21,
+      "source": "fix-a",
+      "target": "main",
+      "outcome": "stopped",
+      "step": "S4",
+      "message": "review decision REVIEW_REQUIRED; ask a reviewer",
+      "commands": [],
+      "ran": []
+    }
+  ],
+  "exit": 3
+}

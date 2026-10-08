@@ -1,0 +1,69 @@
+# exit=0
+# stderr:
+# stdout:
+{
+  "verb": "plan",
+  "provider": "github",
+  "repo": "o/r",
+  "selection": {
+    "mode": "stack",
+    "stack": "feat-x",
+    "label": null,
+    "refs": []
+  },
+  "notes": [
+    "no server-side gate on main (private repository): mq run is the queue, and mq.require_checks is the only guard against merging an unchecked PR"
+  ],
+  "queue": [
+    {
+      "ref": 11,
+      "title": "PROJ-123 part 1: api",
+      "source": "feat-x-sub-01-api",
+      "target": "feat-x",
+      "state": "open",
+      "draft": false,
+      "labels": [
+        "agent-worked"
+      ],
+      "sha": "head11-1",
+      "checks": "success",
+      "behind": 0,
+      "merge_status": "CLEAN",
+      "auto_merge": false,
+      "next": {
+        "kind": "act",
+        "step": "S4",
+        "message": "merge head11-1 (checks success)",
+        "commands": [
+          "gh pr merge 11 -R o/r --squash --match-head-commit head11-1 --delete-branch"
+        ]
+      }
+    },
+    {
+      "ref": 12,
+      "title": "PROJ-123 part 2: ui",
+      "source": "feat-x-sub-02-ui",
+      "target": "feat-x",
+      "state": "open",
+      "draft": false,
+      "labels": [
+        "agent-worked"
+      ],
+      "sha": "head12-1",
+      "checks": "none",
+      "behind": 1,
+      "merge_status": "BEHIND",
+      "auto_merge": false,
+      "next": {
+        "kind": "act",
+        "step": "S2",
+        "message": "1 commit(s) behind feat-x (re-evaluated when it reaches the head of the queue)",
+        "commands": [
+          "gh pr update-branch 12 -R o/r --rebase",
+          "gh pr merge 12 -R o/r --squash --match-head-commit '<new-head>' --delete-branch"
+        ]
+      }
+    }
+  ],
+  "exit": 0
+}

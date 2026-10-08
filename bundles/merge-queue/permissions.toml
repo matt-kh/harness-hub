@@ -1,0 +1,17 @@
+# Claude Code permission rules contributed by bundle `merge-queue` (merged into settings.json
+# `permissions` by the claude provider; other providers translate what they can).
+# mq reads and the label-gated sync are allowed; the train (mq run) asks — humans merge.
+# Never `Bash(mq:*)`: that would allow `mq run`. The guard's 65-merge-queue section is the
+# authoritative check.
+
+[permissions]
+allow = [
+  "Bash(mq check:*)",
+  "Bash(mq plan:*)",
+  "Bash(mq status:*)",
+  "Bash(mq sync:*)",
+]
+ask = [
+  "Bash(mq run:*)",
+]
+deny = []

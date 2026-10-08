@@ -1,0 +1,69 @@
+{
+  "project": {
+    "merge_method": "merge",
+    "only_allow_merge_if_pipeline_succeeds": false
+  },
+  "branches": {
+    "feat-x": [
+      {
+        "commit": {
+          "id": "featx-2"
+        }
+      },
+      {
+        "commit": {
+          "id": "featx-3"
+        }
+      }
+    ]
+  },
+  "mrs": {
+    "11": [
+      {
+        "title": "PROJ-123 part 1: api",
+        "source_branch": "feat-x-sub-01-api",
+        "target_branch": "feat-x"
+      },
+      {
+        "sha": "head11-2",
+        "diff_refs": {
+          "base_sha": "featx-2"
+        },
+        "head_pipeline": {
+          "status": "success"
+        }
+      },
+      {
+        "sha": "head11-3",
+        "diff_refs": {
+          "base_sha": "featx-3"
+        },
+        "head_pipeline": {
+          "status": "success"
+        }
+      },
+      {
+        "state": "merged"
+      }
+    ],
+    "12": [
+      {
+        "title": "PROJ-123 part 2: ui",
+        "source_branch": "feat-x-sub-02-ui",
+        "target_branch": "feat-x"
+      },
+      {
+        "sha": "head12-2",
+        "diff_refs": {
+          "base_sha": "featx-3"
+        },
+        "head_pipeline": {
+          "status": "success"
+        }
+      },
+      {
+        "state": "merged"
+      }
+    ]
+  }
+}

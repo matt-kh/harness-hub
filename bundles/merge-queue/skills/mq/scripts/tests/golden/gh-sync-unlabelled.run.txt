@@ -1,0 +1,70 @@
+# exit=3
+# stderr:
+note: no server-side gate on main (private repository): mq run is the queue, and mq.require_checks is the only guard against merging an unchecked PR
+[#11] S2: 2 commit(s) behind feat-x
++ gh pr update-branch 11 -R o/r --rebase
+[#11] S4: merge head11-2 (checks success)
++ gh pr merge 11 -R o/r --squash --match-head-commit head11-2 --delete-branch
+[#11] merged
+[#12] S2: 2 commit(s) behind feat-x
++ gh pr update-branch 12 -R o/r --rebase
+[#12] S4: merge head12-2 (checks success)
++ gh pr merge 12 -R o/r --squash --match-head-commit head12-2 --delete-branch
+[#12] merged
+[#10] stopped at S0: every part merged: mark the main PR ready (`mq sync` does it for an agent-labelled PR) — the train stops here
+# stdout:
+{
+  "verb": "run",
+  "provider": "github",
+  "repo": "o/r",
+  "selection": {
+    "mode": "stack",
+    "stack": "feat-x",
+    "label": null,
+    "refs": []
+  },
+  "notes": [
+    "no server-side gate on main (private repository): mq run is the queue, and mq.require_checks is the only guard against merging an unchecked PR"
+  ],
+  "queue": [
+    {
+      "ref": 11,
+      "source": "feat-x-sub-01-api",
+      "target": "feat-x",
+      "outcome": "merged",
+      "step": "S0",
+      "message": "merged",
+      "commands": [],
+      "ran": [
+        "gh pr update-branch 11 -R o/r --rebase",
+        "gh pr merge 11 -R o/r --squash --match-head-commit head11-2 --delete-branch"
+      ]
+    },
+    {
+      "ref": 12,
+      "source": "feat-x-sub-02-ui",
+      "target": "feat-x",
+      "outcome": "merged",
+      "step": "S0",
+      "message": "merged",
+      "commands": [],
+      "ran": [
+        "gh pr update-branch 12 -R o/r --rebase",
+        "gh pr merge 12 -R o/r --squash --match-head-commit head12-2 --delete-branch"
+      ]
+    },
+    {
+      "ref": 10,
+      "source": "feat-x",
+      "target": "main",
+      "outcome": "stopped",
+      "step": "S0",
+      "message": "every part merged: mark the main PR ready (`mq sync` does it for an agent-labelled PR)",
+      "commands": [
+        "gh pr ready 10 -R o/r"
+      ],
+      "ran": []
+    }
+  ],
+  "exit": 3
+}

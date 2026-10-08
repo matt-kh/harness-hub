@@ -1,0 +1,12 @@
+{
+  "prs": {
+    "11": [
+      {
+        "title": "PROJ-123 part 1: api",
+        "isDraft": true,
+        "headRefName": "feat-x-sub-01-api",
+        "baseRefName": "feat-x"
+      }
+    ]
+  }
+}

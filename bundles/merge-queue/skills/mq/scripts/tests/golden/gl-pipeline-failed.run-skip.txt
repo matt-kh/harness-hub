@@ -1,0 +1,46 @@
+# exit=1
+# stderr:
+[!21] failed at S3: pipeline failed on head21-1 — skipped (mq.on_failure = skip)
+[!22] S4: merge head22-1 (pipeline success)
++ glab mr merge 22 --auto-merge=false --sha head22-1 --yes --squash --remove-source-branch
+[!22] merged
+# stdout:
+{
+  "verb": "run",
+  "provider": "gitlab",
+  "repo": "o/r",
+  "selection": {
+    "mode": "label",
+    "stack": null,
+    "label": "merge-queue",
+    "refs": []
+  },
+  "notes": [],
+  "queue": [
+    {
+      "ref": 21,
+      "source": "fix-a",
+      "target": "main",
+      "outcome": "skipped",
+      "step": "S3",
+      "message": "pipeline failed on head21-1",
+      "commands": [
+        "glab ci view fix-a"
+      ],
+      "ran": []
+    },
+    {
+      "ref": 22,
+      "source": "fix-b",
+      "target": "main",
+      "outcome": "merged",
+      "step": "S0",
+      "message": "merged",
+      "commands": [],
+      "ran": [
+        "glab mr merge 22 --auto-merge=false --sha head22-1 --yes --squash --remove-source-branch"
+      ]
+    }
+  ],
+  "exit": 1
+}

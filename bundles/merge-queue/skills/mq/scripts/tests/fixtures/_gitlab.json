@@ -1,0 +1,21 @@
+{
+  "remote": "git@gitlab.example.com:o/r.git",
+  "project": {
+    "id": 1, "path_with_namespace": "o/r", "default_branch": "main",
+    "merge_method": "rebase_merge", "only_allow_merge_if_pipeline_succeeds": true,
+    "allow_merge_on_skipped_pipeline": false, "merge_trains_enabled": false,
+    "squash_option": "default_on", "remove_source_branch_after_merge": false,
+    "permissions": {"project_access": {"access_level": 40}, "group_access": null}
+  },
+  "heads": {"main": "main-1", "feat-x": "featx-1", "feat-x-sub-01-api": "head11-1"},
+  "ci": "workflow:\n  rules:\n    - if: $CI_PIPELINE_SOURCE == \"merge_request_event\"\ntest:\n  script: [make test]\n",
+  "worktrees": "worktree /home/u/dev/r\nHEAD 0000\nbranch refs/heads/feat-x\n\nworktree /home/u/dev/r_feat-x-sub-01-api\nHEAD 0000\nbranch refs/heads/feat-x-sub-01-api\n\nworktree /home/u/dev/r_feat-x-sub-02-ui\nHEAD 0000\nbranch refs/heads/feat-x-sub-02-ui\n\n",
+  "mrs": {
+    "10": [{"title": "PROJ-123 feature x", "draft": true, "source_branch": "feat-x", "target_branch": "main", "sha": "featx-1"}],
+    "11": [{"title": "PROJ-123 part 1: api", "source_branch": "feat-x-sub-01-api", "target_branch": "feat-x"},
+           {"state": "merged"}],
+    "12": [{"title": "PROJ-123 part 2: ui", "source_branch": "feat-x-sub-02-ui", "target_branch": "feat-x"},
+           {"state": "merged"}]
+  },
+  "writes": {}
+}

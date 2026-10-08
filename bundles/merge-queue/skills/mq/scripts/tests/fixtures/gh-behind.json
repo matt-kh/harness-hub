@@ -1,0 +1,52 @@
+{
+  "compare": {
+    "main...head21-1": [
+      {
+        "behind_by": 2
+      }
+    ]
+  },
+  "writes": {
+    "update-branch-22": [
+      {
+        "rc": 1,
+        "err": "HTTP 422: Branch is already up to date with base (updatePullRequestBranch)"
+      }
+    ]
+  },
+  "prs": {
+    "21": [
+      {
+        "title": "PROJ-123 fix a",
+        "labels": [
+          "merge-queue",
+          "agent-worked"
+        ],
+        "headRefName": "fix-a",
+        "mergeStateStatus": "BEHIND"
+      },
+      {
+        "headRefOid": "head21-2",
+        "mergeStateStatus": "CLEAN"
+      },
+      {
+        "state": "MERGED"
+      }
+    ],
+    "22": [
+      {
+        "title": "PROJ-123 fix b",
+        "labels": [
+          "merge-queue",
+          "agent-worked"
+        ],
+        "headRefName": "fix-b",
+        "mergeStateStatus": "BEHIND"
+      },
+      {},
+      {
+        "state": "MERGED"
+      }
+    ]
+  }
+}

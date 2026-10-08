@@ -1,0 +1,40 @@
+# exit=1
+# stderr:
+# stdout:
+{
+  "verb": "status",
+  "provider": "github",
+  "repo": "o/r",
+  "selection": {
+    "mode": "label",
+    "stack": null,
+    "label": "merge-queue",
+    "refs": []
+  },
+  "rows": [
+    {
+      "ref": 21,
+      "title": "PROJ-123 contributed fix",
+      "source": "patch-1",
+      "target": "main",
+      "state": "open",
+      "draft": false,
+      "labels": [
+        "merge-queue"
+      ],
+      "sha": "head21-1",
+      "checks": "none",
+      "behind": null,
+      "merge_status": "CLEAN",
+      "auto_merge": false,
+      "next": {
+        "kind": "stop",
+        "step": "S0",
+        "message": "cross-repository (fork) PR: fork PRs are never stacked; merge it in the web UI",
+        "commands": []
+      }
+    }
+  ],
+  "cleanup": [],
+  "exit": 1
+}

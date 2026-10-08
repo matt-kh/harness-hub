@@ -1,0 +1,41 @@
+# exit=1
+# stderr:
+[!11] S2: head of the queue is behind feat-x
++ glab mr rebase 11 --skip-ci
+# stdout:
+{
+  "verb": "sync",
+  "provider": "gitlab",
+  "repo": "o/r",
+  "selection": {
+    "mode": "stack",
+    "stack": "feat-x",
+    "label": null,
+    "refs": []
+  },
+  "actions": [
+    {
+      "ref": 11,
+      "command": "glab mr rebase 11 --skip-ci",
+      "rc": 0,
+      "error": ""
+    }
+  ],
+  "skipped": [
+    {
+      "ref": 12,
+      "reason": "not agent-labelled",
+      "command": "glab mr update 12 --label agent-worked"
+    }
+  ],
+  "hints": [
+    {
+      "ref": 11,
+      "message": "rebased server-side; refresh the local worktree (never reset --hard)",
+      "commands": [
+        "git -C /home/u/dev/r_feat-x-sub-01-api pull --rebase origin feat-x-sub-01-api"
+      ]
+    }
+  ],
+  "exit": 1
+}

@@ -1,0 +1,26 @@
+# exit=1
+# stderr:
+# stdout:
+{
+  "verb": "sync",
+  "provider": "github",
+  "repo": "o/r",
+  "selection": {
+    "mode": "stack",
+    "stack": "feat-x",
+    "label": null,
+    "refs": []
+  },
+  "actions": [],
+  "skipped": [],
+  "hints": [
+    {
+      "ref": 12,
+      "message": "carries the pre-squash commits of merged #11; rebase them away",
+      "commands": [
+        "git fetch origin && git rebase --onto origin/feat-x head11-1 feat-x-sub-02-ui && git push --force-with-lease origin feat-x-sub-02-ui"
+      ]
+    }
+  ],
+  "exit": 1
+}

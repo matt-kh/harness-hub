@@ -1,0 +1,58 @@
+# exit=0
+# stderr:
+note: native merge queue on main: `gh pr merge --auto` enqueues; the queue does the rest
+[#21] S4: enqueue in the native merge queue
++ gh pr merge 21 -R o/r --auto
+[#21] S5: auto-merge armed (in the merge queue); GitHub merges when the checks pass — waiting
+[#21] merged
+[#22] S4: enqueue in the native merge queue
++ gh pr merge 22 -R o/r --auto
+[#22] S5: auto-merge armed (in the merge queue); GitHub merges when the checks pass — waiting
+[#22] S4: auto-merge / queue entry was removed; re-evaluating
+[#22] S4: enqueue in the native merge queue
++ gh pr merge 22 -R o/r --auto
+[#22] S5: auto-merge armed (in the merge queue); GitHub merges when the checks pass — waiting
+[#22] merged
+# stdout:
+{
+  "verb": "run",
+  "provider": "github",
+  "repo": "o/r",
+  "selection": {
+    "mode": "label",
+    "stack": null,
+    "label": "merge-queue",
+    "refs": []
+  },
+  "notes": [
+    "native merge queue on main: `gh pr merge --auto` enqueues; the queue does the rest"
+  ],
+  "queue": [
+    {
+      "ref": 21,
+      "source": "fix-a",
+      "target": "main",
+      "outcome": "merged",
+      "step": "S0",
+      "message": "merged",
+      "commands": [],
+      "ran": [
+        "gh pr merge 21 -R o/r --auto"
+      ]
+    },
+    {
+      "ref": 22,
+      "source": "fix-b",
+      "target": "main",
+      "outcome": "merged",
+      "step": "S0",
+      "message": "merged",
+      "commands": [],
+      "ran": [
+        "gh pr merge 22 -R o/r --auto",
+        "gh pr merge 22 -R o/r --auto"
+      ]
+    }
+  ],
+  "exit": 0
+}

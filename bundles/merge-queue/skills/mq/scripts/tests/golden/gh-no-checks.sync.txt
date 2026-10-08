@@ -1,0 +1,20 @@
+# exit=0
+# stderr:
+# stdout:
+{
+  "verb": "sync",
+  "provider": "github",
+  "repo": "o/r",
+  "selection": {
+    "mode": "refs",
+    "stack": null,
+    "label": null,
+    "refs": [
+      11
+    ]
+  },
+  "actions": [],
+  "skipped": [],
+  "hints": [],
+  "exit": 0
+}

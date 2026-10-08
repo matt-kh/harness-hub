@@ -1,0 +1,31 @@
+{
+  "mrs": {
+    "21": [
+      {
+        "title": "PROJ-123 fix a",
+        "labels": [
+          "merge-queue",
+          "agent-worked"
+        ],
+        "source_branch": "fix-a",
+        "head_pipeline": {
+          "status": "failed"
+        },
+        "detailed_merge_status": "ci_must_pass"
+      }
+    ],
+    "22": [
+      {
+        "title": "PROJ-123 fix b",
+        "labels": [
+          "merge-queue",
+          "agent-worked"
+        ],
+        "source_branch": "fix-b"
+      },
+      {
+        "state": "merged"
+      }
+    ]
+  }
+}

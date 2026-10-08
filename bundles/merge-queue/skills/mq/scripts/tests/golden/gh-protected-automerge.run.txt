@@ -1,0 +1,34 @@
+# exit=0
+# stderr:
+[#21] S4: arm auto-merge on head21-1
++ gh pr merge 21 -R o/r --auto --squash --match-head-commit head21-1
+[#21] S5: auto-merge armed; GitHub merges when the checks pass — waiting
+[#21] merged
+# stdout:
+{
+  "verb": "run",
+  "provider": "github",
+  "repo": "o/r",
+  "selection": {
+    "mode": "label",
+    "stack": null,
+    "label": "merge-queue",
+    "refs": []
+  },
+  "notes": [],
+  "queue": [
+    {
+      "ref": 21,
+      "source": "fix-a",
+      "target": "main",
+      "outcome": "merged",
+      "step": "S0",
+      "message": "merged",
+      "commands": [],
+      "ran": [
+        "gh pr merge 21 -R o/r --auto --squash --match-head-commit head21-1"
+      ]
+    }
+  ],
+  "exit": 0
+}

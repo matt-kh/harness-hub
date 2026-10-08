@@ -1,0 +1,64 @@
+# exit=1
+# stderr:
+# stdout:
+{
+  "verb": "plan",
+  "provider": "gitlab",
+  "repo": "o/r",
+  "selection": {
+    "mode": "stack",
+    "stack": "feat-x",
+    "label": null,
+    "refs": []
+  },
+  "notes": [],
+  "queue": [
+    {
+      "ref": 11,
+      "title": "PROJ-123 part 1: api",
+      "source": "feat-x-sub-01-api",
+      "target": "feat-x",
+      "state": "open",
+      "draft": false,
+      "labels": [
+        "agent-worked"
+      ],
+      "sha": "head11-1",
+      "checks": "skipped",
+      "behind": 0,
+      "merge_status": "mergeable",
+      "auto_merge": false,
+      "next": {
+        "kind": "act",
+        "step": "S4",
+        "message": "merge head11-1 (pipeline skipped)",
+        "commands": [
+          "glab mr merge 11 --auto-merge=false --sha head11-1 --yes --squash --remove-source-branch"
+        ]
+      }
+    },
+    {
+      "ref": 12,
+      "title": "PROJ-123 part 2: ui",
+      "source": "feat-x-sub-02-ui",
+      "target": "feat-x",
+      "state": "open",
+      "draft": false,
+      "labels": [
+        "agent-worked"
+      ],
+      "sha": "head12-1",
+      "checks": "manual",
+      "behind": 0,
+      "merge_status": "mergeable",
+      "auto_merge": false,
+      "next": {
+        "kind": "stop",
+        "step": "S3",
+        "message": "pipeline waits on a manual job; run it in the GitLab UI, then re-run",
+        "commands": []
+      }
+    }
+  ],
+  "exit": 1
+}

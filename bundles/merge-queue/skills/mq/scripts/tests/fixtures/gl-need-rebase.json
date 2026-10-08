@@ -1,0 +1,37 @@
+{
+  "mrs": {
+    "11": [
+      {
+        "title": "PROJ-123 part 1: api",
+        "source_branch": "feat-x-sub-01-api",
+        "target_branch": "feat-x",
+        "detailed_merge_status": "ci_still_running",
+        "head_pipeline": {
+          "status": "running"
+        }
+      },
+      {
+        "detailed_merge_status": "need_rebase",
+        "diverged_commits_count": 1
+      },
+      {
+        "rebase_in_progress": true
+      },
+      {
+        "rebase_in_progress": false,
+        "sha": "head11-2",
+        "diverged_commits_count": 0,
+        "detailed_merge_status": "ci_still_running",
+        "head_pipeline": {
+          "status": "running"
+        }
+      },
+      {
+        "merge_when_pipeline_succeeds": true
+      },
+      {
+        "state": "merged"
+      }
+    ]
+  }
+}

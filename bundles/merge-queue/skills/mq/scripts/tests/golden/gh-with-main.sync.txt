@@ -1,0 +1,27 @@
+# exit=0
+# stderr:
+[#10] S0: every part merged: main ready
++ gh pr ready 10 -R o/r
+# stdout:
+{
+  "verb": "sync",
+  "provider": "github",
+  "repo": "o/r",
+  "selection": {
+    "mode": "stack",
+    "stack": "feat-x",
+    "label": null,
+    "refs": []
+  },
+  "actions": [
+    {
+      "ref": 10,
+      "command": "gh pr ready 10 -R o/r",
+      "rc": 0,
+      "error": ""
+    }
+  ],
+  "skipped": [],
+  "hints": [],
+  "exit": 0
+}

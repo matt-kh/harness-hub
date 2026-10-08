@@ -1,0 +1,12 @@
+{
+  "merge_base": {},
+  "mrs": {
+    "12": [
+      {
+        "title": "PROJ-123 part 2: ui",
+        "source_branch": "feat-x-sub-02-ui",
+        "target_branch": "feat-x-sub-01-api"
+      }
+    ]
+  }
+}

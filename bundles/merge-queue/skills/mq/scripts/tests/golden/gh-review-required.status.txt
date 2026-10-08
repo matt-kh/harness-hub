@@ -1,0 +1,41 @@
+# exit=1
+# stderr:
+# stdout:
+{
+  "verb": "status",
+  "provider": "github",
+  "repo": "o/r",
+  "selection": {
+    "mode": "label",
+    "stack": null,
+    "label": "merge-queue",
+    "refs": []
+  },
+  "rows": [
+    {
+      "ref": 21,
+      "title": "PROJ-123 fix a",
+      "source": "fix-a",
+      "target": "main",
+      "state": "open",
+      "draft": false,
+      "labels": [
+        "merge-queue",
+        "agent-worked"
+      ],
+      "sha": "head21-1",
+      "checks": "none",
+      "behind": null,
+      "merge_status": "BLOCKED",
+      "auto_merge": false,
+      "next": {
+        "kind": "stop",
+        "step": "S4",
+        "message": "review decision REVIEW_REQUIRED; ask a reviewer",
+        "commands": []
+      }
+    }
+  ],
+  "cleanup": [],
+  "exit": 1
+}

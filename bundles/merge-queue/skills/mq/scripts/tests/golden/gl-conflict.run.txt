@@ -1,0 +1,39 @@
+# exit=3
+# stderr:
+[!11] failed at S2: merge conflict with feat-x; rebase locally and push — the train stops here
+# stdout:
+{
+  "verb": "run",
+  "provider": "gitlab",
+  "repo": "o/r",
+  "selection": {
+    "mode": "stack",
+    "stack": "feat-x",
+    "label": null,
+    "refs": []
+  },
+  "notes": [],
+  "queue": [
+    {
+      "ref": 11,
+      "source": "feat-x-sub-01-api",
+      "target": "feat-x",
+      "outcome": "failed",
+      "step": "S2",
+      "message": "merge conflict with feat-x; rebase locally and push",
+      "commands": [
+        "git fetch origin && git rebase origin/feat-x feat-x-sub-01-api && git push --force-with-lease origin feat-x-sub-01-api"
+      ],
+      "ran": []
+    },
+    {
+      "ref": 12,
+      "outcome": "not reached",
+      "step": "",
+      "message": "",
+      "commands": [],
+      "ran": []
+    }
+  ],
+  "exit": 3
+}

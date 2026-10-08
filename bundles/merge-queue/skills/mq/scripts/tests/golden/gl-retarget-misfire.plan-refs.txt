@@ -1,0 +1,44 @@
+# exit=1
+# stderr:
+# stdout:
+{
+  "verb": "plan",
+  "provider": "gitlab",
+  "repo": "o/r",
+  "selection": {
+    "mode": "refs",
+    "stack": null,
+    "label": null,
+    "refs": [
+      12
+    ]
+  },
+  "notes": [],
+  "queue": [
+    {
+      "ref": 12,
+      "title": "PROJ-123 part 2: ui",
+      "source": "feat-x-sub-02-ui",
+      "target": "main",
+      "state": "open",
+      "draft": false,
+      "labels": [
+        "agent-worked"
+      ],
+      "sha": "head12-1",
+      "checks": "success",
+      "behind": 0,
+      "merge_status": "mergeable",
+      "auto_merge": false,
+      "next": {
+        "kind": "stop",
+        "step": "S1",
+        "message": "sub part targets the default branch main instead of feat-x",
+        "commands": [
+          "glab mr update 12 --target-branch feat-x"
+        ]
+      }
+    }
+  ],
+  "exit": 1
+}

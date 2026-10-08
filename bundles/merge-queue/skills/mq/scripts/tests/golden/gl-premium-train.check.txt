@@ -1,0 +1,51 @@
+# exit=0
+# stderr:
+# stdout:
+{
+  "verb": "check",
+  "provider": "gitlab",
+  "repo": "o/r",
+  "findings": [
+    {
+      "severity": "ok",
+      "key": "merge_method",
+      "message": "rebase_merge: GitLab itself refuses a stale source (need_rebase)"
+    },
+    {
+      "severity": "ok",
+      "key": "pipelines_must_succeed",
+      "message": "on: auto-merge waits for the pipeline server-side"
+    },
+    {
+      "severity": "info",
+      "key": "allow_merge_on_skipped_pipeline",
+      "message": "off: a skipped pipeline stops the train"
+    },
+    {
+      "severity": "ok",
+      "key": "squash_option",
+      "message": "default_on"
+    },
+    {
+      "severity": "ok",
+      "key": "remove_source_branch_after_merge",
+      "message": "off"
+    },
+    {
+      "severity": "ok",
+      "key": "access",
+      "message": "access level 40"
+    },
+    {
+      "severity": "info",
+      "key": "merge_trains",
+      "message": "native merge train available: --auto-merge adds each MR to it"
+    },
+    {
+      "severity": "ok",
+      "key": "ci",
+      "message": "MR pipelines configured"
+    }
+  ],
+  "exit": 0
+}
