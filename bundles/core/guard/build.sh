@@ -12,7 +12,8 @@
 #   2. every <bundle>/guard.d/NN-*.sh of the selected bundles, sorted by FILE BASENAME with
 #      LC_ALL=C byte order across all bundles (ties broken by bundle directory name).
 #      Numeric prefixes are therefore global: 10 k8s, 20 credentials, 25 k8s rules, 30 git,
-#      40/41 closing keywords, 50 gitlab, 60 github, 70 jira, 80 gdoc, 90+ private bundles.
+#      40/41 closing keywords, 50 gitlab, 60 github, 65 merge queue, 70 jira, 75 ticket
+#      workflow, 80 gdoc, 90+ private bundles.
 #   3. bundles/core/guard/engine-flush.sh
 # Only files matching guard.d/[0-9][0-9]-*.sh are sections; guard.d/tests.sh is test data.
 # The order is load-bearing: allow/ask/deny exit immediately, so an earlier section wins.

@@ -5,7 +5,7 @@ the **repo overrides** a repository may set in `.harness.toml` `[overrides]` or 
 (which wins per key). Both tables are generated, from the `# rule:` and `# repo-override:`
 comments in `bundles/*/guard.d/*.sh`; do not edit inside the regions.
 
-Decisions are evaluated section by section in numeric order (`10` k8s … `90+` private); a deny
+Decisions are evaluated section by section in numeric order (`10` k8s … `60` github, `65` merge queue, `70` jira … `90+` private); a deny
 anywhere wins over an earlier ask, and an allow never overrides a pending ask. On providers without
 an ask prompt, `ask` is mapped by `[providers.<name>].ask_as`. Model and rationale:
 [governance](../governance.md). The `yields` column says whether a repository's
@@ -61,6 +61,9 @@ marks the developer's own credentials and the ask on writing `.harness.toml`.
 | 60-github.sh | github | `gh issue create without -l agent-drafted\|agent-created` | deny | provenance label required; use -l agent-drafted (or agent-created) instead | owns scm |
 | 60-github.sh | github | `gh pr\|issue edit\|comment\|close\|reopen on an agent-labelled ref` | allow | human refs ask; human issue close\|reopen -> deny; fork PRs ask | owns scm |
 | 60-github.sh | github | `gh auth token \| gh auth status --show-token \| gh config get oauth_token` | deny | prints the token; run plain 'gh auth status' instead | never |
+| 65-merge-queue.sh | merge-queue | `mq run\|merge\|enqueue\|train … (also …/mq, mq.py)` | ask | merging is human-only; hand the human the `mq plan` output and let them run `mq run` in their terminal instead | owns scm |
+| 65-merge-queue.sh | merge-queue | `mq sync … --include-human` | ask | writes to MRs/PRs without an agent-* label; label them first (glab mr update N --label agent-worked / gh pr edit N --add-label agent-worked) or ask the user | owns scm |
+| 65-merge-queue.sh | merge-queue | `mq sync` | allow | writes only to agent-labelled MRs/PRs (the CLI skips the rest and prints the label hint); mq plan\|status\|check are reads and pass | owns scm |
 | 70-jira.sh | jira | `jira set KEY issuelinks \| create --field issuelinks=` | deny | use the governed link commands | owns tracker |
 | 70-jira.sh | jira | `jira link A TYPE B (both agent-labelled, type in HARNESS_JIRA_LINK_TYPES_RE)` | allow | otherwise deny | owns tracker |
 | 70-jira.sh | jira | `jira create without a provenance label (agent-drafted\|agent-created)` | deny | every agent-created ticket is labelled; use labels agent-drafted (or agent-created) instead | owns tracker |

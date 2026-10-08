@@ -219,7 +219,7 @@ Components that yield by declaration: listing a domain in `[owns] domains` cover
 | domain | guard sections that yield | skills that yield |
 |---|---|---|
 | `base` | — | — |
-| `scm` | `core/guard.d/30-git`, `github/guard.d/60-github`, `gitlab/guard.d/50-gitlab` | — |
+| `scm` | `core/guard.d/30-git`, `github/guard.d/60-github`, `gitlab/guard.d/50-gitlab`, `merge-queue/guard.d/65-merge-queue` | `merge-queue/skills/mq` |
 | `tracker` | `github/guard.d/41-github-closing`, `gitlab/guard.d/40-gitlab-closing`, `jira/guard.d/70-jira` | `jira/skills/jira` |
 | `delivery` | `ticket-workflow/guard.d/75-ticket-workflow` | `ticket-workflow/skills/create-ticket`, `ticket-workflow/skills/work-ticket` |
 | `kubernetes` | `k8s/guard.d/25-k8s-rules` | `k8s/skills/k8s` |
@@ -238,6 +238,8 @@ Components that yield by declaration: listing a domain in `[owns] domains` cover
 | `jira/skills/jira` | skill | tracker | jira |
 | `k8s/guard.d/25-k8s-rules` | guard | kubernetes | k8s |
 | `k8s/skills/k8s` | skill | kubernetes | k8s |
+| `merge-queue/guard.d/65-merge-queue` | guard | scm | merge-queue |
+| `merge-queue/skills/mq` | skill | scm | merge-queue |
 | `ticket-workflow/guard.d/75-ticket-workflow` | guard | delivery | ticket-workflow |
 | `ticket-workflow/skills/create-ticket` | skill | delivery | ticket-workflow |
 | `ticket-workflow/skills/work-ticket` | skill | delivery | ticket-workflow |
