@@ -212,8 +212,17 @@ gh pr edit 34 -R OWNER/REPO -F "$SCRATCH/12-pr.md" && gh pr edit 35 -R OWNER/REP
   `#41` (or `part N`), target `feat-x` (never `main`), main PR row `#34 (this)`.
 - Sub PR header: `> **Stack — part N of M** for #12 · main PR #34 · prev #35 · next #37`
   `> **Merge after:** #35 · **Target:** \`<BR>\` (never \`main\`) · click "Delete branch" after merging.`
+- Merge-train readiness (merge-queue bundle): `command -v mq >/dev/null && mq check --json >
+  "$SCRATCH/12-mq.json"`; its warn/fail findings (no ruleset, auto-merge off,
+  `delete_branch_on_merge` off, private Free "no checks") go into `## CI recommendations`.
 
 ## §6c Stack sync
+
+Prefer `mq sync --stack "$BR"` when `mq` is on PATH (hook: allow; agent-labelled PRs only): it
+runs `gh pr update-branch` on the head of the queue only, `gh pr edit N -B "$BR"` for a part
+based on the default branch, `gh pr ready` on the main PR once every part merged, and prints
+the `git rebase --onto` commands for parts that still carry a merged part's pre-squash commits.
+The commands below are the fallback when `mq` is absent.
 
 ```bash
 gh pr list -R OWNER/REPO --state all --limit 100 --json number,headRefName,baseRefName,state,mergedAt,headRefOid > "$SCRATCH/12-stack.json"
@@ -255,6 +264,8 @@ Issue state unchanged — **close the issue yourself after merge** (we never use
 Sub-issues: #41, #42 (agent-created; close them with this issue).   <- only if any
 ```
 Stacked: list the parts in merge order (`#35 [part 1/M] <task> -> <BR>` …), "click Delete
-branch after each merge so dependents retarget", main PR last. Fork flow: no issue comment
+branch after each merge so dependents retarget", main PR last. With `mq` on PATH the human line
+is instead "run `mq plan --stack <BR>`, then `mq run --stack <BR>` in your terminal" (the train
+updates, waits for checks, merges with `--match-head-commit` and deletes merged heads). Fork flow: no issue comment
 unless the user asks (it would prompt); the handoff goes in the final message, plus the
 "Approve and run" note.

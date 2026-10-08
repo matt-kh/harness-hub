@@ -248,8 +248,19 @@ list is complete and checks pass; main MR **Draft** until all parts merged. Temp
 `mr-description.md` (`## Stack`, sub-MR skeleton, CI recommendations for `per_branch_heavy` /
 `mr_heavy_jobs`). If GitLab refuses the empty-root main MR, open it after the first part merges
 (Step 6c) and record that in the Stack table.
+Merge-train readiness (merge-queue bundle, when `mq` is on PATH): feed its findings into the
+main MR's `## CI recommendations` (merge method, pipelines-must-succeed, CI rules that filter
+on the target branch, private-Free "no checks"):
+```bash
+command -v mq >/dev/null && mq check --json > "$SCRATCH/KEY-mq.json"   # read-only; warn/fail findings → ## CI recommendations
+```
 
 #### 6c — Stack sync (re-entry: Q2 = "Sync stack", or after review fixes)
+Prefer `mq sync --stack "$BR"` when `mq` is on PATH (merge-queue bundle; hook: allow): it
+retargets misfired parts, rebases only the head of the queue server-side, marks the main MR/PR
+ready once every part merged, and prints the `git -C ../<repo>_<sub> pull --rebase` to run in
+the rebased part's worktree and the exact `git rebase --onto` commands for chained parts. The
+manual commands below are the fallback when `mq` is absent.
 GitHub → github.md §6c (`gh pr list … headRefOid`, rebase onto the merged part's head OID,
 `gh pr edit N -B "$BR"` only when GitHub did not auto-retarget, `gh pr ready`).
 ```bash
@@ -271,7 +282,9 @@ jira comment KEY "MR opened: <url> ($BR -> $BASE). Merge is by a maintainer. CI 
 # → github.md §7: gh issue comment N -R owner/repo -F handoff.md ("close the issue yourself after merge"); fork flow: final message only
 ```
 Stacked: use the stacked handoff template in `mr-description.md` (merge order, main last, "the
-agent never merges"). No transition on the parent — ever. Final message: MR URL(s) in merge
+agent never merges"). With `mq` on PATH the human line is "run `mq plan --stack <BR>`, then
+`mq run --stack <BR>` in your terminal" (the train merges the parts bottom-up); without it the
+UI wording stays. No transition on the parent — ever. Final message: MR URL(s) in merge
 order, sub-tickets, what CI runs vs ran locally, open questions, deferred asks, and the
 expected `git worktree list` (stacked: main checkout + one worktree per open part).
 
