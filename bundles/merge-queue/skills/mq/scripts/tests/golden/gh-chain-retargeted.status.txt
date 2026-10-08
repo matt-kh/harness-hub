@@ -1,0 +1,95 @@
+# exit=1
+# stderr:
+# stdout:
+{
+  "verb": "status",
+  "provider": "github",
+  "repo": "o/r",
+  "selection": {
+    "mode": "stack",
+    "stack": "feat-x",
+    "label": null,
+    "refs": []
+  },
+  "rows": [
+    {
+      "ref": 11,
+      "title": "PROJ-123 part 1: api",
+      "source": "feat-x-sub-01-api",
+      "target": "feat-x",
+      "state": "merged",
+      "draft": false,
+      "labels": [
+        "agent-worked"
+      ],
+      "sha": "head11-1",
+      "checks": "none",
+      "behind": null,
+      "merge_status": "CLEAN",
+      "auto_merge": false,
+      "next": {
+        "kind": "done",
+        "step": "S0",
+        "message": "merged",
+        "commands": []
+      }
+    },
+    {
+      "ref": 12,
+      "title": "PROJ-123 part 2: ui",
+      "source": "feat-x-sub-02-ui",
+      "target": "feat-x",
+      "state": "open",
+      "draft": false,
+      "labels": [
+        "agent-worked"
+      ],
+      "sha": "head12-1",
+      "checks": "none",
+      "behind": null,
+      "merge_status": "CLEAN",
+      "auto_merge": false,
+      "next": {
+        "kind": "stop",
+        "step": "S1",
+        "message": "carries the pre-squash commits of merged #11; rebase them away",
+        "commands": [
+          "git fetch origin && git rebase --onto origin/feat-x head11-1 feat-x-sub-02-ui && git push --force-with-lease origin feat-x-sub-02-ui"
+        ]
+      }
+    },
+    {
+      "ref": 10,
+      "title": "PROJ-123 feature x",
+      "source": "feat-x",
+      "target": "main",
+      "state": "open",
+      "draft": true,
+      "labels": [
+        "agent-worked"
+      ],
+      "sha": "featx-1",
+      "checks": "none",
+      "behind": null,
+      "merge_status": "CLEAN",
+      "auto_merge": false,
+      "next": {
+        "kind": "wait",
+        "step": "S0",
+        "message": "the main PR stays a draft until every part merged; then `mq sync` marks it ready",
+        "commands": [
+          "gh pr merge 10 -R o/r --squash --match-head-commit featx-1"
+        ]
+      }
+    }
+  ],
+  "cleanup": [
+    {
+      "ref": 11,
+      "branch": "feat-x-sub-01-api",
+      "path": "/home/u/dev/r_feat-x-sub-01-api",
+      "command": "git worktree remove /home/u/dev/r_feat-x-sub-01-api"
+    }
+  ],
+  "exit": 1
+}

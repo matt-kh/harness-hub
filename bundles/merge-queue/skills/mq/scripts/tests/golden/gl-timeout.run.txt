@@ -1,0 +1,41 @@
+# exit=3
+# stderr:
+note: merge_method = merge: a small race remains between the target-SHA check and the merge; `mq check --fix` prints the switch to rebase_merge
+[!11] S3: pipeline running on head11-1 — waiting
+[!11] failed at S3: timed out after 20 min (pipeline running on head11-1); re-run `mq run --stack feat-x` to resume from live state — the train stops here
+# stdout:
+{
+  "verb": "run",
+  "provider": "gitlab",
+  "repo": "o/r",
+  "selection": {
+    "mode": "stack",
+    "stack": "feat-x",
+    "label": null,
+    "refs": []
+  },
+  "notes": [
+    "merge_method = merge: a small race remains between the target-SHA check and the merge; `mq check --fix` prints the switch to rebase_merge"
+  ],
+  "queue": [
+    {
+      "ref": 11,
+      "source": "feat-x-sub-01-api",
+      "target": "feat-x",
+      "outcome": "failed",
+      "step": "S3",
+      "message": "timed out after 20 min (pipeline running on head11-1); re-run `mq run --stack feat-x` to resume from live state",
+      "commands": [],
+      "ran": []
+    },
+    {
+      "ref": 12,
+      "outcome": "not reached",
+      "step": "",
+      "message": "",
+      "commands": [],
+      "ran": []
+    }
+  ],
+  "exit": 3
+}

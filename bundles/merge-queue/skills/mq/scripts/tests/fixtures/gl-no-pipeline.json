@@ -1,0 +1,21 @@
+{
+  "project": {
+    "only_allow_merge_if_pipeline_succeeds": false
+  },
+  "mrs": {
+    "11": [
+      {
+        "title": "PROJ-123 part 1: api",
+        "source_branch": "feat-x-sub-01-api",
+        "target_branch": "feat-x",
+        "head_pipeline": null
+      },
+      {},
+      {},
+      {},
+      {
+        "state": "merged"
+      }
+    ]
+  }
+}

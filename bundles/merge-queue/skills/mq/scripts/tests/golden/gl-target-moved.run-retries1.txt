@@ -1,0 +1,44 @@
+# exit=3
+# stderr:
+note: merge_method = merge: a small race remains between the target-SHA check and the merge; `mq check --fix` prints the switch to rebase_merge
+[!11] S2: target feat-x moved to featx-2 since the pipeline's base featx-1
++ glab mr rebase 11
+[!11] failed at S2: target feat-x moved to featx-3 since the pipeline's base featx-2 after 1 rebase(s); the target is busy — raise mq.max_retries or re-run at a quieter time — the train stops here
+# stdout:
+{
+  "verb": "run",
+  "provider": "gitlab",
+  "repo": "o/r",
+  "selection": {
+    "mode": "stack",
+    "stack": "feat-x",
+    "label": null,
+    "refs": []
+  },
+  "notes": [
+    "merge_method = merge: a small race remains between the target-SHA check and the merge; `mq check --fix` prints the switch to rebase_merge"
+  ],
+  "queue": [
+    {
+      "ref": 11,
+      "source": "feat-x-sub-01-api",
+      "target": "feat-x",
+      "outcome": "failed",
+      "step": "S2",
+      "message": "target feat-x moved to featx-3 since the pipeline's base featx-2 after 1 rebase(s); the target is busy \u2014 raise mq.max_retries or re-run at a quieter time",
+      "commands": [],
+      "ran": [
+        "glab mr rebase 11"
+      ]
+    },
+    {
+      "ref": 12,
+      "outcome": "not reached",
+      "step": "",
+      "message": "",
+      "commands": [],
+      "ran": []
+    }
+  ],
+  "exit": 3
+}

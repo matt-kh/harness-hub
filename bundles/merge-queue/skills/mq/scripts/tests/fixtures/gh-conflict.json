@@ -1,0 +1,13 @@
+{
+  "prs": {
+    "11": [
+      {
+        "title": "PROJ-123 part 1: api",
+        "headRefName": "feat-x-sub-01-api",
+        "baseRefName": "feat-x",
+        "mergeable": "CONFLICTING",
+        "mergeStateStatus": "DIRTY"
+      }
+    ]
+  }
+}

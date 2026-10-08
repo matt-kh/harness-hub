@@ -1,0 +1,18 @@
+# exit=0
+# stderr:
+# stdout:
+{
+  "verb": "sync",
+  "provider": "gitlab",
+  "repo": "o/r",
+  "selection": {
+    "mode": "stack",
+    "stack": "feat-x",
+    "label": null,
+    "refs": []
+  },
+  "actions": [],
+  "skipped": [],
+  "hints": [],
+  "exit": 0
+}

@@ -1,0 +1,60 @@
+# exit=0
+# stderr:
+note: merge_method = merge: a small race remains between the target-SHA check and the merge; `mq check --fix` prints the switch to rebase_merge
+[!11] S2: target feat-x moved to featx-2 since the pipeline's base featx-1
++ glab mr rebase 11
+[!11] S2: target feat-x moved to featx-3 since the pipeline's base featx-2
++ glab mr rebase 11
+[!11] S4: merge head11-3 (pipeline success)
++ glab mr merge 11 --auto-merge=false --sha head11-3 --yes --squash --remove-source-branch
+[!11] merged
+[!12] S2: target feat-x moved to featx-3 since the pipeline's base featx-1
++ glab mr rebase 12
+[!12] S4: merge head12-2 (pipeline success)
++ glab mr merge 12 --auto-merge=false --sha head12-2 --yes --squash --remove-source-branch
+[!12] merged
+# stdout:
+{
+  "verb": "run",
+  "provider": "gitlab",
+  "repo": "o/r",
+  "selection": {
+    "mode": "stack",
+    "stack": "feat-x",
+    "label": null,
+    "refs": []
+  },
+  "notes": [
+    "merge_method = merge: a small race remains between the target-SHA check and the merge; `mq check --fix` prints the switch to rebase_merge"
+  ],
+  "queue": [
+    {
+      "ref": 11,
+      "source": "feat-x-sub-01-api",
+      "target": "feat-x",
+      "outcome": "merged",
+      "step": "S0",
+      "message": "merged",
+      "commands": [],
+      "ran": [
+        "glab mr rebase 11",
+        "glab mr rebase 11",
+        "glab mr merge 11 --auto-merge=false --sha head11-3 --yes --squash --remove-source-branch"
+      ]
+    },
+    {
+      "ref": 12,
+      "source": "feat-x-sub-02-ui",
+      "target": "feat-x",
+      "outcome": "merged",
+      "step": "S0",
+      "message": "merged",
+      "commands": [],
+      "ran": [
+        "glab mr rebase 12",
+        "glab mr merge 12 --auto-merge=false --sha head12-2 --yes --squash --remove-source-branch"
+      ]
+    }
+  ],
+  "exit": 0
+}

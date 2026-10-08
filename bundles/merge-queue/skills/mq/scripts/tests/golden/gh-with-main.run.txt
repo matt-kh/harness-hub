@@ -1,0 +1,34 @@
+# exit=3
+# stderr:
+note: no server-side gate on main (private repository): mq run is the queue, and mq.require_checks is the only guard against merging an unchecked PR
+[#10] stopped at S0: every part merged: mark the main PR ready (`mq sync` does it for an agent-labelled PR) — the train stops here
+# stdout:
+{
+  "verb": "run",
+  "provider": "github",
+  "repo": "o/r",
+  "selection": {
+    "mode": "stack",
+    "stack": "feat-x",
+    "label": null,
+    "refs": []
+  },
+  "notes": [
+    "no server-side gate on main (private repository): mq run is the queue, and mq.require_checks is the only guard against merging an unchecked PR"
+  ],
+  "queue": [
+    {
+      "ref": 10,
+      "source": "feat-x",
+      "target": "main",
+      "outcome": "stopped",
+      "step": "S0",
+      "message": "every part merged: mark the main PR ready (`mq sync` does it for an agent-labelled PR)",
+      "commands": [
+        "gh pr ready 10 -R o/r"
+      ],
+      "ran": []
+    }
+  ],
+  "exit": 3
+}

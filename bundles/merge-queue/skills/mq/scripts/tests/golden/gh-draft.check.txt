@@ -1,0 +1,36 @@
+# exit=0
+# stderr:
+# stdout:
+{
+  "verb": "check",
+  "provider": "github",
+  "repo": "o/r",
+  "findings": [
+    {
+      "severity": "ok",
+      "key": "permission",
+      "message": "WRITE"
+    },
+    {
+      "severity": "info",
+      "key": "protection",
+      "message": "private repository on a Free plan: no rulesets, protection, auto-merge or merge queue; mq run is the queue and mq.require_checks the only guard"
+    },
+    {
+      "severity": "ok",
+      "key": "delete_branch_on_merge",
+      "message": "on: dependents retarget when a part merges"
+    },
+    {
+      "severity": "ok",
+      "key": "strategies",
+      "message": "allowed: squash, rebase; mq uses squash"
+    },
+    {
+      "severity": "ok",
+      "key": "workflows",
+      "message": "1 workflow(s)"
+    }
+  ],
+  "exit": 0
+}

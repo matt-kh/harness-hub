@@ -1,0 +1,47 @@
+# exit=3
+# stderr:
+[!11] S4: merge head11-1 (pipeline success)
++ glab mr merge 11 --auto-merge=false --sha head11-1 --yes --squash
+[!11] merged
+[!12] stopped at S1: chained on !11, which merged: drop its pre-squash commits and retarget — the train stops here
+# stdout:
+{
+  "verb": "run",
+  "provider": "gitlab",
+  "repo": "o/r",
+  "selection": {
+    "mode": "stack",
+    "stack": "feat-x",
+    "label": null,
+    "refs": []
+  },
+  "notes": [],
+  "queue": [
+    {
+      "ref": 11,
+      "source": "feat-x-sub-01-api",
+      "target": "feat-x",
+      "outcome": "merged",
+      "step": "S0",
+      "message": "merged",
+      "commands": [],
+      "ran": [
+        "glab mr merge 11 --auto-merge=false --sha head11-1 --yes --squash"
+      ]
+    },
+    {
+      "ref": 12,
+      "source": "feat-x-sub-02-ui",
+      "target": "feat-x-sub-01-api",
+      "outcome": "stopped",
+      "step": "S1",
+      "message": "chained on !11, which merged: drop its pre-squash commits and retarget",
+      "commands": [
+        "git fetch origin && git rebase --onto origin/feat-x head11-1 feat-x-sub-02-ui && git push --force-with-lease origin feat-x-sub-02-ui",
+        "glab mr update 12 --target-branch feat-x"
+      ],
+      "ran": []
+    }
+  ],
+  "exit": 3
+}

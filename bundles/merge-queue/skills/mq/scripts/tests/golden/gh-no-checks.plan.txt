@@ -1,0 +1,46 @@
+# exit=0
+# stderr:
+# stdout:
+{
+  "verb": "plan",
+  "provider": "github",
+  "repo": "o/r",
+  "selection": {
+    "mode": "refs",
+    "stack": null,
+    "label": null,
+    "refs": [
+      11
+    ]
+  },
+  "notes": [
+    "no server-side gate on main (private repository): mq run is the queue, and mq.require_checks is the only guard against merging an unchecked PR"
+  ],
+  "queue": [
+    {
+      "ref": 11,
+      "title": "PROJ-123 part 1: api",
+      "source": "feat-x-sub-01-api",
+      "target": "feat-x",
+      "state": "open",
+      "draft": false,
+      "labels": [
+        "agent-worked"
+      ],
+      "sha": "head11-1",
+      "checks": "none",
+      "behind": 0,
+      "merge_status": "CLEAN",
+      "auto_merge": false,
+      "next": {
+        "kind": "wait",
+        "step": "S3",
+        "message": "no checks on head11-1 yet; the train waits 3 polls, then stops (mq.require_checks)",
+        "commands": [
+          "gh pr merge 11 -R o/r --squash --match-head-commit head11-1 --delete-branch"
+        ]
+      }
+    }
+  ],
+  "exit": 0
+}

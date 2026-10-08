@@ -48,7 +48,7 @@ check the CLI they need at preflight and name the missing bundle instead of impr
 Org-specific issue-type rules and field ids come from jira.issue_types / jira.fields.
 
 - **Depends on:** `core`
-- **Recommends:** `jira`, `gitlab`, `github`
+- **Recommends:** `jira`, `gitlab`, `github`, `merge-queue`
 - **Needs one of:** `jira`, `github`
 - **Needs one of:** `gitlab`, `github`
 - **Stability:** beta

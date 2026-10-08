@@ -1,0 +1,18 @@
+{
+  "mrs": {
+    "12": [
+      {
+        "title": "PROJ-123 part 2: ui",
+        "source_branch": "feat-x-sub-02-ui",
+        "target_branch": "main"
+      },
+      {
+        "target_branch": "feat-x"
+      },
+      {},
+      {
+        "state": "merged"
+      }
+    ]
+  }
+}

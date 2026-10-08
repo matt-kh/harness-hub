@@ -1,0 +1,44 @@
+# exit=0
+# stderr:
+# stdout:
+{
+  "verb": "status",
+  "provider": "gitlab",
+  "repo": "o/r",
+  "selection": {
+    "mode": "refs",
+    "stack": null,
+    "label": null,
+    "refs": [
+      11
+    ]
+  },
+  "rows": [
+    {
+      "ref": 11,
+      "title": "PROJ-123 part 1: api",
+      "source": "feat-x-sub-01-api",
+      "target": "feat-x",
+      "state": "open",
+      "draft": false,
+      "labels": [
+        "agent-worked"
+      ],
+      "sha": "head11-1",
+      "checks": "none",
+      "behind": 0,
+      "merge_status": "mergeable",
+      "auto_merge": false,
+      "next": {
+        "kind": "wait",
+        "step": "S3",
+        "message": "no pipeline on head11-1 yet; the train waits 3 polls, then stops (mq.require_checks)",
+        "commands": [
+          "glab mr merge 11 --auto-merge=false --sha head11-1 --yes --squash --remove-source-branch"
+        ]
+      }
+    }
+  ],
+  "cleanup": [],
+  "exit": 0
+}

@@ -1,0 +1,66 @@
+# exit=1
+# stderr:
+# stdout:
+{
+  "verb": "plan",
+  "provider": "gitlab",
+  "repo": "o/r",
+  "selection": {
+    "mode": "stack",
+    "stack": "feat-x",
+    "label": null,
+    "refs": []
+  },
+  "notes": [],
+  "queue": [
+    {
+      "ref": 11,
+      "title": "Draft: PROJ-123 part 1: api",
+      "source": "feat-x-sub-01-api",
+      "target": "feat-x",
+      "state": "open",
+      "draft": true,
+      "labels": [
+        "agent-worked"
+      ],
+      "sha": "head11-1",
+      "checks": "success",
+      "behind": 0,
+      "merge_status": "draft_status",
+      "auto_merge": false,
+      "next": {
+        "kind": "stop",
+        "step": "S0",
+        "message": "draft; finish it, then mark it ready",
+        "commands": [
+          "glab mr update 11 --ready"
+        ]
+      }
+    },
+    {
+      "ref": 12,
+      "title": "PROJ-123 part 2: ui",
+      "source": "feat-x-sub-02-ui",
+      "target": "feat-x",
+      "state": "open",
+      "draft": false,
+      "labels": [
+        "agent-worked"
+      ],
+      "sha": "head12-1",
+      "checks": "success",
+      "behind": 0,
+      "merge_status": "mergeable",
+      "auto_merge": false,
+      "next": {
+        "kind": "act",
+        "step": "S4",
+        "message": "merge head12-1 (pipeline success) (re-evaluated when it reaches the head of the queue)",
+        "commands": [
+          "glab mr merge 12 --auto-merge=false --sha head12-1 --yes --squash --remove-source-branch"
+        ]
+      }
+    }
+  ],
+  "exit": 1
+}

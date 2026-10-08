@@ -85,6 +85,9 @@ Stacked delivery: review the **parts** below; treat this MR as the **integration
 diff is the union of all parts — do not re-review it line by line). Merge **bottom-up in the
 GitLab UI**: parts into `docker-networks` (Developer), then this MR (Maintainer). Nothing here
 is merged by the agent.
+<With the merge-queue bundle (`mq` on PATH), replace the "Merge bottom-up in the GitLab UI"
+sentence with: Merge bottom-up with the train: `mq plan --stack docker-networks`, then
+`mq run --stack docker-networks` in your terminal (parts first; this MR last, Maintainer).>
 
 | # | MR | sub-ticket | source → target | merge after | status |
 |---|---|---|---|---|---|
@@ -153,6 +156,8 @@ Sub-tickets: KEY-a, KEY-b (agent-created; move them with this ticket).   <- only
 Stacked delivery:
 ```
 Stacked MRs opened for KEY: M parts + 1 main. Merge bottom-up in the GitLab UI (the agent never merges):
+<with `mq` on PATH, instead: Merge bottom-up with the train (the agent never merges): run
+`mq plan --stack docker-networks`, then `mq run --stack docker-networks` in your terminal.>
   1. !12 [part 1/M] <task> -> docker-networks
   2. !13 [part 2/M] <task> -> docker-networks
   3. !14 [part 3/M] <task> -> !13's branch (after !13; the agent retargets it to docker-networks)

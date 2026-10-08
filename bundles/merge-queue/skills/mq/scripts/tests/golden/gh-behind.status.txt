@@ -1,0 +1,70 @@
+# exit=0
+# stderr:
+# stdout:
+{
+  "verb": "status",
+  "provider": "github",
+  "repo": "o/r",
+  "selection": {
+    "mode": "label",
+    "stack": null,
+    "label": "merge-queue",
+    "refs": []
+  },
+  "rows": [
+    {
+      "ref": 21,
+      "title": "PROJ-123 fix a",
+      "source": "fix-a",
+      "target": "main",
+      "state": "open",
+      "draft": false,
+      "labels": [
+        "merge-queue",
+        "agent-worked"
+      ],
+      "sha": "head21-1",
+      "checks": "none",
+      "behind": 2,
+      "merge_status": "BEHIND",
+      "auto_merge": false,
+      "next": {
+        "kind": "act",
+        "step": "S2",
+        "message": "2 commit(s) behind main",
+        "commands": [
+          "gh pr update-branch 21 -R o/r --rebase",
+          "gh pr merge 21 -R o/r --squash --match-head-commit '<new-head>' --delete-branch"
+        ]
+      }
+    },
+    {
+      "ref": 22,
+      "title": "PROJ-123 fix b",
+      "source": "fix-b",
+      "target": "main",
+      "state": "open",
+      "draft": false,
+      "labels": [
+        "merge-queue",
+        "agent-worked"
+      ],
+      "sha": "head22-1",
+      "checks": "none",
+      "behind": 0,
+      "merge_status": "BEHIND",
+      "auto_merge": false,
+      "next": {
+        "kind": "act",
+        "step": "S2",
+        "message": "some commit(s) behind main",
+        "commands": [
+          "gh pr update-branch 22 -R o/r --rebase",
+          "gh pr merge 22 -R o/r --squash --match-head-commit '<new-head>' --delete-branch"
+        ]
+      }
+    }
+  ],
+  "cleanup": [],
+  "exit": 0
+}

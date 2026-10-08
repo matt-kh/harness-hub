@@ -1,0 +1,24 @@
+# exit=1
+# stderr:
+# stdout:
+{
+  "verb": "sync",
+  "provider": "github",
+  "repo": "o/r",
+  "selection": {
+    "mode": "label",
+    "stack": null,
+    "label": "merge-queue",
+    "refs": []
+  },
+  "actions": [],
+  "skipped": [
+    {
+      "ref": 21,
+      "reason": "not agent-labelled",
+      "command": "gh pr edit 21 -R o/r --add-label agent-worked"
+    }
+  ],
+  "hints": [],
+  "exit": 1
+}

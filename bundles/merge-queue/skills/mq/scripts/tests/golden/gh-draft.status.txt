@@ -1,0 +1,90 @@
+# exit=1
+# stderr:
+# stdout:
+{
+  "verb": "status",
+  "provider": "github",
+  "repo": "o/r",
+  "selection": {
+    "mode": "stack",
+    "stack": "feat-x",
+    "label": null,
+    "refs": []
+  },
+  "rows": [
+    {
+      "ref": 11,
+      "title": "PROJ-123 part 1: api",
+      "source": "feat-x-sub-01-api",
+      "target": "feat-x",
+      "state": "open",
+      "draft": true,
+      "labels": [
+        "agent-worked"
+      ],
+      "sha": "head11-1",
+      "checks": "none",
+      "behind": null,
+      "merge_status": "CLEAN",
+      "auto_merge": false,
+      "next": {
+        "kind": "stop",
+        "step": "S0",
+        "message": "draft; finish it, then mark it ready",
+        "commands": [
+          "gh pr ready 11 -R o/r"
+        ]
+      }
+    },
+    {
+      "ref": 12,
+      "title": "PROJ-123 part 2: ui",
+      "source": "feat-x-sub-02-ui",
+      "target": "feat-x",
+      "state": "open",
+      "draft": false,
+      "labels": [
+        "agent-worked"
+      ],
+      "sha": "head12-1",
+      "checks": "success",
+      "behind": 0,
+      "merge_status": "CLEAN",
+      "auto_merge": false,
+      "next": {
+        "kind": "act",
+        "step": "S4",
+        "message": "merge head12-1 (checks success)",
+        "commands": [
+          "gh pr merge 12 -R o/r --squash --match-head-commit head12-1 --delete-branch"
+        ]
+      }
+    },
+    {
+      "ref": 10,
+      "title": "PROJ-123 feature x",
+      "source": "feat-x",
+      "target": "main",
+      "state": "open",
+      "draft": true,
+      "labels": [
+        "agent-worked"
+      ],
+      "sha": "featx-1",
+      "checks": "none",
+      "behind": null,
+      "merge_status": "CLEAN",
+      "auto_merge": false,
+      "next": {
+        "kind": "wait",
+        "step": "S0",
+        "message": "the main PR stays a draft until every part merged; then `mq sync` marks it ready",
+        "commands": [
+          "gh pr merge 10 -R o/r --squash --match-head-commit featx-1"
+        ]
+      }
+    }
+  ],
+  "cleanup": [],
+  "exit": 1
+}

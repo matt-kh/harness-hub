@@ -1,0 +1,56 @@
+{
+  "compare": {
+    "feat-x...head11-1": [
+      {
+        "behind_by": 2
+      }
+    ],
+    "feat-x...head12-1": [
+      {
+        "behind_by": 2
+      }
+    ]
+  },
+  "prs": {
+    "10": [
+      {
+        "title": "PROJ-123 feature x",
+        "isDraft": true,
+        "labels": [],
+        "headRefName": "feat-x",
+        "baseRefName": "main"
+      }
+    ],
+    "11": [
+      {
+        "title": "PROJ-123 part 1: api",
+        "headRefName": "feat-x-sub-01-api",
+        "baseRefName": "feat-x",
+        "mergeStateStatus": "BEHIND"
+      },
+      {
+        "headRefOid": "head11-2",
+        "mergeStateStatus": "CLEAN"
+      },
+      {
+        "state": "MERGED"
+      }
+    ],
+    "12": [
+      {
+        "title": "PROJ-123 part 2: ui",
+        "labels": [],
+        "headRefName": "feat-x-sub-02-ui",
+        "baseRefName": "feat-x",
+        "mergeStateStatus": "BEHIND"
+      },
+      {
+        "headRefOid": "head12-2",
+        "mergeStateStatus": "CLEAN"
+      },
+      {
+        "state": "MERGED"
+      }
+    ]
+  }
+}

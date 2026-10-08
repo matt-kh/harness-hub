@@ -1,0 +1,32 @@
+# exit=3
+# stderr:
+note: no server-side gate on main (private repository): mq run is the queue, and mq.require_checks is the only guard against merging an unchecked PR
+[#21] stopped at S0: cross-repository (fork) PR: fork PRs are never stacked; merge it in the web UI — the train stops here
+# stdout:
+{
+  "verb": "run",
+  "provider": "github",
+  "repo": "o/r",
+  "selection": {
+    "mode": "label",
+    "stack": null,
+    "label": "merge-queue",
+    "refs": []
+  },
+  "notes": [
+    "no server-side gate on main (private repository): mq run is the queue, and mq.require_checks is the only guard against merging an unchecked PR"
+  ],
+  "queue": [
+    {
+      "ref": 21,
+      "source": "patch-1",
+      "target": "main",
+      "outcome": "stopped",
+      "step": "S0",
+      "message": "cross-repository (fork) PR: fork PRs are never stacked; merge it in the web UI",
+      "commands": [],
+      "ran": []
+    }
+  ],
+  "exit": 3
+}

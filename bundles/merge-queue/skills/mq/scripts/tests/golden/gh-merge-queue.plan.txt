@@ -1,0 +1,70 @@
+# exit=0
+# stderr:
+# stdout:
+{
+  "verb": "plan",
+  "provider": "github",
+  "repo": "o/r",
+  "selection": {
+    "mode": "label",
+    "stack": null,
+    "label": "merge-queue",
+    "refs": []
+  },
+  "notes": [
+    "native merge queue on main: `gh pr merge --auto` enqueues; the queue does the rest"
+  ],
+  "queue": [
+    {
+      "ref": 21,
+      "title": "PROJ-123 fix a",
+      "source": "fix-a",
+      "target": "main",
+      "state": "open",
+      "draft": false,
+      "labels": [
+        "merge-queue",
+        "agent-worked"
+      ],
+      "sha": "head21-1",
+      "checks": "success",
+      "behind": 0,
+      "merge_status": "BLOCKED",
+      "auto_merge": false,
+      "next": {
+        "kind": "act",
+        "step": "S4",
+        "message": "enqueue in the native merge queue",
+        "commands": [
+          "gh pr merge 21 -R o/r --auto"
+        ]
+      }
+    },
+    {
+      "ref": 22,
+      "title": "PROJ-123 fix b",
+      "source": "fix-b",
+      "target": "main",
+      "state": "open",
+      "draft": false,
+      "labels": [
+        "merge-queue",
+        "agent-worked"
+      ],
+      "sha": "head22-1",
+      "checks": "success",
+      "behind": 0,
+      "merge_status": "BLOCKED",
+      "auto_merge": false,
+      "next": {
+        "kind": "act",
+        "step": "S4",
+        "message": "enqueue in the native merge queue (re-evaluated when it reaches the head of the queue)",
+        "commands": [
+          "gh pr merge 22 -R o/r --auto"
+        ]
+      }
+    }
+  ],
+  "exit": 0
+}

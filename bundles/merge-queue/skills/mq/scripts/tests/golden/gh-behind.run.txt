@@ -1,0 +1,58 @@
+# exit=0
+# stderr:
+note: no server-side gate on main (private repository): mq run is the queue, and mq.require_checks is the only guard against merging an unchecked PR
+[#21] S2: 2 commit(s) behind main
++ gh pr update-branch 21 -R o/r --rebase
+[#21] S4: merge head21-2 (checks success)
++ gh pr merge 21 -R o/r --squash --match-head-commit head21-2 --delete-branch
+[#21] merged
+[#22] S2: some commit(s) behind main
++ gh pr update-branch 22 -R o/r --rebase
+  -> HTTP 422: Branch is already up to date with base (updatePullRequestBranch)
+[#22] S4: merge head22-1 (checks success)
++ gh pr merge 22 -R o/r --squash --match-head-commit head22-1 --delete-branch
+[#22] merged
+# stdout:
+{
+  "verb": "run",
+  "provider": "github",
+  "repo": "o/r",
+  "selection": {
+    "mode": "label",
+    "stack": null,
+    "label": "merge-queue",
+    "refs": []
+  },
+  "notes": [
+    "no server-side gate on main (private repository): mq run is the queue, and mq.require_checks is the only guard against merging an unchecked PR"
+  ],
+  "queue": [
+    {
+      "ref": 21,
+      "source": "fix-a",
+      "target": "main",
+      "outcome": "merged",
+      "step": "S0",
+      "message": "merged",
+      "commands": [],
+      "ran": [
+        "gh pr update-branch 21 -R o/r --rebase",
+        "gh pr merge 21 -R o/r --squash --match-head-commit head21-2 --delete-branch"
+      ]
+    },
+    {
+      "ref": 22,
+      "source": "fix-b",
+      "target": "main",
+      "outcome": "merged",
+      "step": "S0",
+      "message": "merged",
+      "commands": [],
+      "ran": [
+        "gh pr update-branch 22 -R o/r --rebase",
+        "gh pr merge 22 -R o/r --squash --match-head-commit head22-1 --delete-branch"
+      ]
+    }
+  ],
+  "exit": 0
+}

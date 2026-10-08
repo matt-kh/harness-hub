@@ -1,0 +1,22 @@
+{
+  "remote": "git@github.com:o/r.git",
+  "repo": {
+    "defaultBranchRef": {"name": "main"}, "deleteBranchOnMerge": true, "autoMergeAllowed": false,
+    "squashMergeAllowed": true, "rebaseMergeAllowed": true, "mergeCommitAllowed": false,
+    "isPrivate": true, "visibility": "PRIVATE", "viewerPermission": "WRITE"
+  },
+  "rules": {},
+  "protection": {"main": 403, "feat-x": 403},
+  "workflows": {"total_count": 1},
+  "worktrees": "worktree /home/u/dev/r\nHEAD 0000\nbranch refs/heads/feat-x\n\nworktree /home/u/dev/r_feat-x-sub-01-api\nHEAD 0000\nbranch refs/heads/feat-x-sub-01-api\n\nworktree /home/u/dev/r_feat-x-sub-02-ui\nHEAD 0000\nbranch refs/heads/feat-x-sub-02-ui\n\n",
+  "prs": {
+    "10": [{"title": "PROJ-123 feature x", "isDraft": true, "headRefName": "feat-x", "baseRefName": "main", "headRefOid": "featx-1"}],
+    "11": [{"title": "PROJ-123 part 1: api", "headRefName": "feat-x-sub-01-api", "baseRefName": "feat-x"},
+           {"state": "MERGED"}],
+    "12": [{"title": "PROJ-123 part 2: ui", "headRefName": "feat-x-sub-02-ui", "baseRefName": "feat-x"},
+           {"state": "MERGED"}]
+  },
+  "checks": {},
+  "compare": {},
+  "writes": {}
+}

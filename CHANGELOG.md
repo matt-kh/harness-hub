@@ -151,6 +151,20 @@ prints every one between your applied version and the new one.
   `-f/--fill/--fill-first/--fill-verbose`, on a literal `-t/--title` matching the new
   `github.pr_title_forbid_re` (issue refs belong in the body) and on a `$VAR`/backtick title.
 
+- `merge-queue` bundle (experimental; domain `scm`, guard section `65`): the `mq` CLI recreates
+  GitLab merge trains and GitHub merge queues with free-tier features, using native
+  `glab` / `gh` / `git` commands it prints before running them. `mq plan|status|check` are
+  reads (`status` replaces the planned `stack-status.sh`, incl. worktree cleanup lines);
+  `mq sync` prepares agent-labelled MRs/PRs (retargets a `-sub-` part aimed at the default
+  branch, rebases only the head of the queue server-side, marks the main MR/PR ready once every
+  part merged); `mq run` is the train, run by the human (the guard asks): server-side rebase,
+  wait for the pipeline/checks on that head, then `glab mr merge --auto-merge --sha` /
+  `gh pr merge --auto` or a merge pinned with `--sha` / `--match-head-commit`. Native GitHub
+  merge queues and GitLab Premium trains are detected and used. Golden suite over 27 GitLab and
+  GitHub scenarios with stub-log invariants. `work-ticket` §6b/§6c/Step 7 use `mq check`,
+  `mq sync` and the `mq run` hand-off when `mq` is on PATH (manual commands and UI wording stay
+  otherwise); `ticket-workflow` recommends the bundle.
+
 ### Deprecated
 
 - `[bundle].tags` in `bundle.toml`: free-form and never read; `harness lint` warns
@@ -202,6 +216,11 @@ prints every one between your applied version and the new one.
   `skill-description`), keeping its triggers, "NOT for" scope, repo-level hand-over and GitHub
   mode. Coverage notes of core, github, gitlab, k8s and ticket-workflow name the topics whose
   rule or guard section is unpaired by number (`rule-guard-pairing`).
+
+- `docs/roadmap.md`: guard band `65` is now `65-merge-queue`; the planned `stack-status.sh`
+  shipped as `mq status`; `glab stack` is rejected while it is experimental upstream. The
+  `glab mr rebase` / `gh pr update-branch` label gates that `mq sync` relies on are the
+  scm-rebase-gates change (gitlab and github sections), not part of this bundle.
 
 ### Stability
 
@@ -272,6 +291,17 @@ prints every one between your applied version and the new one.
   `WORK_TICKET_KEY_IN_BRANCH = "1"` in `.harness.toml` `[overrides]` (or the provider `env`;
   previously accepted but a no-op); the guard now asks on key-named branches, key-prefixed commit subjects,
   off-convention sub worktree paths and non-squash merges of `-sub-` branches.
+
+- `merge-queue` bundle (opt-in: add `"merge-queue"` to `hub.bundles`, then `harness apply`):
+  seven new config keys, each overridable per shell by its env name — `mq.label`
+  (`"merge-queue"`, `HARNESS_MQ_LABEL`), `mq.poll_seconds` (`20`, `HARNESS_MQ_POLL_SECONDS`),
+  `mq.timeout_minutes` (`90`, `HARNESS_MQ_TIMEOUT_MINUTES`), `mq.on_failure` (`"stop"` |
+  `"skip"`, `HARNESS_MQ_ON_FAILURE`), `mq.update_method` (`"rebase"` | `"merge"`,
+  `HARNESS_MQ_UPDATE_METHOD`), `mq.require_checks` (`true`, `HARNESS_MQ_REQUIRE_CHECKS`),
+  `mq.max_retries` (`3`, `HARNESS_MQ_MAX_RETRIES`). New guard decisions in section 65:
+  `mq run|merge|enqueue|train` ask, `mq sync --include-human` asks, a sole `mq sync` allows;
+  permissions allow `mq plan|status|check|sync` and ask `mq run`. Nothing changes for users
+  who do not activate the bundle.
 
 ## [0.1.0] - 2026-09-30
 

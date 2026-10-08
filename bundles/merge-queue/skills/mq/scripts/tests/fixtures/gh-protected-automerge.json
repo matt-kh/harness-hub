@@ -1,0 +1,55 @@
+{
+  "repo": {
+    "isPrivate": false,
+    "visibility": "PUBLIC",
+    "autoMergeAllowed": true
+  },
+  "protection": {
+    "main": null
+  },
+  "rules": {
+    "main": [
+      {
+        "type": "pull_request"
+      },
+      {
+        "type": "required_status_checks"
+      }
+    ]
+  },
+  "checks": {
+    "21": [
+      {
+        "rows": [
+          {
+            "bucket": "pending",
+            "state": "IN_PROGRESS",
+            "name": "test"
+          }
+        ],
+        "rc": 8
+      }
+    ]
+  },
+  "prs": {
+    "21": [
+      {
+        "title": "PROJ-123 fix a",
+        "labels": [
+          "merge-queue",
+          "agent-worked"
+        ],
+        "headRefName": "fix-a",
+        "mergeStateStatus": "BLOCKED"
+      },
+      {
+        "autoMergeRequest": {
+          "mergeMethod": "SQUASH"
+        }
+      },
+      {
+        "state": "MERGED"
+      }
+    ]
+  }
+}

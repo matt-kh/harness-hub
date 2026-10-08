@@ -1,0 +1,39 @@
+# exit=3
+# stderr:
+[!21] failed at S3: pipeline failed on head21-1 — the train stops here
+# stdout:
+{
+  "verb": "run",
+  "provider": "gitlab",
+  "repo": "o/r",
+  "selection": {
+    "mode": "label",
+    "stack": null,
+    "label": "merge-queue",
+    "refs": []
+  },
+  "notes": [],
+  "queue": [
+    {
+      "ref": 21,
+      "source": "fix-a",
+      "target": "main",
+      "outcome": "failed",
+      "step": "S3",
+      "message": "pipeline failed on head21-1",
+      "commands": [
+        "glab ci view fix-a"
+      ],
+      "ran": []
+    },
+    {
+      "ref": 22,
+      "outcome": "not reached",
+      "step": "",
+      "message": "",
+      "commands": [],
+      "ran": []
+    }
+  ],
+  "exit": 3
+}

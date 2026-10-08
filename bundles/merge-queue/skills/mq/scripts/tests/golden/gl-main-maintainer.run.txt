@@ -1,0 +1,34 @@
+# exit=3
+# stderr:
+[!10] S4: merge featx-3 (pipeline success)
++ glab mr merge 10 --auto-merge=false --sha featx-3 --yes --squash --remove-source-branch
+  -> ERROR: 403 Forbidden - You are not allowed to merge this merge request
+[!10] failed at S4: needs Maintainer on protected main; ask a maintainer to merge !10 — the train stops here
+# stdout:
+{
+  "verb": "run",
+  "provider": "gitlab",
+  "repo": "o/r",
+  "selection": {
+    "mode": "stack",
+    "stack": "feat-x",
+    "label": null,
+    "refs": []
+  },
+  "notes": [],
+  "queue": [
+    {
+      "ref": 10,
+      "source": "feat-x",
+      "target": "main",
+      "outcome": "failed",
+      "step": "S4",
+      "message": "needs Maintainer on protected main; ask a maintainer to merge !10",
+      "commands": [],
+      "ran": [
+        "glab mr merge 10 --auto-merge=false --sha featx-3 --yes --squash --remove-source-branch"
+      ]
+    }
+  ],
+  "exit": 3
+}

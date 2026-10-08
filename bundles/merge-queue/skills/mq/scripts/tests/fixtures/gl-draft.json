@@ -1,0 +1,13 @@
+{
+  "mrs": {
+    "11": [
+      {
+        "title": "Draft: PROJ-123 part 1: api",
+        "draft": true,
+        "source_branch": "feat-x-sub-01-api",
+        "target_branch": "feat-x",
+        "detailed_merge_status": "draft_status"
+      }
+    ]
+  }
+}

@@ -14,7 +14,7 @@ check the CLI they need at preflight and name the missing bundle instead of impr
 Org-specific issue-type rules and field ids come from jira.issue_types / jira.fields.
 """
 depends_on = ["core"]
-recommends = ["jira", "gitlab", "github"]
+recommends = ["jira", "gitlab", "github", "merge-queue"]
 conflicts_with = []
 any_of = [["jira", "github"], ["gitlab", "github"]]
 owners = []

@@ -1,0 +1,28 @@
+{
+  "compare": {
+    "head11-1...head12-1": [
+      {
+        "status": "ahead",
+        "ahead_by": 3,
+        "behind_by": 0
+      }
+    ]
+  },
+  "prs": {
+    "11": [
+      {
+        "title": "PROJ-123 part 1: api",
+        "state": "MERGED",
+        "headRefName": "feat-x-sub-01-api",
+        "baseRefName": "feat-x"
+      }
+    ],
+    "12": [
+      {
+        "title": "PROJ-123 part 2: ui",
+        "headRefName": "feat-x-sub-02-ui",
+        "baseRefName": "feat-x"
+      }
+    ]
+  }
+}

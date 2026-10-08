@@ -1,0 +1,27 @@
+# exit=0
+# stderr:
+[!12] S1: sub part targets the default branch main (auto-retarget misfire after a branch delete?); retarget to feat-x
++ glab mr update 12 --target-branch feat-x
+# stdout:
+{
+  "verb": "sync",
+  "provider": "gitlab",
+  "repo": "o/r",
+  "selection": {
+    "mode": "stack",
+    "stack": "feat-x",
+    "label": null,
+    "refs": []
+  },
+  "actions": [
+    {
+      "ref": 12,
+      "command": "glab mr update 12 --target-branch feat-x",
+      "rc": 0,
+      "error": ""
+    }
+  ],
+  "skipped": [],
+  "hints": [],
+  "exit": 0
+}

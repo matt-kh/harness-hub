@@ -1,0 +1,224 @@
+[bundle]
+name = "merge-queue"
+schema_version = "1"
+summary = "Merge trains / merge queues on free tiers: the `mq` CLI (plan, status, check, sync, run) over glab, gh and git"
+description = """
+Recreates GitLab merge trains and GitHub merge queues with free-tier features only, using native
+`glab` / `gh` / `git` commands it prints before it runs them. `mq plan|status|check` are reads;
+`mq sync` prepares agent-labelled MRs/PRs (fixes a sub part aimed at the default branch,
+rebases only the head of the queue server-side, marks the main MR/PR ready once every part
+merged); `mq run` is the train and is run by the human in a terminal (the guard asks when an
+agent tries): one MR/PR at a time, server-side rebase, wait for the pipeline/checks on that
+head, then arm the server's auto-merge or merge pinned to the tested head (`--sha`,
+`--match-head-commit`). Native GitHub merge queues and GitLab Premium trains are detected and
+used. Integrates with work-ticket's stacked delivery (`mq sync --stack BR`).
+"""
+depends_on = ["core"]
+recommends = ["ticket-workflow"]
+conflicts_with = []
+any_of = [["gitlab", "github"]]
+owners = []
+docs = "docs/bundles/merge-queue.md"
+stability = "experimental"
+
+[requires.binaries.python3]
+min_version = "3.9"
+version_cmd = "python3 --version"
+version_regex = 'Python ([0-9]+\.[0-9]+)'
+why = "The mq CLI is stdlib python."
+
+[requires.binaries.git]
+min_version = "2.30"
+version_cmd = "git --version"
+version_regex = 'git version ([0-9]+\.[0-9]+)'
+why = "Remote and worktree facts (`git remote get-url`, `git worktree list --porcelain`)."
+
+[requires.binaries.glab]
+min_version = "1.40.0"
+version_cmd = "glab --version"
+version_regex = 'glab (?:version )?([0-9]+\.[0-9]+\.[0-9]+)'
+optional = true
+why = "GitLab trains: MR reads (`glab api`), `glab mr rebase`, `glab mr merge --auto-merge --sha`."
+
+[requires.binaries.gh]
+min_version = "2.60.0"
+version_cmd = "gh --version"
+version_regex = 'gh version ([0-9]+\.[0-9]+\.[0-9]+)'
+install = "gh"
+optional = true
+why = "GitHub queues: PR reads, `gh pr update-branch`, `gh pr checks`, `gh pr merge --auto|--match-head-commit`."
+
+[requires.config."mq.label"]
+type = "string"
+default = "merge-queue"
+description = "Label that selects the queue when neither refs nor --stack are given (open MRs/PRs carrying it, by number). HARNESS_MQ_LABEL."
+example = "merge-queue"
+
+[requires.config."mq.poll_seconds"]
+type = "integer"
+minimum = 1
+default = 20
+description = "First poll interval while the train waits on a rebase, pipeline or merge; backs off to 60 s. HARNESS_MQ_POLL_SECONDS."
+example = 20
+
+[requires.config."mq.timeout_minutes"]
+type = "integer"
+minimum = 1
+default = 90
+description = "Per-MR/PR deadline in `mq run`; on expiry the MR/PR fails and the resume command is printed. HARNESS_MQ_TIMEOUT_MINUTES."
+example = 90
+
+[requires.config."mq.on_failure"]
+type = "string"
+default = "stop"
+enum = ["stop", "skip"]
+description = "What `mq run` does when an MR/PR fails in a label or refs selection: stop the train or skip it and continue. A stack always stops (later parts depend on earlier ones). HARNESS_MQ_ON_FAILURE."
+example = "skip"
+
+[requires.config."mq.update_method"]
+type = "string"
+default = "rebase"
+enum = ["rebase", "merge"]
+description = "GitHub only: `gh pr update-branch --rebase` (rebase) or a merge commit from the base (merge). GitLab always rebases (`glab mr rebase`). HARNESS_MQ_UPDATE_METHOD."
+example = "rebase"
+
+[requires.config."mq.require_checks"]
+type = "boolean"
+default = true
+description = "An MR/PR with no pipeline or checks on its head stops the train (after 3 polls) instead of merging unchecked. On a private GitHub Free repository this is the only guard. HARNESS_MQ_REQUIRE_CHECKS (1|true|yes)."
+example = true
+
+[requires.config."mq.max_retries"]
+type = "integer"
+minimum = 0
+default = 3
+description = "Rebases / re-arms per MR/PR before it fails (bounds the need_rebase and target-moved loop on a busy target branch). HARNESS_MQ_MAX_RETRIES."
+example = 3
+
+[provides]
+rules = ["rules/65-merge-queue.md"]
+skills = ["skills/mq"]
+skill_fragments = []
+agents = []
+guard_rules = ["guard.d/65-merge-queue.sh"]
+permissions = "permissions.toml"
+mcp = ""
+bin = [{ name = "mq", target = "skills/mq/scripts/mq.py" }]
+
+[provides.env]
+HARNESS_MQ_LABEL = "{{ mq.label }}"
+HARNESS_MQ_POLL_SECONDS = "{{ mq.poll_seconds }}"
+HARNESS_MQ_TIMEOUT_MINUTES = "{{ mq.timeout_minutes }}"
+HARNESS_MQ_ON_FAILURE = "{{ mq.on_failure }}"
+HARNESS_MQ_UPDATE_METHOD = "{{ mq.update_method }}"
+HARNESS_MQ_REQUIRE_CHECKS = "{{ mq.require_checks }}"
+HARNESS_MQ_MAX_RETRIES = "{{ mq.max_retries }}"
+
+[[manual_steps]]
+id = "mq-gitlab-project-settings"
+title = "GitLab: project merge settings for the train"
+once_per = "org"
+needs = ["maintainer"]
+minutes = 5
+why = "With a semi-linear or fast-forward merge method GitLab itself refuses a stale source (need_rebase), and with Pipelines must succeed an armed MR merges server-side even if `mq run` dies."
+how = """
+Settings → Merge requests, per project (a Maintainer):
+- Merge method: **Merge commit with semi-linear history** (`rebase_merge`) or **Fast-forward**
+  (`ff`). Plain merge commits leave a small race between mq's target-SHA check and the merge.
+- Merge checks: **Pipelines must succeed** on; choose whether **Skipped pipelines are
+  considered successful** (mq follows the project setting).
+- **Enable "Delete source branch" option by default**: off — mq deletes the branches of parts
+  without dependents itself; the default makes GitLab CE retarget chained parts to the default
+  branch.
+Then run `mq check` in a checkout (`mq check --fix` prints the `glab api -X PUT` commands; it
+never runs them).
+"""
+[manual_steps.verify]
+cmd = "true"
+expect = { exit = 0 }
+
+[[manual_steps]]
+id = "mq-github-repo-settings"
+title = "GitHub: repository settings for the queue"
+once_per = "org"
+needs = ["admin"]
+minutes = 5
+why = "Public repositories (and paid plans) can enforce checks server-side, so `mq run` arms auto-merge or enqueues; private Free repositories have none of it and `mq run` is the queue."
+how = """
+Public repository (or a paid plan):
+- Settings → Rules → Rulesets: a branch ruleset on the default branch with **Require status
+  checks to pass**; optionally **Require merge queue** (mq then just enqueues with
+  `gh pr merge --auto`).
+- Settings → General → Pull Requests: **Allow auto-merge** and **Automatically delete head
+  branches** (deleting a merged part's head branch is what retargets its dependents).
+Private repository on GitHub Free: rulesets, protection, auto-merge and the merge queue are not
+available; nothing to configure — keep `mq.require_checks = true`, it is the only guard.
+Then run `mq check` in a checkout.
+"""
+[manual_steps.verify]
+cmd = "true"
+expect = { exit = 0 }
+
+[[manual_steps]]
+id = "mq-read-the-train"
+title = "Read how the train runs (you run it)"
+once_per = "machine"
+needs = []
+minutes = 2
+why = "Merging is human-only: the agent plans and prepares, you run the train."
+how = """
+- Agents run `mq check`, `mq plan`, `mq status` and `mq sync` (agent-labelled MRs/PRs only)
+  and hand you the command; you run `mq plan …` and then `mq run …` in your own terminal.
+- Every native command is printed before it runs. Ctrl-C is safe: re-running resumes from live
+  state (there is no local state file), and an MR/PR whose auto-merge was armed still merges
+  server-side even if mq dies.
+- A stack stops at the first failure; chained parts stop with the exact `git rebase --onto` +
+  `git push --force-with-lease` commands (mq never force-pushes).
+"""
+[manual_steps.verify]
+cmd = "true"
+expect = { exit = 0 }
+
+[[doctor_checks]]
+id = "mq-cli"
+title = "mq CLI on PATH"
+severity = "fail"
+cmd = "command -v mq >/dev/null && mq check -h >/dev/null"
+expect = { exit = 0 }
+offline_skip = false
+fix = "harness apply"
+
+[[doctor_checks]]
+id = "mq-scm-cli"
+title = "An SCM CLI is on PATH (glab or gh)"
+severity = "fail"
+cmd = "command -v glab >/dev/null 2>&1 || command -v gh >/dev/null 2>&1"
+expect = { exit = 0 }
+offline_skip = false
+fix = "Activate the gitlab or github bundle (hub.bundles) and run harness apply"
+
+[uninstall]
+keeps = []
+notes = "Removes the mq link, the rendered skill, the rule block and guard section 65; MRs/PRs, labels and project settings are untouched."
+
+# Component taxonomy (docs/reference/taxonomy.md): bundle defaults, then per-component overrides.
+[taxonomy]
+domain = "scm"
+posture = "label-gated"
+function = "client"
+
+# Guides steer the agent before it acts; sensors detect at or after the action (principle 6).
+[harness]
+coverage_note = "`mq sync`'s label gate is enforced inside the CLI (sensed by its golden suite), not by the guard; the human-run `mq run` is outside any hook."
+guides = [
+  { kind = "rule", ref = "rules/65-merge-queue.md", note = "humans run the train; agents plan, inspect and sync agent-labelled MRs/PRs" },
+  { kind = "skill", ref = "skills/mq", note = "the mq CLI: check, plan, status, sync, and the hand-off of mq run" },
+  { kind = "permission", ref = "permissions.toml", note = "mq plan|status|check|sync allowed, mq run asks" },
+]
+sensors = [
+  { kind = "guard", ref = "guard.d/65-merge-queue.sh", note = "mq run and sync --include-human ask; mq sync allows" },
+  { kind = "doctor", ref = "doctor_checks", note = "the mq CLI and an SCM CLI on PATH" },
+  { kind = "test", ref = "tests/run.sh", note = "this bundle's rows against core + merge-queue only, then the mq suite" },
+  { kind = "test", ref = "guard.d/tests.sh", note = "rows for section 65 incl. bypasses and repository ownership" },
+  { kind = "test", ref = "skills/mq/scripts/tests/run.sh", note = "golden scenarios for every verb against stubbed glab, gh and git, plus stub-log invariants" },
+]

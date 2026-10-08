@@ -260,7 +260,7 @@ Rules:
   `repo_owns <id> <domain> && return 0` (§5, §11).
 - Numeric prefixes order rule fragments and guard sections across bundles
   (`10` k8s, `20` credentials, `25` k8s rules, `30` git, `40`/`41` closing keywords
-  (gitlab/github), `50` gitlab, `60` github, `70` jira, `75` ticket workflow, `80` gdoc,
+  (gitlab/github), `50` gitlab, `60` github, `65` merge queue, `70` jira, `75` ticket workflow, `80` gdoc,
   `90+` private); a rule and the guard section that enforces it share `NN-<topic>`.
   Bands reserved for planned bundles are listed in [docs/roadmap.md](docs/roadmap.md).
 

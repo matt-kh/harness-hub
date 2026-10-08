@@ -25,7 +25,7 @@ or a compromised machine.
 | Agent pushes to a default branch, bypassing review | guard denies `git push` to branches matching `core.default_branch_re`; delivery is MR/PR only | core |
 | Agent changes ticket state (transition, close, reopen) on human work | guard denies state changes on tickets/issues without an `agent-*` label | jira, github, gitlab |
 | Agent closes tickets indirectly through **closing keywords** in commits, MR/PR titles or bodies (the SCM ↔ tracker integration then transitions them) | guard denies closing-keyword forms in commit messages, `glab`/`gh` create/edit and API payloads | gitlab, github |
-| Agent merges or approves its own MR/PR | guard asks; humans merge | gitlab, github |
+| Agent merges or approves its own MR/PR | guard asks; humans merge — including the merge train (`mq run` asks; `mq sync` only rebases and retargets agent-labelled MRs/PRs) | gitlab, github, merge-queue |
 | Agent edits human-authored tickets, MRs, docs | writes to artefacts without an `agent-*` label / provenance marker ask | jira, gitlab, github, gdoc |
 | Agent mutates a cluster, execs into pods, reads Secrets | kubectl/helm mutations and exec-class commands ask, prod is flagged, kubeconfig edits deny | k8s |
 | Agent sends email | not implemented: drafts only, the human sends | gdoc |

@@ -1,0 +1,53 @@
+# exit=0
+# stderr:
+[!11] S4: merge head11-1 (pipeline success)
++ glab mr merge 11 --auto-merge=false --sha head11-1 --yes --squash --remove-source-branch
+[!11] merged
+[!12] S2: 1 commit(s) behind feat-x
++ glab mr rebase 12
+[!12] S2: rebase in progress — waiting
+[!12] S4: arm auto-merge on head12-2
++ glab mr merge 12 --auto-merge --sha head12-2 --yes --squash --remove-source-branch
+[!12] S5: auto-merge armed; GitLab merges when the pipeline passes — waiting
+[!12] merged
+# stdout:
+{
+  "verb": "run",
+  "provider": "gitlab",
+  "repo": "o/r",
+  "selection": {
+    "mode": "stack",
+    "stack": "feat-x",
+    "label": null,
+    "refs": []
+  },
+  "notes": [],
+  "queue": [
+    {
+      "ref": 11,
+      "source": "feat-x-sub-01-api",
+      "target": "feat-x",
+      "outcome": "merged",
+      "step": "S0",
+      "message": "merged",
+      "commands": [],
+      "ran": [
+        "glab mr merge 11 --auto-merge=false --sha head11-1 --yes --squash --remove-source-branch"
+      ]
+    },
+    {
+      "ref": 12,
+      "source": "feat-x-sub-02-ui",
+      "target": "feat-x",
+      "outcome": "merged",
+      "step": "S0",
+      "message": "merged",
+      "commands": [],
+      "ran": [
+        "glab mr rebase 12",
+        "glab mr merge 12 --auto-merge --sha head12-2 --yes --squash --remove-source-branch"
+      ]
+    }
+  ],
+  "exit": 0
+}

@@ -1,0 +1,35 @@
+# exit=1
+# stderr:
+[#21] S2: head of the queue is behind main
++ gh pr update-branch 21 -R o/r --rebase
+# stdout:
+{
+  "verb": "sync",
+  "provider": "github",
+  "repo": "o/r",
+  "selection": {
+    "mode": "label",
+    "stack": null,
+    "label": "merge-queue",
+    "refs": []
+  },
+  "actions": [
+    {
+      "ref": 21,
+      "command": "gh pr update-branch 21 -R o/r --rebase",
+      "rc": 0,
+      "error": ""
+    }
+  ],
+  "skipped": [],
+  "hints": [
+    {
+      "ref": 21,
+      "message": "rebased server-side; refresh the local worktree (never reset --hard)",
+      "commands": [
+        "git -C ../r_fix-a pull --rebase origin fix-a"
+      ]
+    }
+  ],
+  "exit": 1
+}

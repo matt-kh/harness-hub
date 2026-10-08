@@ -58,6 +58,7 @@ A bundle is one capability, built along the lines of Martin Fowler's
 | [gitlab](docs/bundles/gitlab.md) | scm / label-gated | `glab` MR workflow, agent-labelled MRs, closing-keyword deny | `glab auth login`, SSH key |
 | [jira](docs/bundles/jira.md) | tracker / label-gated | `jira` CLI for Jira Server/Data Center, read-only MCP, write gate | personal access token |
 | [ticket-workflow](docs/bundles/ticket-workflow.md) | delivery / label-gated | `work-ticket` (ticket → MR/PR) and `create-ticket` skills | nothing; needs a tracker and an SCM bundle |
+| [merge-queue](docs/bundles/merge-queue.md) | scm / label-gated | `mq` CLI: merge trains / merge queues on free tiers over `glab`/`gh` (experimental) | project merge settings (`mq check`); needs the gitlab or github bundle |
 | [k8s](docs/bundles/k8s.md) | kubernetes / read-only | read-only `k8s` CLI, triage and audit agents, Secret redaction | kubeconfig contexts |
 | [gdoc](docs/bundles/gdoc.md) | workspace / label-gated | `gdoc` CLI for Docs, Drive, Sheets and Gmail drafts | a GCP OAuth client |
 
