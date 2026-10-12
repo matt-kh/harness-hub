@@ -69,6 +69,8 @@ agent is a model plus a harness, and the harness has two kinds of control
 
 - **Computational** sensors are deterministic and cheap: the guard, `harness lint`, test rows,
   `harness doctor`. They run on every change or every command.
+  [Principle 9](../principles/09-deterministic-by-construction.md) says which outputs must be
+  computational: anything reproducible from structured input.
 - **Inferential** sensors are semantic and slower: the core bundle's code-reviewer agent, and
   features of the provider itself declared as `provider-feature` sensors
   (`ref = "claude:auto-mode-classifier"`, checked against the provider's `features` list).

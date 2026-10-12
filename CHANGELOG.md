@@ -29,6 +29,18 @@ prints every one between your applied version and the new one.
   the `# never-yields:` preludes (commands that print a stored credential, the ask on writing
   `.harness.toml`). Checks: the `yields` taxonomy facet and lint rule, guard rows for
   `.harness.toml`, `harness repo`.
+- `principles_version: 3`: principles 9 and 10. **Deterministic by construction** — any
+  output reproducible from structured input (ticket bodies, facts JSON, rendered files,
+  release artifacts, the built guard) is produced by a script with goldens or unit tests and
+  named in the skill as the only way; the model supplies judgement and input, and judgement
+  outputs keep a shape a script or guard row checks. **Composable bundles** — one canonical
+  source per component, shared through declared dependencies, other bundles' CLIs and
+  inlined marked blocks kept identical by `bundles/core/lib/sync_inline.py`; skill fragments
+  are for org overlays only. Existing checks: render-determinism smoke, guard-build `cmp`,
+  pack unit tests, create-ticket and k8s goldens, `stability` and `fragments-target` lint,
+  `sync_inline.py --check`. Follow-ups (roadmap): `work-ticket` and `gdoc` suites,
+  `stability` at `beta`, helper bodies outside markers, shared Jira facts, `tests-boilerplate`.
+  Resolves the principle 1 open question on a shared python helper library.
 
 ### Added
 

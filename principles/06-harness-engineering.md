@@ -65,6 +65,7 @@ bundle ships: rules, skills, permissions, agents, guard sections, doctor checks,
 | Incoherence (guides and sensors contradict) | rule text and guard sections live in the same bundle and the same PR; hook policy is generated from `# rule:` comments |
 | Template degradation | versioned manifests, CHANGELOG Migration paragraphs, `docs check` for staleness |
 | Over-trust in agent-written tests | guard rows are reviewed as the specification; goldens are reviewed as diffs |
+| Freehand artefacts (same input, different bytes each run) | renderers with goldens ([principle 9](09-deterministic-by-construction.md)) |
 
 ## How it is checked
 
@@ -87,6 +88,12 @@ bundle ships: rules, skills, permissions, agents, guard sections, doctor checks,
 - **"As much as possible."** Some guides have no computational check (judgement calls in a
   skill). Resolution: say so in `coverage_note`, and pair them with an inferential sensor
   where one exists.
+- **With principle 9 (deterministic by construction).** Goldens are agent-written sensors.
+  Resolution: reviewed as diffs, regenerated only with `UPDATE=1`; the renderer's fixtures
+  are the specification.
+- **With principle 10 (composable bundles).** Shared test helpers could couple bundles.
+  Resolution: the shared part is the test API (`t`, `tc`, `tr`, `g`, stubs, the shim
+  runner); each bundle's rows run against core plus itself alone.
 
 ## Examples
 

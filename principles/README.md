@@ -16,6 +16,8 @@ touches that area.
 | 6 | [06-harness-engineering.md](06-harness-engineering.md) | guides paired with sensors, sensor messages that steer |
 | 7 | [07-extensible-core.md](07-extensible-core.md) | the principles are the core and change through review |
 | 8 | [08-user-level-by-design.md](08-user-level-by-design.md) | a user-level baseline that yields to the repository's own harness; credential denies excepted |
+| 9 | [09-deterministic-by-construction.md](09-deterministic-by-construction.md) | reproducible outputs come from tested scripts; the model supplies judgement, not the artefact |
+| 10 | [10-composable-bundles.md](10-composable-bundles.md) | one canonical source per component; shared through dependencies, CLIs and checked inlined blocks |
 
 ## Layout of each document
 
@@ -31,7 +33,7 @@ touches that area.
 ## Numbering
 
 - Numbers are stable: never renumbered, never reused.
-- New principles are appended: `09-<slug>.md`, `10-<slug>.md`.
+- New principles are appended: `11-<slug>.md`, `12-<slug>.md`.
 - A retired principle keeps its file with a *Retired in X.Y.Z: reason* line under the title.
 
 ## Change procedure

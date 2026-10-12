@@ -5,7 +5,7 @@ symlink to this file.
 
 ## Read first
 
-1. [PRINCIPLES.md](PRINCIPLES.md) — the eight principles; open the per-principle document in
+1. [PRINCIPLES.md](PRINCIPLES.md) — the ten principles; open the per-principle document in
    `principles/` when your change touches that area.
 2. [ARCHITECTURE.md](ARCHITECTURE.md) — the normative contracts: layout, config, bundle
    manifest, provider adapters, guard, engine commands, distribution.

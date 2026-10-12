@@ -1,8 +1,8 @@
 # Principles
 
-principles_version: 2
+principles_version: 3
 
-The eight principles below are the core of harness-hub. Every change to this repository
+The ten principles below are the core of harness-hub. Every change to this repository
 serves at least one of them or is neutral to all of them. Read this page before changing the
 repo; open the linked document when your change touches that area.
 
@@ -41,6 +41,14 @@ repo; open the linked document when your change touches that area.
    every component yields wholesale to an equivalent repository-level harness, declared in
    `.harness.toml` or found by name or text — except the denies that protect the
    developer's own credentials. → [08-user-level-by-design](principles/08-user-level-by-design.md)
+9. **Deterministic by construction.** Any output reproducible from structured input is
+   produced by a script with golden or unit tests and named in the skill as the only way;
+   the model supplies judgement and the input, never the artefact freehand, and judgement
+   outputs keep a fixed shape a script can check. → [09-deterministic-by-construction](principles/09-deterministic-by-construction.md)
+10. **Composable bundles.** Every component has one canonical source and is built to be
+    shared: bundles reach each other through declared dependencies, each other's CLIs and
+    inlined marked blocks that a check keeps identical — never through hand-maintained
+    copies or imports across bundle roots. → [10-composable-bundles](principles/10-composable-bundles.md)
 
 ## Vocabulary
 
@@ -68,6 +76,12 @@ repo; open the linked document when your change touches that area.
 | yield | how a hub component steps aside for a repository-level equivalent: `declaration`, `name`, `text` or `config`; `never` for the developer's own credentials (credential-file denies, `# never-yields:` preludes); `n/a` where nothing repository-level corresponds |
 | `.harness.toml` | the provider-neutral declaration at a repository root: `[owns]` (domains, component ids) and `[overrides]` (allow-listed names) |
 | owns | a repository's claim, in `.harness.toml`, that its harness covers a domain or a component id; the hub's matching components yield there |
+| reproducible output | an artefact fully determined by structured input (facts JSON, ticket model, config, template plus values); produced by a script with goldens, never typed by the model |
+| judgement output | an artefact the model decides (plan, classification, prose); keeps a fixed shape that a script, schema or guard row checks |
+| golden | a committed expected output of a script for a fixture; regenerated only with `UPDATE=1` and reviewed as a diff |
+| canonical source | the one file a shared helper is written in (`bundles/core/lib/*`); every other occurrence is a generated copy |
+| inlined block | a copy of a canonical source between `# >>> NAME` and `# <<< NAME` markers, rewritten and checked by `bundles/core/lib/sync_inline.py` |
+| seam | a declared way one bundle reaches another: `depends_on`, a CLI on `PATH`, a guard section prefix, an inlined block, a skill fragment (org overlays only) |
 | bundle file | a `git bundle` release artifact, `harness-hub-X.Y.Z.bundle`; not to be confused with a harness bundle |
 
 ## Applying the principles

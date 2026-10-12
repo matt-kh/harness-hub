@@ -24,6 +24,8 @@ loop. Agents: start with [AGENTS.md](AGENTS.md).
   | [6 Harness engineering](principles/06-harness-engineering.md) | `harness lint` guides/sensors pairing and taxonomy checks, guard test rows |
   | [7 Extensible core](principles/07-extensible-core.md) | PR template, CHANGELOG "Principles" entries |
   | [8 User-level by design](principles/08-user-level-by-design.md) | `harness lint` `yields` rule, guard rows for `.harness.toml` yield, `harness repo` unit test |
+  | [9 Deterministic by construction](principles/09-deterministic-by-construction.md) | render-determinism smoke, guard build `cmp`, pack unit tests, create-ticket and k8s goldens, `harness lint` `stability`, section-75 guard rows |
+  | [10 Composable bundles](principles/10-composable-bundles.md) | `sync_inline.py --check` in core tests, `harness lint` `manifest`, `profile-sane`, `fragments-target`, `dependencies`; per-bundle core-only guard builds; shared shim runner |
 
 ## Contributions are the steering loop
 
