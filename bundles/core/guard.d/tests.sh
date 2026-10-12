@@ -8,7 +8,8 @@ tc ask   '/home/u/dev/shop_feat-x-sub-01-schema' 'git push -u origin feat-x-sub-
 tc pass  '/home/u/dev/shop' 'git push -u origin feat-x-sub-01-schema'
 t  ask   'cd ../shop_feat-x-sub-01-schema && git push -u origin feat-x-sub-01-schema'
 t  ask   'git push --all origin'
-t  ask   'git push --force-with-lease origin feat-x-sub-02-api'
+t  allow 'git push --force-with-lease origin feat-x-sub-02-api'           # lease push of a sub branch (stk sync, §6c)
+tc ask   '/home/u/dev/shop_feat-x-sub-02-api' 'git push --force-with-lease origin feat-x-sub-02-api'   # but never from a sub worktree
 t  pass  'git commit --allow-empty -m "stack root: feat-x"'
 # ---- credential files: reads deny, the skills' CLIs and metadata-only commands pass ----
 t deny  'cat ~/.config/jira'
@@ -88,6 +89,35 @@ GIT_STUB_BRANCH=master t pass  'git push --tags'
 t ask   'git push --force origin feat-x'
 t ask   'git push -f origin feat-x'
 t deny  'git push --force origin master'
+# lease pushes: only -sub-NN- refs, as the whole command, allow (stacked parts are agent-owned)
+t allow 'git push --force-with-lease origin feat-x-sub-02-api'
+t allow 'git push --force-with-lease origin feat-x-sub-01-schema feat-x-sub-02-api'
+t allow 'git -C ../shop_feat-x-sub-02-api push --force-with-lease origin feat-x-sub-02-api'
+t allow 'git push --force-with-lease=feat-x-sub-02-api:abc123 origin feat-x-sub-02-api'
+t allow 'git push --force-with-lease origin feat-x-sub-02-api:feat-x-sub-02-api'
+t allow 'git push --force-with-lease --force-if-includes origin feat-x-sub-02-api'
+tr 'agent-owned -sub-NN- branches' 'git push --force-with-lease origin feat-x-sub-02-api'
+t ask   'git push --force-with-lease origin feat-x'
+t deny  'git push --force-with-lease origin main'                  # onto the default branch: the deny still wins
+t deny  'git push --force-with-lease origin feat-x-sub-02-api:main'
+WORK_TICKET_ALLOW_DEFAULT_PUSH_RE='^/home/u/dev/shop$' t ask 'git push --force-with-lease origin main'
+WORK_TICKET_ALLOW_DEFAULT_PUSH_RE='^/home/u/dev/shop$' t ask 'git push --force-with-lease origin feat-x-sub-02-api:main'
+t ask   'git push --force-with-lease origin feat-x-sub-02-api:feat-x'   # sub source onto a non-sub branch
+t ask   'git push --force origin feat-x-sub-02-api'
+t ask   'git push -f origin feat-x-sub-02-api'
+t ask   'git push -uf origin feat-x-sub-02-api'
+t ask   'git push origin +feat-x-sub-02-api'
+t ask   'git push --force-with-lease origin +feat-x-sub-02-api'
+t ask   'git push --force-with-lease origin "$SUB"'
+t ask   'git push --force-with-lease'
+t ask   'git push --force-with-lease origin'
+t ask   'git push --force-with-lease origin feat-x-sub-02-api feat-x'
+t ask   'git push --force-with-lease --force origin feat-x-sub-02-api'
+t ask   'git push --force-with-lease origin :feat-x-sub-02-api'        # a delete
+t ask   'git push --force-with-lease origin feat-x-sub-02-api && rm -rf build'   # compound: no allow
+t ask   'cd ../shop_feat-x-sub-02-api && git push --force-with-lease origin feat-x-sub-02-api'
+t ask   'git -C ../shop push --force origin feat-x'
+WORK_TICKET_BASE_BRANCH_RE='^(trunk|feat-x-sub-02-api)$' t deny 'git push --force-with-lease origin feat-x-sub-02-api'
 WORK_TICKET_ALLOW_DEFAULT_PUSH_RE='^/home/u/dev/shop$' t ask  'git push origin master'
 WORK_TICKET_ALLOW_DEFAULT_PUSH_RE='^/home/u/dev/shop$' GIT_STUB_BRANCH=main t ask 'git push'
 WORK_TICKET_ALLOW_DEFAULT_PUSH_RE='^/home/u/personal/' GIT_STUB_TOPLEVEL=/home/u/personal/dots t ask 'git push origin master'
@@ -137,6 +167,7 @@ r  pass  'git push origin master'
 # shellcheck disable=SC2154  # rpd: the fixture repository, defined in guard/tests/lib.sh
 tc pass  "$rpd/sub" 'git push origin master'
 r  pass  'git push --force origin feat-x'                     # the section's asks yield too
+r  pass  'git push --force-with-lease origin feat-x-sub-02-api'   # and its lease allow
 GIT_STUB_BRANCH=master r pass 'git push'
 r  deny  'cat ~/.ssh/id_rsa'                                  # credentials never yield
 r  deny  'cat ~/.config/gh/hosts.yml'
