@@ -51,15 +51,12 @@ Environment override for any key: `HARNESS_<SECTION>_<KEY>` (e.g. `HARNESS_JIRA_
 | `k8s.known_broken_contexts` | array |  |  | **Deprecated**, use `k8s.broken_contexts`. |
 | `k8s.prod_re` | string | `"(^\|[-_./:])(prod\|production)([-_./:]\|$)"` | k8s | Case-insensitive ERE on context and namespace names marking production ([PROD] banner; remediations become suggestions only). K8S_PROD_RE. |
 | `kubernetes` | object |  |  | **Deprecated**, use `k8s`. Renamed to [k8s]. |
-| `mq.label` | string | `"merge-queue"` | merge-queue | Label that selects the queue when neither refs nor --stack are given (open MRs/PRs carrying it, by number). HARNESS_MQ_LABEL. |
-| `mq.max_retries` | integer | `3` | merge-queue | Rebases / re-arms per MR/PR before it fails (bounds the need_rebase and target-moved loop on a busy target branch). HARNESS_MQ_MAX_RETRIES. |
-| `mq.on_failure` | string | `"stop"` | merge-queue | What `mq run` does when an MR/PR fails in a label or refs selection: stop the train or skip it and continue. A stack always stops (later parts depend on earlier ones). HARNESS_MQ_ON_FAILURE. |
-| `mq.poll_seconds` | integer | `20` | merge-queue | First poll interval while the train waits on a rebase, pipeline or merge; backs off to 60 s. HARNESS_MQ_POLL_SECONDS. |
-| `mq.require_checks` | boolean | `true` | merge-queue | An MR/PR with no pipeline or checks on its head stops the train (after 3 polls) instead of merging unchecked. On a private GitHub Free repository this is the only guard. HARNESS_MQ_REQUIRE_CHECKS (1\|true\|yes). |
-| `mq.timeout_minutes` | integer | `90` | merge-queue | Per-MR/PR deadline in `mq run`; on expiry the MR/PR fails and the resume command is printed. HARNESS_MQ_TIMEOUT_MINUTES. |
-| `mq.update_method` | string | `"rebase"` | merge-queue | GitHub only: `gh pr update-branch --rebase` (rebase) or a merge commit from the base (merge). GitLab always rebases (`glab mr rebase`). HARNESS_MQ_UPDATE_METHOD. |
 | `providers` | table of object |  |  | Per-provider options, keyed by provider name. |
 | `schema_version` | integer |  |  | Configuration schema version. Bumped only with a CHANGELOG Migration entry. |
+| `stack.label` | string | `"stack"` | stack | Label that selects stacks when neither refs nor --stack are given (the stacks of open MRs/PRs carrying it). HARNESS_STACK_LABEL. |
+| `stack.leaf_refresh` | string | `"auto"` | stack | auto: `stk sync` rebases at most one fan-in leaf server-side per run, and only when the merge method needs an up-to-date source (GitLab ff / rebase_merge, a GitHub "up to date" rule); never: report it only. HARNESS_STACK_LEAF_REFRESH. |
+| `stack.push` | boolean | `true` | stack | `stk sync` pushes the rebased sub branches with --force-with-lease; false rebases locally and prints the push commands (like --no-push). HARNESS_STACK_PUSH (true\|false). |
+| `stack.update_method` | string | `"rebase"` | stack | GitHub leaf refresh: `gh pr update-branch --rebase` (rebase) or a merge commit from the base (merge). GitLab always rebases (`glab mr rebase`). HARNESS_STACK_UPDATE_METHOD. |
 | `trust.buckets` | array | `[]` |  | Trusted storage buckets. |
 | `trust.domains` | array | `[]` |  | Trusted internal domains. |
 | `trust.environment` | array | `[]` |  | Raw autoMode.environment lines. When non-empty they are used verbatim instead of the generated lines. |
