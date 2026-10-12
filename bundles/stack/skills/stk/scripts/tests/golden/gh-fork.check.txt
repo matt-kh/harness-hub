@@ -1,0 +1,41 @@
+# exit=0
+# stderr:
+# stdout:
+{
+  "verb": "check",
+  "provider": "github",
+  "repo": "o/r",
+  "selection": {
+    "mode": "label",
+    "label": "stack"
+  },
+  "findings": [
+    {
+      "severity": "ok",
+      "key": "permission",
+      "message": "WRITE"
+    },
+    {
+      "severity": "ok",
+      "key": "delete_branch_on_merge",
+      "message": "on: GitHub retargets a merged part's dependents onto its base"
+    },
+    {
+      "severity": "info",
+      "key": "strategies",
+      "message": "allowed: squash, rebase; squash and rebase merges leave pre-merge commits in dependents, stk sync cascades them away"
+    },
+    {
+      "severity": "ok",
+      "key": "up_to_date",
+      "message": "main does not require up-to-date branches (private repository on GitHub Free)"
+    }
+  ],
+  "exit": 0
+}
+# worktrees: unchanged
+# origin branches:
+  feat-x unchanged
+  feat-x-sub-01-api unchanged
+  feat-x-sub-02-ui unchanged
+  main unchanged

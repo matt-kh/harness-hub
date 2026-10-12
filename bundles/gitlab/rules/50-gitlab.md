@@ -12,6 +12,9 @@
   confirmation; writes prompt.
 - `glab mr create` and edits to agent-labelled MRs run promptless; edits to un-labelled MRs
   prompt; merging/approving is human-only (asks).
+- `glab mr rebase N` (server-side rebase onto the target branch) runs promptless on
+  agent-labelled MRs and asks on human ones; refresh the local worktree afterwards with
+  `git pull --rebase`.
 - Stacked delivery: sub MRs (`<branch>-sub-NN-<task>`) target the ticket branch, never the
   default branch (the guard denies it); humans merge bottom-up.
 - Closing keywords + a ticket key (`Closes KEY`, `Fixes KEY`, `Resolves KEY`, `Implements KEY`)

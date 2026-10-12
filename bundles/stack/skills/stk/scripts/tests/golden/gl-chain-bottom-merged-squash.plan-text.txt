@@ -1,0 +1,27 @@
+# exit=0
+# stderr:
+# stdout:
+stk plan — gitlab o/r — stack feat-x
+stack feat-x -> main  main !10 (draft)
+  chain  !12 <- !13
+  !11    merged   feat-x-sub-01-api -> feat-x  [SANDBOX/r_feat-x-sub-01-api]
+  !12    open     feat-x-sub-02-ui -> feat-x-sub-01-api  behind 0, retarget -> feat-x  [SANDBOX/r_feat-x-sub-02-ui]
+  !13    open     feat-x-sub-03-docs -> feat-x-sub-02-ui  behind 0  [SANDBOX/r_feat-x-sub-03-docs]
+  merge order: !12, !13, !10 (main, last); run `stk sync --stack feat-x` after each merge
+planned  !12 retarget: its blocker !11 (feat-x-sub-01-api) merged; retarget feat-x-sub-01-api -> feat-x
+      glab mr update 12 --target-branch feat-x
+planned  fetch: refresh the remote-tracking refs first
+      git -C SANDBOX/r fetch origin
+planned  !13 cascade: !12: carries the pre-squash commits of merged !11 (feat-x-sub-01-api); rebase !12 !13 onto origin/feat-x
+      git -C SANDBOX/r_feat-x-sub-02-ui switch --detach
+      git -C SANDBOX/r_feat-x-sub-03-docs rebase --update-refs --onto origin/feat-x [sha] feat-x-sub-03-docs
+      git -C SANDBOX/r_feat-x-sub-02-ui switch feat-x-sub-02-ui
+planned  !13 push: push the rebased !12, !13
+      git -C SANDBOX/r_feat-x-sub-03-docs push --force-with-lease origin feat-x-sub-02-ui feat-x-sub-03-docs
+# worktrees: unchanged
+# origin branches:
+  feat-x unchanged
+  feat-x-sub-01-api unchanged
+  feat-x-sub-02-ui unchanged
+  feat-x-sub-03-docs unchanged
+  main unchanged

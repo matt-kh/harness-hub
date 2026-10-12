@@ -12,8 +12,9 @@ Status legend: **planned** (nothing built), **in progress** (a branch exists), *
 
 ## What exists today
 
-Seven public bundles cover source control (`github`, `gitlab`), one tracker (`jira`), the
-ticket-to-merge workflow (`ticket-workflow`), Kubernetes (`k8s`), Google Workspace (`gdoc`)
+Eight public bundles cover source control (`github`, `gitlab`), one tracker (`jira`), the
+ticket-to-merge workflow (`ticket-workflow`), stacked MRs/PRs on free tiers (`stack`),
+Kubernetes (`k8s`), Google Workspace (`gdoc`)
 and the conventions, credentials and git rules every developer needs (`core`). That is the
 surface of a platform engineer. Application, data, QA, security and release engineers also
 run containers, package managers, databases, cloud CLIs, infrastructure-as-code, pipelines
@@ -43,10 +44,11 @@ ARCHITECTURE §3 is updated when a band is first used.
 | `38` | `38-toolchain` | toolchain | package managers |
 | `45` | `45-release` | release | tags and publication; after the closing-keyword sections, before the SCM CLIs |
 | `55` | `55-ci` | ci | between `50-gitlab` and `60-github`; adds only the rows those two lack |
+| `65` | `65-stack` | stack | after `60-github`; the glab/gh label-gate changes live in `50`/`60` |
 | `75` | `75-ticket-workflow` | ticket-workflow | already listed in ARCHITECTURE; unused until P0 |
 | `82` | `82-hosts` | hosts | miscellaneous band, with `80-gdoc` |
 
-Free after this table: `15`, `32`–`34`, `39`, `42`–`44`, `46`–`49`, `65`, `85`.
+Free after this table: `15`, `32`–`34`, `39`, `42`–`44`, `46`–`49`, `85`.
 
 ## Proposed taxonomy values
 
@@ -112,7 +114,7 @@ only dependency is a tool the developer already has. **Status: planned.**
 | Fork PR provenance | `github` | a fork PR authored by `github.login` whose body carries `<!-- agent-provenance: agent-* -->` is treated as agent-labelled (edits promptless); other fork PRs keep asking | S/M | OSS contributors |
 | k8s v2 | `k8s` CLI | `images` (untagged, undigested, off-registry images, `k8s.registries_allow_re`), `rbac` (cluster-admin to service accounts, wildcards, secrets access), `deprecations` (API versions removed within two minors); all reads, no new guard rows | S/M each | SRE, security, platform |
 | Provider verification | `docs/runbooks/verify-provider.md`, lint `provider-verified`, smoke `provider-render.sh` | a human protocol per provider (install, render into a temp home, try one deny and one ask), a render-and-parse smoke, a lint warning when a profile ships a provider whose README says "not yet verified" | S code, M human time | multi-provider orgs |
-| Stack status | `ticket-workflow` | read-only `stack-status.sh`: part, target, state, needs-rebase, merged parts whose worktree still exists | S | stacked-MR users |
+| Stack status | `stack` | shipped as `stk status` (part, target, state, behind, worktree, merged parts whose worktree still exists) | S | stacked-MR users |
 | **`secrets` bundle** | `bundles/secrets` (`base`, read-only; guard `22`) | deny `sops -d`, `age -d`, `gpg -d` to stdout and `vault kv get`, `op read`, `pass show`; ask plaintext written to disk and Vault mutations; deny reading key material; `secrets keys FILE` (names and lengths), `secrets redact`, `secrets scan [--staged] [--deep]` (optional pinned `gitleaks`), `secrets status`; `exec-env`/`op run` forms stay allowed | S/M | all |
 | **`toolchain` bundle** | `bundles/toolchain` (`code`, local; guard `38`) | ask `pip install` outside a venv, global installs (`npm -g`, `cargo install`, `go install @latest`, allow-list `toolchain.allow_global_re`), unpinned git or URL dependencies; `toolchain detect|audit|outdated` using each ecosystem's own auditor, optional pinned `osv-scanner`; `/audit-deps` | S/M | all |
 | **`containers` bundle** | `bundles/containers` (`infrastructure`, local; guard `36`) | ask registry pushes, `system prune`, `volume rm`, `compose down -v`, `--privileged`, `--pid=host`, docker-socket mounts, remote engines matching `containers.remote_re`; deny `inspect` of env, `exec … env` and passwords on the `docker login` command line; `containers ps|inspect|env|logs|images|disk|compose status` (redacted); local build/run/exec/logs stay promptless | S/M | app, data, platform |
@@ -162,7 +164,8 @@ Cross-tranche items that make the hub easier to maintain and to extend.
   `release.tag_prefix`, `release.tag_re`, `release.conventional_commits`, `cloud.prod_re`,
   `cloud.accounts`, `iac.prod_re`, `iac.stateful_types_re`, `db.prod_re`, `db.targets`,
   `db.row_limit`, `hosts.prod_re`, `hosts.inventory`, `hosts.ssh_timeout`, `digest.repos`,
-  `digest.since`, `digest.mail`. Every env name a guard section reads must carry a prefix the
+  `digest.since`, `digest.mail`, and (shipped) `stack.label`, `stack.push`,
+  `stack.update_method`, `stack.leaf_refresh`. Every env name a guard section reads must carry a prefix the
   guard accepts (`HARNESS_`, `K8S_`, …; lint `env-provides` enforces this).
 
 ## Rejected or deferred
@@ -173,7 +176,9 @@ Cross-tranche items that make the hub easier to maintain and to extend.
 | Telemetry, dashboards, usage reports | rejected | principle 2 rules out features whose audience is not the developer |
 | Removing `skill_fragments` | rejected | kept for org overlays (see above) |
 | A shared review bundle for `/review-mr` and `/review-pr` | rejected | the shared part is already the core `code-reviewer` agent; two thin skills cost less than a dispatch layer |
-| A separate stacked-MR skill | rejected | `work-ticket` owns delivery; a read-only `stack-status.sh` suffices |
+| A separate stacked-MR *authoring* skill | rejected | `work-ticket` owns delivery (creating the stack); keeping it mergeable is `stk` (stack bundle) |
+| Merge train (`stk run`) | deferred (v2 candidate) | humans merge stacks bottom-up today. A free-tier train would emulate GitLab merge trains / GitHub merge queues: one MR/PR at a time, server-side rebase, wait for its pipeline on that head, then arm auto-merge or merge pinned to the tested sha (`--sha`, `--match-head-commit`); a draft was dropped from #18 in favour of stack sync |
+| `glab stack` | rejected for now | EXPERIMENTAL in glab 1.115 and marked "not ready for production"; stacks stay work-ticket's `-sub-NN` branches synced by `stk`; revisit when GitLab marks it GA |
 | `/standup` posting to chat or sending mail | rejected | drafts only; humans send (the gdoc bundle never sends) |
 | `/standup` inside `ticket-workflow` | rejected | it spans more sources than that bundle's `any_of` allows and must degrade per missing CLI |
 | EKS/GKE/AKS reads inside `k8s` | rejected | `k8s` is Kubernetes-API-only by its own contract and never reads kubeconfig; the `cloud` bundle supplies them |

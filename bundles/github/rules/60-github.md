@@ -13,6 +13,9 @@
 - `gh pr create` and edits to agent-labelled PRs/issues run promptless, human ones prompt;
   `gh pr merge|review` are human-only (ask). `gh api` GETs and read-only GraphQL queries pass;
   writes prompt.
+- `gh pr update-branch N [--rebase]` (server-side update from the base branch) runs promptless
+  on agent-labelled PRs and asks on human and fork PRs; refresh the local worktree afterwards
+  with `git pull --rebase`.
 - Forks/upstream: the agent cannot label there, so edits ask and delivery is a single PR.
 - Secret: `~/.config/gh/hosts.yml` holds the token — never read or print it; check auth with
   `gh auth status`.

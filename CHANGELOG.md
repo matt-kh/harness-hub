@@ -163,6 +163,23 @@ prints every one between your applied version and the new one.
   `-f/--fill/--fill-first/--fill-verbose`, on a literal `-t/--title` matching the new
   `github.pr_title_forbid_re` (issue refs belong in the body) and on a `$VAR`/backtick title.
 
+- `stack` bundle (experimental; domain `scm`, guard section `65`): the `stk` CLI keeps stacked
+  MRs/PRs mergeable on free tiers with native `glab` / `gh` / `git` commands it prints before
+  running them. `stk sync` retargets parts whose blocker merged (or that GitLab CE sent to the
+  default branch), rebases each chain in the worktree that has its top checked out with
+  `git rebase --update-refs --onto` (lower chain branches checked out in other worktrees are
+  detached and re-attached: git 2.43 silently skips them otherwise; a conflict runs
+  `git rebase --abort` and leaves every worktree as found), pushes the rebased sub branches
+  with `git push --force-with-lease`, refreshes at most one fan-in leaf server-side when the
+  merge method needs an up-to-date source, and marks the main MR/PR ready once every part
+  merged; it writes only to agent-labelled MRs/PRs. `stk plan` prints the topology, the
+  bottom-up merge order for the human and the commands sync would run; `stk status` (incl.
+  worktree cleanup lines) and `stk check [--fix]` are reads. There is no merge verb: humans
+  merge in the UI. Golden suite over 21 GitLab and GitHub scenarios against stubbed `glab` /
+  `gh` and a real-git sandbox, with invariants (lease pushes of sub branches only, never a
+  push for an unlabelled MR, worktrees unchanged after a failed cascade, one leaf refresh per
+  run).
+
 ### Deprecated
 
 - `[bundle].tags` in `bundle.toml`: free-form and never read; `harness lint` warns
@@ -214,6 +231,33 @@ prints every one between your applied version and the new one.
   `skill-description`), keeping its triggers, "NOT for" scope, repo-level hand-over and GitHub
   mode. Coverage notes of core, github, gitlab, k8s and ticket-workflow name the topics whose
   rule or guard section is unpaired by number (`rule-guard-pairing`).
+- `gitlab/guard.d/50-gitlab`: `glab mr rebase REF [--skip-ci]` joins the MR label gate of
+  `glab mr update|note|close` (agent-labelled MRs allow, human MRs ask, no or `$VAR` ref asks);
+  it previously passed ungated. The gitlab rule names the command and the `git pull --rebase`
+  refresh afterwards.
+- `github/guard.d/60-github`: `gh pr update-branch REF [--rebase]` leaves the team-action asks
+  and joins the PR label gate (agent-labelled PRs allow, human and fork PRs ask, no or `$VAR`
+  ref asks); `Bash(gh pr update-branch:*)` leaves the github `permissions.toml` `ask` list. The
+  github rule names the command. Both commands are what a merge queue runs to bring a stacked
+  part up to date with its base.
+
+- Core guard (section 30): a lease push of only `-sub-NN-` branches — `git [-C DIR] push
+  --force-with-lease[=…] <remote> <refs…>` as the whole command, every source and destination
+  a `-sub-NN-` branch and none matching `WORK_TICKET_BASE_BRANCH_RE` — is now **allowed**
+  (stacked parts are agent-owned and lease-protected). `--force`, `-f`, `+ref`, a lease push
+  with no ref, a `$VAR` ref, any non-sub ref, a compound command, or a push from inside a sub
+  worktree still ask; pushes to a base branch still deny. `git -C DIR push --force` now asks
+  too (it used to slip past the force-push pattern).
+- `work-ticket` stacked delivery is chain-by-default: the Plan agent lists `paths` per part,
+  parts whose paths overlap (incl. shared registry files) must form one chain, fan-in only for
+  file-disjoint parts, verified pairwise with `git diff --name-only` before publishing; chains
+  may be any depth. §6b uses `stk check`, §6c `stk sync --stack "$BR"` (manual fallback:
+  `rebase --update-refs --onto` + lease push, now allowed), Step 7 hands over the merge order
+  from `stk plan`; the Stack table shows chain order. `ticket-workflow` recommends `stack`.
+- `docs/roadmap.md`: guard band `65` is now `65-stack`; the planned `stack-status.sh` shipped as
+  `stk status`; a merge train (`stk run`) is a v2 candidate; `glab stack` stays rejected while
+  experimental upstream. Leaf refresh relies on the `glab mr rebase` / `gh pr update-branch`
+  label gates of #17 (gitlab and github sections), not part of this bundle.
 
 ### Stability
 
@@ -284,6 +328,23 @@ prints every one between your applied version and the new one.
   `WORK_TICKET_KEY_IN_BRANCH = "1"` in `.harness.toml` `[overrides]` (or the provider `env`;
   previously accepted but a no-op); the guard now asks on key-named branches, key-prefixed commit subjects,
   off-convention sub worktree paths and non-squash merges of `-sub-` branches.
+- Server-side rebase/update gates: `glab mr rebase REF` changes from pass to the MR label gate
+  (agent-labelled MRs allow; human MRs, a missing ref and a `$VAR` ref ask);
+  `gh pr update-branch REF` changes from always-ask (team action) to the PR label gate
+  (agent-labelled PRs allow; human and fork PRs, a missing ref and a `$VAR` ref ask). Label
+  the MR/PR `agent-worked` to keep these promptless. No config keys changed. Run
+  `harness apply` to re-render the guard and the permission lists.
+
+- `stack` bundle (opt-in: add `"stack"` to `hub.bundles`, then `harness apply`): four new
+  config keys, each overridable per shell by its env name — `stack.label` (`"stack"`,
+  `HARNESS_STACK_LABEL`), `stack.push` (`true`, `HARNESS_STACK_PUSH`), `stack.update_method`
+  (`"rebase"` | `"merge"`, `HARNESS_STACK_UPDATE_METHOD`), `stack.leaf_refresh` (`"auto"` |
+  `"never"`, `HARNESS_STACK_LEAF_REFRESH`). New guard decisions in section 65: a sole
+  `stk sync` allows, `stk sync --include-human` asks; permissions allow
+  `stk plan|status|check|sync`. Needs git 2.38+ (`rebase --update-refs`).
+- Core guard decision change for everyone: `git push --force-with-lease origin <-sub-NN-
+  branches…>` typed as the whole command now allows instead of asking (every other
+  force-push still asks); nothing to edit.
 
 ## [0.1.0] - 2026-09-30
 

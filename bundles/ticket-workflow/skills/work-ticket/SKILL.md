@@ -175,8 +175,13 @@ Then run `code-reviewer` on `git diff origin/$BASE...HEAD`; fix Critical/Warning
 
 **Stacked delivery** (L/XL, Q8b = stacked) — `subagents.md` → Publish:
 - One worktree per part (`$BR-sub-NN-<task>`); parts without `depends_on` start from `$BR`
-  (fan-in); a dependent part starts from its blocker's branch **after** the blocker is
-  implemented (chain, ≤ 1 blocker). Subagents/workflow agents never push or switch branches.
+  (fan-in); chained parts are implemented in order, each starting from its blocker's branch
+  after the blocker is implemented. Chains and fan-in leaves run in parallel with each other.
+  Subagents/workflow agents never push or switch branches.
+- Before publishing, verify the fan-in leaves are file-disjoint:
+  `git diff --name-only origin/$BR...<sub>` pairwise over the leaves; any overlap → re-chain
+  (rebase the later leaf onto the earlier one: `git -C <later wt> rebase --onto <earlier-sub> "$BR"`,
+  set its blocker) before pushing.
 - **No local squash-merge.** `code-reviewer` per part on `git -C <worktree> diff <target>...HEAD`.
 - Integration check in the ephemeral `../<repo>_$BR-integration` worktree (merge every sub →
   Step 5 checks → remove; never pushed). Conflicts → fix in the owning sub worktree.
@@ -248,16 +253,29 @@ list is complete and checks pass; main MR **Draft** until all parts merged. Temp
 `mr-description.md` (`## Stack`, sub-MR skeleton, CI recommendations for `per_branch_heavy` /
 `mr_heavy_jobs`). If GitLab refuses the empty-root main MR, open it after the first part merges
 (Step 6c) and record that in the Stack table.
+Stack readiness (stack bundle, when `stk` is on PATH): feed its warn/fail findings (delete
+source branch default on, protected ticket branch, access) into the main MR's
+`## CI recommendations`:
+```bash
+command -v stk >/dev/null && stk check --stack "$BR" --json > "$SCRATCH/KEY-stk.json"   # read-only
+```
 
-#### 6c — Stack sync (re-entry: Q2 = "Sync stack", or after review fixes)
+#### 6c — Stack sync (re-entry: Q2 = "Sync stack", after a part merged, or after review fixes)
+Prefer `stk sync --stack "$BR"` when `stk` is on PATH (stack bundle; hook: allow): it
+retargets parts whose blocker merged (or that GitLab sent to the default branch), rebases each
+chain in its worktree with `git rebase --update-refs --onto`, pushes the rebased sub branches
+with `--force-with-lease`, refreshes one fan-in leaf server-side when the merge method needs
+it, and marks the main MR/PR ready once every part merged. Relay its `skipped`/`todo`/`conflict`
+steps (a conflict is aborted; every worktree is left as found). The manual commands below are
+the fallback when `stk` is absent.
 GitHub → github.md §6c (`gh pr list … headRefOid`, rebase onto the merged part's head OID,
 `gh pr edit N -B "$BR"` only when GitHub did not auto-retarget, `gh pr ready`).
 ```bash
 glab mr list --search "KEY" --all -F json > "$SCRATCH/KEY-stack.json"   # → github.md §6c
 # for each MERGED part P: open parts that targeted P's branch (or were auto-retargeted to the default branch)
 git fetch origin
-git rebase --onto "origin/$BR" "origin/<P.source_branch>" "<child-sub>"   # drop the merged blocker's commits
-git push --force-with-lease origin "<child-sub>"                          # hook: ask (force-push) — expected, confirm
+git -C <top-of-chain wt> rebase --update-refs --onto "origin/$BR" "<P head sha at merge>" "<top-sub>"   # drop the merged blocker's commits; lower chain branches follow (detach their worktrees first)
+git push --force-with-lease origin "<child-sub>" "<top-sub>"              # hook: allow (lease push of -sub- branches only)
 glab mr update <child-iid> --target-branch "$BR"                          # hook: allow; retarget to master|main is DENIED   → github.md §6c
 # all parts merged → glab mr update <main-iid> --ready ; regenerate the Stack table statuses; Step 7 comment
 ```
@@ -271,7 +289,9 @@ jira comment KEY "MR opened: <url> ($BR -> $BASE). Merge is by a maintainer. CI 
 # → github.md §7: gh issue comment N -R owner/repo -F handoff.md ("close the issue yourself after merge"); fork flow: final message only
 ```
 Stacked: use the stacked handoff template in `mr-description.md` (merge order, main last, "the
-agent never merges"). No transition on the parent — ever. Final message: MR URL(s) in merge
+agent never merges"): humans merge bottom-up in the UI following `stk plan --stack <BR>`;
+after each merge `stk sync --stack <BR>` (the agent on request, or the human) retargets and
+rebases the next part. No transition on the parent — ever. Final message: MR URL(s) in merge
 order, sub-tickets, what CI runs vs ran locally, open questions, deferred asks, and the
 expected `git worktree list` (stacked: main checkout + one worktree per open part).
 

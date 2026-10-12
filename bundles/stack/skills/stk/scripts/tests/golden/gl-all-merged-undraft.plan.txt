@@ -1,0 +1,80 @@
+# exit=0
+# stderr:
+# stdout:
+{
+  "verb": "plan",
+  "provider": "gitlab",
+  "repo": "o/r",
+  "selection": {
+    "mode": "stack",
+    "stack": "feat-x",
+    "with_main": true
+  },
+  "stacks": [
+    {
+      "branch": "feat-x",
+      "base": "main",
+      "main": {
+        "ref": 10,
+        "state": "draft"
+      },
+      "chains": [],
+      "leaves": [],
+      "merged": [
+        11,
+        12
+      ],
+      "parts": [
+        {
+          "ref": 11,
+          "source": "feat-x-sub-01-api",
+          "target": "feat-x",
+          "state": "merged",
+          "labelled": true,
+          "worktree": "SANDBOX/r_feat-x-sub-01-api"
+        },
+        {
+          "ref": 12,
+          "source": "feat-x-sub-02-ui",
+          "target": "feat-x",
+          "state": "merged",
+          "labelled": true,
+          "worktree": "SANDBOX/r_feat-x-sub-02-ui"
+        }
+      ],
+      "main_row": {
+        "ref": 10,
+        "source": "feat-x",
+        "target": "main",
+        "state": "draft",
+        "labelled": true,
+        "worktree": "SANDBOX/r",
+        "target_ok": true,
+        "behind": 0,
+        "conflicts": false
+      },
+      "merge_order": [
+        "!10 (main, last)"
+      ]
+    }
+  ],
+  "other": [],
+  "sync_would_run": [
+    {
+      "ref": 10,
+      "kind": "ready",
+      "status": "planned",
+      "message": "every part merged: mark the main MR ready",
+      "commands": [
+        "glab mr update 10 --ready"
+      ]
+    }
+  ],
+  "exit": 0
+}
+# worktrees: unchanged
+# origin branches:
+  feat-x unchanged
+  feat-x-sub-01-api unchanged
+  feat-x-sub-02-ui unchanged
+  main unchanged

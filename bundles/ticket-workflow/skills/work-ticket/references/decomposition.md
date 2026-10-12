@@ -11,10 +11,16 @@ pinned to {{ core.model_policy.plan }}, read-only tools) with:
 - constraints: read-only (no jira/glab/gh/git writes); 2–8 sub-tickets, each ≤ ~1 day,
   **file-disjoint**; **each sub-ticket becomes its own MR targeting the ticket branch `<BR>`**
   (stacked delivery, the L/XL default) — keep every part independently reviewable and
-  mergeable on its own; `depends_on` **only for true build/runtime dependencies** (a dependent
-  part chains onto its blocker's branch and needs a rebase + retarget after the blocker
-  merges) and **at most one blocker per part** — needing two means chain linearly or merge the
-  parts; no part may target the base branch directly; respect the precedence rule
+  mergeable on its own; `depends_on` holds **at most one blocker per part** (a dependent part
+  chains onto its blocker's branch; chains may be any depth but stay linear — needing two
+  blockers means chain linearly or merge the parts); **list `paths` per part, and any two
+  parts whose `paths` overlap (the same file, or the same generated/registry file: schema,
+  migrations list, exports index, routes, lockfile, changelog) MUST be in one chain in
+  dependency order — fan-in (`depends_on: []`, target `<BR>`) only for parts with zero
+  overlap** (fanned-in parts that share files conflict on every MR as the others merge).
+  Typical shape: a short foundation chain, fan-in leaves off its top. `stk sync` keeps chains
+  retargeted and rebased after each merge; no part may target the base branch directly;
+  respect the precedence rule
   (principle 8: when `repo_skill`/`repo_owns` is set, the repository's branch and MR
   conventions apply to every part). (Q8b = single: parts converge into one MR on `<BR>`
   instead — same decomposition.)

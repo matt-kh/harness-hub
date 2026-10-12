@@ -212,15 +212,27 @@ gh pr edit 34 -R OWNER/REPO -F "$SCRATCH/12-pr.md" && gh pr edit 35 -R OWNER/REP
   `#41` (or `part N`), target `feat-x` (never `main`), main PR row `#34 (this)`.
 - Sub PR header: `> **Stack — part N of M** for #12 · main PR #34 · prev #35 · next #37`
   `> **Merge after:** #35 · **Target:** \`<BR>\` (never \`main\`) · click "Delete branch" after merging.`
+- Stack readiness (stack bundle): `command -v stk >/dev/null && stk check --stack "$BR" --json >
+  "$SCRATCH/12-stk.json"`; its warn/fail findings (permission, `delete_branch_on_merge` off)
+  go into `## CI recommendations`.
 
 ## §6c Stack sync
+
+GitHub retargets a dependent onto the merged PR's base when the head branch is deleted, but
+squash and rebase merges rewrite the part's commits: the dependents still carry the pre-squash
+commits and need the cascade. Prefer `stk sync --stack "$BR"` when `stk` is on PATH (hook:
+allow; agent-labelled PRs only): `gh pr edit N -B "$BR"` only when GitHub did not retarget,
+`git rebase --update-refs --onto` per chain in its worktree, `git push --force-with-lease` of
+the rebased sub branches, `gh pr update-branch` on one fan-in leaf when a rule requires
+up-to-date branches, `gh pr ready` on the main PR once every part merged. The commands below
+are the fallback when `stk` is absent.
 
 ```bash
 gh pr list -R OWNER/REPO --state all --limit 100 --json number,headRefName,baseRefName,state,mergedAt,headRefOid > "$SCRATCH/12-stack.json"
 git fetch origin --prune
 # per MERGED part P with open dependents (squash-merge rewrote P's commits):
-git rebase --onto "origin/$BR" "<P.headRefOid>" "<child-sub>"
-git push --force-with-lease origin "<child-sub>"                                  # hook: ask — expected
+git -C <top-of-chain wt> rebase --update-refs --onto "origin/$BR" "<P.headRefOid>" "<top-sub>"   # lower chain branches follow (detach their worktrees first)
+git push --force-with-lease origin "<child-sub>" "<top-sub>"                      # hook: allow (lease push of -sub- branches only)
 gh pr edit 37 -R OWNER/REPO -B "$BR"          # only if GitHub did not auto-retarget (branch not deleted); → main is DENIED
 # all parts merged → gh pr ready 34 -R OWNER/REPO   (or remove [WIP] + agent-wip); regenerate Stack; §7
 ```
@@ -255,6 +267,8 @@ Issue state unchanged — **close the issue yourself after merge** (we never use
 Sub-issues: #41, #42 (agent-created; close them with this issue).   <- only if any
 ```
 Stacked: list the parts in merge order (`#35 [part 1/M] <task> -> <BR>` …), "click Delete
-branch after each merge so dependents retarget", main PR last. Fork flow: no issue comment
+branch after each merge so dependents retarget", main PR last; the order is the one
+`stk plan --stack <BR>` prints, and after each merge `stk sync --stack <BR>` (the agent on
+request, or the human) rebases and pushes the next part. Fork flow: no issue comment
 unless the user asks (it would prompt); the handoff goes in the final message, plus the
 "Approve and run" note.

@@ -53,6 +53,10 @@ Environment override for any key: `HARNESS_<SECTION>_<KEY>` (e.g. `HARNESS_JIRA_
 | `kubernetes` | object |  |  | **Deprecated**, use `k8s`. Renamed to [k8s]. |
 | `providers` | table of object |  |  | Per-provider options, keyed by provider name. |
 | `schema_version` | integer |  |  | Configuration schema version. Bumped only with a CHANGELOG Migration entry. |
+| `stack.label` | string | `"stack"` | stack | Label that selects stacks when neither refs nor --stack are given (the stacks of open MRs/PRs carrying it). HARNESS_STACK_LABEL. |
+| `stack.leaf_refresh` | string | `"auto"` | stack | auto: `stk sync` rebases at most one fan-in leaf server-side per run, and only when the merge method needs an up-to-date source (GitLab ff / rebase_merge, a GitHub "up to date" rule); never: report it only. HARNESS_STACK_LEAF_REFRESH. |
+| `stack.push` | boolean | `true` | stack | `stk sync` pushes the rebased sub branches with --force-with-lease; false rebases locally and prints the push commands (like --no-push). HARNESS_STACK_PUSH (true\|false). |
+| `stack.update_method` | string | `"rebase"` | stack | GitHub leaf refresh: `gh pr update-branch --rebase` (rebase) or a merge commit from the base (merge). GitLab always rebases (`glab mr rebase`). HARNESS_STACK_UPDATE_METHOD. |
 | `trust.buckets` | array | `[]` |  | Trusted storage buckets. |
 | `trust.domains` | array | `[]` |  | Trusted internal domains. |
 | `trust.environment` | array | `[]` |  | Raw autoMode.environment lines. When non-empty they are used verbatim instead of the generated lines. |
