@@ -1,0 +1,116 @@
+# exit=1
+# stderr:
+# stdout:
+{
+  "verb": "plan",
+  "provider": "gitlab",
+  "repo": "o/r",
+  "selection": {
+    "mode": "stack",
+    "stack": "feat-x",
+    "with_main": false
+  },
+  "stacks": [
+    {
+      "branch": "feat-x",
+      "base": "main",
+      "main": {
+        "ref": 10,
+        "state": "draft"
+      },
+      "chains": [
+        [
+          12,
+          13
+        ]
+      ],
+      "leaves": [],
+      "merged": [
+        11
+      ],
+      "parts": [
+        {
+          "ref": 11,
+          "source": "feat-x-sub-01-api",
+          "target": "feat-x",
+          "state": "merged",
+          "labelled": true,
+          "worktree": "SANDBOX/r_feat-x-sub-01-api"
+        },
+        {
+          "ref": 12,
+          "source": "feat-x-sub-02-ui",
+          "target": "feat-x-sub-01-api",
+          "state": "open",
+          "labelled": false,
+          "worktree": "SANDBOX/r_feat-x-sub-02-ui",
+          "target_ok": false,
+          "behind": 0,
+          "conflicts": false,
+          "retarget": {
+            "to": "feat-x",
+            "why": "its blocker !11 (feat-x-sub-01-api) merged"
+          }
+        },
+        {
+          "ref": 13,
+          "source": "feat-x-sub-03-docs",
+          "target": "feat-x-sub-02-ui",
+          "state": "open",
+          "labelled": true,
+          "worktree": "SANDBOX/r_feat-x-sub-03-docs",
+          "target_ok": true,
+          "behind": 0,
+          "conflicts": false
+        }
+      ],
+      "merge_order": [
+        "!12",
+        "!13",
+        "!10 (main, last)"
+      ]
+    }
+  ],
+  "other": [],
+  "sync_would_run": [
+    {
+      "ref": 12,
+      "kind": "retarget",
+      "status": "skipped",
+      "message": "not agent-labelled; its blocker !11 (feat-x-sub-01-api) merged; retarget feat-x-sub-01-api -> feat-x",
+      "commands": [
+        "glab mr update 12 --label agent-worked",
+        "glab mr update 12 --target-branch feat-x"
+      ]
+    },
+    {
+      "ref": null,
+      "kind": "fetch",
+      "status": "planned",
+      "message": "refresh the remote-tracking refs first",
+      "commands": [
+        "git -C SANDBOX/r fetch origin"
+      ]
+    },
+    {
+      "ref": 13,
+      "kind": "cascade",
+      "status": "skipped",
+      "message": "!12: carries the pre-squash commits of merged !11 (feat-x-sub-01-api); rebase !12 !13 onto origin/feat-x: !12 not agent-labelled; label them (or run the commands yourself)",
+      "commands": [
+        "glab mr update 12 --label agent-worked",
+        "git -C SANDBOX/r_feat-x-sub-03-docs fetch origin",
+        "git -C SANDBOX/r_feat-x-sub-03-docs rebase --update-refs --onto origin/feat-x [sha] feat-x-sub-03-docs",
+        "git -C SANDBOX/r_feat-x-sub-03-docs push --force-with-lease origin feat-x-sub-02-ui feat-x-sub-03-docs"
+      ]
+    }
+  ],
+  "exit": 1
+}
+# worktrees: unchanged
+# origin branches:
+  feat-x unchanged
+  feat-x-sub-01-api unchanged
+  feat-x-sub-02-ui unchanged
+  feat-x-sub-03-docs unchanged
+  main unchanged

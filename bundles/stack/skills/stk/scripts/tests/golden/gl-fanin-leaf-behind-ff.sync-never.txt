@@ -1,0 +1,42 @@
+# exit=1
+# stderr:
++ git -C SANDBOX/r fetch origin
+# stdout:
+{
+  "verb": "sync",
+  "provider": "gitlab",
+  "repo": "o/r",
+  "selection": {
+    "mode": "stack",
+    "stack": "feat-x",
+    "with_main": false
+  },
+  "steps": [
+    {
+      "ref": 12,
+      "kind": "refresh",
+      "status": "todo",
+      "message": "1 commit(s) behind feat-x and the merge needs an up-to-date source (stack.leaf_refresh = never): refresh it yourself",
+      "commands": [
+        "glab mr rebase 12"
+      ]
+    },
+    {
+      "ref": 13,
+      "kind": "refresh",
+      "status": "todo",
+      "message": "1 commit(s) behind feat-x and the merge needs an up-to-date source (stack.leaf_refresh = never): refresh it yourself",
+      "commands": [
+        "glab mr rebase 13"
+      ]
+    }
+  ],
+  "exit": 1
+}
+# worktrees: unchanged
+# origin branches:
+  feat-x unchanged
+  feat-x-sub-01-api unchanged
+  feat-x-sub-02-ui unchanged
+  feat-x-sub-03-cli unchanged
+  main unchanged

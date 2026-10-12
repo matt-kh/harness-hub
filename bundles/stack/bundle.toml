@@ -1,0 +1,207 @@
+[bundle]
+name = "stack"
+schema_version = "1"
+summary = "Stacked MRs/PRs on free tiers: the `stk` CLI (plan, status, check, sync) keeps a chain of dependent parts retargeted, rebased and pushed"
+description = """
+Automates what GitLab's stacked MRs and GitHub's base retargeting leave to you on free tiers:
+when a lower part of a stack is merged or amended, `stk sync` retargets its dependents
+(`glab mr update --target-branch`, `gh pr edit -B`), rebases each chain locally in the worktree
+that has its top branch checked out (`git rebase --update-refs --onto`, aborted cleanly on a
+conflict), pushes the rebased sub branches with `--force-with-lease`, refreshes at most one
+fan-in leaf server-side when the merge method needs an up-to-date source, and marks the main
+MR/PR ready once every part merged. It writes only to agent-labelled MRs/PRs and prints every
+native command before it runs it. `stk plan|status|check` are reads; `plan` prints the
+bottom-up merge order for the human, who merges in the web UI. Stacks are work-ticket's
+`<BR>-sub-NN-<task>` branches (`stk sync --stack BR`).
+"""
+depends_on = ["core"]
+recommends = ["ticket-workflow"]
+conflicts_with = []
+any_of = [["gitlab", "github"]]
+owners = []
+docs = "docs/bundles/stack.md"
+stability = "experimental"
+
+[requires.binaries.python3]
+min_version = "3.9"
+version_cmd = "python3 --version"
+version_regex = 'Python ([0-9]+\.[0-9]+)'
+why = "The stk CLI is stdlib python."
+
+[requires.binaries.git]
+min_version = "2.38"
+version_cmd = "git --version"
+version_regex = 'git version ([0-9]+\.[0-9]+)'
+why = "The cascade uses `git rebase --update-refs` (2.38+), worktrees and lease pushes."
+
+[requires.binaries.glab]
+min_version = "1.40.0"
+version_cmd = "glab --version"
+version_regex = 'glab (?:version )?([0-9]+\.[0-9]+\.[0-9]+)'
+optional = true
+why = "GitLab stacks: MR reads (`glab api`), `glab mr update --target-branch|--ready`, `glab mr rebase`."
+
+[requires.binaries.gh]
+min_version = "2.60.0"
+version_cmd = "gh --version"
+version_regex = 'gh version ([0-9]+\.[0-9]+\.[0-9]+)'
+install = "gh"
+optional = true
+why = "GitHub stacks: PR reads, `gh pr edit -B`, `gh pr ready`, `gh pr update-branch`."
+
+[requires.config."stack.label"]
+type = "string"
+default = "stack"
+description = "Label that selects stacks when neither refs nor --stack are given (the stacks of open MRs/PRs carrying it). HARNESS_STACK_LABEL."
+example = "stack"
+
+[requires.config."stack.push"]
+type = "boolean"
+default = true
+description = "`stk sync` pushes the rebased sub branches with --force-with-lease; false rebases locally and prints the push commands (like --no-push). HARNESS_STACK_PUSH (true|false)."
+example = true
+
+[requires.config."stack.update_method"]
+type = "string"
+default = "rebase"
+enum = ["rebase", "merge"]
+description = "GitHub leaf refresh: `gh pr update-branch --rebase` (rebase) or a merge commit from the base (merge). GitLab always rebases (`glab mr rebase`). HARNESS_STACK_UPDATE_METHOD."
+example = "rebase"
+
+[requires.config."stack.leaf_refresh"]
+type = "string"
+default = "auto"
+enum = ["auto", "never"]
+description = "auto: `stk sync` rebases at most one fan-in leaf server-side per run, and only when the merge method needs an up-to-date source (GitLab ff / rebase_merge, a GitHub \"up to date\" rule); never: report it only. HARNESS_STACK_LEAF_REFRESH."
+example = "auto"
+
+[provides]
+rules = ["rules/65-stack.md"]
+skills = ["skills/stk"]
+skill_fragments = []
+agents = []
+guard_rules = ["guard.d/65-stack.sh"]
+permissions = "permissions.toml"
+mcp = ""
+bin = [{ name = "stk", target = "skills/stk/scripts/stk.py" }]
+
+[provides.env]
+HARNESS_STACK_LABEL = "{{ stack.label }}"
+HARNESS_STACK_PUSH = "{{ stack.push }}"
+HARNESS_STACK_UPDATE_METHOD = "{{ stack.update_method }}"
+HARNESS_STACK_LEAF_REFRESH = "{{ stack.leaf_refresh }}"
+
+[[manual_steps]]
+id = "stack-gitlab-project-settings"
+title = "GitLab: project settings for stacked MRs"
+once_per = "org"
+needs = ["maintainer"]
+minutes = 5
+why = "GitLab CE retargets the dependents of a merged part to the default branch when the part's source branch is deleted, and the merge method decides how much rebasing a stack needs."
+how = """
+Settings → Merge requests, per project (a Maintainer):
+- **Enable "Delete source branch" option by default**: off. Sub MRs inherit the default, and a
+  deleted blocker branch sends its dependents to the default branch (`stk sync` repairs it,
+  but it is noise).
+- Merge method: plain **Merge commit** needs no rebase after a merge (only a retarget);
+  **semi-linear** or **fast-forward** need the chains rebased and the fan-in leaves refreshed
+  after every merge (`stk sync` does both, one leaf per run).
+- Squash: either works; squashed parts leave pre-squash commits in their dependents, which
+  `stk sync` cascades away.
+- Sub branches (`*-sub-*`) must not be protected: `stk sync` pushes them with
+  `--force-with-lease`.
+Then run `stk check --stack <BR>` in a checkout (`--fix` prints the `glab api -X PUT`
+commands; it never runs them).
+"""
+[manual_steps.verify]
+cmd = "true"
+expect = { exit = 0 }
+
+[[manual_steps]]
+id = "stack-github-repo-settings"
+title = "GitHub: repository settings for stacked PRs"
+once_per = "org"
+needs = ["admin"]
+minutes = 3
+why = "With automatic head-branch deletion GitHub retargets a merged part's dependents onto its base; an \"up to date\" rule decides whether fan-in leaves need a refresh."
+how = """
+Settings → General → Pull Requests: **Automatically delete head branches** on (GitHub then
+retargets dependents itself; `stk sync` retargets when it is off). Squash or rebase merges
+leave pre-merge commits in dependents; `stk sync` cascades them away. A ruleset or branch
+protection that requires branches to be up to date makes `stk sync` refresh one fan-in leaf
+per run with `gh pr update-branch`. Then run `stk check --stack <BR>` in a checkout.
+"""
+[manual_steps.verify]
+cmd = "true"
+expect = { exit = 0 }
+
+[[manual_steps]]
+id = "stack-read-the-flow"
+title = "Read how a stack is merged (you merge it)"
+once_per = "machine"
+needs = []
+minutes = 2
+why = "Merging is human-only: stk keeps the stack mergeable, you merge it."
+how = """
+- `stk plan --stack <BR>` prints the merge order: parts bottom-up, the main MR/PR last.
+- Merge the first part in the web UI, then run `stk sync --stack <BR>` (or ask the agent to):
+  the next part is retargeted, rebased and pushed. Repeat.
+- A cascade conflict is aborted and reported with the commands; every worktree is left as it
+  was. stk never uses `--force`, `reset --hard` or `rebase --continue`.
+"""
+[manual_steps.verify]
+cmd = "true"
+expect = { exit = 0 }
+
+[[doctor_checks]]
+id = "stk-cli"
+title = "stk CLI on PATH"
+severity = "fail"
+cmd = "command -v stk >/dev/null && stk check -h >/dev/null"
+expect = { exit = 0 }
+offline_skip = false
+fix = "harness apply"
+
+[[doctor_checks]]
+id = "stk-scm-cli"
+title = "An SCM CLI is on PATH (glab or gh)"
+severity = "fail"
+cmd = "command -v glab >/dev/null 2>&1 || command -v gh >/dev/null 2>&1"
+expect = { exit = 0 }
+offline_skip = false
+fix = "Activate the gitlab or github bundle (hub.bundles) and run harness apply"
+
+[[doctor_checks]]
+id = "stk-git-update-refs"
+title = "git supports rebase --update-refs (2.38+)"
+severity = "warn"
+cmd = "git rebase -h 2>&1 | grep -q update-refs"
+expect = { exit = 0 }
+offline_skip = false
+fix = "Install git 2.38 or newer"
+
+[uninstall]
+keeps = []
+notes = "Removes the stk link, the rendered skill, the rule block and guard section 65; MRs/PRs, branches, labels and project settings are untouched."
+
+# Component taxonomy (docs/reference/taxonomy.md): bundle defaults, then per-component overrides.
+[taxonomy]
+domain = "scm"
+posture = "label-gated"
+function = "client"
+
+# Guides steer the agent before it acts; sensors detect at or after the action (principle 6).
+[harness]
+coverage_note = "`stk sync`'s label gate is enforced inside the CLI (sensed by its golden suite), not by the guard; the guard only asks when the gate is lifted. Lease pushes of -sub- branches typed by hand are core section 30's."
+guides = [
+  { kind = "rule", ref = "rules/65-stack.md", note = "humans merge bottom-up; stk sync after each merge; agent-labelled parts only" },
+  { kind = "skill", ref = "skills/stk", note = "the stk CLI: check, plan, status, sync and the merge-order hand-off" },
+  { kind = "permission", ref = "permissions.toml", note = "stk plan|status|check|sync allowed; never Bash(stk:*)" },
+]
+sensors = [
+  { kind = "guard", ref = "guard.d/65-stack.sh", note = "stk sync --include-human asks; a sole stk sync allows" },
+  { kind = "doctor", ref = "doctor_checks", note = "the stk CLI, an SCM CLI and git --update-refs" },
+  { kind = "test", ref = "tests/run.sh", note = "this bundle's rows against core + stack only, then the stk suite" },
+  { kind = "test", ref = "guard.d/tests.sh", note = "rows for section 65 incl. bypasses and repository ownership" },
+  { kind = "test", ref = "skills/stk/scripts/tests/run.sh", note = "golden scenarios for every verb against stubbed glab and gh and a real-git sandbox, plus invariants (lease pushes of sub branches only, worktrees untouched on conflict, one leaf refresh per run)" },
+]

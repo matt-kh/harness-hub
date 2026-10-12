@@ -1,0 +1,85 @@
+# exit=1
+# stderr:
+# stdout:
+{
+  "verb": "plan",
+  "provider": "gitlab",
+  "repo": "o/r",
+  "selection": {
+    "mode": "stack",
+    "stack": "feat-x",
+    "with_main": false
+  },
+  "stacks": [
+    {
+      "branch": "feat-x",
+      "base": "main",
+      "main": {
+        "ref": 10,
+        "state": "draft"
+      },
+      "chains": [],
+      "leaves": [
+        12
+      ],
+      "merged": [
+        11
+      ],
+      "parts": [
+        {
+          "ref": 11,
+          "source": "feat-x-sub-01-api",
+          "target": "feat-x",
+          "state": "merged",
+          "labelled": true,
+          "worktree": "SANDBOX/r_feat-x-sub-01-api"
+        },
+        {
+          "ref": 12,
+          "source": "feat-x-sub-02-ui",
+          "target": "feat-x",
+          "state": "open",
+          "labelled": true,
+          "worktree": "SANDBOX/r_feat-x-sub-02-ui",
+          "target_ok": true,
+          "behind": 1,
+          "conflicts": true
+        }
+      ],
+      "merge_order": [
+        "!12",
+        "!10 (main, last)"
+      ]
+    }
+  ],
+  "other": [],
+  "sync_would_run": [
+    {
+      "ref": null,
+      "kind": "fetch",
+      "status": "planned",
+      "message": "refresh the remote-tracking refs first",
+      "commands": [
+        "git -C SANDBOX/r fetch origin"
+      ]
+    },
+    {
+      "ref": 12,
+      "kind": "refresh",
+      "status": "conflict",
+      "message": "conflicts with feat-x; parts that conflict share files: chain them (rebase this part onto the other one and retarget it), or rebase locally",
+      "commands": [
+        "git -C SANDBOX/r_feat-x-sub-02-ui fetch origin",
+        "git -C SANDBOX/r_feat-x-sub-02-ui rebase origin/feat-x",
+        "git -C SANDBOX/r_feat-x-sub-02-ui push --force-with-lease origin feat-x-sub-02-ui"
+      ]
+    }
+  ],
+  "exit": 1
+}
+# worktrees: unchanged
+# origin branches:
+  feat-x unchanged
+  feat-x-sub-01-api unchanged
+  feat-x-sub-02-ui unchanged
+  main unchanged

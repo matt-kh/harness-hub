@@ -1,0 +1,51 @@
+# exit=0
+# stderr:
++ git -C SANDBOX/r fetch origin
+[!13] !12: its base feat-x-sub-01-api moved (amended or rebased); rebase !12 !13 onto origin/feat-x-sub-01-api
++ git -C SANDBOX/r_feat-x-sub-02-ui switch --detach
++ git -C SANDBOX/r_feat-x-sub-03-docs rebase --update-refs --onto origin/feat-x-sub-01-api [sha] feat-x-sub-03-docs
++ git -C SANDBOX/r_feat-x-sub-02-ui switch feat-x-sub-02-ui
++ git -C SANDBOX/r_feat-x-sub-03-docs push --force-with-lease origin feat-x-sub-02-ui feat-x-sub-03-docs
+# stdout:
+{
+  "verb": "sync",
+  "provider": "gitlab",
+  "repo": "o/r",
+  "selection": {
+    "mode": "stack",
+    "stack": "feat-x",
+    "with_main": false
+  },
+  "steps": [
+    {
+      "ref": 13,
+      "kind": "cascade",
+      "status": "ran",
+      "message": "!12: its base feat-x-sub-01-api moved (amended or rebased); rebase !12 !13 onto origin/feat-x-sub-01-api",
+      "commands": [],
+      "ran": [
+        "git -C SANDBOX/r_feat-x-sub-02-ui switch --detach",
+        "git -C SANDBOX/r_feat-x-sub-03-docs rebase --update-refs --onto origin/feat-x-sub-01-api [sha] feat-x-sub-03-docs",
+        "git -C SANDBOX/r_feat-x-sub-02-ui switch feat-x-sub-02-ui"
+      ]
+    },
+    {
+      "ref": 13,
+      "kind": "push",
+      "status": "ran",
+      "message": "pushed the rebased !12, !13",
+      "commands": [],
+      "ran": [
+        "git -C SANDBOX/r_feat-x-sub-03-docs push --force-with-lease origin feat-x-sub-02-ui feat-x-sub-03-docs"
+      ]
+    }
+  ],
+  "exit": 0
+}
+# worktrees: unchanged
+# origin branches:
+  feat-x unchanged
+  feat-x-sub-01-api unchanged
+  feat-x-sub-02-ui pushed
+  feat-x-sub-03-docs pushed
+  main unchanged

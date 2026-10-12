@@ -1,0 +1,54 @@
+# exit=1
+# stderr:
++ git -C SANDBOX/r fetch origin
+[!12] 1 commit(s) behind feat-x; server-side rebase
++ glab mr rebase 12 --skip-ci
+# stdout:
+{
+  "verb": "sync",
+  "provider": "gitlab",
+  "repo": "o/r",
+  "selection": {
+    "mode": "stack",
+    "stack": "feat-x",
+    "with_main": false
+  },
+  "steps": [
+    {
+      "ref": 12,
+      "kind": "refresh",
+      "status": "ran",
+      "message": "1 commit(s) behind feat-x; server-side rebase",
+      "commands": [],
+      "ran": [
+        "glab mr rebase 12 --skip-ci"
+      ]
+    },
+    {
+      "ref": 12,
+      "kind": "refresh",
+      "status": "todo",
+      "message": "rebased server-side; refresh the local worktree (never reset --hard)",
+      "commands": [
+        "git -C SANDBOX/r_feat-x-sub-02-ui pull --rebase origin feat-x-sub-02-ui"
+      ]
+    },
+    {
+      "ref": 13,
+      "kind": "refresh",
+      "status": "todo",
+      "message": "1 commit(s) behind feat-x; one leaf refresh per run (CI cost): re-run stk sync after the previous one's pipeline",
+      "commands": [
+        "glab mr rebase 13 --skip-ci"
+      ]
+    }
+  ],
+  "exit": 1
+}
+# worktrees: unchanged
+# origin branches:
+  feat-x unchanged
+  feat-x-sub-01-api unchanged
+  feat-x-sub-02-ui unchanged
+  feat-x-sub-03-cli unchanged
+  main unchanged

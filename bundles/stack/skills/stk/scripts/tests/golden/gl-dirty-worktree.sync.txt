@@ -1,0 +1,35 @@
+# exit=1
+# stderr:
++ git -C SANDBOX/r fetch origin
+# stdout:
+{
+  "verb": "sync",
+  "provider": "gitlab",
+  "repo": "o/r",
+  "selection": {
+    "mode": "stack",
+    "stack": "feat-x",
+    "with_main": false
+  },
+  "steps": [
+    {
+      "ref": 13,
+      "kind": "cascade",
+      "status": "skipped",
+      "message": "!12: its base feat-x-sub-01-api moved (amended or rebased); rebase !12 !13 onto origin/feat-x-sub-01-api: worktree SANDBOX/r_feat-x-sub-03-docs is not clean: it has uncommitted or untracked changes (1 path(s)); commit or stash them first",
+      "commands": [
+        "git -C SANDBOX/r_feat-x-sub-03-docs fetch origin",
+        "git -C SANDBOX/r_feat-x-sub-03-docs rebase --update-refs --onto origin/feat-x-sub-01-api [sha] feat-x-sub-03-docs",
+        "git -C SANDBOX/r_feat-x-sub-03-docs push --force-with-lease origin feat-x-sub-02-ui feat-x-sub-03-docs"
+      ]
+    }
+  ],
+  "exit": 1
+}
+# worktrees: unchanged
+# origin branches:
+  feat-x unchanged
+  feat-x-sub-01-api unchanged
+  feat-x-sub-02-ui unchanged
+  feat-x-sub-03-docs unchanged
+  main unchanged

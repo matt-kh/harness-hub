@@ -1,0 +1,46 @@
+# exit=1
+# stderr:
++ git -C SANDBOX/r fetch origin
+# stdout:
+{
+  "verb": "sync",
+  "provider": "github",
+  "repo": "o/r",
+  "selection": {
+    "mode": "stack",
+    "stack": "feat-x",
+    "with_main": false
+  },
+  "steps": [
+    {
+      "ref": 12,
+      "kind": "retarget",
+      "status": "skipped",
+      "message": "not agent-labelled; its blocker #11 (feat-x-sub-01-api) merged; retarget feat-x-sub-01-api -> feat-x",
+      "commands": [
+        "gh pr edit 12 -R o/r --add-label agent-worked",
+        "gh pr edit 12 -R o/r -B feat-x"
+      ]
+    },
+    {
+      "ref": 13,
+      "kind": "cascade",
+      "status": "skipped",
+      "message": "#12: carries the pre-squash commits of merged #11 (feat-x-sub-01-api); rebase #12 #13 onto origin/feat-x: #12 not agent-labelled; label them (or run the commands yourself)",
+      "commands": [
+        "gh pr edit 12 -R o/r --add-label agent-worked",
+        "git -C SANDBOX/r_feat-x-sub-03-docs fetch origin",
+        "git -C SANDBOX/r_feat-x-sub-03-docs rebase --update-refs --onto origin/feat-x [sha] feat-x-sub-03-docs",
+        "git -C SANDBOX/r_feat-x-sub-03-docs push --force-with-lease origin feat-x-sub-02-ui feat-x-sub-03-docs"
+      ]
+    }
+  ],
+  "exit": 1
+}
+# worktrees: unchanged
+# origin branches:
+  feat-x unchanged
+  feat-x-sub-01-api unchanged
+  feat-x-sub-02-ui unchanged
+  feat-x-sub-03-docs unchanged
+  main unchanged

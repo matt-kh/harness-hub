@@ -1,0 +1,15 @@
+# Claude Code permission rules contributed by bundle `stack` (merged into settings.json
+# `permissions` by the claude provider; other providers translate what they can).
+# stk reads and the label-gated sync are allowed. Never `Bash(stk:*)`: new verbs must be
+# classified first. The guard's 65-stack section is the authoritative check
+# (`stk sync --include-human` asks there).
+
+[permissions]
+allow = [
+  "Bash(stk plan:*)",
+  "Bash(stk status:*)",
+  "Bash(stk check:*)",
+  "Bash(stk sync:*)",
+]
+ask = []
+deny = []

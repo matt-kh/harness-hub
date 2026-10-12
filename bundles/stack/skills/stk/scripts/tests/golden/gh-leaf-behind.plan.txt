@@ -1,0 +1,105 @@
+# exit=1
+# stderr:
+# stdout:
+{
+  "verb": "plan",
+  "provider": "github",
+  "repo": "o/r",
+  "selection": {
+    "mode": "stack",
+    "stack": "feat-x",
+    "with_main": false
+  },
+  "stacks": [
+    {
+      "branch": "feat-x",
+      "base": "main",
+      "main": {
+        "ref": 10,
+        "state": "draft"
+      },
+      "chains": [],
+      "leaves": [
+        12,
+        13
+      ],
+      "merged": [
+        11
+      ],
+      "parts": [
+        {
+          "ref": 11,
+          "source": "feat-x-sub-01-api",
+          "target": "feat-x",
+          "state": "merged",
+          "labelled": true,
+          "worktree": "SANDBOX/r_feat-x-sub-01-api"
+        },
+        {
+          "ref": 12,
+          "source": "feat-x-sub-02-ui",
+          "target": "feat-x",
+          "state": "open",
+          "labelled": true,
+          "worktree": "SANDBOX/r_feat-x-sub-02-ui",
+          "target_ok": true,
+          "behind": null,
+          "conflicts": false
+        },
+        {
+          "ref": 13,
+          "source": "feat-x-sub-03-cli",
+          "target": "feat-x",
+          "state": "open",
+          "labelled": true,
+          "worktree": "SANDBOX/r_feat-x-sub-03-cli",
+          "target_ok": true,
+          "behind": null,
+          "conflicts": false
+        }
+      ],
+      "merge_order": [
+        "#12",
+        "#13",
+        "#10 (main, last)"
+      ]
+    }
+  ],
+  "other": [],
+  "sync_would_run": [
+    {
+      "ref": null,
+      "kind": "fetch",
+      "status": "planned",
+      "message": "refresh the remote-tracking refs first",
+      "commands": [
+        "git -C SANDBOX/r fetch origin"
+      ]
+    },
+    {
+      "ref": 12,
+      "kind": "refresh",
+      "status": "planned",
+      "message": "1 commit(s) behind feat-x; server-side rebase",
+      "commands": [
+        "gh pr update-branch 12 -R o/r --rebase"
+      ]
+    },
+    {
+      "ref": 13,
+      "kind": "refresh",
+      "status": "todo",
+      "message": "1 commit(s) behind feat-x; one leaf refresh per run (CI cost): re-run stk sync after the previous one's pipeline",
+      "commands": [
+        "gh pr update-branch 13 -R o/r --rebase"
+      ]
+    }
+  ],
+  "exit": 1
+}
+# worktrees: unchanged
+# origin branches:
+  feat-x unchanged
+  feat-x-sub-02-ui unchanged
+  feat-x-sub-03-cli unchanged
+  main unchanged

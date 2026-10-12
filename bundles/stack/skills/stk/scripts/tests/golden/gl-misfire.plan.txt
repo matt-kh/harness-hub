@@ -1,0 +1,104 @@
+# exit=0
+# stderr:
+# stdout:
+{
+  "verb": "plan",
+  "provider": "gitlab",
+  "repo": "o/r",
+  "selection": {
+    "mode": "stack",
+    "stack": "feat-x",
+    "with_main": false
+  },
+  "stacks": [
+    {
+      "branch": "feat-x",
+      "base": "main",
+      "main": {
+        "ref": 10,
+        "state": "draft"
+      },
+      "chains": [],
+      "leaves": [
+        12
+      ],
+      "merged": [
+        11
+      ],
+      "parts": [
+        {
+          "ref": 11,
+          "source": "feat-x-sub-01-api",
+          "target": "feat-x",
+          "state": "merged",
+          "labelled": true,
+          "worktree": "SANDBOX/r_feat-x-sub-01-api"
+        },
+        {
+          "ref": 12,
+          "source": "feat-x-sub-02-ui",
+          "target": "main",
+          "state": "open",
+          "labelled": true,
+          "worktree": "SANDBOX/r_feat-x-sub-02-ui",
+          "target_ok": false,
+          "behind": 0,
+          "conflicts": false,
+          "retarget": {
+            "to": "feat-x",
+            "why": "targets the default branch main (auto-retarget misfire after a branch delete?)"
+          }
+        }
+      ],
+      "merge_order": [
+        "!12",
+        "!10 (main, last)"
+      ]
+    }
+  ],
+  "other": [],
+  "sync_would_run": [
+    {
+      "ref": 12,
+      "kind": "retarget",
+      "status": "planned",
+      "message": "targets the default branch main (auto-retarget misfire after a branch delete?); retarget main -> feat-x",
+      "commands": [
+        "glab mr update 12 --target-branch feat-x"
+      ]
+    },
+    {
+      "ref": null,
+      "kind": "fetch",
+      "status": "planned",
+      "message": "refresh the remote-tracking refs first",
+      "commands": [
+        "git -C SANDBOX/r fetch origin"
+      ]
+    },
+    {
+      "ref": 12,
+      "kind": "cascade",
+      "status": "planned",
+      "message": "!12: carries the pre-squash commits of merged !11 (feat-x-sub-01-api); rebase !12 onto origin/feat-x",
+      "commands": [
+        "git -C SANDBOX/r_feat-x-sub-02-ui rebase --update-refs --onto origin/feat-x [sha] feat-x-sub-02-ui"
+      ]
+    },
+    {
+      "ref": 12,
+      "kind": "push",
+      "status": "planned",
+      "message": "push the rebased !12",
+      "commands": [
+        "git -C SANDBOX/r_feat-x-sub-02-ui push --force-with-lease origin feat-x-sub-02-ui"
+      ]
+    }
+  ],
+  "exit": 0
+}
+# worktrees: unchanged
+# origin branches:
+  feat-x unchanged
+  feat-x-sub-02-ui unchanged
+  main unchanged

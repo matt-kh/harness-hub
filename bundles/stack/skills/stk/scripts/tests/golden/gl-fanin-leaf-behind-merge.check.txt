@@ -1,0 +1,48 @@
+# exit=0
+# stderr:
+# stdout:
+{
+  "verb": "check",
+  "provider": "gitlab",
+  "repo": "o/r",
+  "selection": {
+    "mode": "stack",
+    "stack": "feat-x",
+    "with_main": false
+  },
+  "findings": [
+    {
+      "severity": "ok",
+      "key": "merge_method",
+      "message": "merge: chains need no rebase after a merge and fan-in leaves need no refresh; stk sync only retargets (plus the squash cascade below)"
+    },
+    {
+      "severity": "ok",
+      "key": "squash_option",
+      "message": "default_off: parts merge with their commits; dependents need only a retarget unless the merge method rebases"
+    },
+    {
+      "severity": "ok",
+      "key": "remove_source_branch_after_merge",
+      "message": "off"
+    },
+    {
+      "severity": "ok",
+      "key": "access",
+      "message": "access level 30"
+    },
+    {
+      "severity": "ok",
+      "key": "protected",
+      "message": "ticket branch feat-x is not protected"
+    }
+  ],
+  "exit": 0
+}
+# worktrees: unchanged
+# origin branches:
+  feat-x unchanged
+  feat-x-sub-01-api unchanged
+  feat-x-sub-02-ui unchanged
+  feat-x-sub-03-cli unchanged
+  main unchanged
