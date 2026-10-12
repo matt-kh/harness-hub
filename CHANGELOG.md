@@ -202,6 +202,15 @@ prints every one between your applied version and the new one.
   `skill-description`), keeping its triggers, "NOT for" scope, repo-level hand-over and GitHub
   mode. Coverage notes of core, github, gitlab, k8s and ticket-workflow name the topics whose
   rule or guard section is unpaired by number (`rule-guard-pairing`).
+- `gitlab/guard.d/50-gitlab`: `glab mr rebase REF [--skip-ci]` joins the MR label gate of
+  `glab mr update|note|close` (agent-labelled MRs allow, human MRs ask, no or `$VAR` ref asks);
+  it previously passed ungated. The gitlab rule names the command and the `git pull --rebase`
+  refresh afterwards.
+- `github/guard.d/60-github`: `gh pr update-branch REF [--rebase]` leaves the team-action asks
+  and joins the PR label gate (agent-labelled PRs allow, human and fork PRs ask, no or `$VAR`
+  ref asks); `Bash(gh pr update-branch:*)` leaves the github `permissions.toml` `ask` list. The
+  github rule names the command. Both commands are what a merge queue runs to bring a stacked
+  part up to date with its base.
 
 ### Stability
 
@@ -272,6 +281,12 @@ prints every one between your applied version and the new one.
   `WORK_TICKET_KEY_IN_BRANCH = "1"` in `.harness.toml` `[overrides]` (or the provider `env`;
   previously accepted but a no-op); the guard now asks on key-named branches, key-prefixed commit subjects,
   off-convention sub worktree paths and non-squash merges of `-sub-` branches.
+- Server-side rebase/update gates: `glab mr rebase REF` changes from pass to the MR label gate
+  (agent-labelled MRs allow; human MRs, a missing ref and a `$VAR` ref ask);
+  `gh pr update-branch REF` changes from always-ask (team action) to the PR label gate
+  (agent-labelled PRs allow; human and fork PRs, a missing ref and a `$VAR` ref ask). Label
+  the MR/PR `agent-worked` to keep these promptless. No config keys changed. Run
+  `harness apply` to re-render the guard and the permission lists.
 
 ## [0.1.0] - 2026-09-30
 

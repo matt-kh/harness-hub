@@ -71,7 +71,7 @@ Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md
 
 **Permission lists**
 
-- `github/permissions` — control: guide · function: govern · decisions: deny 1 · ask 75 · allow 32 · yields: config
+- `github/permissions` — control: guide · function: govern · decisions: deny 1 · ask 74 · allow 32 · yields: config
 
 **Installers**
 

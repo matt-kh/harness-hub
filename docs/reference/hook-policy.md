@@ -50,7 +50,7 @@ marks the developer's own credentials and the ask on writing `.harness.toml`.
 | 50-gitlab.sh | gitlab | `glab mr create --related-issue` | ask | links (and may close) a GitLab issue; mention the key in the description instead | owns scm |
 | 50-gitlab.sh | gitlab | `glab mr create -t TITLE not matching HARNESS_GITLAB_MR_TITLE_RE` | ask | MR titles start with the ticket key; use a title like 'PROJ-123 fix parser' instead, or set gitlab.mr_title_re (empty disables) | owns scm |
 | 50-gitlab.sh | gitlab | `glab mr create -t with $VAR or backticks` | ask | the title cannot be checked; use a literal title instead | owns scm |
-| 50-gitlab.sh | gitlab | `glab mr update\|note\|close REF on an agent-labelled MR` | allow | human MRs ask; -sub- retarget to base -> deny | owns scm |
+| 50-gitlab.sh | gitlab | `glab mr update\|note\|close\|rebase REF on an agent-labelled MR` | allow | human MRs ask (label it first: glab mr update REF --label agent-worked); -sub- retarget to base -> deny, retarget to the ticket branch instead; no/$VAR ref -> ask, pass a literal number | owns scm |
 | 60-github.sh | github | `gh api -X non-GET \| --input \| fields without a method \| graphql mutation` | ask | API write; ask the user, or use the matching gh subcommand | owns scm |
 | 60-github.sh | github | `gh pr merge\|review, release/repo/workflow/secret/auth/gist/... mutations` | ask | team-visible; ask the user (merges, reviews and releases are human-only) | owns scm |
 | 60-github.sh | github | `gh label create agent-*` | allow | governance label; other labels ask | owns scm |
@@ -59,7 +59,7 @@ marks the developer's own credentials and the ask on writing `.harness.toml`.
 | 60-github.sh | github | `gh pr create -t TITLE matching HARNESS_GITHUB_PR_TITLE_FORBID_RE` | ask | issue refs belong in the PR body (mention #N there), not the title; set github.pr_title_forbid_re to change the convention (empty disables) | owns scm |
 | 60-github.sh | github | `gh pr create -t with $VAR or backticks` | ask | the title cannot be checked; use a literal title instead | owns scm |
 | 60-github.sh | github | `gh issue create without -l agent-drafted\|agent-created` | deny | provenance label required; use -l agent-drafted (or agent-created) instead | owns scm |
-| 60-github.sh | github | `gh pr\|issue edit\|comment\|close\|reopen on an agent-labelled ref` | allow | human refs ask; human issue close\|reopen -> deny; fork PRs ask | owns scm |
+| 60-github.sh | github | `gh pr edit\|comment\|close\|reopen\|ready\|update-branch, gh issue edit\|comment\|close\|reopen on an agent-labelled ref` | allow | human refs ask; human issue close\|reopen -> deny; fork PRs ask | owns scm |
 | 60-github.sh | github | `gh auth token \| gh auth status --show-token \| gh config get oauth_token` | deny | prints the token; run plain 'gh auth status' instead | never |
 | 70-jira.sh | jira | `jira set KEY issuelinks \| create --field issuelinks=` | deny | use the governed link commands | owns tracker |
 | 70-jira.sh | jira | `jira link A TYPE B (both agent-labelled, type in HARNESS_JIRA_LINK_TYPES_RE)` | allow | otherwise deny | owns tracker |
