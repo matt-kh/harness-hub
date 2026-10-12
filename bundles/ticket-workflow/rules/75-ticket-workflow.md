@@ -12,8 +12,9 @@
 - Large tickets: the Plan agent (`{{ core.model_policy.plan }}`) decomposes; sub-tickets carry
   `{{ core.agent_labels.created }}` + `{{ core.agent_labels.worked }}`; delivery is stacked MRs/PRs
   that humans merge bottom-up.
-- With the merge-queue bundle, stacks are synced with `mq sync --stack <BR>` (agent-labelled
-  parts only) and the human merges them with `mq plan --stack <BR>` then `mq run --stack <BR>`
-  in their own terminal; agents never run `mq run`.
+- Parts whose files overlap are chained (each built on its blocker's branch); only
+  file-disjoint parts fan in. With the stack bundle, `stk sync --stack <BR>` keeps the stack
+  retargeted, rebased and pushed after each merge (agent-labelled parts only); the human merges
+  bottom-up in the UI in the order `stk plan --stack <BR>` prints.
 
 A repository's own instructions for the same action replace this block.
