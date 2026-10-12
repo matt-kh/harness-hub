@@ -1,0 +1,7 @@
+# Defaults for bundle `stack`.
+
+[stack]
+label = "stack"
+push = true
+update_method = "rebase"
+leaf_refresh = "auto"

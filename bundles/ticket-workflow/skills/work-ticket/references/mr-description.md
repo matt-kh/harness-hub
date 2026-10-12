@@ -84,13 +84,19 @@ implemented here**: add `- if: $CI_PIPELINE_SOURCE == "merge_request_event" && $
 Stacked delivery: review the **parts** below; treat this MR as the **integration view** (its
 diff is the union of all parts — do not re-review it line by line). Merge **bottom-up in the
 GitLab UI**: parts into `docker-networks` (Developer), then this MR (Maintainer). Nothing here
-is merged by the agent.
+is merged by the agent. After each merge run `stk sync --stack docker-networks` (stack bundle;
+the agent on request): the next part is retargeted, rebased and pushed.
 
-| # | MR | sub-ticket | source → target | merge after | status |
+Chains: part 2 <- part 1, part 3 <- part 2 (each built on the one before; they share files).
+Fan-in: part 4 (file-disjoint, targets `docker-networks`).
+Merge order (`stk plan --stack docker-networks`): !12, !13, !14, !15, then !11 (this MR, last).
+
+| # | MR | sub-ticket | source → target | chain | status |
 |---|---|---|---|---|---|
-| 1 | !12 | [PROJ-1301](JIRA_URL/browse/PROJ-1301) | `docker-networks-sub-01-schema` → `docker-networks` | — | Ready |
-| 2 | !13 | [PROJ-1302](JIRA_URL/browse/PROJ-1302) | `docker-networks-sub-02-api` → `docker-networks` | — | Ready |
-| 3 | !14 | [PROJ-1303](JIRA_URL/browse/PROJ-1303) | `docker-networks-sub-03-ui` → `docker-networks-sub-02-api` | !13, then agent retargets to `docker-networks` | Draft |
+| 1 | !12 | [PROJ-1301](JIRA_URL/browse/PROJ-1301) | `docker-networks-sub-01-schema` → `docker-networks` | chain bottom | Ready |
+| 2 | !13 | [PROJ-1302](JIRA_URL/browse/PROJ-1302) | `docker-networks-sub-02-api` → `docker-networks-sub-01-schema` | part 2 <- part 1 | Ready |
+| 3 | !14 | [PROJ-1303](JIRA_URL/browse/PROJ-1303) | `docker-networks-sub-03-ui` → `docker-networks-sub-02-api` | part 3 <- part 2 | Draft |
+| 4 | !15 | [PROJ-1304](JIRA_URL/browse/PROJ-1304) | `docker-networks-sub-04-docs` → `docker-networks` | fan-in | Ready |
 | — | !11 (this) | [KEY](JIRA_URL/browse/KEY) | `docker-networks` → `master` | all parts | Draft |
 
 (No Jira sub-tickets → the sub-ticket column reads `part N`.)
@@ -152,10 +158,13 @@ Sub-tickets: KEY-a, KEY-b (agent-created; move them with this ticket).   <- only
 
 Stacked delivery:
 ```
-Stacked MRs opened for KEY: M parts + 1 main. Merge bottom-up in the GitLab UI (the agent never merges):
+Stacked MRs opened for KEY: M parts + 1 main. Merge bottom-up in the GitLab UI, in this order
+(`stk plan --stack docker-networks`; the agent never merges). After each merge run
+`stk sync --stack docker-networks` (or ask the agent): it retargets, rebases and pushes the next part.
   1. !12 [part 1/M] <task> -> docker-networks
-  2. !13 [part 2/M] <task> -> docker-networks
-  3. !14 [part 3/M] <task> -> !13's branch (after !13; the agent retargets it to docker-networks)
+  2. !13 [part 2/M] <task> -> !12's branch (part 2 <- part 1)
+  3. !14 [part 3/M] <task> -> !13's branch (part 3 <- part 2)
+  4. !15 [part 4/M] <task> -> docker-networks (fan-in)
   main: !11 <main url> docker-networks -> <base> — Draft until all parts are merged; merge last (Maintainer).
 CI on MRs: <yes — M+1 pipelines | no — checks ran locally per part, see each MR>.
 Ticket status unchanged — move it yourself when appropriate.

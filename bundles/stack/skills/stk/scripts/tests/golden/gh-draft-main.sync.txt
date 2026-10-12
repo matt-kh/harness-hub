@@ -1,0 +1,32 @@
+# exit=0
+# stderr:
+[#10] every part merged: mark the main PR ready
++ gh pr ready 10 -R o/r
+# stdout:
+{
+  "verb": "sync",
+  "provider": "github",
+  "repo": "o/r",
+  "selection": {
+    "mode": "stack",
+    "stack": "feat-x",
+    "with_main": false
+  },
+  "steps": [
+    {
+      "ref": 10,
+      "kind": "ready",
+      "status": "ran",
+      "message": "every part merged: mark the main PR ready",
+      "commands": [],
+      "ran": [
+        "gh pr ready 10 -R o/r"
+      ]
+    }
+  ],
+  "exit": 0
+}
+# worktrees: unchanged
+# origin branches:
+  feat-x unchanged
+  main unchanged

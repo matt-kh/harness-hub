@@ -1,0 +1,34 @@
+# exit=0
+# stderr:
+[!10] every part merged: mark the main MR ready
++ glab mr update 10 --ready
+# stdout:
+{
+  "verb": "sync",
+  "provider": "gitlab",
+  "repo": "o/r",
+  "selection": {
+    "mode": "stack",
+    "stack": "feat-x",
+    "with_main": true
+  },
+  "steps": [
+    {
+      "ref": 10,
+      "kind": "ready",
+      "status": "ran",
+      "message": "every part merged: mark the main MR ready",
+      "commands": [],
+      "ran": [
+        "glab mr update 10 --ready"
+      ]
+    }
+  ],
+  "exit": 0
+}
+# worktrees: unchanged
+# origin branches:
+  feat-x unchanged
+  feat-x-sub-01-api unchanged
+  feat-x-sub-02-ui unchanged
+  main unchanged

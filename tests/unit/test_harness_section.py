@@ -70,7 +70,7 @@ class HarnessSectionTest(HubTestCase):
 
     def test_repo_bundles_validate_and_pair(self):
         public = M.discover_bundles([(os.path.join(REPO, "bundles"), "public")])
-        self.assertEqual(len(public), 7)
+        self.assertEqual(len(public), 8)
         for name, b in sorted(public.items()):
             res = M.validate_bundle(b, self.schema)
             self.assertEqual(res.errors, [], name)

@@ -1,0 +1,29 @@
+# exit=1
+# stderr:
++ git -C SANDBOX/r fetch origin
+# stdout:
+{
+  "verb": "sync",
+  "provider": "github",
+  "repo": "o/r",
+  "selection": {
+    "mode": "label",
+    "label": "stack"
+  },
+  "steps": [
+    {
+      "ref": 12,
+      "kind": "fork",
+      "status": "skipped",
+      "message": "cross-repository (fork) PR: fork PRs are never stacked; handle it in the web UI",
+      "commands": []
+    }
+  ],
+  "exit": 1
+}
+# worktrees: unchanged
+# origin branches:
+  feat-x unchanged
+  feat-x-sub-01-api unchanged
+  feat-x-sub-02-ui unchanged
+  main unchanged

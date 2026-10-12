@@ -69,7 +69,7 @@ Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md
 **Guard sections**
 
 - `core/guard.d/20-credentials` — control: sensor · function: govern · decisions: deny 7 · yields: never
-- `core/guard.d/30-git` — control: sensor · domain: scm · function: govern · decisions: deny 1 · ask 6 · yields: declaration
+- `core/guard.d/30-git` — control: sensor · domain: scm · function: govern · decisions: deny 1 · ask 6 · allow 1 · yields: declaration
 
 **Permission lists**
 

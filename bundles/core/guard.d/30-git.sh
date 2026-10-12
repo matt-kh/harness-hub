@@ -3,7 +3,8 @@
 # Section 30 (bundle core): git.
 # rule: git push <dst matching WORK_TICKET_BASE_BRANCH_RE> (explicit refspec or current branch) -> deny : MR/PR-based workflow; push a branch and open an MR/PR instead
 # rule: git push to a default branch in a repo matching WORK_TICKET_ALLOW_DEFAULT_PUSH_RE -> ask : personal repos; ask the user to confirm, or push a branch instead
-# rule: git push --force|-f|+refspec -> ask : force-push rewrites shared history; ask the user first, or push a new branch instead
+# rule: git [-C DIR] push --force-with-lease[=…] <remote> <refs> as the whole command, every ref (src and dst) a -sub-NN- branch and none matching WORK_TICKET_BASE_BRANCH_RE -> allow : agent-owned sub branches, lease-protected (stk sync, work-ticket §6c); every other force-push asks
+# rule: git push --force|-f|+refspec, or a lease push of a non-sub ref, a $VAR ref, no ref, or inside a compound command -> ask : force-push rewrites shared history; ask the user first, or push a new branch instead
 # rule: git reset --hard | git clean -f/-d/-x -> ask : destructive working-tree command; use git stash, or ask the user first
 # rule: git push of a -sub- branch from (or via cd into) a sub worktree -> ask : only the main thread pushes stacked branches; run the push from the main checkout instead
 # rule: git push --all|--mirror -> ask : would publish every local branch; push the named branch instead
@@ -72,7 +73,43 @@ if printf '%s' "$flat" | grep -qE '\bgit(\s+-C\s+\S+)?\s+push\b'; then
 $(printf '%s' "$flat" | grep -oE '\bgit(\s+-C\s+\S+)?\s+push\b[^;&|]*')
 EOF
 fi
-printf '%s' "$flat" | grep -qE '\bgit\s+push\b.*(\s--force(-with-lease)?|\s-f\b|\s\+[A-Za-z0-9_/-]+)' && ask "git force-push"
+# Force-push: a lease push of only -sub-NN- branches (stacked parts, agent-owned) is allowed when
+# it is the whole command; everything else that rewrites a remote branch asks. Default-branch
+# destinations were denied above already.
+git_sub_lease_push() {  # rc 0 = the whole command is one lease push of -sub-NN- refs only
+  printf '%s' "$flat" | grep -qE '^[[:space:]]*git([[:space:]]+-C[[:space:]]+[^[:space:];&|$`]+)?[[:space:]]+push[[:space:]][^;&|`$()<>]*$' || return 1
+  local lease=false skip=0 tok rs src dst n=0
+  set -f
+  # shellcheck disable=SC2046  # word splitting is the point; globbing is off
+  set -- $(printf '%s' "$flat" | sed -E 's/^[[:space:]]*git([[:space:]]+-C[[:space:]]+[^[:space:]]+)?[[:space:]]+push//' | tr -d "\"'")
+  set +f
+  for tok in "$@"; do
+    if [ $skip -eq 1 ]; then skip=0; continue; fi
+    case "$tok" in
+      --force-with-lease|--force-with-lease=*) lease=true ;;
+      --force-if-includes|-u|--set-upstream|--no-verify|-q|--quiet|-v|--verbose|--atomic|--porcelain) ;;
+      -o|--push-option) skip=1 ;;
+      -*) return 1 ;;                                    # --force, -f, -uf, --mirror, --delete, …
+      *)
+        n=$((n + 1))
+        [ $n -eq 1 ] && continue                         # the remote
+        case "$tok" in +*|:*|*'$'*) return 1 ;; esac
+        src="${tok%%:*}"; dst="${tok#*:}"; src="${src#refs/heads/}"; dst="${dst#refs/heads/}"
+        for rs in "$src" "$dst"; do
+          printf '%s' "$rs" | grep -qE -- '-sub-[0-9]+-' || return 1
+          printf '%s' "$rs" | grep -qE -e "$BASE_BRANCH_RE" && return 1
+        done ;;
+    esac
+  done
+  $lease && [ $n -ge 2 ]
+}
+if printf '%s' "$flat" | grep -qE '\bgit(\s+-C\s+\S+)?\s+push\b.*(\s--force(-with-lease)?|\s-f\b|\s-[A-Za-z]*f[A-Za-z]*(\s|$)|\s\+[A-Za-z0-9_/-]+)'; then
+  if git_sub_lease_push; then
+    pending_allow="git push --force-with-lease of agent-owned -sub-NN- branches (lease-protected)"
+  else
+    ask "git force-push"
+  fi
+fi
 printf '%s' "$flat" | grep -qE '\bgit\s+(reset\s+--hard|clean\s+-[a-zA-Z]*[fdx])' && ask "destructive git working-tree command"
 # work-ticket stacked delivery: sub branches are pushed by the MAIN thread from the main checkout.
 # Ask when the push comes from inside a sub worktree (subagents live there) or cd's into one.

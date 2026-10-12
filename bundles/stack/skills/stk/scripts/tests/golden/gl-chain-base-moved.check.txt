@@ -1,0 +1,48 @@
+# exit=0
+# stderr:
+# stdout:
+{
+  "verb": "check",
+  "provider": "gitlab",
+  "repo": "o/r",
+  "selection": {
+    "mode": "stack",
+    "stack": "feat-x",
+    "with_main": false
+  },
+  "findings": [
+    {
+      "severity": "info",
+      "key": "merge_method",
+      "message": "rebase_merge: the source must be up to date, so after every merge stk sync rebases the chains and refreshes one fan-in leaf per run"
+    },
+    {
+      "severity": "info",
+      "key": "squash_option",
+      "message": "default_on: a squashed part leaves its pre-squash commits in its dependents; stk sync cascades them away after each merge"
+    },
+    {
+      "severity": "ok",
+      "key": "remove_source_branch_after_merge",
+      "message": "off"
+    },
+    {
+      "severity": "ok",
+      "key": "access",
+      "message": "access level 30"
+    },
+    {
+      "severity": "ok",
+      "key": "protected",
+      "message": "ticket branch feat-x is not protected"
+    }
+  ],
+  "exit": 0
+}
+# worktrees: unchanged
+# origin branches:
+  feat-x unchanged
+  feat-x-sub-01-api unchanged
+  feat-x-sub-02-ui unchanged
+  feat-x-sub-03-cli unchanged
+  main unchanged

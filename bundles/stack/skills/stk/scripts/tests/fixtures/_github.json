@@ -1,0 +1,11 @@
+{
+  "repo": {
+    "defaultBranchRef": {"name": "main"}, "deleteBranchOnMerge": true,
+    "squashMergeAllowed": true, "rebaseMergeAllowed": true, "mergeCommitAllowed": false,
+    "isPrivate": true, "viewerPermission": "WRITE"
+  },
+  "rules": {},
+  "protection": {"main": 403, "feat-x": 403},
+  "prs": {},
+  "writes": {}
+}

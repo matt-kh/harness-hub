@@ -1,0 +1,77 @@
+# exit=0
+# stderr:
+# stdout:
+{
+  "verb": "status",
+  "provider": "gitlab",
+  "repo": "o/r",
+  "selection": {
+    "mode": "stack",
+    "stack": "feat-x",
+    "with_main": false
+  },
+  "rows": [
+    {
+      "ref": 11,
+      "source": "feat-x-sub-01-api",
+      "target": "feat-x",
+      "state": "open",
+      "labelled": true,
+      "worktree": "SANDBOX/r_feat-x-sub-01-api",
+      "target_ok": true,
+      "behind": 1,
+      "conflicts": false,
+      "stack": "feat-x",
+      "local": "same as origin"
+    },
+    {
+      "ref": 12,
+      "source": "feat-x-sub-02-ui",
+      "target": "feat-x-sub-01-api",
+      "state": "open",
+      "labelled": true,
+      "worktree": "SANDBOX/r_feat-x-sub-02-ui",
+      "target_ok": true,
+      "behind": 0,
+      "conflicts": false,
+      "stack": "feat-x",
+      "local": "same as origin"
+    },
+    {
+      "ref": 13,
+      "source": "feat-x-sub-03-docs",
+      "target": "feat-x-sub-02-ui",
+      "state": "open",
+      "labelled": true,
+      "worktree": "SANDBOX/r_feat-x-sub-03-docs",
+      "target_ok": true,
+      "behind": 0,
+      "conflicts": false,
+      "stack": "feat-x",
+      "local": "same as origin"
+    },
+    {
+      "ref": 10,
+      "source": "feat-x",
+      "target": "main",
+      "state": "draft",
+      "labelled": true,
+      "worktree": "SANDBOX/r",
+      "target_ok": true,
+      "behind": 0,
+      "conflicts": false,
+      "stack": "feat-x",
+      "local": "differs from origin"
+    }
+  ],
+  "cleanup": [],
+  "other": [],
+  "exit": 0
+}
+# worktrees: unchanged
+# origin branches:
+  feat-x unchanged
+  feat-x-sub-01-api unchanged
+  feat-x-sub-02-ui unchanged
+  feat-x-sub-03-docs unchanged
+  main unchanged

@@ -26,9 +26,11 @@ START="$BR"                                   # or the blocker's sub-branch when
 git worktree add -b "$BR-sub-NN-<task>" "../${REPO}_$BR-sub-NN-<task>" "$START"
 ```
 
-Only for tasks that are **file-disjoint** (2–8). Stacked delivery: a part with `depends_on`
-starts from its blocker's branch **after the blocker is implemented** (chain); everything else
-starts from `$BR` (fan-in). Single delivery: sequential/overlapping work stays on `$BR`.
+Parallel subagents only for tasks that are **file-disjoint** (2–8). Stacked delivery: parts
+whose `paths` overlap form a chain — each starts from its blocker's branch **after the blocker
+is implemented**, in order (chains may be any depth, linear); only file-disjoint parts start
+from `$BR` (fan-in). Chains and fan-in leaves run in parallel with each other. Single
+delivery: sequential/overlapping work stays on `$BR`.
 `--no-subagents` skips worktrees entirely.
 
 ## Subagent brief (Agent tool; default model is {{ core.model_policy.execute }} via CLAUDE_CODE_SUBAGENT_MODEL)

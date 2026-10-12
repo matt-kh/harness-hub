@@ -17,6 +17,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | [`gitlab`](bundles/gitlab.md#components) | scm | label-gated | govern, setup | stable | GitLab via glab: MR-based workflow, agent-label write gates, stacked-MR rules, Jira closing-keyword deny |
 | [`jira`](bundles/jira.md#components) | tracker | label-gated | govern, client, setup | stable | Jira Server client (jira CLI + skill), read-only jira-mcp server, Jira write governance in the guard |
 | [`k8s`](bundles/k8s.md#components) | kubernetes | read-only | govern, client, investigate, plan, review, setup | stable | Read-only Kubernetes client (k8s CLI + skill), triage / audit / architect agents, kubeconfig and Secret guards |
+| [`stack`](bundles/stack.md#components) | scm | label-gated | govern, client, setup | experimental | Stacked MRs/PRs on free tiers: the `stk` CLI (plan, status, check, sync) keeps a chain of dependent parts retargeted, rebased and pushed |
 | [`ticket-workflow`](bundles/ticket-workflow.md#components) | delivery | label-gated | govern, workflow, setup | beta | /work-ticket (ticket → governed MR/PR, stacked delivery) and /create-ticket (one drafted ticket or issue) |
 
 ## Skills
@@ -28,6 +29,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | `gdoc/skills/gdoc` | guide | workspace | client | label-gated | execute | declaration | Read, write and search the user's corporate Google Workspace ({{ google.domain }}) — Google Docs, Drive, Sheets and Gmail — with the `gdoc` CLI. |
 | `jira/skills/jira` | guide | tracker | client | label-gated | execute | declaration | Interact with the org's self-hosted Jira Server ({{ jira.url }}) — read/search/update tickets, sprints, versions, transitions, attachments, comments. |
 | `k8s/skills/k8s` | guide | kubernetes | client | read-only | execute | declaration | Read-only Kubernetes operator client for every context in the user's kubeconfig via the `k8s` CLI and explicit-context kubectl. |
+| `stack/skills/stk` | guide | scm | client | label-gated | execute | declaration | Stacked MRs/PRs on free tiers with the `stk` CLI over native glab, gh and git: check a repository's readiness, plan a stack (topology, bottom-up merge order, t… |
 | `ticket-workflow/skills/create-ticket` | guide | delivery | workflow | label-gated | execute | declaration | Create ONE Jira ticket (self-hosted Jira Server 8.x) from the user's free-text ask in any project they can create in (discovered, never hardcoded). |
 | `ticket-workflow/skills/work-ticket` | guide | delivery | workflow | label-gated | execute | declaration | Governed Jira-ticket → GitLab-MR workflow for any repo. |
 
@@ -54,6 +56,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | `k8s/rules/10-k8s` | guide | kubernetes | text | Kubernetes |
 | `gitlab/rules/50-gitlab` | guide | scm | text | GitLab ({{ gitlab.host }}) |
 | `github/rules/60-github` | guide | scm | text | GitHub ({{ github.host }}) |
+| `stack/rules/65-stack` | guide | scm | text | Stacked MRs/PRs (stk) |
 | `jira/rules/70-jira` | guide | tracker | text | Jira ({{ jira.url }}) |
 | `ticket-workflow/rules/75-ticket-workflow` | guide | delivery | text | Ticket workflow |
 | `gdoc/rules/80-gdoc` | guide | workspace | text | Google Workspace ({{ google.domain }}) |
@@ -67,11 +70,12 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | [`k8s/guard.d/10-k8s`](reference/hook-policy.md) | sensor | kubernetes | helper (no rules) | n/a | kubectl/helm clause parsing shared by the rules section |
 | [`core/guard.d/20-credentials`](reference/hook-policy.md) | sensor | base | deny 7 | never | denies credential file reads and secret env dumps before they run |
 | [`k8s/guard.d/25-k8s-rules`](reference/hook-policy.md) | sensor | kubernetes | deny 4 · ask 7 | declaration | kubeconfig, Secret data, cluster, release, GitOps and IaC mutations |
-| [`core/guard.d/30-git`](reference/hook-policy.md) | sensor | scm | deny 1 · ask 6 | declaration | denies default-branch pushes; asks on force-push and destructive git |
+| [`core/guard.d/30-git`](reference/hook-policy.md) | sensor | scm | deny 1 · ask 6 · allow 1 | declaration | denies default-branch pushes; asks on force-push and destructive git |
 | [`gitlab/guard.d/40-gitlab-closing`](reference/hook-policy.md) | sensor | tracker | deny 1 | declaration | denies closing keywords with a ticket key |
 | [`github/guard.d/41-github-closing`](reference/hook-policy.md) | sensor | tracker | deny 1 | declaration | denies closing keywords that would change issue state |
 | [`gitlab/guard.d/50-gitlab`](reference/hook-policy.md) | sensor | scm | ask 6 · allow 3 | declaration | API writes, merges/approvals, stacked MR targets, label-gated edits; MR creates with --fill or --related-issue, or a -t title not matching gitlab.mr_title_re, ask |
 | [`github/guard.d/60-github`](reference/hook-policy.md) | sensor | scm | deny 2 · ask 5 · allow 3 | declaration | token printing, API writes, merges/reviews, provenance labels, stacked PR targets; PR creates with --fill* or a -t title matching github.pr_title_forbid_re ask |
+| [`stack/guard.d/65-stack`](reference/hook-policy.md) | sensor | scm | ask 1 · allow 1 | declaration | stk sync --include-human asks; a sole stk sync allows |
 | [`jira/guard.d/70-jira`](reference/hook-policy.md) | sensor | tracker | deny 3 · ask 1 · allow 4 | declaration | label-gated writes, provenance label on create, transitions denied on human tickets |
 | [`ticket-workflow/guard.d/75-ticket-workflow`](reference/hook-policy.md) | sensor | delivery | ask 4 | declaration | key-free branches and subjects, sub worktree paths, squash delivery |
 | [`gdoc/guard.d/80-gdoc`](reference/hook-policy.md) | sensor | workspace | deny 1 · ask 2 · allow 2 | declaration | GET-only api, provenance check before writes, ask on mark and mail send |
@@ -88,6 +92,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | `gitlab/permissions` | guide | scm | ask 11 · allow 13 | config | read-only glab commands allowed |
 | `jira/permissions` | guide | tracker | allow 12 | config | read commands allowed; writes left to the guard |
 | `k8s/permissions` | guide | kubernetes | deny 12 · ask 45 · allow 42 | config | read-only kubectl/helm allowed |
+| `stack/permissions` | guide | scm | allow 4 | config | stk plan\|status\|check\|sync allowed; never Bash(stk:*) |
 | `ticket-workflow/permissions` |  | delivery | empty (no rules) | config |  |
 
 ## MCP servers
@@ -107,6 +112,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | `gdoc/bin/gdoc` | workspace | label-gated | `skills/gdoc/scripts/gdoc.py` |
 | `jira/bin/jira` | tracker | label-gated | `skills/jira/scripts/jira.py` |
 | `k8s/bin/k8s` | kubernetes | read-only | `skills/k8s/scripts/k8s.py` |
+| `stack/bin/stk` | scm | label-gated | `skills/stk/scripts/stk.py` |
 
 ## Installers
 
@@ -149,6 +155,9 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | [`k8s/doctor/k8s-cli`](bundles/k8s.md#doctor-checks) | sensor | kubernetes | k8s CLI on PATH |
 | [`k8s/doctor/kube-contexts`](bundles/k8s.md#doctor-checks) | sensor | kubernetes | kubeconfig has at least one context |
 | [`k8s/doctor/kubectl-binary`](bundles/k8s.md#doctor-checks) | sensor | kubernetes | kubectl installed |
+| [`stack/doctor/stk-cli`](bundles/stack.md#doctor-checks) | sensor | scm | stk CLI on PATH |
+| [`stack/doctor/stk-git-update-refs`](bundles/stack.md#doctor-checks) | sensor | scm | git supports rebase --update-refs (2.38+) |
+| [`stack/doctor/stk-scm-cli`](bundles/stack.md#doctor-checks) | sensor | scm | An SCM CLI is on PATH (glab or gh) |
 | [`ticket-workflow/doctor/ticket-workflow-scm`](bundles/ticket-workflow.md#doctor-checks) | sensor | delivery | An SCM CLI is on PATH (glab or gh) |
 | [`ticket-workflow/doctor/ticket-workflow-skills`](bundles/ticket-workflow.md#doctor-checks) | sensor | delivery | work-ticket and create-ticket skills rendered |
 | [`ticket-workflow/doctor/ticket-workflow-tracker`](bundles/ticket-workflow.md#doctor-checks) | sensor | delivery | A tracker CLI is on PATH (jira or gh) |
@@ -183,6 +192,9 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | [`k8s/steps/gitops-checkout`](bundles/k8s.md#gitops-checkout) | kubernetes | Clone your GitOps repo and set k8s.gitops_root (optional) |
 | [`k8s/steps/install-kubectl`](bundles/k8s.md#install-kubectl) | kubernetes | Install kubectl (and helm) |
 | [`k8s/steps/kubeconfig-contexts`](bundles/k8s.md#kubeconfig-contexts) | kubernetes | Merge your clusters' kubeconfig contexts (human-managed) |
+| [`stack/steps/stack-github-repo-settings`](bundles/stack.md#stack-github-repo-settings) | scm | GitHub: repository settings for stacked PRs |
+| [`stack/steps/stack-gitlab-project-settings`](bundles/stack.md#stack-gitlab-project-settings) | scm | GitLab: project settings for stacked MRs |
+| [`stack/steps/stack-read-the-flow`](bundles/stack.md#stack-read-the-flow) | scm | Read how a stack is merged (you merge it) |
 | [`ticket-workflow/steps/repo-overrides`](bundles/ticket-workflow.md#repo-overrides) | delivery | Know how a repository yields and overrides (read once) |
 
 ## Providers
@@ -217,7 +229,7 @@ Skills, agents, CLIs and MCP servers by domain and posture (the strongest effect
 | domain | read-only | local | label-gated |
 |---|---|---|---|
 | base | `core/agents/Plan`, `core/agents/code-reviewer` | `core/agents/Auto` | — |
-| scm | — | — | — |
+| scm | — | — | `stack/bin/stk`, `stack/skills/stk` |
 | tracker | `jira/mcp/jira-mcp` | — | `jira/bin/jira`, `jira/skills/jira` |
 | delivery | — | — | `ticket-workflow/skills/create-ticket`, `ticket-workflow/skills/work-ticket` |
 | kubernetes | `k8s/agents/infra-architect`, `k8s/agents/k8s-auditor`, `k8s/agents/k8s-triage`, `k8s/bin/k8s`, `k8s/skills/k8s` | — | — |
