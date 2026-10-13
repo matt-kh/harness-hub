@@ -1,0 +1,7 @@
+# exit=0
+# stderr:
+>> GET https://gmail.googleapis.com/gmail/v1/users/me/messages/msg0001?format=metadata&metadataHeaders=Message-ID&metadataHeaders=From&metadataHeaders=Reply-To&metadataHeaders=Subject&metadataHeaders=References
+DRY-RUN POST https://gmail.googleapis.com/gmail/v1/users/me/drafts {"message": {"raw": "VG86IGNhcm9sQGV4YW1wbGUuY29tClN1YmplY3Q6IFJlOiBRdWFydGVybHkgcGxhbgpJbi1SZXBseS1UbzogPG0xQG1haWwuZXhhbXBsZS5jb20-ClJlZmVyZW5jZXM6IDxtMUBtYWlsLmV4YW1wbGUuY29tPgpDb250ZW50LVR5cGU6IHRleHQvcGxhaW47IGNoYXJzZXQ9InV0Zi04IgpDb250ZW50LVRyYW5zZmVyLUVuY29kaW5nOiA3Yml0Ck1JTUUtVmVyc2lvbjogMS4wCgpOb3RlZC4K", "threadId": "thr0001"}}
+# stdout:
+# calls:
+GET https://gmail.googleapis.com/gmail/v1/users/me/messages/msg0001?format=metadata&metadataHeaders=Message-ID&metadataHeaders=From&metadataHeaders=Reply-To&metadataHeaders=Subject&metadataHeaders=References auth=yes

@@ -1,0 +1,5 @@
+# exit=1
+# stderr:
+api: only https URLs on docs.googleapis.com, gmail.googleapis.com, sheets.googleapis.com, www.googleapis.com are allowed (got 'https://evil.example.com/drive/v3/files'). GET only — there is no write escape hatch on purpose.
+# stdout:
+# calls:

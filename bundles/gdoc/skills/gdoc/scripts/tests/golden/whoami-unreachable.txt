@@ -1,0 +1,7 @@
+# exit=2
+# stderr:
+>> GET https://www.googleapis.com/drive/v3/about?fields=user(emailAddress,displayName)
+Cannot reach www.googleapis.com: [Errno 111] Connection refused. Check the network/proxy, then retry.
+# stdout:
+# calls:
+GET https://www.googleapis.com/drive/v3/about?fields=user(emailAddress,displayName) auth=yes

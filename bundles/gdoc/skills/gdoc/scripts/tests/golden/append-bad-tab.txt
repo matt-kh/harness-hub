@@ -1,0 +1,7 @@
+# exit=1
+# stderr:
+>> GET https://docs.googleapis.com/v1/documents/doc00000000000000000000001?includeTabsContent=true
+No tab 't.9' in this document. Run `gdoc get doc00000000000000000000001` for the tab ids.
+# stdout:
+# calls:
+GET https://docs.googleapis.com/v1/documents/doc00000000000000000000001?includeTabsContent=true auth=yes

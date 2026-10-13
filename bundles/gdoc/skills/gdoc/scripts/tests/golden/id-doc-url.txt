@@ -1,0 +1,31 @@
+# exit=0
+# stderr:
+>> GET https://www.googleapis.com/drive/v3/files/doc00000000000000000000001?fields=id%2Cname%2CmimeType%2Cproperties%2CmodifiedTime%2Cowners%28emailAddress%2CdisplayName%29%2ClastModifyingUser%28emailAddress%29%2CwebViewLink%2Cparents%2CdriveId%2Ccapabilities%28canEdit%2CcanComment%29&supportsAllDrives=true
+# stdout:
+{
+  "id": "doc00000000000000000000001",
+  "name": "Design notes",
+  "mimeType": "application/vnd.google-apps.document",
+  "modifiedTime": "2020-01-02T03:04:05.000Z",
+  "owners": [
+    {
+      "emailAddress": "dev@example.com",
+      "displayName": "Dev Example"
+    }
+  ],
+  "webViewLink": "https://docs.example.com/d/doc00000000000000000000001/edit",
+  "parents": [
+    "folder00000000000000000001"
+  ],
+  "capabilities": {
+    "canEdit": true,
+    "canComment": true
+  },
+  "properties": {
+    "agent_provenance": "agent-created",
+    "agent_tool": "claude-code",
+    "agent_created_at": "2020-01-01T00:00:00Z"
+  }
+}
+# calls:
+GET https://www.googleapis.com/drive/v3/files/doc00000000000000000000001?fields=id%2Cname%2CmimeType%2Cproperties%2CmodifiedTime%2Cowners%28emailAddress%2CdisplayName%29%2ClastModifyingUser%28emailAddress%29%2CwebViewLink%2Cparents%2CdriveId%2Ccapabilities%28canEdit%2CcanComment%29&supportsAllDrives=true auth=yes

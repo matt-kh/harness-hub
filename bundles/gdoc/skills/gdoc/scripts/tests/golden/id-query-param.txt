@@ -1,0 +1,26 @@
+# exit=0
+# stderr:
+>> GET https://www.googleapis.com/drive/v3/files/pdf000000000000000000000001?fields=id%2Cname%2CmimeType%2Cproperties%2CmodifiedTime%2Cowners%28emailAddress%2CdisplayName%29%2ClastModifyingUser%28emailAddress%29%2CwebViewLink%2Cparents%2CdriveId%2Ccapabilities%28canEdit%2CcanComment%29&supportsAllDrives=true
+# stdout:
+{
+  "id": "pdf000000000000000000000001",
+  "name": "scan.pdf",
+  "mimeType": "application/pdf",
+  "modifiedTime": "2020-01-02T03:04:05.000Z",
+  "owners": [
+    {
+      "emailAddress": "dev@example.com",
+      "displayName": "Dev Example"
+    }
+  ],
+  "webViewLink": "https://docs.example.com/d/pdf000000000000000000000001/edit",
+  "parents": [
+    "folder00000000000000000001"
+  ],
+  "capabilities": {
+    "canEdit": true,
+    "canComment": true
+  }
+}
+# calls:
+GET https://www.googleapis.com/drive/v3/files/pdf000000000000000000000001?fields=id%2Cname%2CmimeType%2Cproperties%2CmodifiedTime%2Cowners%28emailAddress%2CdisplayName%29%2ClastModifyingUser%28emailAddress%29%2CwebViewLink%2Cparents%2CdriveId%2Ccapabilities%28canEdit%2CcanComment%29&supportsAllDrives=true auth=yes

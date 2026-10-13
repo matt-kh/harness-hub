@@ -76,9 +76,8 @@ artifact), or a script that produces one.
 - A `*-facts.sh` or `*-preflight.sh` that prints prose, several JSON objects, or JSON mixed
   with log lines on stdout.
 - A renderer or facts script under `skills/<s>/scripts/` with no `scripts/tests/run.sh`.
-  Today that is `work-ticket/scripts/*` and `gdoc/skills/gdoc/scripts/gdoc.py`; both bundles
-  admit it in `coverage_note`, are `beta`, and the suites are on the
-  [roadmap](../docs/roadmap.md).
+  Today that is `work-ticket/scripts/*`; the bundle admits it in `coverage_note`, is `beta`,
+  and the suite is on the [roadmap](../docs/roadmap.md).
 - A judgement output with no declared shape: a free-form plan where `decomposition.md`
   requires the JSON block; a commit subject the section-75 rows would not accept.
 - Regenerating goldens to make a test pass without reading the diff.
@@ -93,12 +92,12 @@ artifact), or a script that produces one.
 | Dependency order deterministic regardless of request order | unit test | `tests/unit/test_manifest.py` |
 | Every ticket class renders to its golden | skill test | `bundles/ticket-workflow/skills/create-ticket/scripts/tests/run.sh` |
 | `k8s` CLI output matches goldens against stubbed `kubectl` and `helm` | skill test | `bundles/k8s/skills/k8s/scripts/tests/run.sh` |
+| `gdoc` CLI output and request shapes match goldens against fixture-routed HTTP; writes under `GDOC_DRY_RUN=1` send only GET requests | skill test | `bundles/gdoc/skills/gdoc/scripts/tests/run.sh`, driver `tests/fakes/http_fixture.py` |
 | `stable` bundle skills and CLIs have a `tests/run.sh`; `coverage_note` admits no missing suite | lint warning `stability` | `harness lint` |
 | Commit subject, branch name and sub-branch forms | guard rows | `bundles/ticket-workflow/guard.d/75-*.sh`, `guard.d/tests.sh` |
 | Golden updates reviewed as a diff | review | PR template, CONTRIBUTING "Guard tests and goldens" |
 | `beta` bundles also need a suite per skill and CLI (CONTRIBUTING "Stability levels" already says so) | lint warning (follow-up) | `lib/harness/lint.py`, rule `stability` |
 | `work-ticket` facts and preflight scripts emit one JSON object under stubbed `gh`/`glab`/`jira`; goldens per fixture repository | skill test (follow-up, [roadmap](../docs/roadmap.md)) | `bundles/ticket-workflow/skills/work-ticket/scripts/tests/run.sh` |
-| `gdoc` CLI goldens with `GDOC_DRY_RUN=1` | skill test (follow-up, [roadmap](../docs/roadmap.md)) | `bundles/gdoc/skills/gdoc/scripts/tests/run.sh` |
 | Decomposition JSON validated against its declared shape before sub-tickets are created | script with fixtures (follow-up) | `work-ticket/scripts/` |
 | MR/PR description skeleton (headings, "Checks", "Stack", "Agent notes") rendered from preflight, decomposition and stack JSON; the model fills only the prose slots | script with goldens (follow-up) | `work-ticket/scripts/` |
 

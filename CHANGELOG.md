@@ -179,6 +179,17 @@ prints every one between your applied version and the new one.
   `gh` and a real-git sandbox, with invariants (lease pushes of sub branches only, never a
   push for an unlabelled MR, worktrees unchanged after a failed cascade, one leaf refresh per
   run).
+- `gdoc` CLI golden suite (`bundles/gdoc/skills/gdoc/scripts/tests/run.sh`): dispatch, offline
+  `auth status`, token refresh and HTTP error mapping (401, 403, 404, 429 retry, 500,
+  unreachable), id parsing, every read command, the `api` host allow-list and every write
+  under `GDOC_DRY_RUN=1`, each case in a throw-away `HOME` with fake credential files.
+  Invariants: no token, client secret or `Bearer` in any output; dry-run writes send only
+  GET; every Drive files request carries `supportsAllDrives=true`; no Gmail send endpoint.
+- `tests/fakes/http_fixture.py`: a stdlib, CLI-agnostic HTTP driver for python CLIs. It
+  loads the CLI by path, routes `urllib.request.urlopen` through a JSON routes file
+  (method, URL regex, status, body, once, error), logs `METHOD URL auth=yes|no` and never
+  a header value, and exits 3 on an unrouted request. Shared by the gdoc suite and, next,
+  the jira suite.
 
 ### Deprecated
 

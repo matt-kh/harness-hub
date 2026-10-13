@@ -1,0 +1,7 @@
+# exit=2
+# stderr:
+Not ready. See the gdoc skill's references/setup.md, then run `gdoc auth login`.
+# stdout:
+client_secret  MISSING  SANDBOX/home-auth-status-missing/.config/gdoc/client_secret.json
+token          MISSING  SANDBOX/home-auth-status-missing/.config/gdoc/token.json
+# calls:
