@@ -21,7 +21,7 @@ loop. Agents: start with [AGENTS.md](AGENTS.md).
   | [3 Platform for everyone](principles/03-platform-for-everyone.md) | private-identifier gate, template key lint |
   | [4 Install as a platform](principles/04-install-as-a-platform.md) | offline bootstrap smoke test |
   | [5 Distributed as a git repo](principles/05-distributed-as-a-git-repo.md) | `tests/smoke/pack.sh` |
-  | [6 Harness engineering](principles/06-harness-engineering.md) | `harness lint` guides/sensors pairing and taxonomy checks, guard test rows |
+  | [6 Harness engineering](principles/06-harness-engineering.md) | `harness lint` guides/sensors pairing, taxonomy, `provider-honesty` and `shim-fixtures` checks, guard test rows |
   | [7 Extensible core](principles/07-extensible-core.md) | PR template, CHANGELOG "Principles" entries |
   | [8 User-level by design](principles/08-user-level-by-design.md) | `harness lint` `yields` rule, guard rows for `.harness.toml` yield, `harness repo` unit test |
   | [9 Deterministic by construction](principles/09-deterministic-by-construction.md) | render-determinism smoke, guard build `cmp`, pack unit tests, create-ticket and k8s goldens, `harness lint` `stability`, section-75 guard rows |
@@ -190,10 +190,14 @@ Read [ARCHITECTURE §4](ARCHITECTURE.md#4-providers-providersname) and
 
 - [ ] `providers/<name>/provider.toml` — every target path, its write mode and the
       `[capabilities]` honestly stated (`hook_enforced = false` when there is no pre-tool hook).
+      `harness lint` rule `provider-honesty` errors when they contradict `[targets]` and warns
+      when the doc's `**Tier: x.**` line disagrees.
 - [ ] `shim.sh` if the provider has command hooks: translate its stdin to the neutral
       envelope and the decision back. Map `ask` through `[providers.<name>].ask_as`.
 - [ ] Shim fixtures `tests/*.in.json` → `*.out.json` for allow, deny, ask, an unknown tool
-      (pass through) and malformed JSON (deny: fail closed).
+      (pass through) and malformed JSON (deny: fail closed), plus `tests/run.sh`. The base
+      name starts with the case word (`allow`, `deny`, `ask`, `unknown-tool`, `malformed`),
+      variants follow after `-` (`ask-as-allow`); `harness lint` rule `shim-fixtures` checks it.
 - [ ] `README.md` with a "verified against <version> on <date>" line (the weekly
       provider-drift workflow parses it) and the provider's quirks.
 - [ ] `docs/providers/<name>.md`, README capability matrix, SECURITY.md coverage table.

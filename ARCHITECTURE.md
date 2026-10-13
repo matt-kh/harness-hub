@@ -270,7 +270,8 @@ Rules:
 provider.toml             where each artifact goes and how it is written
 shim.sh                   hook envelope translation (only if the provider has command hooks)
 README.md                 verified-against version and date, quirks
-tests/*.in.json,*.out.json  shim fixtures
+tests/*.in.json,*.out.json  shim fixtures: NAME starts with the case word (allow, deny, ask,
+                          unknown-tool, malformed), variants after `-` (lint `shim-fixtures`)
 ```
 
 ```toml
