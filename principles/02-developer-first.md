@@ -67,6 +67,9 @@ manual step or a user-facing message.
   generic.
 - **With principle 1 (lightweight).** A workflow needs a heavy tool. Resolution: the tool is a
   bundle's optional dependency, never the hub's.
+- **With principle 9 (deterministic by construction).** A scripted body feels less flexible
+  than prose. Resolution: the developer's decisions enter as input and re-render; what the
+  developer edits by hand outside managed blocks is never overwritten.
 
 ## Examples
 

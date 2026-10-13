@@ -157,7 +157,7 @@ bundle.toml               manifest (schema/bundle.schema.json)
 defaults.toml             default config values this bundle needs
 rules/NN-<topic>.md       instruction fragments; rendered as managed blocks (templated)
 skills/<skill>/           complete skills, Agent Skills layout (SKILL.md + scripts/ + references/)
-skill-fragments/<skill>/  files overlaid into a skill owned by another bundle (same relative paths)
+skill-fragments/<skill>/  files overlaid into a skill owned by another bundle (same relative paths; org overlays only, principle 10)
 agents/<name>.md          sub-agent definitions (Claude Code front-matter; other providers inline)
 guard.d/NN-<topic>.sh     guard rule sections (bash, sourced by concatenation, see §5)
 guard.d/tests.sh          guard test rows for this bundle (uses the shared t/tc/tr/g helpers)
@@ -383,7 +383,8 @@ blocks, so keys and text the provider or user own never count as drift. It can a
 drifted rendered file back into its source bundle (`--adopt`) so that edits made through the
 provider land in the repo.
 
-Rendering is deterministic: sorted keys, LF endings, no timestamps inside rendered content.
+Rendering is deterministic: sorted keys, LF endings, no timestamps inside rendered content
+([principle 9](principles/09-deterministic-by-construction.md)).
 
 ### 7. State, backups, safety
 

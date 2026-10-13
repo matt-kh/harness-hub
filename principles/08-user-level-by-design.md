@@ -121,6 +121,12 @@ instruction wins.
   user-level harness.
 - **With principle 2 (developer-first).** None: "the developer's own files and decisions
   stay theirs" is the same rule seen from the developer's side.
+- **With principle 9 (deterministic by construction).** A renderer could impose the hub's
+  house style over a repository's template. Resolution: the repository's template is input
+  (`preflight.mr_template`); when the repository owns the workflow the skill yields before
+  rendering.
+- **With principle 10 (composable bundles).** Shared blocks must not widen a yield.
+  Resolution: blocks carry mechanics (`hrepo_owns`); the yield line stays in each section.
 
 ## Examples
 

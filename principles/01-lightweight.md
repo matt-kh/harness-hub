@@ -74,6 +74,9 @@ binary, a service or a build step.
   downloads from PyPI. Resolution: it is optional (`jira.mcp.enabled = false`), documented in
   the [air-gapped runbook](../docs/runbooks/air-gapped.md), and the `jira` CLI covers the
   same reads without it.
+- **With principle 10 (composable bundles).** Sharing invites a helper library. Resolution:
+  canonical blocks in `bundles/core/lib`, inlined into each script and checked by
+  `sync_inline.py --check`; the runtime footprint does not grow.
 
 ## Examples
 
@@ -93,5 +96,6 @@ Non-compliant:
 ## Open questions
 
 - Whether `curl` can become optional by routing every download through python's `urllib`.
-- Whether bundle CLIs written in python should share a tiny stdlib helper library or stay
-  fully self-contained.
+- Resolved by [principle 10](10-composable-bundles.md): bundle CLIs written in python stay
+  fully self-contained files and share through canonical blocks inlined and checked by
+  `bundles/core/lib/sync_inline.py`, not through a library.

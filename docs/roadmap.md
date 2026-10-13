@@ -92,15 +92,14 @@ bundle. **Status: planned.**
 | `run-checks` skill | `core/skills/run-checks` | one `ci-facts.sh` extracted from the two preflights (GitLab CI and Actions parsing, cost heuristic) plus local-runner discovery (Makefile targets, `package.json` scripts, `pyproject.toml` tools, pre-commit, go, cargo, tox, nox); runs only what CI lacks, diff-scoped; never invents a command | M | app, data, platform |
 | `code-reviewer` standards | `core/agents/code-reviewer.md` | reads the first existing of `core.review.standards_files` (CONTRIBUTING, coding-standards docs, formatter configs; orgs add their own path) and reviews against it; fixed output contract (`Verdict`, findings as severity · path:line · rule · fix) reused by the review skills | S | all |
 | `worktree` skill + CLI | `core/skills/worktree` | `worktree add|ls|gc|status`; layout `core.worktree_path_tmpl` (default `../{repo}_{branch}`, the convention `work-ticket` already uses); `gc` removes only clean worktrees whose branch is merged or whose upstream is gone and prints the commands for dirty ones; guard rows in `31-git-hygiene` ask on `worktree remove --force`, `branch -D` and `rm -rf` of a listed worktree | S/M | anyone running subagents or parallel branches |
-| `work-ticket` test suite | `ticket-workflow` | stub-and-golden suite for `repo-facts.sh`, the preflights and the facts scripts (richer `gh`/`glab` stubs, CI fixtures, with and without PyYAML) | M | the bundle's own stability |
-| `gdoc` CLI suite | `gdoc` | `GDOC_DRY_RUN=1` prints request shapes; fixture-routed HTTP; goldens for id parsing, auth status, host allow-list, provenance stamps, drafts without send | M | docs-heavy roles |
+| `work-ticket` test suite | `ticket-workflow` | stub-and-golden suite for `repo-facts.sh`, the preflights and the facts scripts (richer `gh`/`glab` stubs, CI fixtures, with and without PyYAML; principle 9) | M | the bundle's own stability |
+| `gdoc` CLI suite | `gdoc` | `GDOC_DRY_RUN=1` prints request shapes; fixture-routed HTTP; goldens for id parsing, auth status, host allow-list, provenance stamps, drafts without send; principle 9) | M | docs-heavy roles |
 | Jira Cloud | `jira` | `jira.kind = "cloud"` implemented in `jira.py`: Basic auth from the token file, `/rest/api/2/search/jql`, `accountId` users, plain text (never ADF); MCP env form; manual step variant | M | every Jira Cloud org |
 | Session banner | engine + `core/hooks/session-start.sh` | provider hooks gain an `events` list and extra hook scripts; Claude registers `SessionStart`; the script is offline, under three seconds, and prints version, bundles, drift count, guard tier, pending manual steps and the date of the last report | M | all |
 | `harness report` | engine + core manual step | drift, offline doctor, pending steps and provider versions written to `~/.local/state/harness/report/latest.md`; manual step `schedule-report` with crontab and launchd snippets; doctor warns when the report is older than `core.report_max_age_days` | M | platform teams running an org instance |
 | Profiles | `profiles/` | `app-dev`, `sre`, `data-eng`; drop unverified providers from `platform-engineer` until verified | S | onboarding by discipline |
 | **`ci` bundle** | `bundles/ci` (`scm`, read-only; `any_of` gitlab or github) | CLI `ci runs|jobs|log|why|compare|lint|local-jobs` with bounded, redacted logs; agent `ci-triage` (investigate: root cause and the fix location, never a rerun); guard `55-ci` asks on `glab ci retry|cancel|run|trigger|delete` and on raw log reads not piped through the redactor; config `ci.log_tail`, `ci.redact_extra_re`, `ci.flaky_re` | L | everyone who waits on pipelines |
-| **`stack` bundle** | `bundles/stack` (`scm`, label-gated; guard `65`; `any_of` gitlab or github) | CLI `stk plan|status|check|sync`: keeps stacked MRs/PRs mergeable on free tiers — retarget parts whose blocker merged (or that GitLab CE sent to the default branch), cascade-rebase each chain with `git rebase --update-refs --onto` in its worktree, lease-push the rebased sub branches (core guard: allow for `-sub-NN-` refs only), one server-side leaf refresh per run, main MR/PR ready once every part merged; agent-labelled MRs/PRs only; humans merge bottom-up in the UI in the order `stk plan` prints; work-ticket chains overlapping parts and calls `stk sync` in §6c. **Status: shipped (experimental).** | M | everyone delivering stacked MRs/PRs |
-| Shared redactor | `core/lib/redact.py` | one token-shape list (PATs, cloud keys, JWTs, private-key blocks, URL userinfo, values under secret-looking keys) inlined into `k8s`, `ci` and later CLIs with the existing `sync_inline.py` markers | S | every CLI that prints logs |
+| Shared redactor | `core/lib/redact.py` | one token-shape list (PATs, cloud keys, JWTs, private-key blocks, URL userinfo, values under secret-looking keys) inlined into `k8s`, `ci` and later CLIs with the existing `sync_inline.py` markers (principle 10) | S | every CLI that prints logs |
 
 ## Tranche P2: breadth
 
@@ -144,7 +143,8 @@ free, mutations handed to the human, secret values never printed. **Status: plan
 Cross-tranche items that make the hub easier to maintain and to extend.
 
 - Lint rules not in P0: `provider-verified`, `skill-triggers`, `tests-boilerplate` (every
-  `bundles/*/tests/run.sh` is identical today; introduce a template the scaffolder copies).
+  `bundles/*/tests/run.sh` is identical today; introduce a template the scaffolder copies;
+  principle 10).
 - `skill_fragments`: keep the mechanism, repurpose it for org overlays
   (`local/bundles/<org>/skill-fragments/<public-skill>/references/…`) and say so in ARCHITECTURE
   §3 and the self-host runbook. Public bundles keep SCM- or tracker-specific text as references
