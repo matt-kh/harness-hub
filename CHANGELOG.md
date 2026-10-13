@@ -44,6 +44,14 @@ prints every one between your applied version and the new one.
 
 ### Added
 
+- `tools/gate/companions.sh`, the companion-file gate: a branch whose guard code in
+  `bundles/<b>/guard.d/NN-*.sh` (or `bundles/core/guard/engine*.sh`) changed needs
+  `guard.d/tests.sh` changes, a net-new `# rule: … -> D :` needs an added `D` row (`tr` for
+  ask/deny), and a change under `bundles/`, `lib/harness/`, `providers/`, `schema/`, `bin/`,
+  `profiles/`, `templates/`, `bootstrap` or `tools/*.lock.json` needs a new `[Unreleased]`
+  line. Waivers: `no-rows: <reason>` / `no-changelog: <reason>` in a commit body or the PR
+  description. Runs in the CI `gate` job on pull requests, as a pre-push hook and in
+  `make gate`; self-test `tools/gate/tests/companions-selftest.sh` on ubuntu and macOS.
 - `harness pack [--out DIR] [--tag TAG] [--tools os/arch,...]`: writes the release artifact,
   a `git bundle` of the hub plus optional pinned tool archives, `SHA256SUMS` and
   `INSTALL.txt`. Refuses a dirty tree and never includes `local/`.
