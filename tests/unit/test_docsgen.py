@@ -12,6 +12,7 @@ from harness import docsgen as G
 from harness import init as I
 from harness import manifest as M
 from harness import toml_compat
+from harness.util import HarnessError
 
 
 class RegionTest(unittest.TestCase):
@@ -95,6 +96,76 @@ class RepoRegionsTest(unittest.TestCase):
         self.assertIn("| kind | id | control | domain | function | posture | model | decisions | yields |", voc)
 
 
+class ReadmeTest(unittest.TestCase):
+    """README.md is the product page: its four regions come from manifests and PRINCIPLES.md."""
+
+    def bundle(self, name):
+        return M.load_bundle(os.path.join(FIXTURES, "bundles", name))
+
+    def test_bundles_body(self):
+        body = G.readme_bundles_body([self.bundle("alpha"), self.bundle("beta"), self.bundle("core")])
+        self.assertTrue(body.startswith(
+            "| Bundle | Domain / posture | Stability | What agents get | One-time setup |\n|---|---|---|---|---|\n"))
+        self.assertIn("| [alpha](docs/bundles/alpha.md) | tracker / read-only | beta | Fixture alpha: skill fragment, "
+                      "MCP server with env_files, required config | Authenticate alpha |", body)
+        self.assertIn("| [beta](docs/bundles/beta.md) | scm / local | experimental |", body)
+        self.assertRegex(body, r"\| \[beta\]\([^)]*\) \|[^\n]*\| nothing \|\n")  # no manual steps
+        self.assertIn("| [core](docs/bundles/core.md) | base / local | stable |", body)
+
+    def test_requirements_body(self):
+        body = G.readme_requirements_body(self.bundle("core"))
+        self.assertEqual(body.splitlines()[:4], [
+            "| Binary | Minimum | Why |", "|---|---|---|",
+            "| `bash` | ≥ 3.2 | guard and scripts |",
+            "| `jq` | ≥ 1.5 | guard parses hook JSON with jq |"])
+
+    def test_principles_parser(self):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        path = os.path.join(tmp, "PRINCIPLES.md")
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write("# Principles\n\n## The principles\n\n"
+                     "1. **Small.** Few deps. → [01-small](principles/01-small.md)\n"
+                     "2. **Kind to people.** Every block names an\n"
+                     "   [alternative](https://example.com) for the\n"
+                     "   developer. → [02-kind](principles/02-kind.md)\n"
+                     "3. **Offline** works anywhere. → [03-offline](principles/03-offline.md)\n"
+                     "\n   indented prose after a blank line is not part of item 3\n"
+                     "\n## Vocabulary\n\n1. not a principle\n")
+        with open(path, encoding="utf-8") as fh:
+            text = fh.read()
+        self.assertEqual(G.principle_items(text), [
+            (1, "Small.", "01-small", "principles/01-small.md"),
+            (2, "Kind to people.", "02-kind", "principles/02-kind.md"),
+            (3, "Offline", "03-offline", "principles/03-offline.md")])
+        body = G.readme_principles_body(tmp)
+        self.assertTrue(body.startswith("## Built on three principles\n\nThree principles govern every change"))
+        self.assertIn("- **2. Kind to people.** → [02-kind](principles/02-kind.md)\n", body)
+        self.assertIn("- **3. Offline.** → [03-offline](principles/03-offline.md)\n", body)
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write("# Principles\n\n1. Plain item without a title or link\n")
+        with self.assertRaisesRegex(HarnessError, "no principles parsed"):
+            G.readme_principles_body(tmp)
+
+    def test_expected_has_readme_regions(self):
+        pages = G.expected(REPO)
+        self.assertEqual([src for src, _b, _h in pages["README.md"]],
+                         ["bundles/*/bundle.toml#readme", "providers/*/provider.toml#readme",
+                          "PRINCIPLES.md#readme", "bundles/core/bundle.toml#readme"])
+        self.assertEqual({h for _s, _b, h in pages["README.md"]}, {"# harness-hub"})
+        principles = dict((s, b) for s, b, _h in pages["README.md"])["PRINCIPLES.md#readme"]
+        self.assertTrue(principles.startswith("## Built on ten principles\n"))
+
+    def test_repo_readme_is_current(self):
+        with open(os.path.join(REPO, "README.md"), encoding="utf-8") as fh:
+            current = fh.read()
+        self.assertEqual(G.compute(REPO)["README.md"], current,
+                         "README.md is stale; run `bin/harness docs generate`")
+        for src in ("bundles/*/bundle.toml#readme", "providers/*/provider.toml#readme",
+                    "PRINCIPLES.md#readme", "bundles/core/bundle.toml#readme"):
+            self.assertEqual(current.count("<!-- generated:begin source=%s -->" % src), 1, src)
+
+
 class GenerateCheckTest(HubTestCase):
     def setUp(self):
         super().setUp()
@@ -103,6 +174,7 @@ class GenerateCheckTest(HubTestCase):
         for d in ("schema", "providers"):
             shutil.copytree(os.path.join(REPO, d), os.path.join(self.hubdir, d))
         os.makedirs(os.path.join(self.hubdir, "docs"))
+        shutil.copy(os.path.join(REPO, "PRINCIPLES.md"), self.hubdir)  # README principle region
 
     def test_generate_then_check_then_drift(self):
         import types

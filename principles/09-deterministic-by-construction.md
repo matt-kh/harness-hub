@@ -95,6 +95,7 @@ artifact), or a script that produces one.
 | `k8s` CLI output matches goldens against stubbed `kubectl` and `helm` | skill test | `bundles/k8s/skills/k8s/scripts/tests/run.sh` |
 | `stable` bundle skills and CLIs have a `tests/run.sh`; `coverage_note` admits no missing suite | lint warning `stability` | `harness lint` |
 | Commit subject, branch name and sub-branch forms | guard rows | `bundles/ticket-workflow/guard.d/75-*.sh`, `guard.d/tests.sh` |
+| README facts from manifests and PRINCIPLES.md (bundles, providers, principle count, core binaries) are rendered, never typed | docs | `harness docs check`, `tests/unit/test_docsgen.py` |
 | Golden updates reviewed as a diff | review | PR template, CONTRIBUTING "Guard tests and goldens" |
 | `beta` bundles also need a suite per skill and CLI (CONTRIBUTING "Stability levels" already says so) | lint warning (follow-up) | `lib/harness/lint.py`, rule `stability` |
 | `work-ticket` facts and preflight scripts emit one JSON object under stubbed `gh`/`glab`/`jira`; goldens per fixture repository | skill test (follow-up, [roadmap](../docs/roadmap.md)) | `bundles/ticket-workflow/skills/work-ticket/scripts/tests/run.sh` |
