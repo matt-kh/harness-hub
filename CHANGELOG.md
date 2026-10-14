@@ -44,6 +44,17 @@ prints every one between your applied version and the new one.
 
 ### Added
 
+- `ticket-workflow`: golden suite for the `work-ticket` scripts
+  (`skills/work-ticket/scripts/tests/run.sh`, 61 cases): provider dispatch, the GitHub and
+  GitLab preflights, `issue-facts.sh`, `jira-facts.sh` and `lib/repo-facts.sh`, each run in a
+  throw-away git repository against fixture-routed `gh`/`glab`/`jira` stubs
+  (`bundles/ticket-workflow/tests/stubs/`; an unrouted call fails the case). CI files are
+  parsed with PyYAML pinned on (a JSON-backed stand-in) and off, so both branches run on any
+  host. Invariants: one JSON object on stdout, read-only `gh`/`glab`/`jira` calls, `-R` on
+  every list/view, no credential from a credentialed remote in any output, fixture
+  repositories unchanged. `create-ticket`'s suite adds twelve `create-facts.sh` goldens (Jira
+  and GitHub, field-id config, unreachable, unauthenticated, not installed, repository-owned).
+
 - `harness pack [--out DIR] [--tag TAG] [--tools os/arch,...]`: writes the release artifact,
   a `git bundle` of the hub plus optional pinned tool archives, `SHA256SUMS` and
   `INSTALL.txt`. Refuses a dirty tree and never includes `local/`.
@@ -197,6 +208,11 @@ prints every one between your applied version and the new one.
   deletion); the suites now pass from hooks as they do from a shell.
 
 ### Changed
+
+- `bundles/ticket-workflow/tests/run.sh` is back to the shared bundle template; its seven
+  `repo-facts` checks moved into the `work-ticket` suite. `[harness]` declares the new suite
+  and drops "work-ticket has no own test suite yet"; principle 9 and the roadmap no longer
+  list it as a follow-up.
 
 - README reframed as a public platform with three install paths (upstream, org instance,
   bundle file).

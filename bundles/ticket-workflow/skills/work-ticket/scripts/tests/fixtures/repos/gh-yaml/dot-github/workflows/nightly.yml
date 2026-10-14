@@ -1,0 +1,5 @@
+{
+  "name": "nightly",
+  "on": {"schedule": [{"cron": "0 3 * * *"}], "workflow_dispatch": null},
+  "jobs": {"sweep": {"runs-on": "ubuntu-latest", "timeout-minutes": 90, "steps": [{"run": "kubectl apply -f k8s/"}]}}
+}

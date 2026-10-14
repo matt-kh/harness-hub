@@ -1,0 +1,22 @@
+# exit=0
+# stderr:
+# stdout:
+{
+  "provider": "github",
+  "me": "",
+  "project": "owner/repo",
+  "creatable": false,
+  "can_assign": false,
+  "viewer_permission": null,
+  "labels": [],
+  "milestones": [],
+  "templates": [
+    ".github/ISSUE_TEMPLATE/bug.md",
+    ".github/ISSUE_TEMPLATE/feature.md"
+  ],
+  "repo_declaration": null,
+  "repo_owns": false,
+  "error": "gh not authenticated to github.com (user runs: gh auth login --hostname github.com --git-protocol ssh --web)"
+}
+# calls:
+gh auth status --hostname github.com

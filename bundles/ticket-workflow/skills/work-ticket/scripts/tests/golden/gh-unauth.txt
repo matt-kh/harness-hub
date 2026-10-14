@@ -1,0 +1,92 @@
+# exit=0
+# stderr:
+# stdout:
+{
+  "provider": "github",
+  "repo_root": "SANDBOX/repos/gh-cred",
+  "remote_host": "github.com",
+  "default_branch": "main",
+  "dirty_files": 0,
+  "gh_installed": true,
+  "auth_ok": false,
+  "me": null,
+  "plan": null,
+  "origin_repo": "owner/repo",
+  "base_repo": "owner/repo",
+  "project": {
+    "path": "owner/repo",
+    "my_access": null,
+    "is_private": null,
+    "is_fork": null,
+    "parent": null,
+    "is_archived": null,
+    "has_issues": null,
+    "delete_branch_on_merge": null,
+    "squash_merge_allowed": null,
+    "merge_commit_allowed": null,
+    "rebase_merge_allowed": null,
+    "viewer_can_administer": null,
+    "visibility": null
+  },
+  "repo": null,
+  "draft_prs_available": null,
+  "can_label": null,
+  "fork_flow": null,
+  "protected_branches": {
+    "rules": [],
+    "wildcards": [],
+    "matches": {
+      "feat-x": false
+    },
+    "sub_pattern_matches": false,
+    "branch_rules": {},
+    "default_branch_protection": {
+      "status": "unavailable"
+    },
+    "rulesets_status": "unavailable",
+    "patterns_visible": false
+  },
+  "mr_template": null,
+  "pr_templates": [],
+  "issue_templates": [],
+  "codeowners": null,
+  "contributing": null,
+  "labels": [],
+  "agent_labels": {
+    "agent-worked": false,
+    "agent-created": false,
+    "agent-drafted": false,
+    "agent-wip": false
+  },
+  "milestones": [],
+  "issue": {
+    "ref": "7",
+    "repo": "owner/repo",
+    "number": 7
+  },
+  "existing_prs": [],
+  "stack_detected": false,
+  "ci": {
+    "checks": [],
+    "precommit": false,
+    "heuristic": "none",
+    "pipeline_model": null,
+    "mr_pipeline": false,
+    "per_branch_heavy": false,
+    "per_branch_heavy_jobs": [],
+    "mr_heavy_jobs": [],
+    "sub_branch_excluded": false,
+    "pr_ci_on_ticket_base": false,
+    "sub_branch_push_ci": false,
+    "paths_filters": [],
+    "workflows": []
+  },
+  "repo_skill": null,
+  "repo_declaration": null,
+  "repo_owns": false,
+  "warnings": [
+    "gh auth status failed: You are not logged into any GitHub hosts. To log in, run: gh auth login "
+  ]
+}
+# calls:
+gh auth status --hostname github.com

@@ -1,0 +1,45 @@
+{
+  "whoami": {"name": "dev", "displayName": "Dev", "emailAddress": "dev@example.com"},
+  "api /rest/api/2/mypermissions?projectKey=PROJ": {"permissions": {
+    "CREATE_ISSUES": {"havePermission": true}, "ASSIGN_ISSUE": {"havePermission": true},
+    "CREATE_ATTACHMENT": {"havePermission": false}
+  }},
+  "api /rest/api/2/issue/createmeta?projectKeys=PROJ&expand=projects.issuetypes.fields": {"projects": [{"key": "PROJ", "issuetypes": [
+    {"name": "Task", "subtask": false, "fields": {
+      "summary": {"name": "Summary", "required": true, "schema": {"type": "string"}},
+      "issuetype": {"name": "Issue Type", "required": true, "schema": {"type": "issuetype"}},
+      "project": {"name": "Project", "required": true, "schema": {"type": "project"}},
+      "description": {"name": "Description", "required": false, "schema": {"type": "string"}},
+      "components": {"name": "Component/s", "required": true, "schema": {"type": "array"},
+                     "allowedValues": [{"name": "parser"}, {"name": "cli"}]}
+    }},
+    {"name": "CR", "subtask": false, "fields": {
+      "summary": {"name": "Summary", "required": true, "schema": {"type": "string"}},
+      "description": {"name": "Description", "required": false, "schema": {"type": "string"}},
+      "customfield_20000": {"name": "Problem Description", "required": false, "schema": {"type": "string"}},
+      "customfield_20103": {"name": "Type of Problem", "required": true, "schema": {"type": "option"},
+                            "allowedValues": [{"value": "Bug Fix"}, {"value": "Enhancement"}]},
+      "versions": {"name": "Affects Version/s", "required": true, "schema": {"type": "array"},
+                   "allowedValues": [{"name": "1.2.0"}]}
+    }},
+    {"name": "Sub-task", "subtask": true, "fields": {
+      "summary": {"name": "Summary", "required": true, "schema": {"type": "string"}},
+      "parent": {"name": "Parent", "required": true, "schema": {"type": "issuelink"}}
+    }}
+  ]}]},
+  "api /rest/api/2/project/PROJ/versions": [
+    {"name": "1.1.0", "released": true},
+    {"name": "1.2.0", "released": false, "releaseDate": "2026-03-01"},
+    {"name": "1.10.0", "released": false},
+    {"name": "2.0", "released": false},
+    {"name": "1.3.0", "released": false, "archived": true},
+    {"name": "backlog", "released": false}
+  ],
+  "api /rest/api/2/project/PROJ/components": [{"name": "parser"}, {"name": "cli"}, {"name": "1.2"}],
+  "api /rest/api/2/priority": [{"name": "Highest"}, {"name": "High"}, {"name": "Medium"}, {"name": "Low"}],
+  "api /rest/api/2/search?jql=project%3DPROJ%20AND%20labels%20is%20not%20EMPTY%20ORDER%20BY%20updated%20DESC&fields=labels&maxResults=100": {"issues": [
+    {"fields": {"labels": ["parser", "agent-drafted"]}},
+    {"fields": {"labels": ["parser"]}},
+    {"fields": {"labels": ["cli", "parser", "agent-worked"]}}
+  ]}
+}

@@ -1,0 +1,6 @@
+{"jira": {
+  "api /rest/api/2/mypermissions?projectKey=PROJ": {"permissions": {
+    "CREATE_ISSUES": {"havePermission": false}, "LINK_ISSUES": {"havePermission": true},
+    "EDIT_ISSUES": {"havePermission": true}, "TRANSITION_ISSUES": {"havePermission": false}
+  }}
+}}

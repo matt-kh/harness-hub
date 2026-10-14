@@ -1,0 +1,15 @@
+{
+  "api projects/:id": {
+    "id": 42, "path_with_namespace": "group/repo", "default_branch": "main", "squash_option": "default_on",
+    "merge_method": "merge", "only_allow_merge_if_pipeline_succeeds": true, "remove_source_branch_after_merge": true
+  },
+  "api version": {"version": "19.2.4", "revision": "0123abcd"},
+  "api projects/:id/protected_branches": [
+    {"name": "main", "merge_access_levels": [{"access_level_description": "Maintainers"}],
+     "push_access_levels": [{"access_level_description": "No one"}]},
+    {"name": "release/*", "merge_access_levels": [{"access_level_description": "Maintainers"}],
+     "push_access_levels": [{"access_level_description": "Maintainers"}]}
+  ],
+  "api user": {"id": 7, "username": "dev"},
+  "api projects/:id/members/all/7": {"id": 7, "username": "dev", "access_level": 30}
+}

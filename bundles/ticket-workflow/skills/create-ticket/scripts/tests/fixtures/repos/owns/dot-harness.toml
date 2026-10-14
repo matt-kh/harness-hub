@@ -1,0 +1,3 @@
+# Repository-level harness declaration (fixture)
+[owns]
+domains = ["delivery"]

@@ -1,0 +1,5 @@
+# exit=1
+# stderr:
+# stdout:
+{"error":"usage: issue-facts.sh N|#N|owner/repo#N|URL"}
+# calls:

@@ -1,0 +1,5 @@
+# exit=1
+# stderr:
+# stdout:
+{"error":"provider unknown","remote_host":"code.example.com","repo_root":"SANDBOX/repos/code","hint":"origin must be github.com or a GitLab host (set gitlab.host in the harness config or HARNESS_GITLAB_HOSTS_RE)"}
+# calls:

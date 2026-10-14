@@ -1,14 +1,19 @@
 #!/usr/bin/env bash
-# Golden tests for render-ticket.py. UPDATE=1 rewrites golden files.
+# Golden tests for render-ticket.py (golden/<class>/ directories) and create-facts.sh
+# (golden/cf-*.txt: `# exit / # stderr / # stdout / # calls:` against the fixture-routed gh and
+# jira stubs of bundles/ticket-workflow/tests/stubs, in throw-away git repositories).
+# UPDATE=1 rewrites golden files (review the diff); KEEP=1 keeps the sandbox.
 set -uo pipefail
-export HARNESS_CONFIG_JSON=/dev/null   # hermetic: never read a real build/config.json
 here=$(cd "$(dirname "$0")" && pwd); R="$here/../render-ticket.py"; F="$here/fixtures/facts-PROJ.json"
 GF="$here/fixtures/facts-owner-repo.json"
-tmp=$(mktemp -d); fail=0
+# shellcheck source=../../../../tests/stubs/lib.sh
+. "$here/../../../../tests/stubs/lib.sh"
+tw_init "$here"   # hermetic: HARNESS_CONFIG_JSON=/dev/null, empty HOME, stubbed gh/jira; sets tmp, fail, cases
 # golden NAME FIXTURE FACTS [extra render args...]
 golden() {
   local fx=$1 model=$2 facts=$3; shift 3
   local out="$tmp/$fx"
+  cases=$((cases + 1))
   python3 "$R" --model "$here/fixtures/$model.json" --facts "$facts" --out-dir "$out" --check "$@" >/dev/null || { echo "FAIL render $fx"; fail=1; return; }
   # normalise the tmp path in create.sh so goldens are location-independent
   python3 -c 'import sys
@@ -36,8 +41,8 @@ done
 # harness config: type rules (jira.issue_types) and field ids (jira.fields); ids are never guessed
 C="$here/fixtures/config-rules.json"
 # ok LABEL CMD...: CMD must succeed; nok LABEL WANT CMD...: CMD must fail with stderr matching WANT
-ok()  { local label=$1; shift; if "$@" >/dev/null 2>"$tmp/cfg.err"; then echo "PASS ${label}"; else echo "FAIL ${label}"; cat "$tmp/cfg.err"; fail=1; fi; }
-nok() { local label=$1 want=$2; shift 2; if "$@" >/dev/null 2>"$tmp/cfg.err" || ! grep -qE "$want" "$tmp/cfg.err"; then echo "FAIL ${label}"; cat "$tmp/cfg.err"; fail=1; else echo "PASS ${label}"; fi; }
+ok()  { local label=$1; shift; cases=$((cases + 1)); if "$@" >/dev/null 2>"$tmp/cfg.err"; then echo "PASS ${label}"; else echo "FAIL ${label}"; cat "$tmp/cfg.err"; fail=1; fi; }
+nok() { local label=$1 want=$2; shift 2; cases=$((cases + 1)); if "$@" >/dev/null 2>"$tmp/cfg.err" || ! grep -qE "$want" "$tmp/cfg.err"; then echo "FAIL ${label}"; cat "$tmp/cfg.err"; fail=1; else echo "PASS ${label}"; fi; }
 rt()  { python3 "$R" --model "$here/fixtures/$1.json" --out-dir "$tmp/cfg-$1-$2" --check; }
 ok "generic rules: CR without type_of_problem renders" rt cr-no-top a
 ok "generic rules: Bug renders standalone" rt bug a
@@ -47,4 +52,39 @@ nok "no facts, no config: unknown field id fails" "field id for type_of_problem 
 HARNESS_CONFIG_JSON=$C ok "no facts, config ids: renders" rt defect d
 grep -q "customfield_20103=" "$tmp/cfg-defect-d/create.sh" && grep -q "customfield_20000=" "$tmp/cfg-defect-d/create.sh" \
   && echo "PASS configured field ids reach create.sh" || { echo "FAIL configured field ids reach create.sh"; fail=1; }
-rm -rf "$tmp"; [ $fail -eq 0 ] && echo "all golden tests passed"; exit $fail
+
+# ------------------------------------------------------------------ create-facts.sh (read-only facts)
+CF="$here/../create-facts.sh"; RP="$tmp/repos"
+tw_repo "$RP/clone" "git@github.com:owner/repo.git"         "$FIXT/repos/gh-templates"
+tw_repo "$RP/ghe"   "git@github.example.com:owner/repo.git" "$FIXT/repos/gh-templates"
+tw_repo "$RP/owns"  "https://github.com/owner/repo.git"     "$FIXT/repos/owns"
+mkdir -p "$RP/plain"
+t cf-jira-full            0 -                   "$RP/plain" "$CF" PROJ
+HARNESS_CONFIG_JSON="$FIXT/config-pd-global.json" \
+  t cf-jira-pd-config     0 -                   "$RP/plain" "$CF" PROJ
+HARNESS_CONFIG_JSON="$FIXT/config-rules.json" \
+  t cf-jira-pd-object     0 -                   "$RP/plain" "$CF" PROJ
+HARNESS_CONFIG_JSON="$FIXT/config-rules.json" HARNESS_JIRA_FIELDS_PROBLEM_DESCRIPTION_ID=customfield_20001 \
+  t cf-jira-pd-env-wins   0 -                   "$RP/plain" "$CF" PROJ
+t cf-jira-unreachable     0 cf-jira-unreachable "$RP/plain" "$CF" PROJ
+t cf-gh-full              0 -                   "$RP/clone" "$CF" owner/repo
+t cf-gh-outside-clone     0 -                   "$RP/plain" "$CF" owner/repo
+t cf-gh-unauth            0 cf-gh-unauth        "$RP/clone" "$CF" owner/repo
+PATH="$SYSBIN" \
+  t cf-gh-not-installed   0 -                   "$RP/clone" "$CF" owner/repo
+HARNESS_GITHUB_HOST=github.example.com \
+  t cf-gh-host            0 cf-gh-host          "$RP/ghe"   "$CF" owner/repo
+t cf-repo-owns            0 -                   "$RP/owns"  "$CF" PROJ
+t cf-usage                1 -                   "$RP/plain" "$CF"
+
+A="$tmp/calls.all"
+bad=$(grep '^gh ' "$A" | grep -vE '^gh (auth status --hostname [^ ]+|api [^ -][^ ]*( --jq .*)?|repo view [^ -][^ ]*/[^ ]+ --json [^ ]+|label list -R [^ ]+/[^ ]+ .*)$' | head -3)
+ck "create-facts: gh calls are reads (auth status, api GET, repo view, label list -R)" [ -z "$bad" ]
+bad=$(grep '^gh ' "$A" | grep -E -- ' (-f|-F|--field|--raw-field|--input|-X|--method)( |=|$)' | head -3)
+ck "create-facts: no gh write flags" [ -z "$bad" ]
+bad=$(grep '^jira ' "$A" | grep -vE '^jira (whoami|api /rest/api/2/[^ ]+)$' | head -3)
+ck "create-facts: jira calls are whoami and api GETs" [ -z "$bad" ]
+grep -q '"error": "gh not installed' "$tmp/cf-gh-not-installed.out"; chk $? "create-facts: gh missing from PATH is reported, not fatal"
+grep -q '"templates": \[\]' "$tmp/cf-gh-host.out"; chk $? "create-facts: templates only for github.com clones (create-facts.sh matches github\\.com literally)"
+
+tw_finish create-ticket

@@ -1,0 +1,69 @@
+# exit=0
+# stderr:
+# stdout:
+{
+  "me": "dev",
+  "project": "PROJ",
+  "perms": {
+    "create": true,
+    "link": true,
+    "edit": true,
+    "transition": true,
+    "delete": false
+  },
+  "sub_ticket_types": [
+    "Improvement"
+  ],
+  "preferred_type": "Improvement",
+  "link_types": [],
+  "link_type": null,
+  "parent": {
+    "type": "Epic",
+    "status": "In Progress",
+    "assignee": "Dev",
+    "labels": [
+      "agent-worked"
+    ],
+    "sprint": {
+      "id": 3,
+      "name": "Sprint 3"
+    },
+    "fixVersions": [
+      "1.2.0"
+    ],
+    "components": [
+      "parser"
+    ],
+    "priority": "Medium",
+    "epicLink": null,
+    "storyPoints": 5,
+    "links": [
+      {
+        "id": "501",
+        "type": "Issue split",
+        "direction": "split to",
+        "key": "PROJ-124",
+        "status": "Open",
+        "summary": "Lexer part"
+      },
+      {
+        "id": "502",
+        "type": "Relates",
+        "direction": "relates to",
+        "key": "PROJ-99",
+        "status": "Done",
+        "summary": "Old parser"
+      }
+    ]
+  },
+  "existing_children": [
+    "PROJ-124"
+  ],
+  "sub_tickets_available": false
+}
+# calls:
+jira whoami
+jira api /rest/api/2/mypermissions?projectKey=PROJ
+jira api /rest/api/2/project/PROJ
+jira api /rest/api/2/issueLinkType
+jira get PROJ-123
