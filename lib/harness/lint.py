@@ -42,7 +42,12 @@ skills whose SKILL.md ``name`` differs from the directory, and three principle c
 * ``guides-sensors`` (principle 6): a public bundle without ``[harness]``, or whose
   ``[harness]`` has guides but no sensors (feedforward only) or sensors but no guides
 * ``guard-reasons`` (principle 6): a deny/ask ``# rule:`` reason that does not state the
-  alternative (none of the words use, instead, ask, run, mention, see)
+  alternative (none of the words use, instead, ask, run, mention, see, pass, pipe, check, drop,
+  hand)
+* ``guard-messages`` (principle 6): a runtime ``deny "…"`` / ``ask "…"`` / ``defer "…"``
+  message in a public ``guard.d/NN-*.sh`` that, with shell expansions removed, names no
+  alternative (same word list as ``guard-reasons``): the agent sees this string, not the
+  ``# rule:`` comment
 * ``dependencies`` (principle 1): a binary invoked by ``bin/*``, ``bootstrap``,
   ``bundles/**/*.sh``, ``providers/**/*.sh``, ``tools/gate/*.sh`` or ``lib/harness/*.sh``
   (the ``.run`` header) that is neither on
@@ -84,12 +89,15 @@ from .util import HarnessError, read_text, run_argv, which
 
 ID_SHAPE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 RULE_LINE_RE = re.compile(r"^#\s*rule:\s*(?P<pat>.+?)\s+->\s+(?P<dec>allow|ask|deny|pass|defer)\s*:\s*(?P<reason>.+?)\s*$")
-ALTERNATIVE_RE = re.compile(r"\b(use|instead|ask|run|mention|see)\b", re.I)
-LINT_RULES = {"manifest", "templates", "guard-syntax", "guard-reasons", "guides-sensors", "dependencies", "private-ids",
+ALTERNATIVE_RE = re.compile(r"\b(use|instead|ask|run|mention|see|pass|pipe|check|drop|hand)\b", re.I)
+# guard-messages: a runtime `deny "…"` / `ask "…"` / `defer "…"` call in a guard.d section
+GUARD_MSG_RE = re.compile(r'(?<![A-Za-z0-9_])(?P<fn>deny|ask|defer)\s+"(?P<msg>(?:[^"\\]|\\.)*)"', re.S)
+SHELL_EXPANSION_RE = re.compile(r"\$\([^()]*\)|\$\{[^{}]*\}|\$[A-Za-z_][A-Za-z0-9_]*")
+LINT_RULES = {"manifest", "templates", "guard-syntax", "guard-reasons", "guard-messages", "guides-sensors", "dependencies", "private-ids",
               "taxonomy", "env-provides", "rule-guard-pairing", "permissions-vs-guard", "agent-tools",
               "skill-description", "fragments-target", "profile-sane", "stability", "yields"}
 # rules `harness lint --skip RULE` can turn off (the others are woven into the manifest pass)
-SKIPPABLE_RULES = ("agent-tools", "dependencies", "env-provides", "fragments-target", "permissions-vs-guard",
+SKIPPABLE_RULES = ("agent-tools", "dependencies", "env-provides", "fragments-target", "guard-messages", "permissions-vs-guard",
                    "private-ids", "profile-sane", "rule-guard-pairing", "skill-description", "stability")
 
 # env-provides: the guard.env parser in bundles/core/guard/engine.sh accepts only keys with these
@@ -446,6 +454,34 @@ def mentions_topic(text: str, topic: str) -> bool:
     """``topic`` (``github-closing``) appears in ``text`` as a word, hyphens or spaces between parts."""
     pat = r"[- ]".join(re.escape(w) for w in topic.split("-") if w)
     return bool(pat) and re.search(r"(?<![A-Za-z0-9])%s(?![A-Za-z0-9])" % pat, text, re.I) is not None
+
+
+def guard_message_findings(text: str) -> List[Tuple[int, str, str]]:
+    """``(line, fn, message)`` for every runtime deny/ask/defer string that names no alternative.
+
+    Comment lines are blanked first (line numbers kept); ``$(…)``, ``${…}`` and ``$NAME`` are
+    stripped from the message before :data:`ALTERNATIVE_RE` looks for an alternative.
+    """
+    code = "\n".join("" if ln.lstrip().startswith("#") else ln for ln in text.splitlines())
+    out: List[Tuple[int, str, str]] = []
+    for m in GUARD_MSG_RE.finditer(code):
+        bare = SHELL_EXPANSION_RE.sub("", m.group("msg"))
+        if not ALTERNATIVE_RE.search(bare):
+            out.append((code.count("\n", 0, m.start()) + 1, m.group("fn"), m.group("msg")))
+    return out
+
+
+def lint_guard_messages(b: M.Bundle, rep: Report) -> None:
+    """Runtime guard messages must carry the alternative the ``# rule:`` comment names."""
+    if b.origin != "public":
+        return
+    for rel in b.guard_rules():
+        full = b.rel(rel)
+        if not os.path.isfile(full):
+            continue
+        for line, fn, msg in guard_message_findings(read_text(full) or ""):
+            rep.warn("%s: %s:%d guard-messages: the %s message %r does not say what to do instead; carry the "
+                     "# rule: alternative into the string" % (b.name, rel, line, fn, msg))
 
 
 def lint_rule_guard_pairing(b: M.Bundle, rep: Report) -> None:
@@ -960,6 +996,8 @@ def run_lint(hub: Any, skip: Sequence[str] = ()) -> Report:
             lint_env_provides(b, prefixes, rep)
         if on("rule-guard-pairing"):
             lint_rule_guard_pairing(b, rep)
+        if on("guard-messages"):
+            lint_guard_messages(b, rep)
         if on("agent-tools"):
             lint_agent_tools(b, rep)
         if tpl is not None:

@@ -97,7 +97,8 @@ Read [ARCHITECTURE §3](ARCHITECTURE.md#3-bundles-bundlesname) first. Checklist:
       bundle (a `provider-feature` ref is `<provider>:<feature>` from that provider's
       `features`), plus a `coverage_note` saying what the pairing does not cover. `harness lint`
       shows no unpaired-guide, unpaired-sensor or `rule-guard-pairing` warning.
-- [ ] Every guard `# rule:` reason states the alternative (what to run, use or ask instead).
+- [ ] Every guard `# rule:` reason states the alternative (what to run, use or ask instead),
+      and so does the runtime `deny`/`ask`/`defer` message (`harness lint` rule `guard-messages`).
 - [ ] `[taxonomy]` classifies the bundle: `domain` and `posture`, a `function` default if its
       skills and agents share one, and `[taxonomy.components]` overrides where a component
       differs ([taxonomy](docs/reference/taxonomy.md)). New components follow the naming

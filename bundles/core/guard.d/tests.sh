@@ -300,3 +300,14 @@ tc pass "$wt" 'git push origin master'                        # a linked worktre
 rm -rf "$wt"
 tc deny 'relative/dir' 'git push origin master'               # relative cwd: no lookup
 decl
+# runtime deny/ask messages carry the # rule: alternative (lint guard-messages)
+tr 'open an MR/PR instead' 'git push origin master'
+WORK_TICKET_ALLOW_DEFAULT_PUSH_RE='^/home/u/dev/shop$' tr 'ask the user to confirm, or push a branch instead' 'git push origin master'
+tr 'push a new branch instead' 'git push --force origin feat-x'
+t ask   'git reset --hard HEAD~1'
+t ask   'git clean -fdx'
+tr 'use git stash, or ask the user first' 'git reset --hard HEAD~1'
+tr 'run the push from the main checkout instead' 'cd ../shop_feat-x-sub-01-schema && git push -u origin feat-x-sub-01-schema'
+tr 'push the named branch instead' 'git push --all origin'
+tr 'print specific non-secret variables instead' 'env'
+tr 'print its length with' 'echo $JIRA_TOKEN'

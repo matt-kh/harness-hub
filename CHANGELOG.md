@@ -179,6 +179,10 @@ prints every one between your applied version and the new one.
   `gh` and a real-git sandbox, with invariants (lease pushes of sub branches only, never a
   push for an unlabelled MR, worktrees unchanged after a failed cascade, one leaf refresh per
   run).
+- `harness lint` rule `guard-messages` (principle 6, skippable): warns on a runtime
+  `deny "…"` / `ask "…"` / `defer "…"` message in a public `guard.d/NN-*.sh` that, with shell
+  expansions removed, names no alternative. The alternative word list shared with
+  `guard-reasons` gains *pass, pipe, check, drop, hand*.
 
 ### Deprecated
 
@@ -258,6 +262,11 @@ prints every one between your applied version and the new one.
   `stk status`; a merge train (`stk run`) is a v2 candidate; `glab stack` stays rejected while
   experimental upstream. Leaf refresh relies on the `glab mr rebase` / `gh pr update-branch`
   label gates of #17 (gitlab and github sections), not part of this bundle.
+- Guard messages: every runtime deny/ask message in core (credentials, git), gdoc, github,
+  gitlab, jira and k8s now states the alternative its `# rule:` comment names (ask the user,
+  push a branch, use the matching subcommand, `--dry-run=server`, `helm template`, ...);
+  decisions are unchanged and `docs/reference/hook-policy.md` is byte-identical. New `tr`
+  rows in each bundle's `guard.d/tests.sh` pin the wording.
 
 ### Stability
 

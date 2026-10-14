@@ -72,7 +72,8 @@ bundle ships: rules, skills, permissions, agents, guard sections, doctor checks,
 | Check | Kind | Where |
 |---|---|---|
 | Bundle has guides but no sensors, or sensors but no guides | lint warning | `harness lint` |
-| A `# rule:` reason in `guard.d` has no alternative | lint warning | `harness lint` |
+| A `# rule:` reason in `guard.d` has no alternative | lint warning | `harness lint` (rule `guard-reasons`) |
+| A runtime `deny`/`ask`/`defer` message in `guard.d` has no alternative | lint warning | `harness lint` (rule `guard-messages`) |
 | A component is unclassified, or its [taxonomy](../docs/reference/taxonomy.md) facets contradict its kind | lint warning / error | `harness lint` (rule `taxonomy`) |
 | Every guard decision has test rows, including bypass attempts | tests | `bundles/*/guard.d/tests.sh` |
 | Generated "Guides and sensors" tables are current | docs | `harness docs check` |
