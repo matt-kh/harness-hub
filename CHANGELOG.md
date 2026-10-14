@@ -54,7 +54,8 @@ prints every one between your applied version and the new one.
   `make gate`; self-test `tools/gate/tests/companions-selftest.sh` on ubuntu and macOS.
 - `README.md` generated regions, rendered by `harness docs generate` and checked by
   `harness docs check`: the bundle table (`bundles/*/bundle.toml#readme`: domain / posture,
-  stability, summary, manual-step titles), the provider matrix with tiers
+  stability, summary with `{{ key }}` placeholders shown as the key's `example` or `<key>`, and
+  the manual-step count linked to the bundle page), the provider matrix with tiers
   (`providers/*/provider.toml#readme`), the principle heading, count and list
   (`PRINCIPLES.md#readme`) and the core bundle's required binaries
   (`bundles/core/bundle.toml#readme`).

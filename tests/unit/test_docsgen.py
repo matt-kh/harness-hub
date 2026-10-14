@@ -107,10 +107,25 @@ class ReadmeTest(unittest.TestCase):
         self.assertTrue(body.startswith(
             "| Bundle | Domain / posture | Stability | What agents get | One-time setup |\n|---|---|---|---|---|\n"))
         self.assertIn("| [alpha](docs/bundles/alpha.md) | tracker / read-only | beta | Fixture alpha: skill fragment, "
-                      "MCP server with env_files, required config | Authenticate alpha |", body)
-        self.assertIn("| [beta](docs/bundles/beta.md) | scm / local | experimental |", body)
-        self.assertRegex(body, r"\| \[beta\]\([^)]*\) \|[^\n]*\| nothing \|\n")  # no manual steps
+                      "MCP server with env_files, required config | [1 step](docs/bundles/alpha.md#manual-steps) |", body)
+        self.assertRegex(body, r"\| \[beta\]\(docs/bundles/beta.md\) \| scm / local \| experimental \|[^\n]*\| none \|\n")
         self.assertIn("| [core](docs/bundles/core.md) | base / local | stable |", body)
+
+    def test_placeholders_become_documentation_values(self):
+        b = self.bundle("alpha")
+        b.summary = "Talks to {{ alpha.host }} and {{alpha.unknown}}"
+        b.requires_config = {"alpha.host": {"type": "string", "example": "alpha.example.com"}}
+        self.assertEqual(G.doc_values(b.summary, b), "Talks to alpha.example.com and <alpha.unknown>")
+        b.manual_steps = [{"id": "s%d" % i, "title": "Sign in to {{ alpha.host }}"} for i in range(4)]
+        body = G.readme_bundles_body([b])
+        self.assertIn("| Talks to alpha.example.com and <alpha.unknown> | [4 steps](docs/bundles/alpha.md#manual-steps) |",
+                      body)
+        self.assertNotIn("{{", body)
+        self.assertNotIn("Sign in", body)  # titles live on the bundle page, the README shows a count
+
+    def test_bundle_pages_have_the_manual_steps_anchor(self):
+        for b in G.public_bundles(REPO):
+            self.assertIn("\n## Manual steps\n", G.bundle_body(b), b.name)
 
     def test_requirements_body(self):
         body = G.readme_requirements_body(self.bundle("core"))
@@ -153,8 +168,10 @@ class ReadmeTest(unittest.TestCase):
                          ["bundles/*/bundle.toml#readme", "providers/*/provider.toml#readme",
                           "PRINCIPLES.md#readme", "bundles/core/bundle.toml#readme"])
         self.assertEqual({h for _s, _b, h in pages["README.md"]}, {"# harness-hub"})
-        principles = dict((s, b) for s, b, _h in pages["README.md"])["PRINCIPLES.md#readme"]
-        self.assertTrue(principles.startswith("## Built on ten principles\n"))
+        regions = dict((s, b) for s, b, _h in pages["README.md"])
+        self.assertTrue(regions["PRINCIPLES.md#readme"].startswith("## Built on ten principles\n"))
+        for src, body in regions.items():
+            self.assertNotIn("{{", body, src)
 
     def test_repo_readme_is_current(self):
         with open(os.path.join(REPO, "README.md"), encoding="utf-8") as fh:

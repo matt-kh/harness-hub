@@ -580,16 +580,39 @@ NUMBER_WORDS = ("zero", "one", "two", "three", "four", "five", "six", "seven", "
                 "nineteen", "twenty")
 
 
+PLACEHOLDER_RE = re.compile(r"\{\{\s*([A-Za-z0-9_.-]+)\s*\}\}")
+
+
+def doc_values(text: str, b: M.Bundle) -> str:
+    """``{{ key }}`` → the key's ``example`` from ``[requires.config]``, else ``<key>``.
+
+    The README is read by people deciding to install: it shows documentation values, never a
+    template placeholder.
+    """
+    def sub(m: "re.Match[str]") -> str:
+        spec = b.requires_config.get(m.group(1)) or {}
+        ex = spec.get("example")
+        if ex is None and spec.get("examples"):
+            ex = spec["examples"][0]
+        return str(ex) if isinstance(ex, (str, int, float)) and not isinstance(ex, bool) else "<%s>" % m.group(1)
+
+    return PLACEHOLDER_RE.sub(sub, str(text))
+
+
 def readme_bundles_body(bundles: Sequence[M.Bundle]) -> str:
-    """``README.md#bundles``: what agents get from each bundle and what a human sets up once."""
+    """``README.md#bundles``: what agents get from each bundle and how much a human sets up once.
+
+    The setup column is a step count linked to the bundle page's ``## Manual steps`` section,
+    which ``bundle_body`` always renders.
+    """
     rows = []
     for b in bundles:
         tax = b.taxonomy or {}
-        steps = [" ".join(str(s.get("title", "")).split()) for s in b.manual_steps if s.get("title")]
+        n = len(b.manual_steps)
+        setup = "[%d step%s](%s#manual-steps)" % (n, "" if n == 1 else "s", b.docs_path()) if n else "none"
         rows.append(["[%s](%s)" % (b.name, b.docs_path()),
                      "%s / %s" % (tax.get("domain") or "unclassified", tax.get("posture") or "unclassified"),
-                     b.data.get("bundle", {}).get("stability") or "", b.summary,
-                     "; ".join(steps) if steps else "nothing"])
+                     b.data.get("bundle", {}).get("stability") or "", doc_values(b.summary, b), setup])
     return table(["Bundle", "Domain / posture", "Stability", "What agents get", "One-time setup"], rows)
 
 
@@ -646,7 +669,7 @@ def readme_requirements_body(core: M.Bundle) -> str:
         if spec.get("optional"):
             continue
         rows.append([code(name), ("≥ %s" % spec["min_version"]) if spec.get("min_version") else "any",
-                     " ".join(str(spec.get("description") or spec.get("why") or "").split())])
+                     doc_values(" ".join(str(spec.get("description") or spec.get("why") or "").split()), core)])
     return table(["Binary", "Minimum", "Why"], rows)
 
 
