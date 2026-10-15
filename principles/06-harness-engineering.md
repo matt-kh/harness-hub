@@ -37,7 +37,7 @@ bundle ships: rules, skills, permissions, agents, guard sections, doctor checks,
 - **Every bundle declares its guides and sensors** in `bundle.toml`:
   `[harness] guides = [{kind, ref, note}]`, `sensors = [{kind, ref, note}]` and a
   `coverage_note`. Guide kinds: `rule`, `skill`, `permission`, `agent`, `template`.
-  Sensor kinds: `guard`, `doctor`, `test`, `lint`, `review-agent`.
+  Sensor kinds: `guard`, `doctor`, `test`, `lint`, `review-agent`, `provider-feature`.
 - **The docs render a "Guides and sensors" table** for each bundle in its generated region
   (`harness docs generate`).
 - **Pairing.** A rule in `rules/NN-*.md` that a guard section can check has that section; a
@@ -71,12 +71,14 @@ bundle ships: rules, skills, permissions, agents, guard sections, doctor checks,
 
 | Check | Kind | Where |
 |---|---|---|
-| Bundle has guides but no sensors, or sensors but no guides | lint warning | `harness lint` |
-| A `# rule:` reason in `guard.d` has no alternative | lint warning | `harness lint` |
+| Bundle has guides but no sensors, or sensors but no guides | lint warning | `harness lint` (rule `guides-sensors`) |
+| A `deny`/`ask` `# rule:` reason in `guard.d` has no alternative (none of *use, instead, ask, run, mention, see*) | lint warning | `harness lint` (rule `guard-reasons`) |
 | A component is unclassified, or its [taxonomy](../docs/reference/taxonomy.md) facets contradict its kind | lint warning / error | `harness lint` (rule `taxonomy`) |
 | A provider's `[capabilities]` contradict its `[targets]` (hooks, ask, skills, agents, mcp, instructions, permissions), or its doc's tier line disagrees | lint error / warning | `harness lint` (rule `provider-honesty`) |
 | A provider shim lacks `tests/run.sh`, an `.out.json`, or a fixture for allow, deny, ask, unknown tool or malformed | lint error | `harness lint` (rule `shim-fixtures`) |
 | Every guard decision has test rows, including bypass attempts | tests | `bundles/*/guard.d/tests.sh` |
+| A guard code change comes with row changes; a net-new `-> D` rule with a `D` (or `tr`) row | gate | `tools/gate/companions.sh` (pre-push, CI `gate`) |
+| A bundle, engine, provider, schema or profile change has a CHANGELOG `[Unreleased]` entry | gate | `tools/gate/companions.sh` (pre-push, CI `gate`) |
 | Generated "Guides and sensors" tables are current | docs | `harness docs check` |
 | PR states the pairing was checked | review | [PR template](../.github/PULL_REQUEST_TEMPLATE.md) |
 

@@ -45,7 +45,7 @@ bundles/<name>/           one bundle per capability (see §3)
 providers/<name>/         one adapter per agent product (see §4)
 profiles/<name>.toml      named bundle+provider selections for `bootstrap --profile`
 tools/<tool>.lock.json    pinned tool downloads: version + sha256 per os/arch
-tools/gate/               private-identifier gate (patterns, allowlist, script)
+tools/gate/               private-identifier gate (patterns, allowlist, script), companion-file gate
 templates/                harness.toml template (generated from schema)
 tests/                    engine unit tests, fakes/bin/*, fixtures, smoke scripts
 docs/                     hand-written pages with generated regions (see §8)
@@ -232,7 +232,7 @@ Rules:
   `lint` a lint rule name (`manifest`, `templates`, `guard-syntax`, `guard-reasons`,
   `guides-sensors`, `dependencies`, `private-ids`, `taxonomy`, `env-provides`,
   `rule-guard-pairing`, `permissions-vs-guard`, `agent-tools`, `skill-description`,
-  `fragments-target`, `profile-sane`, `stability`), for `provider-feature` `<provider>:<feature>`
+  `fragments-target`, `profile-sane`, `stability`, `yields`), for `provider-feature` `<provider>:<feature>`
   naming an entry of that provider's `features` (§4) — an inferential sensor that lives in the
   product, such as `claude:auto-mode-classifier`. A ref that resolves to nothing is a lint error; a bundle with guides but no
   sensors, sensors but no guides, or (public bundles) no `[harness]` at all is a lint warning.
