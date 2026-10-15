@@ -17,7 +17,7 @@ symlink to this file.
 make install        # pre-commit hooks (pre-commit, commit-msg, pre-push)
 make test           # bin/harness test: guard rows, unit, bundle, skill, provider, smoke suites
 make lint           # bin/harness lint + tools/gate/check-links.sh
-make gate           # tools/gate/private-ids.sh + its self-test
+make gate           # tools/gate/private-ids.sh, companions.sh (vs origin/main) + their self-tests
 make docs           # bin/harness docs check (generated regions are current)
 make docs-generate  # bin/harness docs generate, after changing manifests, CLI or guard rules
 make render-check   # render twice into one fresh HOME; diff must be empty
@@ -38,7 +38,7 @@ make render-check   # render twice into one fresh HOME; diff must be empty
 | `providers/<name>/` | adapters: target paths, write modes, capabilities, hook shims |
 | `profiles/` | named bundle and provider selections |
 | `tools/*.lock.json` | pinned tool downloads (version, URL, sha256 per os/arch) |
-| `tools/gate/` | private-identifier gate and Markdown link check |
+| `tools/gate/` | private-identifier gate, companion-file gate and Markdown link check |
 | `tests/` | unit tests, fakes, fixtures, smoke scripts |
 | `docs/` | hand-written pages with generated regions |
 | `principles/` | one document per principle |
@@ -75,7 +75,9 @@ make render-check   # render twice into one fresh HOME; diff must be empty
   prelude); skills carry the Step 0 paragraph; agent descriptions carry the baseline
   sentence; never hard-code one organisation's repository-skill name ([principle 8](principles/08-user-level-by-design.md)).
 - **Guard behaviour changes come with test rows** in `bundles/<b>/guard.d/tests.sh`,
-  including bypass attempts.
+  including bypass attempts. `tools/gate/companions.sh` fails a branch whose guard code
+  changed without its `tests.sh`, or whose new `-> D` rule has no `D` row (`tr` for ask/deny);
+  a commit-body `no-rows: <reason>` waives it.
 - **Generated regions are never hand-edited** (`<!-- generated:begin … -->` to
   `<!-- generated:end -->`). Change the source (manifest, adapter, CLI help, `# rule:`
   comment) and run `bin/harness docs generate`.
@@ -103,4 +105,7 @@ make render-check   # render twice into one fresh HOME; diff must be empty
   and why.
 - The PR description names the principle(s) served, or "neutral", and fills the
   [PR template](.github/PULL_REQUEST_TEMPLATE.md).
-- `CHANGELOG.md` has an `[Unreleased]` entry.
+- `CHANGELOG.md` has an `[Unreleased]` entry. `tools/gate/companions.sh` requires one when
+  `bundles/`, `lib/harness/`, `providers/`, `schema/`, `bin/`, `profiles/`, `templates/`,
+  `bootstrap` or `tools/*.lock.json` changed (tests and goldens excepted); a commit-body or PR-body
+  `no-changelog: <reason>` waives it.

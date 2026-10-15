@@ -12,7 +12,7 @@ yourself).
 | Instructions | `~/.gemini/GEMINI.md`, managed blocks |
 | Skills | `~/.gemini/skills/<name>/` |
 | Sub-agents | not a native concept: agent bodies are inlined as instruction sections |
-| Settings | `~/.gemini/settings.json`, json-merge of `hooks`, `mcpServers` and tool exclusions |
+| Settings | `~/.gemini/settings.json`, json-merge of `hooks` and `mcpServers` |
 | Guard | `~/.gemini/hooks/guard-bash.sh` behind `providers/gemini/shim.sh`, event `BeforeTool`, matcher `run_shell_command` |
 | MCP | `~/.gemini/settings.json` → `mcpServers` |
 
@@ -29,10 +29,10 @@ The shim translates the envelopes ([ARCHITECTURE §5](../../ARCHITECTURE.md#5-gu
 
 - **Versions matter a lot.** Hooks and skills arrived in recent Gemini CLI releases; older
   builds silently ignore the `hooks` key, which means *no guard*. `harness doctor` checks the
-  version against `min_version` in the adapter; the adapter README records the version it was
-  verified against.
-- Permission lists translate only partly: denies become tool exclusions, asks become advisory
-  instruction text.
+  version against `min_version` in the adapter; `verified` in `providers/gemini/provider.toml`
+  (shown below) records the version it was verified against.
+- Permission lists are not translated (the `permissions` target is `unsupported`); the guard
+  hook enforces the shell rules.
 - Setting `ask_as = "allow"` trades safety for convenience: every command the guard would
   have asked about then runs without a prompt. Keep the default unless you understand the list
   in the [hook policy](../reference/hook-policy.md).

@@ -82,6 +82,8 @@ jobs:
           exit $rc
       - name: Gate self-test
         run: tools/gate/tests/selftest.sh
+      - name: Companion gate self-test
+        run: tools/gate/tests/companions-selftest.sh
       - name: harness test (python 3.12)
         run: bin/harness test
       - name: harness test (python 3.9)
@@ -118,6 +120,17 @@ jobs:
             echo "no usable commit range for this event: scanning the tree only"
           fi
           tools/gate/private-ids.sh "${args[@]}"
+      - name: Companion-file gate (guard rows, CHANGELOG entry)
+        if: github.event_name == 'pull_request'
+        env:
+          # The body reaches the script through a file, never interpolated into this script:
+          # markers `no-rows: <reason>` / `no-changelog: <reason>` may sit there or in a commit body.
+          PR_BODY: ${{ github.event.pull_request.body }}
+          RANGE_BASE: ${{ github.event.pull_request.base.sha }}
+          RANGE_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          printf '%s\n' "$PR_BODY" >"$RUNNER_TEMP/pr-body.txt"
+          tools/gate/companions.sh --ci --range "$RANGE_BASE..$RANGE_HEAD" --markers-file "$RUNNER_TEMP/pr-body.txt"
       - name: detect-secrets
         run: |
           if [ ! -f .secrets.baseline ]; then

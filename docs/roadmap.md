@@ -20,10 +20,9 @@ surface of a platform engineer. Application, data, QA, security and release engi
 run containers, package managers, databases, cloud CLIs, infrastructure-as-code, pipelines
 and remote hosts from the same terminal, and the agent sees none of it today.
 
-The bundles also name their own gaps in `[harness].coverage_note`: `ticket-workflow` has no
-guard section and no test suite for `work-ticket`; the GitLab MR title convention is a guide
-only; GitHub fork PR edits always ask. Two engine mechanisms have no real user:
-`skill_fragments` and the env override `WORK_TICKET_KEY_IN_BRANCH`.
+The bundles also name their own gaps in `[harness].coverage_note`: `work-ticket` has no
+test suite; MRs/PRs created without `-t` are not title-checked; GitHub fork PR edits always
+ask. One engine mechanism has no real user: `skill_fragments`.
 
 ## Reserved guard prefixes
 
@@ -43,8 +42,6 @@ ARCHITECTURE §3 is updated when a band is first used.
 | `38` | `38-toolchain` | toolchain | package managers |
 | `45` | `45-release` | release | tags and publication; after the closing-keyword sections, before the SCM CLIs |
 | `55` | `55-ci` | ci | between `50-gitlab` and `60-github`; adds only the rows those two lack |
-| `65` | `65-stack` | stack | after `60-github`; the glab/gh label-gate changes live in `50`/`60` |
-| `75` | `75-ticket-workflow` | ticket-workflow | already listed in ARCHITECTURE; unused until P0 |
 | `82` | `82-hosts` | hosts | miscellaneous band, with `80-gdoc` |
 
 Free after this table: `15`, `32`–`34`, `39`, `42`–`44`, `46`–`49`, `85`.
@@ -68,7 +65,8 @@ uses it"). No new `function` or `posture` values are needed.
 ## Tranche P0: honesty and cheap sensors
 
 Close the declared gaps and add the lint rules that would have caught them. No new
-dependencies, no new bundles. **Status: in progress.**
+dependencies, no new bundles. **Status: shipped**; see CHANGELOG
+[`[Unreleased]`](../CHANGELOG.md#unreleased).
 
 | Item | Where | Components | Effort |
 |---|---|---|---|

@@ -30,6 +30,13 @@ Errors (exit 1):
   outside a ``# never-yields:`` prelude (plain shared assignments are fine); a malformed
   ``# repo-override:`` comment, a name that is not ``WORK_TICKET_*`` or is on the deny-list, or
   one name with two defaults
+* ``provider-honesty`` (principle 6): a provider whose ``[capabilities]`` contradict its
+  ``[targets]``: hooks wired with ``hook_enforced = false`` or ``hook_enforced``/``ask`` without
+  hooks; a ``native``/``inlined``/``none`` capability for skills, agents, mcp, instructions or
+  permissions whose target mode says otherwise
+* ``shim-fixtures`` (principle 6): a provider with a ``shim`` but no ``tests/run.sh``, an
+  ``.in.json`` fixture without its ``.out.json``, or no fixture for one of the cases allow,
+  deny, ask, unknown tool, malformed (base name starts with the case word)
 * ``taxonomy`` (principle 6, variety reduction): a ``[taxonomy.components]`` key that names no
   component; a posture on a kind that takes none (rule, guard, permission, installer, step,
   doctor); a function that contradicts a kind's fixed one; a component posture stronger than
@@ -63,6 +70,9 @@ skills whose SKILL.md ``name`` differs from the directory, and three principle c
   ``tests/fixtures/harness.ci.toml``, outside 60-1024 chars or without a "Use when" trigger;
   workflow skills also need "NOT for" and an ``argument-hint``
 * ``fragments-target``: a public bundle that ships skill fragments at all
+* ``provider-honesty``: a provider listing the ``permission-prompt`` feature with ``ask = false``;
+  ``docs/providers/<name>.md`` whose ``**Tier: x.**`` line differs from the tier the
+  capabilities give (``taxonomy.provider_tier``)
 * ``stability``: a ``stability = "stable"`` bundle whose coverage_note admits a missing suite,
   or whose skill or CLI has no ``tests/run.sh`` (CONTRIBUTING "Stability levels")
 
@@ -87,7 +97,8 @@ RULE_LINE_RE = re.compile(r"^#\s*rule:\s*(?P<pat>.+?)\s+->\s+(?P<dec>allow|ask|d
 ALTERNATIVE_RE = re.compile(r"\b(use|instead|ask|run|mention|see)\b", re.I)
 LINT_RULES = {"manifest", "templates", "guard-syntax", "guard-reasons", "guides-sensors", "dependencies", "private-ids",
               "taxonomy", "env-provides", "rule-guard-pairing", "permissions-vs-guard", "agent-tools",
-              "skill-description", "fragments-target", "profile-sane", "stability", "yields"}
+              "skill-description", "fragments-target", "profile-sane", "stability", "yields",
+              "provider-honesty", "shim-fixtures"}
 # rules `harness lint --skip RULE` can turn off (the others are woven into the manifest pass)
 SKIPPABLE_RULES = ("agent-tools", "dependencies", "env-provides", "fragments-target", "permissions-vs-guard",
                    "private-ids", "profile-sane", "rule-guard-pairing", "skill-description", "stability")
@@ -104,6 +115,15 @@ GUARD_STUBS = (("WORK_TICKET_JIRA_PY", "jira-stub.py"), ("WORK_TICKET_GLAB", "gl
                ("WORK_TICKET_GDOC_PY", "gdoc-stub.py"), ("GUARD_KUBECTL", "kubectl-stub.sh"),
                ("GUARD_GIT", "git-stub.sh"), ("WORK_TICKET_GH", "gh-stub.sh"))
 _BASH_RULE_RE = re.compile(r"^Bash\((?P<prefix>[^()]+):\*\)$")
+
+# provider-honesty: the tier line every docs/providers/<name>.md opens with
+PROVIDER_TIER_RE = re.compile(r"\*\*Tier: (?P<tier>enforced|partial|advisory)\.\*\*")
+# capabilities whose native/inlined/none value must match the target mode (absent = unsupported)
+PROVIDER_CAP_TARGETS = ("skills", "agents", "mcp", "instructions", "permissions")
+
+# shim-fixtures: (case, fixture base-name pattern); variants follow the case word after `-`
+SHIM_CASES = (("allow", r"^allow"), ("deny", r"^deny"), ("ask", r"^ask"), ("unknown tool", r"^unknown-tool"),
+              ("malformed", r"^malformed"))
 
 # agent-tools
 WRITE_TOOLS = ("Edit", "Write", "MultiEdit", "NotebookEdit")
@@ -943,6 +963,93 @@ def lint_dependencies(hub: Any, rep: Report) -> None:
                  % (where[0], word, " (%d more)" % (len(where) - 1) if len(where) > 1 else ""))
 
 
+def _cap_contradiction(value: Any, mode: str) -> Optional[str]:
+    """The target mode ``value`` of capability ``cap`` requires, when ``mode`` is not it."""
+    if value == "none" and mode != "unsupported":
+        return "unsupported (or no target)"
+    if value == "inlined" and mode != "inline":
+        return "inline"
+    if value == "native" and mode in ("unsupported", "inline"):
+        return "a native mode (not %s)" % mode
+    return None
+
+
+def lint_provider_honesty(p: M.Provider, home: str, rep: Report) -> None:
+    """``[capabilities]`` agree with ``[targets]``; the provider doc's tier line agrees with both."""
+    from . import taxonomy as T
+
+    where = "providers/%s: provider-honesty:" % p.name
+    caps = p.capabilities
+    hooks = p.target("hooks") is not None
+    if hooks and caps.get("hook_enforced") is False:
+        rep.err("%s [targets.hooks] is wired but [capabilities] hook_enforced = false; set hook_enforced = true "
+                "or mark the hooks target mode = \"unsupported\"" % where)
+    if not hooks and caps.get("hook_enforced"):
+        rep.err("%s hook_enforced = true without a [targets.hooks] target; wire the hook or set hook_enforced = false"
+                % where)
+    if not hooks and caps.get("ask"):
+        rep.err("%s ask = true without a [targets.hooks] target (only a hook can ask); set ask = false" % where)
+    for cap in PROVIDER_CAP_TARGETS:
+        if cap not in caps:
+            continue
+        mode = (p.targets.get(cap) or {}).get("mode") or "unsupported"
+        want = _cap_contradiction(caps[cap], mode)
+        if want:
+            rep.err("%s capabilities.%s = %r but targets.%s mode is %r; make the target mode %s or fix the capability"
+                    % (where, cap, caps[cap], cap, mode, want))
+    if "permission-prompt" in p.features and not caps.get("ask"):
+        rep.warn("%s features lists permission-prompt but ask = false; set ask = true if the hook can ask, "
+                 "or drop the feature" % where)
+    rel = (p.data.get("provider") or {}).get("docs") or "docs/providers/%s.md" % p.name
+    text = read_text(os.path.join(home, rel))  # an absolute docs path stays absolute
+    m = PROVIDER_TIER_RE.search(text or "")
+    tier = T.provider_tier(caps)
+    if m and m.group("tier") != tier:
+        rep.warn("%s %s says **Tier: %s.** but the capabilities give %s; fix the doc line (or the capabilities)"
+                 % (where, rel, m.group("tier"), tier))
+
+
+def lint_shim_fixtures(p: M.Provider, rep: Report) -> None:
+    """A provider with a shim ships fixtures for every decision the shim translates."""
+    hooks = p.target("hooks") or {}
+    if not hooks.get("shim"):
+        return
+    where = "providers/%s: shim-fixtures:" % p.name
+    tests = os.path.join(p.path, "tests")
+    if not os.path.isfile(os.path.join(tests, "run.sh")):
+        rep.err("%s tests/run.sh is missing; add it (exec providers/_shared/run-shim-tests.sh, see gemini)" % where)
+    names = sorted(fn[:-len(".in.json")] for fn in (os.listdir(tests) if os.path.isdir(tests) else [])
+                   if fn.endswith(".in.json"))
+    for n in names:
+        if not os.path.isfile(os.path.join(tests, n + ".out.json")):
+            rep.err("%s tests/%s.in.json has no %s.out.json; add the expected output (empty file = no output)"
+                    % (where, n, n))
+    missing = [case for case, pat in SHIM_CASES if not any(re.match(pat, n) for n in names)]
+    if missing:
+        rep.err("%s no fixture for case(s) %s; add tests/<case>[-variant].in.json + .out.json for each"
+                % (where, ", ".join(missing)))
+
+
+def lint_provider(p: M.Provider, home: str, rep: Report, pschema: Optional[Dict[str, Any]] = None) -> None:
+    """Schema, shim existence and ``bash -n``, then ``provider-honesty`` and ``shim-fixtures``."""
+    name = p.name
+    if pschema is not None:
+        for e in M.validate_provider(p, pschema).errors:
+            rep.err(e)
+    hooks = p.targets.get("hooks") or {}
+    shim = hooks.get("shim") if hooks.get("mode") != "unsupported" else ""
+    if shim:
+        path = os.path.join(p.path, shim)
+        if not os.path.isfile(path):
+            rep.err("providers/%s: shim %s does not exist" % (name, shim))
+        else:
+            rc, _o, err = run_argv(["bash", "-n", path], timeout=20)
+            if rc != 0:
+                rep.err("providers/%s: bash -n %s failed: %s" % (name, shim, err.strip()))
+    lint_provider_honesty(p, home, rep)
+    lint_shim_fixtures(p, rep)
+
+
 def run_lint(hub: Any, skip: Sequence[str] = ()) -> Report:
     rep = Report()
     home = hub.home
@@ -978,20 +1085,7 @@ def run_lint(hub: Any, skip: Sequence[str] = ()) -> Report:
                 rep.warn("%s: requires.config %s is not referenced by any template (fine if scripts read build/config.json)"
                          % (name, key))
     for name in sorted(hub.providers):
-        p = hub.providers[name]
-        res = M.validate_provider(p, pschema)
-        for e in res.errors:
-            rep.err(e)
-        hooks = p.targets.get("hooks") or {}
-        shim = hooks.get("shim") if hooks.get("mode") != "unsupported" else ""
-        if shim:
-            path = os.path.join(p.path, shim)
-            if not os.path.isfile(path):
-                rep.err("providers/%s: shim %s does not exist" % (name, shim))
-            else:
-                rc, _o, err = run_argv(["bash", "-n", path], timeout=20)
-                if rc != 0:
-                    rep.err("providers/%s: bash -n %s failed: %s" % (name, shim, err.strip()))
+        lint_provider(hub.providers[name], home, rep, pschema)
     if on("profile-sane"):
         lint_profiles(hub, rep)
     lint_repo_overrides([hub.bundles[n] for n in sorted(hub.bundles)], rep)
