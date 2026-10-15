@@ -232,7 +232,7 @@ Rules:
   `lint` a lint rule name (`manifest`, `templates`, `guard-syntax`, `guard-reasons`,
   `guides-sensors`, `dependencies`, `private-ids`, `taxonomy`, `env-provides`,
   `rule-guard-pairing`, `permissions-vs-guard`, `agent-tools`, `skill-description`,
-  `fragments-target`, `profile-sane`, `stability`), for `provider-feature` `<provider>:<feature>`
+  `fragments-target`, `profile-sane`, `stability`, `yields`), for `provider-feature` `<provider>:<feature>`
   naming an entry of that provider's `features` (§4) — an inferential sensor that lives in the
   product, such as `claude:auto-mode-classifier`. A ref that resolves to nothing is a lint error; a bundle with guides but no
   sensors, sensors but no guides, or (public bundles) no `[harness]` at all is a lint warning.

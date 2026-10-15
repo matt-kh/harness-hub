@@ -194,8 +194,8 @@ Read [ARCHITECTURE §4](ARCHITECTURE.md#4-providers-providersname) and
       envelope and the decision back. Map `ask` through `[providers.<name>].ask_as`.
 - [ ] Shim fixtures `tests/*.in.json` → `*.out.json` for allow, deny, ask, an unknown tool
       (pass through) and malformed JSON (deny: fail closed).
-- [ ] `README.md` with a "verified against <version> on <date>" line (the weekly
-      provider-drift workflow parses it) and the provider's quirks.
+- [ ] `verified = "<product> <version>, <date>"` in `provider.toml` (the weekly
+      provider-drift workflow reads it) and `README.md` with the provider's quirks.
 - [ ] `docs/providers/<name>.md`, README capability matrix, SECURITY.md coverage table.
 
 ## Guard tests and goldens

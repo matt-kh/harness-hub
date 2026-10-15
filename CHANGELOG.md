@@ -206,6 +206,14 @@ prints every one between your applied version and the new one.
 
 ### Changed
 
+- Docs and the provider-drift workflow match the code again: the roadmap's gap list and
+  reserved prefixes drop what shipped (P0 marked shipped), principle 6 and ARCHITECTURE list
+  `provider-feature` and the `yields`, `guides-sensors` and `guard-reasons` lint rules, the
+  Gemini page no longer claims permission denies become tool exclusions, and the Copilot page
+  states that `allow` prints `{"permissionDecision":"allow"}`. The weekly provider-drift
+  workflow reads `verified` from `providers/<p>/provider.toml` instead of each README, also
+  checks OpenCode (npm `opencode-ai`), and reports a `verified` without a version number as
+  unverified instead of drift.
 - README reframed as a public platform with three install paths (upstream, org instance,
   bundle file).
 - Air-gapped runbook: offline install and upgrade use the release bundle.
