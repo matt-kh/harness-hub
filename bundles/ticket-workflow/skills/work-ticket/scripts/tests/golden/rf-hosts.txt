@@ -1,0 +1,27 @@
+scp-ssh                | (no gitlab config)                             | github.com -> github
+scp-ssh                | HARNESS_GITLAB_HOSTS_RE=^code[.]example[.]com$ | github.com -> github
+scp-ssh                | HARNESS_GITLAB_HOST=code.example.com           | github.com -> github
+https-credentialed     | (no gitlab config)                             | github.com -> github
+https-credentialed     | HARNESS_GITLAB_HOSTS_RE=^code[.]example[.]com$ | github.com -> github
+https-credentialed     | HARNESS_GITLAB_HOST=code.example.com           | github.com -> github
+ssh-port-443           | (no gitlab config)                             | ssh.github.com -> github
+ssh-port-443           | HARNESS_GITLAB_HOSTS_RE=^code[.]example[.]com$ | ssh.github.com -> github
+ssh-port-443           | HARNESS_GITLAB_HOST=code.example.com           | ssh.github.com -> github
+https-www-no-suffix    | (no gitlab config)                             | www.github.com -> github
+https-www-no-suffix    | HARNESS_GITLAB_HOSTS_RE=^code[.]example[.]com$ | www.github.com -> github
+https-www-no-suffix    | HARNESS_GITLAB_HOST=code.example.com           | www.github.com -> github
+https-mixed-case       | (no gitlab config)                             | GitLab.Example.com -> gitlab
+https-mixed-case       | HARNESS_GITLAB_HOSTS_RE=^code[.]example[.]com$ | GitLab.Example.com -> gitlab
+https-mixed-case       | HARNESS_GITLAB_HOST=code.example.com           | GitLab.Example.com -> gitlab
+scp-ssh-subgroup       | (no gitlab config)                             | gitlab.example.com -> gitlab
+scp-ssh-subgroup       | HARNESS_GITLAB_HOSTS_RE=^code[.]example[.]com$ | gitlab.example.com -> gitlab
+scp-ssh-subgroup       | HARNESS_GITLAB_HOST=code.example.com           | gitlab.example.com -> gitlab
+ssh-custom-port        | (no gitlab config)                             | code.example.com -> (unknown)
+ssh-custom-port        | HARNESS_GITLAB_HOSTS_RE=^code[.]example[.]com$ | code.example.com -> gitlab
+ssh-custom-port        | HARNESS_GITLAB_HOST=code.example.com           | code.example.com -> gitlab
+https-custom-port      | (no gitlab config)                             | code.example.com -> (unknown)
+https-custom-port      | HARNESS_GITLAB_HOSTS_RE=^code[.]example[.]com$ | code.example.com -> gitlab
+https-custom-port      | HARNESS_GITLAB_HOST=code.example.com           | code.example.com -> gitlab
+https-enterprise-host  | (no gitlab config)                             | github.example.com -> (unknown)
+https-enterprise-host  | HARNESS_GITLAB_HOSTS_RE=^code[.]example[.]com$ | github.example.com -> (unknown)
+https-enterprise-host  | HARNESS_GITLAB_HOST=code.example.com           | github.example.com -> (unknown)

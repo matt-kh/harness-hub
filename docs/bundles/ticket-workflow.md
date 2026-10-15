@@ -146,9 +146,10 @@ Guides steer the agent before it acts; sensors detect at or after the action. Pa
 | sensor | doctor | `doctor_checks` | a tracker CLI and an SCM CLI on PATH, both skills rendered |
 | sensor | test | `tests/run.sh` | this bundle's guard rows against core + ticket-workflow only, then every skill suite |
 | sensor | test | `guard.d/tests.sh` | rows for section 75 incl. bypasses |
-| sensor | test | `skills/create-ticket/scripts/tests/run.sh` | golden renders of every ticket class |
+| sensor | test | `skills/work-ticket/scripts/tests/run.sh` | preflight dispatch, GitHub and GitLab preflights, issue and Jira facts, repo-facts: one JSON object per run, goldens per fixture repository with and without PyYAML, read-only stub-log invariants |
+| sensor | test | `skills/create-ticket/scripts/tests/run.sh` | golden renders of every ticket class; create-facts goldens for Jira and GitHub (config, unreachable, unauthenticated, not installed) |
 
-**Not covered:** The size rubric, Q-checklist and MR body content are judgement calls (inferential: code-reviewer); SCM verb conventions are sensed by the gitlab/github guard sections; work-ticket has no own test suite yet.
+**Not covered:** The size rubric, Q-checklist and MR body content are judgement calls (inferential: code-reviewer); SCM verb conventions are sensed by the gitlab/github guard sections; the preflight and facts scripts are sensed by golden suites against stubbed gh, glab and jira.
 
 ## Uninstall
 

@@ -1,0 +1,162 @@
+# exit=0
+# stderr:
+# stdout:
+{
+  "provider": "github",
+  "repo_root": "SANDBOX/repos/gh-cred",
+  "remote_host": "github.com",
+  "default_branch": "main",
+  "dirty_files": 0,
+  "gh_installed": true,
+  "auth_ok": true,
+  "me": "dev",
+  "plan": "free",
+  "origin_repo": "owner/repo",
+  "base_repo": "owner/repo",
+  "project": {
+    "path": "owner/repo",
+    "my_access": "READ",
+    "is_private": true,
+    "is_fork": false,
+    "parent": null,
+    "is_archived": false,
+    "has_issues": true,
+    "delete_branch_on_merge": true,
+    "squash_merge_allowed": true,
+    "merge_commit_allowed": false,
+    "rebase_merge_allowed": false,
+    "viewer_can_administer": false,
+    "visibility": "PRIVATE"
+  },
+  "repo": {
+    "nameWithOwner": "owner/repo",
+    "isPrivate": true,
+    "isFork": false,
+    "parent": null,
+    "viewerPermission": "READ",
+    "viewerCanAdminister": false,
+    "defaultBranchRef": {
+      "name": "main"
+    },
+    "deleteBranchOnMerge": true,
+    "squashMergeAllowed": true,
+    "mergeCommitAllowed": false,
+    "rebaseMergeAllowed": false,
+    "hasIssuesEnabled": true,
+    "isArchived": false,
+    "visibility": "PRIVATE"
+  },
+  "draft_prs_available": false,
+  "can_label": false,
+  "fork_flow": true,
+  "protected_branches": {
+    "rules": [],
+    "wildcards": [],
+    "matches": {
+      "feat-x": true
+    },
+    "sub_pattern_matches": false,
+    "branch_rules": {
+      "feat-x": [
+        "non_fast_forward",
+        "deletion"
+      ]
+    },
+    "default_branch_protection": {
+      "status": "forbidden",
+      "http": 403,
+      "note": "Free private repo or no admin"
+    },
+    "rulesets_status": "forbidden",
+    "patterns_visible": true
+  },
+  "mr_template": null,
+  "pr_templates": [],
+  "issue_templates": [],
+  "codeowners": null,
+  "contributing": null,
+  "labels": [
+    "agent-worked",
+    "agent-drafted",
+    "bug",
+    "enhancement"
+  ],
+  "agent_labels": {
+    "agent-worked": true,
+    "agent-created": false,
+    "agent-drafted": true,
+    "agent-wip": false
+  },
+  "milestones": [
+    {
+      "number": 1,
+      "title": "v1.0",
+      "due_on": "2026-03-01T00:00:00Z"
+    }
+  ],
+  "issue": {
+    "ref": "7",
+    "repo": "owner/repo",
+    "number": 7
+  },
+  "existing_prs": [
+    {
+      "number": 21,
+      "title": "Parser fix",
+      "headRefName": "parser-fix",
+      "baseRefName": "main",
+      "state": "OPEN",
+      "isDraft": true,
+      "isCrossRepository": false,
+      "url": "https://github.com/owner/repo/pull/21",
+      "labels": [
+        "agent-worked"
+      ]
+    },
+    {
+      "number": 22,
+      "title": "Lexer part",
+      "headRefName": "parser-fix-sub-01-lexer",
+      "baseRefName": "parser-fix",
+      "state": "MERGED",
+      "isDraft": false,
+      "isCrossRepository": false,
+      "url": "https://github.com/owner/repo/pull/22",
+      "labels": [
+        "agent-worked"
+      ]
+    }
+  ],
+  "stack_detected": true,
+  "ci": {
+    "checks": [],
+    "precommit": false,
+    "heuristic": "none",
+    "pipeline_model": null,
+    "mr_pipeline": false,
+    "per_branch_heavy": false,
+    "per_branch_heavy_jobs": [],
+    "mr_heavy_jobs": [],
+    "sub_branch_excluded": false,
+    "pr_ci_on_ticket_base": false,
+    "sub_branch_push_ci": false,
+    "paths_filters": [],
+    "workflows": []
+  },
+  "repo_skill": null,
+  "repo_declaration": null,
+  "repo_owns": false,
+  "warnings": []
+}
+# calls:
+gh auth status --hostname github.com
+gh api user
+gh repo set-default --view
+gh repo view owner/repo --json nameWithOwner,isPrivate,isFork,parent,viewerPermission,viewerCanAdminister,defaultBranchRef,deleteBranchOnMerge,squashMergeAllowed,mergeCommitAllowed,rebaseMergeAllowed,hasIssuesEnabled,isArchived,visibility
+gh api repos/owner/repo/branches/main/protection
+gh api graphql -f query=query($o:String!,$n:String!){repository(owner:$o,name:$n){branchProtectionRules(first:50){nodes{pattern requiresApprovingReviews requiredApprovingReviewCount allowsForcePushes}}}} -F o=owner -F n=repo
+gh api repos/owner/repo/rulesets?includes_parents=true&per_page=100
+gh api repos/owner/repo/rules/branches/feat-x
+gh label list -R owner/repo --limit 300 --json name
+gh api repos/owner/repo/milestones?state=open&per_page=100
+gh pr list -R owner/repo --state all --limit 50 --search 7 --json number,title,body,headRefName,baseRefName,state,isDraft,isCrossRepository,url,labels

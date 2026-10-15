@@ -1,0 +1,14 @@
+{
+  "auth status --hostname github.com": {"rc": 0, "out": "github.com\n  Logged in to github.com account dev (keyring)\n"},
+  "api user": {"login": "dev", "id": 1001},
+  "repo view owner/repo": {"nameWithOwner": "owner/repo", "hasIssuesEnabled": true, "viewerPermission": "WRITE"},
+  "label list -R owner/repo": [
+    {"name": "bug", "description": "Something is broken"},
+    {"name": "enhancement", "description": "New feature or request"},
+    {"name": "agent-drafted", "description": "Drafted by an agent"}
+  ],
+  "api repos/owner/repo/milestones?per_page=100": [
+    {"number": 1, "title": "v1.0", "state": "open"},
+    {"number": 2, "title": "v0.9", "state": "closed"}
+  ]
+}

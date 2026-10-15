@@ -1,0 +1,11 @@
+name: ci
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - run: shellcheck scripts/*.sh
+      - run: bats tests

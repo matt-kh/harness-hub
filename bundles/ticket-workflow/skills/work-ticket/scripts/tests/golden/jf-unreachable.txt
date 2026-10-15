@@ -1,0 +1,27 @@
+# exit=0
+# stderr:
+# stdout:
+{
+  "me": "",
+  "project": "PROJ",
+  "perms": {
+    "create": false,
+    "link": false,
+    "edit": false,
+    "transition": false,
+    "delete": false
+  },
+  "sub_ticket_types": [],
+  "preferred_type": null,
+  "link_types": [],
+  "link_type": null,
+  "parent": null,
+  "existing_children": [],
+  "sub_tickets_available": false
+}
+# calls:
+jira whoami
+jira api /rest/api/2/mypermissions?projectKey=PROJ
+jira api /rest/api/2/project/PROJ
+jira api /rest/api/2/issueLinkType
+jira get PROJ-123

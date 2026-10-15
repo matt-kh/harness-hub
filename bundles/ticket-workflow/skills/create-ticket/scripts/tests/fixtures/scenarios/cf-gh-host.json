@@ -1,0 +1,3 @@
+{"gh": {
+  "auth status --hostname github.example.com": {"rc": 0, "out": "github.example.com\n  Logged in to github.example.com account dev (keyring)\n"}
+}}

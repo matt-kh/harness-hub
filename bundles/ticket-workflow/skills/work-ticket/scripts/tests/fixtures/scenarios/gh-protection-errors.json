@@ -1,0 +1,7 @@
+{"gh": {
+  "api repos/owner/repo/branches/main/protection": {"rc": 1, "err": "error connecting to api.github.com"},
+  "api graphql -F o=owner -F n=repo": {"rc": 1, "err": "GraphQL: Resource not accessible by integration (repository)"},
+  "api repos/owner/repo/rulesets?includes_parents=true&per_page=100": {"rc": 1, "err": "gh: Not Found (HTTP 404)"},
+  "label list -R owner/repo": {"rc": 1, "err": "HTTP 502"},
+  "api repos/owner/repo/milestones?state=open&per_page=100": {"rc": 0, "out": "<html>bad gateway</html>"}
+}}

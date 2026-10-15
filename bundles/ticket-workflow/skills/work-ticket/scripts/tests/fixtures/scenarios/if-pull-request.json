@@ -1,0 +1,10 @@
+{"gh": {
+  "issue view 21 -R owner/repo": {
+    "number": 21, "title": "Parser fix", "body": "Part of #7.", "state": "OPEN", "labels": [{"name": "agent-worked"}],
+    "assignees": [{"login": "dev"}], "milestone": null, "comments": [], "url": "https://github.com/owner/repo/pull/21"
+  },
+  "api repos/owner/repo/issues/21/sub_issues?per_page=100": {"rc": 1, "err": "gh: Not Found (HTTP 404)"},
+  "api repos/owner/repo/issues/21/parent": {"rc": 1, "err": "gh: Not Found (HTTP 404)"},
+  "api repos/owner/repo/issues/21": {"number": 21, "title": "Parser fix", "state": "open",
+    "pull_request": {"url": "https://api.github.com/repos/owner/repo/pulls/21"}}
+}}

@@ -1,0 +1,54 @@
+# exit=0
+# stderr:
+# stdout:
+{
+  "me": "dev",
+  "project": "PROJ",
+  "perms": {
+    "create": true,
+    "link": true,
+    "edit": true,
+    "transition": true,
+    "delete": false
+  },
+  "sub_ticket_types": [
+    "Story",
+    "Task"
+  ],
+  "preferred_type": "Task",
+  "link_types": [
+    "Blocks",
+    "Relates"
+  ],
+  "link_type": "Relates",
+  "parent": {
+    "type": "CR",
+    "status": "In Progress",
+    "assignee": "Dev",
+    "labels": [
+      "agent-worked"
+    ],
+    "sprint": {
+      "id": 3,
+      "name": "Sprint 3"
+    },
+    "fixVersions": [
+      "1.2.0"
+    ],
+    "components": [
+      "parser"
+    ],
+    "priority": "Medium",
+    "epicLink": null,
+    "storyPoints": 5,
+    "links": []
+  },
+  "existing_children": [],
+  "sub_tickets_available": true
+}
+# calls:
+jira whoami
+jira api /rest/api/2/mypermissions?projectKey=PROJ
+jira api /rest/api/2/project/PROJ
+jira api /rest/api/2/issueLinkType
+jira get PROJ-123

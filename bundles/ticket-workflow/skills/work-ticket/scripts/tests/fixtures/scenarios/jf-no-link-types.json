@@ -1,0 +1,5 @@
+{"jira": {
+  "api /rest/api/2/issueLinkType": {"issueLinkTypes": []},
+  "api /rest/api/2/project/PROJ": {"key": "PROJ", "issueTypes": [{"name": "Improvement", "subtask": false}, {"name": "Epic", "subtask": false}]},
+  "get PROJ-123": {"type": "Epic"}
+}}

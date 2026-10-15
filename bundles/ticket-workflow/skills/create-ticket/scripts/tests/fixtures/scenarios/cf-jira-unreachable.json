@@ -1,0 +1,3 @@
+{"jira": {
+  "*": {"rc": 1, "err": "jira: cannot reach https://jira.example.com (connection refused)"}
+}}

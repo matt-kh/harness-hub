@@ -1,0 +1,3 @@
+{"gh": {
+  "auth status --hostname github.com": {"rc": 1, "err": "You are not logged into any GitHub hosts. To log in, run: gh auth login"}
+}}

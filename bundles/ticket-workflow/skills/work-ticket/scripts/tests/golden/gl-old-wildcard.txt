@@ -1,0 +1,84 @@
+# exit=0
+# stderr:
+# stdout:
+{
+  "provider": "gitlab",
+  "repo_root": "SANDBOX/repos/gl",
+  "remote_host": "gitlab.example.com",
+  "default_branch": "main",
+  "dirty_files": 0,
+  "gitlab": {
+    "version": "18.11.2",
+    "stack_ui_available": false
+  },
+  "project": {
+    "id": 42,
+    "path": "group/repo",
+    "squash_option": "default_on",
+    "merge_method": "merge",
+    "merge_needs_pipeline": true,
+    "remove_source_branch_after_merge": true,
+    "my_access": "40"
+  },
+  "protected_branches": {
+    "rules": [
+      {
+        "name": "main",
+        "merge": [
+          "Maintainers"
+        ],
+        "push": []
+      },
+      {
+        "name": "*",
+        "merge": [
+          "Maintainers"
+        ],
+        "push": [
+          "Developers + Maintainers"
+        ]
+      }
+    ],
+    "wildcards": [
+      "*"
+    ],
+    "matches": {
+      "feat-x": true,
+      "feat-x-sub-01-api": true
+    },
+    "sub_pattern_matches": true
+  },
+  "mr_template": null,
+  "ci": {
+    "mr_pipeline": true,
+    "checks": [
+      "pre-commit",
+      "ruff"
+    ],
+    "precommit": false,
+    "heuristic": "yaml",
+    "pipeline_model": "merge_request",
+    "per_branch_heavy": false,
+    "per_branch_heavy_jobs": [],
+    "mr_heavy_jobs": [
+      {
+        "name": "build",
+        "why": "script: docker build"
+      },
+      {
+        "name": "build-sub",
+        "why": "script: docker build"
+      }
+    ],
+    "sub_branch_excluded": true
+  },
+  "repo_skill": null,
+  "repo_declaration": null,
+  "repo_owns": false
+}
+# calls:
+glab api projects/:id
+glab api version
+glab api projects/:id/protected_branches
+glab api user
+glab api projects/:id/members/all/7

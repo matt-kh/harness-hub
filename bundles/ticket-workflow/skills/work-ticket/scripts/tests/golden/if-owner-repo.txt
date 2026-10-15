@@ -1,0 +1,57 @@
+# exit=0
+# stderr:
+# stdout:
+{
+  "provider": "github",
+  "auth_ok": true,
+  "me": "dev",
+  "repo": "other/repo",
+  "number": 9,
+  "perms": {
+    "viewer_permission": "TRIAGE",
+    "can_label": false,
+    "has_issues": true,
+    "is_private": true
+  },
+  "issue": {
+    "number": 9,
+    "title": "Add a config switch",
+    "body": "Child of #3.",
+    "state": "OPEN",
+    "labels": [
+      "enhancement"
+    ],
+    "assignees": [],
+    "milestone": null,
+    "comments": [
+      {
+        "author": {
+          "login": "dev"
+        },
+        "body": "Picking this up."
+      }
+    ],
+    "url": "https://github.com/other/repo/issues/9"
+  },
+  "is_pull_request": false,
+  "agent_labelled": false,
+  "parent": {
+    "number": 3,
+    "title": "Configuration epic",
+    "state": "open",
+    "labels": [
+      "epic"
+    ]
+  },
+  "existing_children": [],
+  "sub_issues": [],
+  "sub_tickets_available": false
+}
+# calls:
+gh auth status --hostname github.com
+gh api user
+gh repo view other/repo --json nameWithOwner,viewerPermission,hasIssuesEnabled,isPrivate
+gh issue view 9 -R other/repo --json number,title,body,state,labels,assignees,milestone,comments,url
+gh api repos/other/repo/issues/9/sub_issues?per_page=100
+gh api repos/other/repo/issues/9/parent
+gh api repos/other/repo/issues/9

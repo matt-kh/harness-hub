@@ -1,0 +1,8 @@
+{"glab": {
+  "api version": {"version": "18.11.2", "revision": "0123abcd"},
+  "api projects/:id/protected_branches": [
+    {"name": "main", "merge_access_levels": [{"access_level_description": "Maintainers"}], "push_access_levels": []},
+    {"name": "*", "merge_access_levels": [{"access_level_description": "Maintainers"}], "push_access_levels": [{"access_level_description": "Developers + Maintainers"}]}
+  ],
+  "api projects/:id/members/all/7": {"id": 7, "username": "dev", "access_level": 40}
+}}
