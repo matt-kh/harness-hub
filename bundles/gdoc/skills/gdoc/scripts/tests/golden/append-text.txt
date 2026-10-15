@@ -1,0 +1,8 @@
+# exit=0
+# stderr:
+>> GET https://docs.googleapis.com/v1/documents/doc00000000000000000000001?includeTabsContent=true
+DRY-RUN POST https://docs.googleapis.com/v1/documents/doc00000000000000000000001:batchUpdate {"requests": [{"insertText": {"location": {"index": 47, "tabId": "t.0"}, "text": "\nDecision: ship it."}}, {"updateParagraphStyle": {"range": {"startIndex": 48, "endIndex": 66, "tabId": "t.0"}, "paragraphStyle": {"namedStyleType": "NORMAL_TEXT"}, "fields": "namedStyleType"}}]}
+# stdout:
+OK: appended 19 chars to tab t.0 of doc00000000000000000000001
+# calls:
+GET https://docs.googleapis.com/v1/documents/doc00000000000000000000001?includeTabsContent=true auth=yes

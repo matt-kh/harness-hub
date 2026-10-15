@@ -1,0 +1,9 @@
+# exit=0
+# stderr:
+>> GET https://sheets.googleapis.com/v4/spreadsheets/sheet000000000000000000001/values/Sheet1%21A1%3AB3
+# stdout:
+item	cost
+venue	100
+food
+# calls:
+GET https://sheets.googleapis.com/v4/spreadsheets/sheet000000000000000000001/values/Sheet1%21A1%3AB3 auth=yes

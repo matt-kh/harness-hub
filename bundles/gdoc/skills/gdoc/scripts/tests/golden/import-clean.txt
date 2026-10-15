@@ -1,0 +1,9 @@
+# exit=0
+# stderr:
+>> GET https://www.googleapis.com/drive/v3/files/doc00000000000000000000002?fields=id%2Cname%2CmimeType%2Cproperties%2CmodifiedTime%2Cowners%28emailAddress%2CdisplayName%29%2ClastModifyingUser%28emailAddress%29%2CwebViewLink%2Cparents%2CdriveId%2Ccapabilities%28canEdit%2CcanComment%29&supportsAllDrives=true
+>> GET https://www.googleapis.com/drive/v3/files/doc00000000000000000000002/comments?fields=comments%28id%2Cresolved%2Cauthor%2FdisplayName%2Ccontent%2CquotedFileContent%2Fvalue%29%2CnextPageToken&pageSize=100&supportsAllDrives=true
+DRY-RUN PATCH https://www.googleapis.com/upload/drive/v3/files/doc00000000000000000000002?uploadType=multipart&supportsAllDrives=true&fields=id,name,modifiedTime {"mimeType": "application/vnd.google-apps.document"}
+# stdout:
+# calls:
+GET https://www.googleapis.com/drive/v3/files/doc00000000000000000000002?fields=id%2Cname%2CmimeType%2Cproperties%2CmodifiedTime%2Cowners%28emailAddress%2CdisplayName%29%2ClastModifyingUser%28emailAddress%29%2CwebViewLink%2Cparents%2CdriveId%2Ccapabilities%28canEdit%2CcanComment%29&supportsAllDrives=true auth=yes
+GET https://www.googleapis.com/drive/v3/files/doc00000000000000000000002/comments?fields=comments%28id%2Cresolved%2Cauthor%2FdisplayName%2Ccontent%2CquotedFileContent%2Fvalue%29%2CnextPageToken&pageSize=100&supportsAllDrives=true auth=yes

@@ -21,9 +21,8 @@ run containers, package managers, databases, cloud CLIs, infrastructure-as-code,
 and remote hosts from the same terminal, and the agent sees none of it today.
 
 The bundles also name their own gaps in `[harness].coverage_note`: `work-ticket` has no
-test suite; `gdoc`'s CLI has no unit suite; MRs/PRs created without `-t` are not
-title-checked; GitHub fork PR edits always ask. One engine
-mechanism has no real user: `skill_fragments`.
+test suite; MRs/PRs created without `-t` are not title-checked; GitHub fork PR edits always
+ask. One engine mechanism has no real user: `skill_fragments`.
 
 ## Reserved guard prefixes
 
@@ -90,7 +89,6 @@ bundle. **Status: planned.**
 | `run-checks` skill | `core/skills/run-checks` | one `ci-facts.sh` extracted from the two preflights (GitLab CI and Actions parsing, cost heuristic) plus local-runner discovery (Makefile targets, `package.json` scripts, `pyproject.toml` tools, pre-commit, go, cargo, tox, nox); runs only what CI lacks, diff-scoped; never invents a command | M | app, data, platform |
 | `code-reviewer` standards | `core/agents/code-reviewer.md` | reads the first existing of `core.review.standards_files` (CONTRIBUTING, coding-standards docs, formatter configs; orgs add their own path) and reviews against it; fixed output contract (`Verdict`, findings as severity · path:line · rule · fix) reused by the review skills | S | all |
 | `worktree` skill + CLI | `core/skills/worktree` | `worktree add|ls|gc|status`; layout `core.worktree_path_tmpl` (default `../{repo}_{branch}`, the convention `work-ticket` already uses); `gc` removes only clean worktrees whose branch is merged or whose upstream is gone and prints the commands for dirty ones; guard rows in `31-git-hygiene` ask on `worktree remove --force`, `branch -D` and `rm -rf` of a listed worktree | S/M | anyone running subagents or parallel branches |
-| `gdoc` CLI suite | `gdoc` | `GDOC_DRY_RUN=1` prints request shapes; fixture-routed HTTP; goldens for id parsing, auth status, host allow-list, provenance stamps, drafts without send; principle 9) | M | docs-heavy roles |
 | Jira Cloud | `jira` | `jira.kind = "cloud"` implemented in `jira.py`: Basic auth from the token file, `/rest/api/2/search/jql`, `accountId` users, plain text (never ADF); MCP env form; manual step variant | M | every Jira Cloud org |
 | Session banner | engine + `core/hooks/session-start.sh` | provider hooks gain an `events` list and extra hook scripts; Claude registers `SessionStart`; the script is offline, under three seconds, and prints version, bundles, drift count, guard tier, pending manual steps and the date of the last report | M | all |
 | `harness report` | engine + core manual step | drift, offline doctor, pending steps and provider versions written to `~/.local/state/harness/report/latest.md`; manual step `schedule-report` with crontab and launchd snippets; doctor warns when the report is older than `core.report_max_age_days` | M | platform teams running an org instance |

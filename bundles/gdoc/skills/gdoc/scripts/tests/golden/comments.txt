@@ -1,0 +1,10 @@
+# exit=0
+# stderr:
+>> GET https://www.googleapis.com/drive/v3/files/doc00000000000000000000001/comments?fields=comments%28id%2Cresolved%2Cauthor%2FdisplayName%2Ccontent%2CquotedFileContent%2Fvalue%29%2CnextPageToken&pageSize=100&supportsAllDrives=true
+# stdout:
+AAAAcomment1             | OPEN     | Reviewer One           | Please expand the goals.
+                           > Goals
+AAAAcomment2             | resolved | Reviewer Two           | Typo fixed.
+(2 comments, 1 open)
+# calls:
+GET https://www.googleapis.com/drive/v3/files/doc00000000000000000000001/comments?fields=comments%28id%2Cresolved%2Cauthor%2FdisplayName%2Ccontent%2CquotedFileContent%2Fvalue%29%2CnextPageToken&pageSize=100&supportsAllDrives=true auth=yes

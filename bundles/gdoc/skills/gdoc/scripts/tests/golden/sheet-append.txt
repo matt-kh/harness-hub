@@ -1,0 +1,5 @@
+# exit=0
+# stderr:
+DRY-RUN POST https://sheets.googleapis.com/v4/spreadsheets/sheet000000000000000000001/values/Sheet1%21A%3AC:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS {"values": [["a", "b", 1]]}
+# stdout:
+# calls:

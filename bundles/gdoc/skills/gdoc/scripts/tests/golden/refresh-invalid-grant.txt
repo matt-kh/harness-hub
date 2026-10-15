@@ -1,0 +1,7 @@
+# exit=2
+# stderr:
+>> POST https://oauth2.googleapis.com/token grant_type=refresh_token&refresh_token=REDACTED&client_id=test-client-id.apps.example.com&client_secret=REDACTED
+Refresh token rejected (invalid_grant): revoked, expired, or the account password changed. Run `gdoc auth login` yourself in a terminal.
+# stdout:
+# calls:
+POST https://oauth2.googleapis.com/token auth=no

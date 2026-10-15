@@ -1,0 +1,5 @@
+# exit=0
+# stderr:
+DRY-RUN PUT https://sheets.googleapis.com/v4/spreadsheets/sheet000000000000000000001/values/%27Q1%20costs%27%21A2%3AC3?valueInputOption=USER_ENTERED {"range": "'Q1 costs'!A2:C3", "majorDimension": "ROWS", "values": [["2026-01-05", "venue", 120], ["2026-01-06", "food", 80]]}
+# stdout:
+# calls:

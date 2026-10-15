@@ -1,0 +1,19 @@
+# exit=0
+# stderr:
+>> GET https://www.googleapis.com/drive/v3/files/doc00000000000000000000001?fields=id%2Cname%2CmimeType%2Cproperties%2CmodifiedTime%2Cowners%28emailAddress%2CdisplayName%29%2ClastModifyingUser%28emailAddress%29%2CwebViewLink%2Cparents%2CdriveId%2Ccapabilities%28canEdit%2CcanComment%29&supportsAllDrives=true
+>> GET https://docs.googleapis.com/v1/documents/doc00000000000000000000001?includeTabsContent=true
+# stdout:
+Design notes   [doc00000000000000000000001]
+https://docs.example.com/d/doc00000000000000000000001/edit
+
+== tab t.0 "Main"  words 8  endIndex 48
+TITLE    @1-14  "Design notes"
+H1       @14-20  "Goals"
+
+== tab t.1 "Appendix"  words 4  endIndex 24
+H2       @1-9  "Sources"
+
+(headings only — `gdoc export <ID> --md` for the full text)
+# calls:
+GET https://www.googleapis.com/drive/v3/files/doc00000000000000000000001?fields=id%2Cname%2CmimeType%2Cproperties%2CmodifiedTime%2Cowners%28emailAddress%2CdisplayName%29%2ClastModifyingUser%28emailAddress%29%2CwebViewLink%2Cparents%2CdriveId%2Ccapabilities%28canEdit%2CcanComment%29&supportsAllDrives=true auth=yes
+GET https://docs.googleapis.com/v1/documents/doc00000000000000000000001?includeTabsContent=true auth=yes

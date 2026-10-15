@@ -1,0 +1,5 @@
+# exit=1
+# stderr:
+append needs TEXT or --from FILE.
+# stdout:
+# calls:

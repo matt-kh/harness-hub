@@ -1,0 +1,16 @@
+# exit=0
+# stderr:
+>> GET https://gmail.googleapis.com/gmail/v1/users/me/messages/msg0001?format=full
+# stdout:
+Date         Thu, 01 Jan 2026 09:00:00 +0000
+From         Alice <alice@example.com>
+To           dev@example.com
+Subject      Quarterly plan
+Message-Id   <m1@mail.example.com>
+Thread       thr0001
+
+Hi,
+
+The plan is attached in the doc.
+# calls:
+GET https://gmail.googleapis.com/gmail/v1/users/me/messages/msg0001?format=full auth=yes

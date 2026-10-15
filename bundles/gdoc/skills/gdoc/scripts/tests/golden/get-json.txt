@@ -1,0 +1,52 @@
+# exit=0
+# stderr:
+>> GET https://www.googleapis.com/drive/v3/files/doc00000000000000000000002?fields=id%2Cname%2CmimeType%2Cproperties%2CmodifiedTime%2Cowners%28emailAddress%2CdisplayName%29%2ClastModifyingUser%28emailAddress%29%2CwebViewLink%2Cparents%2CdriveId%2Ccapabilities%28canEdit%2CcanComment%29&supportsAllDrives=true
+>> GET https://docs.googleapis.com/v1/documents/doc00000000000000000000002?includeTabsContent=true
+# stdout:
+{
+  "documentId": "doc00000000000000000000002",
+  "title": "Plain doc",
+  "body": {
+    "content": [
+      {
+        "endIndex": 1,
+        "sectionBreak": {}
+      },
+      {
+        "startIndex": 1,
+        "endIndex": 12,
+        "paragraph": {
+          "paragraphStyle": {
+            "namedStyleType": "HEADING_1"
+          },
+          "elements": [
+            {
+              "textRun": {
+                "content": "Overview\n"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "startIndex": 12,
+        "endIndex": 30,
+        "paragraph": {
+          "paragraphStyle": {
+            "namedStyleType": "NORMAL_TEXT"
+          },
+          "elements": [
+            {
+              "textRun": {
+                "content": "One body, no tabs.\n"
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+# calls:
+GET https://www.googleapis.com/drive/v3/files/doc00000000000000000000002?fields=id%2Cname%2CmimeType%2Cproperties%2CmodifiedTime%2Cowners%28emailAddress%2CdisplayName%29%2ClastModifyingUser%28emailAddress%29%2CwebViewLink%2Cparents%2CdriveId%2Ccapabilities%28canEdit%2CcanComment%29&supportsAllDrives=true auth=yes
+GET https://docs.googleapis.com/v1/documents/doc00000000000000000000002?includeTabsContent=true auth=yes

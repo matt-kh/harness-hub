@@ -1,0 +1,18 @@
+[
+  {
+    "method": "GET",
+    "url": "https://www\\.googleapis\\.com/drive/v3/files/",
+    "status": 403,
+    "body": {
+      "error": {
+        "code": 403,
+        "message": "The user does not have sufficient permissions for this file.",
+        "errors": [
+          {
+            "reason": "forbidden"
+          }
+        ]
+      }
+    }
+  }
+]
