@@ -123,3 +123,8 @@ decl '[owns]' 'domains = ["tracker"]'
 r pass  'git commit -m "Closes LBL-1 parser"'
 r ask   'glab mr merge 100'
 decl
+# runtime deny/ask messages carry the # rule: alternative (lint guard-messages)
+tr 'matching glab subcommand' 'glab api --method POST projects'
+tr 'human-only.*ask the user instead' 'glab mr merge 100'
+tr 'use an agent-\* name, or ask the user' 'glab label create -n bug'
+tr 'use a title like that instead' 'glab mr create -s f -b main --title="fix parser" --label agent-worked'

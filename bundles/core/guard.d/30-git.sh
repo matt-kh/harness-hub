@@ -32,9 +32,9 @@ GUARD_GIT="${GUARD_GIT:-git}"
 push_default_decide() {  # $1 = branch, $2 = repo dir
   local top; top=$(hn_timeout 5 "$GUARD_GIT" -C "$2" rev-parse --show-toplevel 2>/dev/null) || top="$2"
   if [ -n "$ALLOW_DEFAULT_PUSH_RE" ] && printf '%s' "$top" | grep -qE -e "$ALLOW_DEFAULT_PUSH_RE"; then
-    ask "git push to default branch '$1' in $top (allowed here by WORK_TICKET_ALLOW_DEFAULT_PUSH_RE)"
+    ask "git push to default branch '$1' in $top (allowed here by WORK_TICKET_ALLOW_DEFAULT_PUSH_RE) — ask the user to confirm, or push a branch instead"
   fi
-  deny "git push to default branch '$1' — MR-based workflow — push a feature branch and open an MR"
+  deny "git push to default branch '$1' — MR-based workflow — push a feature branch and open an MR/PR instead"
 }
 if printf '%s' "$flat" | grep -qE '\bgit(\s+-C\s+\S+)?\s+push\b'; then
   while IFS= read -r clause; do
@@ -107,14 +107,14 @@ if printf '%s' "$flat" | grep -qE '\bgit(\s+-C\s+\S+)?\s+push\b.*(\s--force(-wit
   if git_sub_lease_push; then
     pending_allow="git push --force-with-lease of agent-owned -sub-NN- branches (lease-protected)"
   else
-    ask "git force-push"
+    ask "git force-push rewrites shared history — ask the user first, or push a new branch instead (lease pushes of -sub-NN- branches alone are allowed)"
   fi
 fi
-printf '%s' "$flat" | grep -qE '\bgit\s+(reset\s+--hard|clean\s+-[a-zA-Z]*[fdx])' && ask "destructive git working-tree command"
+printf '%s' "$flat" | grep -qE '\bgit\s+(reset\s+--hard|clean\s+-[a-zA-Z]*[fdx])' && ask "destructive git working-tree command — use git stash, or ask the user first"
 # work-ticket stacked delivery: sub branches are pushed by the MAIN thread from the main checkout.
 # Ask when the push comes from inside a sub worktree (subagents live there) or cd's into one.
 if printf '%s' "$flat" | grep -qE '\bgit\s+push\b.*-sub-'; then
-  $in_sub_worktree && ask "git push of a -sub- branch from inside a sub worktree ($cwd_base) — subagents never push; the main thread pushes from the main checkout"
-  printf '%s' "$flat" | grep -qE '\bcd\s+[^;&|]*_[^ ;&|]*-sub-[^;&|]*(&&|;)[^;&|]*\bgit\s+push\b' && ask "git push of a -sub- branch via cd into a sub worktree"
+  $in_sub_worktree && ask "git push of a -sub- branch from inside a sub worktree ($cwd_base) — subagents never push; run the push from the main checkout instead"
+  printf '%s' "$flat" | grep -qE '\bcd\s+[^;&|]*_[^ ;&|]*-sub-[^;&|]*(&&|;)[^;&|]*\bgit\s+push\b' && ask "git push of a -sub- branch via cd into a sub worktree — run the push from the main checkout instead"
 fi
-printf '%s' "$flat" | grep -qE '\bgit\s+push\b.*\s--(all|mirror)\b' && ask "git push --all/--mirror would publish every local branch (incl. -sub- branches)"
+printf '%s' "$flat" | grep -qE '\bgit\s+push\b.*\s--(all|mirror)\b' && ask "git push --all/--mirror would publish every local branch (incl. -sub- branches) — push the named branch instead"

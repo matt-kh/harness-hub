@@ -79,7 +79,7 @@ agent is a model plus a harness, and the harness has two kinds of control
   also steers the next attempt.
 - **Pairing.** Each bundle declares both lists and a `coverage_note` for what the pairing does
   not cover. `harness lint` warns on guides without sensors, sensors without guides, and guard
-  reasons without an alternative. Each bundle page and the
+  reasons or runtime guard messages without an alternative. Each bundle page and the
   [harness coverage](reference/harness-coverage.md) reference render the tables.
 - **The steering loop.** When an agent repeats a mistake, improve a guide or a sensor so it
   does not recur; contributions to this repo are that loop

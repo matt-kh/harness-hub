@@ -32,18 +32,18 @@ if printf '%s' "$flat" | grep -qE '\bglab\s+(mr|issue|release|repo|label|api)\b'
   # glab api (per clause): non-GET method, or a payload flag (which flips the default method to POST)
   while IFS= read -r clause; do
     [ -n "$clause" ] || continue
-    printf '%s' "$clause" | grep -qE '(-X|--method)[= ]+(POST|PUT|DELETE|PATCH)|(^|[[:space:]])(-F|--field|--form|-f|--raw-field|--input)([= ]|$)' && ask "glab api write (non-GET or payload flag)"
+    printf '%s' "$clause" | grep -qE '(-X|--method)[= ]+(POST|PUT|DELETE|PATCH)|(^|[[:space:]])(-F|--field|--form|-f|--raw-field|--input)([= ]|$)' && ask "glab api write (non-GET or payload flag) — ask the user, or use the matching glab subcommand instead"
   done <<EOF
 $(printf '%s' "$flat" | grep -oE '\bglab\s+api\b[^;&|]*')
 EOF
   printf '%s' "$flat" | grep -qE '\bglab\s+(mr\s+(merge|approve|revoke|delete)|issue\s+(create|close|delete)|release\s+(create|delete|upload)|repo\s+(delete|archive|fork|create)|label\s+(edit|delete))\b' \
-    && ask "glab team-visible mutation (MR merge/approve is human-only; issues/releases/repos are not governed)"
+    && ask "glab team-visible mutation (MR merge/approve is human-only; issues/releases/repos are not governed) — ask the user instead"
 
   # glab label create -n NAME: agent-* labels are free
   if printf '%s' "$flat" | grep -qE '\bglab\s+label\s+create\b'; then
     lname=$(printf '%s' "$flat" | grep -oE -- '(-n|--name)[= ]+["'"'"']?[^"'"'"' ]+' | head -1 | sed -E 's/^(-n|--name)[= ]+["'"'"']?//')
     printf '%s' "$lname" | grep -qE "$AGENT_LABEL_RE" && allow "glab label create '$lname' (agent-* governance label)"
-    ask "glab label create '${lname:-?}' (non-agent label)"
+    ask "glab label create '${lname:-?}' (non-agent label) — use an agent-* name, or ask the user"
   fi
 
   # glab mr create (per clause): sub MRs (-sub- source) must target the ticket branch, never master|main
@@ -76,7 +76,7 @@ EOF
         case "$mtitle" in
           *'$'*|*'`'*) defer "glab mr create with a \$VAR/backtick title cannot be checked against gitlab.mr_title_re; use a literal title instead" ;;
           *) printf '%s' "$mtitle" | grep -qE -- "$GL_TITLE_RE" \
-               || defer "MR title '$mtitle' does not match gitlab.mr_title_re ($GL_TITLE_RE): MR titles start with the ticket key (e.g. '${HARNESS_TICKET_EXAMPLE:-PROJ-123} fix parser'); set gitlab.mr_title_re to change the convention" ;;
+               || defer "MR title '$mtitle' does not match gitlab.mr_title_re ($GL_TITLE_RE): MR titles start with the ticket key; use a title like that instead (e.g. '${HARNESS_TICKET_EXAMPLE:-PROJ-123} fix parser'), or set gitlab.mr_title_re to change the convention" ;;
         esac
       fi
     done <<EOF

@@ -18,19 +18,19 @@ repo_owns k8s/guard.d/25-k8s-rules kubernetes && return 0   # principle 8: the r
 # ---- Kubernetes rules (run after the credential clause loop, as before the split) ----
 # kubeconfig: raw credentials are denied in the never-yields prelude above; deny context-cluster-user edits
 printf '%s' "$flat" | grep -qE "${KC}config\s+(use-context|set-context|set-cluster|set-credentials|set|unset|delete-context|delete-cluster|delete-user|rename-context)\b" && deny "kubeconfig mutation — never switch or edit contexts; pass --context <ctx> on every command"
-printf '%s' "$flat" | grep -qE '\baws\s+eks\s+update-kubeconfig\b|\beksctl\s+utils\s+write-kubeconfig\b' && deny "kubeconfig mutation — kubeconfig is human-managed"
+printf '%s' "$flat" | grep -qE '\baws\s+eks\s+update-kubeconfig\b|\beksctl\s+utils\s+write-kubeconfig\b' && deny "kubeconfig mutation — kubeconfig is human-managed; pass --context <ctx> on every command instead"
 # Secret data output: DENY unless piped through the k8s redactor (user decision: values never)
 if { printf '%s' "$flat" | grep -qE "${KC}get\b[^;&|]*(^|[[:space:],])secrets?(\.v1)?([[:space:],/]|$)" && printf '%s' "$flat" | grep -qE "$SEC_OUT_RE"; } \
    || printf '%s' "$flat" | grep -qE "${KC}get\s+--raw[= ][\"']?[^;&|\"' ]*/secrets([/?\"' ]|$)"; then
   printf '%s' "$flat" | grep -qE "$REDACT_PIPE_RE" || deny "Secret data output ($(k8s_target)) — Secret values are never printed; use 'k8s secret-keys NS NAME' (keys + sizes) or pipe through 'k8s redact'"
 fi
 # exec-class + credential minting: ask (agents never run these; the human may approve)
-printf '%s' "$flat" | grep -qE "${KC}create\s+token\b" && ask "kubectl create token mints a ServiceAccount credential ($(k8s_target))"
-printf '%s' "$flat" | grep -qE "${KC}(exec|attach|cp|debug|port-forward|proxy)\b" && ask "kubectl exec-class command ($(k8s_target)) — read-only triage uses 'k8s pod' / 'kubectl logs'"
+printf '%s' "$flat" | grep -qE "${KC}create\s+token\b" && ask "kubectl create token mints a ServiceAccount credential ($(k8s_target)) — ask the user, or use read-only 'k8s pod' / 'kubectl logs' instead"
+printf '%s' "$flat" | grep -qE "${KC}(exec|attach|cp|debug|port-forward|proxy)\b" && ask "kubectl exec-class command ($(k8s_target)) — use 'k8s pod' / 'kubectl logs' for read-only triage instead"
 # mutations: ask unless --dry-run=client|server. rollout status|history are reads and fall through.
 if printf '%s' "$flat" | grep -qE "${KC}(apply|delete|edit|patch|create|replace|scale|drain|cordon|uncordon|taint|label|annotate|set|run|expose|autoscale|certificate|auth\s+reconcile|rollout\s+(restart|undo|pause|resume))\b" \
    && ! printf '%s' "$flat" | grep -qE "$DRY_RE"; then
-  ask "kubectl mutation ($(k8s_target))"
+  ask "kubectl mutation ($(k8s_target)) — use --dry-run=server, or hand the command to the user instead"
 fi
 # helm: values/all/manifest may embed credentials — promptless only through the redactor
 if printf '%s' "$flat" | grep -qE "${HC}get\s+(values|all|manifest)\b"; then
@@ -39,9 +39,9 @@ if printf '%s' "$flat" | grep -qE "${HC}get\s+(values|all|manifest)\b"; then
   [ "$n_red" -ge "$n_get" ] && allow "helm get values/all/manifest piped through k8s redact"
   ask "helm get values/all/manifest may print credentials ($(k8s_target)) — pipe through 'k8s redact'"
 fi
-printf '%s' "$flat" | grep -qE "${HC}(install|upgrade|uninstall|delete|rollback|test|push|registry\s+login)\b" && ! printf '%s' "$flat" | grep -qE "$DRY_RE" && ask "helm release mutation ($(k8s_target)) — 'helm template' renders read-only"
-printf '%s' "$flat" | grep -qE '\bargocd\s+app(set)?\s+(sync|delete|set|unset|patch|rollback|terminate-op|create)\b' && ask "argocd mutation"
-printf '%s' "$flat" | grep -qE '\bflux\s+(reconcile|suspend|resume|create|delete|install|uninstall|bootstrap)\b' && ask "flux mutation"
-printf '%s' "$flat" | grep -qE '\beksctl\s+(create|delete|upgrade|scale|update|drain|enable|set|unset)\b' && ask "eksctl mutation"
-printf '%s' "$flat" | grep -qE '\bpulumi\s+(up|destroy|refresh|import)\b' && ask "pulumi state mutation ('pulumi preview' is fine)"
-printf '%s' "$flat" | grep -qE '\bterraform\s+(apply|destroy|import)\b' && ask "terraform mutation"
+printf '%s' "$flat" | grep -qE "${HC}(install|upgrade|uninstall|delete|rollback|test|push|registry\s+login)\b" && ! printf '%s' "$flat" | grep -qE "$DRY_RE" && ask "helm release mutation ($(k8s_target)) — use 'helm template' read-only, or hand the command to the user instead"
+printf '%s' "$flat" | grep -qE '\bargocd\s+app(set)?\s+(sync|delete|set|unset|patch|rollback|terminate-op|create)\b' && ask "argocd mutation — change the GitOps repo instead, or hand the command to the user"
+printf '%s' "$flat" | grep -qE '\bflux\s+(reconcile|suspend|resume|create|delete|install|uninstall|bootstrap)\b' && ask "flux mutation — change the GitOps repo instead, or hand the command to the user"
+printf '%s' "$flat" | grep -qE '\beksctl\s+(create|delete|upgrade|scale|update|drain|enable|set|unset)\b' && ask "eksctl mutation — change the GitOps / IaC repo instead, or hand the command to the user"
+printf '%s' "$flat" | grep -qE '\bpulumi\s+(up|destroy|refresh|import)\b' && ask "pulumi state mutation — run 'pulumi preview' instead, or hand the command to the user"
+printf '%s' "$flat" | grep -qE '\bterraform\s+(apply|destroy|import)\b' && ask "terraform mutation — run 'terraform plan' instead, or hand the command to the user"

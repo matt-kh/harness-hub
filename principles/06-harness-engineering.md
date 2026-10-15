@@ -72,7 +72,8 @@ bundle ships: rules, skills, permissions, agents, guard sections, doctor checks,
 | Check | Kind | Where |
 |---|---|---|
 | Bundle has guides but no sensors, or sensors but no guides | lint warning | `harness lint` (rule `guides-sensors`) |
-| A `deny`/`ask` `# rule:` reason in `guard.d` has no alternative (none of *use, instead, ask, run, mention, see*) | lint warning | `harness lint` (rule `guard-reasons`) |
+| A `deny`/`ask` `# rule:` reason in `guard.d` has no alternative (none of *use, instead, ask, run, mention, see, pass, pipe, check, drop, hand*) | lint warning | `harness lint` (rule `guard-reasons`) |
+| A runtime `deny`/`ask`/`defer` message in `guard.d` has no alternative (same word list, shell expansions removed) | lint warning | `harness lint` (rule `guard-messages`) |
 | A component is unclassified, or its [taxonomy](../docs/reference/taxonomy.md) facets contradict its kind | lint warning / error | `harness lint` (rule `taxonomy`) |
 | A provider's `[capabilities]` contradict its `[targets]` (hooks, ask, skills, agents, mcp, instructions, permissions), or its doc's tier line disagrees | lint error / warning | `harness lint` (rule `provider-honesty`) |
 | A provider shim lacks `tests/run.sh`, an `.out.json`, or a fixture for allow, deny, ask, unknown tool or malformed | lint error | `harness lint` (rule `shim-fixtures`) |

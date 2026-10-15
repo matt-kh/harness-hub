@@ -39,7 +39,7 @@ while IFS= read -r rawclause; do
   fi
   # bare env/printenv dumps the whole environment; printenv NAME / echo $NAME of a secret-named var
   printf '%s' "$clause" | grep -qE '^[[:space:]"'"'"'(`$]*(sudo[[:space:]]+|command[[:space:]]+)?(env|printenv)([[:space:]]+-[A-Za-z0-9-]+)*[[:space:]]*$' \
-    && deny "dumping the environment (env/printenv without a command) may print tokens — print specific non-secret variables, or test presence with '[ -n \"\${VAR:+x}\" ]'"
+    && deny "dumping the environment (env/printenv without a command) may print tokens — print specific non-secret variables instead, or test presence with '[ -n \"\${VAR:+x}\" ]'"
   if printf '%s' "$clause" | grep -qE '^[[:space:]"'"'"'(`$]*(sudo[[:space:]]+)?printenv[[:space:]]'; then
     for v in $(printf '%s' "$clause" | sed -E 's/^.*printenv[[:space:]]+//'); do
       printf '%s' "$v" | grep -qiE "$SECRET_VAR_RE" && deny "printenv $v would print a secret — test presence with '[ -n \"\${$v:+x}\" ]' instead"
@@ -47,7 +47,7 @@ while IFS= read -r rawclause; do
   fi
   if printf '%s' "$clause" | grep -qE '(^|[[:space:](`"'"'"'])(echo|printf)([[:space:]]|$)'; then
     for v in $(printf '%s' "$clause" | grep -oE '\$\{?[A-Za-z_][A-Za-z0-9_]*' | tr -d '${'); do
-      printf '%s' "$v" | grep -qiE "$SECRET_VAR_RE" && deny "echo/printf of \$$v would print a secret — test presence with '[ -n \"\${$v:+x}\" ]' or print its length with '\${#$v}'"
+      printf '%s' "$v" | grep -qiE "$SECRET_VAR_RE" && deny "echo/printf of \$$v would print a secret — test presence with '[ -n \"\${$v:+x}\" ]' or print its length with '\${#$v}' instead"
     done
   fi
 done <<EOF
