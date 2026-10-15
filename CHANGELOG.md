@@ -54,7 +54,14 @@ prints every one between your applied version and the new one.
   every list/view, no credential from a credentialed remote in any output, fixture
   repositories unchanged. `create-ticket`'s suite adds twelve `create-facts.sh` goldens (Jira
   and GitHub, field-id config, unreachable, unauthenticated, not installed, repository-owned).
-
+- `tools/gate/companions.sh`, the companion-file gate: a branch whose guard code in
+  `bundles/<b>/guard.d/NN-*.sh` (or `bundles/core/guard/engine*.sh`) changed needs
+  `guard.d/tests.sh` changes, a net-new `# rule: … -> D :` needs an added `D` row (`tr` for
+  ask/deny), and a change under `bundles/`, `lib/harness/`, `providers/`, `schema/`, `bin/`,
+  `profiles/`, `templates/`, `bootstrap` or `tools/*.lock.json` needs a new `[Unreleased]`
+  line. Waivers: `no-rows: <reason>` / `no-changelog: <reason>` in a commit body or the PR
+  description. Runs in the CI `gate` job on pull requests, as a pre-push hook and in
+  `make gate`; self-test `tools/gate/tests/companions-selftest.sh` on ubuntu and macOS.
 - `harness pack [--out DIR] [--tag TAG] [--tools os/arch,...]`: writes the release artifact,
   a `git bundle` of the hub plus optional pinned tool archives, `SHA256SUMS` and
   `INSTALL.txt`. Refuses a dirty tree and never includes `local/`.
@@ -190,6 +197,13 @@ prints every one between your applied version and the new one.
   `gh` and a real-git sandbox, with invariants (lease pushes of sub branches only, never a
   push for an unlabelled MR, worktrees unchanged after a failed cascade, one leaf refresh per
   run).
+- `harness lint` rules `provider-honesty` and `shim-fixtures` (principle 6, not skippable):
+  errors when a provider's `[capabilities]` contradict its `[targets]` (hooks wired with
+  `hook_enforced = false`, `hook_enforced` or `ask` without hooks, a `native`/`inlined`/`none`
+  capability whose target mode says otherwise) and when a shim lacks `tests/run.sh`, an
+  `.out.json` or a fixture for allow, deny, ask, unknown tool or malformed; warnings when
+  `features` lists `permission-prompt` with `ask = false` or `docs/providers/<name>.md`
+  states another tier than the capabilities give.
 
 ### Deprecated
 
@@ -213,7 +227,14 @@ prints every one between your applied version and the new one.
   `repo-facts` checks moved into the `work-ticket` suite. `[harness]` declares the new suite
   and drops "work-ticket has no own test suite yet"; principle 9 and the roadmap no longer
   list it as a follow-up.
-
+- Docs and the provider-drift workflow match the code again: the roadmap's gap list and
+  reserved prefixes drop what shipped (P0 marked shipped), principle 6 and ARCHITECTURE list
+  `provider-feature` and the `yields`, `guides-sensors` and `guard-reasons` lint rules, the
+  Gemini page no longer claims permission denies become tool exclusions, and the Copilot page
+  states that `allow` prints `{"permissionDecision":"allow"}`. The weekly provider-drift
+  workflow reads `verified` from `providers/<p>/provider.toml` instead of each README, also
+  checks OpenCode (npm `opencode-ai`), and reports a `verified` without a version number as
+  unverified instead of drift.
 - README reframed as a public platform with three install paths (upstream, org instance,
   bundle file).
 - Air-gapped runbook: offline install and upgrade use the release bundle.
