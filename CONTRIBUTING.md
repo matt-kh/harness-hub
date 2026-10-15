@@ -21,7 +21,7 @@ loop. Agents: start with [AGENTS.md](AGENTS.md).
   | [3 Platform for everyone](principles/03-platform-for-everyone.md) | private-identifier gate, template key lint |
   | [4 Install as a platform](principles/04-install-as-a-platform.md) | offline bootstrap smoke test |
   | [5 Distributed as a git repo](principles/05-distributed-as-a-git-repo.md) | `tests/smoke/pack.sh` |
-  | [6 Harness engineering](principles/06-harness-engineering.md) | `harness lint` guides/sensors pairing and taxonomy checks, guard test rows |
+  | [6 Harness engineering](principles/06-harness-engineering.md) | `harness lint` guides/sensors pairing and taxonomy checks, guard test rows, companion-file gate (rows, CHANGELOG entry) |
   | [7 Extensible core](principles/07-extensible-core.md) | PR template, CHANGELOG "Principles" entries |
   | [8 User-level by design](principles/08-user-level-by-design.md) | `harness lint` `yields` rule, guard rows for `.harness.toml` yield, `harness repo` unit test |
   | [9 Deterministic by construction](principles/09-deterministic-by-construction.md) | render-determinism smoke, guard build `cmp`, pack unit tests, create-ticket and k8s goldens, `harness lint` `stability`, section-75 guard rows |
@@ -201,7 +201,11 @@ Read [ARCHITECTURE §4](ARCHITECTURE.md#4-providers-providersname) and
 ## Guard tests and goldens
 
 - Guard rows are the specification. A behaviour change without a row change will be
-  rejected; a row change without a reason in the PR description too.
+  rejected; a row change without a reason in the PR description too. The companion-file gate
+  (`tools/gate/companions.sh`, pre-push and CI) enforces the first half: guard code changed in
+  `bundles/<b>/guard.d/NN-*.sh` needs `bundles/<b>/guard.d/tests.sh` in the same branch, and a
+  net-new `# rule: … -> D :` needs an added `t|tc|g|r|tn D` row (or `tr` for ask/deny). A
+  refactor with no behaviour change says so in a commit body: `no-rows: <reason>`.
 - Goldens (rendered output, skill output) are regenerated with `UPDATE=1 bin/harness test`
   and **reviewed as a diff** before committing. For pure renames, check the diff is a token
   substitution: `git diff --word-diff-regex='[A-Za-z0-9_./-]+'`.
@@ -235,7 +239,11 @@ macOS ships bash 3.2 and BSD userland; CI parses every script with `/bin/bash -n
 - Name the principle(s) served, or "neutral", in the PR description.
 - Add a `CHANGELOG.md` entry under `[Unreleased]`. If you add, rename or remove a config key,
   change a default, or change a guard decision, include a **Migration** paragraph that tells
-  users exactly what to edit (`harness config migrate` handles pure renames).
+  users exactly what to edit (`harness config migrate` handles pure renames). The
+  companion-file gate requires the entry when the branch changes `bundles/`, `lib/harness/`,
+  `providers/`, `schema/`, `bin/`, `profiles/`, `templates/`, `bootstrap` or
+  `tools/*.lock.json` outside tests and goldens; `no-changelog: <reason>` in a commit body or
+  the PR description waives it.
 
 ## Releases (maintainers)
 

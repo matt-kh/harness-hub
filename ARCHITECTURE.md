@@ -45,7 +45,7 @@ bundles/<name>/           one bundle per capability (see §3)
 providers/<name>/         one adapter per agent product (see §4)
 profiles/<name>.toml      named bundle+provider selections for `bootstrap --profile`
 tools/<tool>.lock.json    pinned tool downloads: version + sha256 per os/arch
-tools/gate/               private-identifier gate (patterns, allowlist, script)
+tools/gate/               private-identifier gate (patterns, allowlist, script), companion-file gate
 templates/                harness.toml template (generated from schema)
 tests/                    engine unit tests, fakes/bin/*, fixtures, smoke scripts
 docs/                     hand-written pages with generated regions (see §8)

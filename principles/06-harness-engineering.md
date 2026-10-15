@@ -75,6 +75,8 @@ bundle ships: rules, skills, permissions, agents, guard sections, doctor checks,
 | A `# rule:` reason in `guard.d` has no alternative | lint warning | `harness lint` |
 | A component is unclassified, or its [taxonomy](../docs/reference/taxonomy.md) facets contradict its kind | lint warning / error | `harness lint` (rule `taxonomy`) |
 | Every guard decision has test rows, including bypass attempts | tests | `bundles/*/guard.d/tests.sh` |
+| A guard code change comes with row changes; a net-new `-> D` rule with a `D` (or `tr`) row | gate | `tools/gate/companions.sh` (pre-push, CI `gate`) |
+| A bundle, engine, provider, schema or profile change has a CHANGELOG `[Unreleased]` entry | gate | `tools/gate/companions.sh` (pre-push, CI `gate`) |
 | Generated "Guides and sensors" tables are current | docs | `harness docs check` |
 | PR states the pairing was checked | review | [PR template](../.github/PULL_REQUEST_TEMPLATE.md) |
 

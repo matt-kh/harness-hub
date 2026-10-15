@@ -11,6 +11,8 @@ emails) out of every tracked file, file name, commit message and commit author a
 | `allowlist.txt` | reviewed exceptions for public hits, `path-ERE<TAB>line-ERE<TAB>reason` |
 | `check-links.sh` | relative Markdown link and anchor checker (CI `lint` job) |
 | `tests/selftest.sh` | builds a throw-away repo with planted hits and asserts every mode |
+| `companions.sh` | companion-file gate: guard rows and CHANGELOG entries travel with the change ([below](#companion-file-gate)) |
+| `tests/companions-selftest.sh` | throw-away repo, one branch per case, asserts every hit, waiver and skip |
 
 ## The private denylist
 
@@ -95,3 +97,36 @@ to the private text in a public file. Rename the value instead; see
 Adding a public pattern: add `# id:` (and optionally `# except:`) lines above it in
 `patterns.public.txt`, add a planted case to `tests/selftest.sh`, run it. Patterns must be
 portable ERE: no `\b`, `\d` or lookarounds (BSD grep on macOS).
+
+## Companion-file gate
+
+`companions.sh` checks a branch (the merge base of `A` and `B`, up to `B`) for files that must
+change together. It is the sensor for two guides in AGENTS.md and CONTRIBUTING.md.
+
+| Check | Fires when | Fix |
+|---|---|---|
+| `rows` | `bundles/<b>/guard.d/NN-*.sh` changed a non-comment, non-blank line and `bundles/<b>/guard.d/tests.sh` did not change (engine: `bundles/core/guard/engine*.sh` without `bundles/core/guard.d/tests.sh` or `bundles/core/guard/tests/`) | add rows for the behaviour and its bypass forms |
+| `rows` | a bundle's sections gained more `# rule: … -> D :` lines than they lost, and its `tests.sh` adds no `t\|tc\|g\|r\|tn D` row (for ask/deny: no `tr` row either) | add a row with that decision |
+| `changelog` | the branch touches `bundles/ lib/harness/ providers/ schema/ bin/ profiles/ templates/ bootstrap tools/*.lock.json`, outside `tests/`, `golden(s)/`, `guard.d/tests.sh` and `providers/*/README.md`, and `## [Unreleased]` in `CHANGELOG.md` gained no line | add a bullet under Added, Changed, Fixed or Deprecated (**Migration** when a key, default or decision changed) |
+
+A reworded rule (one removed, one added) needs no new row. Waive a check with a marker and a
+reason, in any commit body of the branch or (CI) the PR description: `no-rows: <reason>`,
+`no-changelog: <reason>`. A marker without a reason is ignored and reported.
+
+```sh
+tools/gate/companions.sh --range origin/main..HEAD                 # what make gate runs
+tools/gate/companions.sh --range origin/main..HEAD --only rows     # one check
+tools/gate/companions.sh --ci --range "$BASE..$HEAD" --markers-file pr-body.txt   # CI
+tools/gate/tests/companions-selftest.sh -v
+```
+
+Exit 0 clean, 1 hits, 2 usage error. When the range start is empty, all zeros or not in the
+clone, it prints `no usable base — skipped` and exits 0. CI writes the PR body to a file through
+an environment variable (never interpolated into the script); edits to the PR body take effect on
+the next push.
+
+| Where | How |
+|---|---|
+| pre-push | `companions` hook, `--range origin/main..<pushed ref>` |
+| CI | `gate` job on pull requests, `--ci` with the PR base and head and the PR body as markers file; `test` job runs the self-test (ubuntu, macOS) |
+| by hand | `make gate` |

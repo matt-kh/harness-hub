@@ -19,6 +19,8 @@ lint:
 gate:
 	@tools/gate/private-ids.sh
 	@tools/gate/tests/selftest.sh
+	@tools/gate/tests/companions-selftest.sh
+	@tools/gate/companions.sh --range origin/main..HEAD
 
 docs:
 	@$(HARNESS) docs check
