@@ -190,12 +190,16 @@ Read [ARCHITECTURE §4](ARCHITECTURE.md#4-providers-providersname) and
 
 - [ ] `providers/<name>/provider.toml` — every target path, its write mode and the
       `[capabilities]` honestly stated (`hook_enforced = false` when there is no pre-tool hook).
+      `harness lint` rule `provider-honesty` errors when they contradict `[targets]` and warns
+      when the doc's `**Tier: x.**` line disagrees.
 - [ ] `shim.sh` if the provider has command hooks: translate its stdin to the neutral
       envelope and the decision back. Map `ask` through `[providers.<name>].ask_as`.
 - [ ] Shim fixtures `tests/*.in.json` → `*.out.json` for allow, deny, ask, an unknown tool
-      (pass through) and malformed JSON (deny: fail closed).
-- [ ] `verified = "<product> <version>, <date>"` in `provider.toml` (the weekly
-      provider-drift workflow reads it) and `README.md` with the provider's quirks.
+      (pass through) and malformed JSON (deny: fail closed), plus `tests/run.sh`. The base
+      name starts with the case word (`allow`, `deny`, `ask`, `unknown-tool`, `malformed`),
+      variants follow after `-` (`ask-as-allow`); `harness lint` rule `shim-fixtures` checks it.
+- [ ] `README.md` with a "verified against <version> on <date>" line (the weekly
+      provider-drift workflow parses it) and the provider's quirks.
 - [ ] `docs/providers/<name>.md`, README capability matrix, SECURITY.md coverage table.
 
 ## Guard tests and goldens

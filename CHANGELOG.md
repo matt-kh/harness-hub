@@ -187,6 +187,13 @@ prints every one between your applied version and the new one.
   `gh` and a real-git sandbox, with invariants (lease pushes of sub branches only, never a
   push for an unlabelled MR, worktrees unchanged after a failed cascade, one leaf refresh per
   run).
+- `harness lint` rules `provider-honesty` and `shim-fixtures` (principle 6, not skippable):
+  errors when a provider's `[capabilities]` contradict its `[targets]` (hooks wired with
+  `hook_enforced = false`, `hook_enforced` or `ask` without hooks, a `native`/`inlined`/`none`
+  capability whose target mode says otherwise) and when a shim lacks `tests/run.sh`, an
+  `.out.json` or a fixture for allow, deny, ask, unknown tool or malformed; warnings when
+  `features` lists `permission-prompt` with `ask = false` or `docs/providers/<name>.md`
+  states another tier than the capabilities give.
 
 ### Deprecated
 
