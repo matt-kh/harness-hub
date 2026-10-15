@@ -1,0 +1,7 @@
+# exit=2
+# stderr:
+>> GET https://www.googleapis.com/drive/v3/about?fields=user(emailAddress,displayName)
+403 scope/API problem on GET https://www.googleapis.com/drive/v3/about?fields=user(emailAddress,displayName): re-login with more scopes (`gdoc auth login --scopes drive,gmail`) or enable the API in the GCP project (see references/setup.md). {"error": {"code": 403, "message": "Request had insufficient authentication scopes.", "errors": [{"reason": "insufficientPermissions"}]}}
+# stdout:
+# calls:
+GET https://www.googleapis.com/drive/v3/about?fields=user(emailAddress,displayName) auth=yes

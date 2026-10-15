@@ -1,0 +1,9 @@
+# exit=0
+# stderr:
+>> GET https://sheets.googleapis.com/v4/spreadsheets/sheet000000000000000000001?fields=properties.title,sheets.properties(sheetId,title,gridProperties)
+# stdout:
+Budget   [sheet000000000000000000001]
+0              | Sheet1                           | 1000 rows x 26 cols
+42             | Q1 costs                         | 50 rows x 4 cols
+# calls:
+GET https://sheets.googleapis.com/v4/spreadsheets/sheet000000000000000000001?fields=properties.title,sheets.properties(sheetId,title,gridProperties) auth=yes

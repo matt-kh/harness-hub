@@ -1,0 +1,13 @@
+# exit=0
+# stderr:
+>> GET https://www.googleapis.com/drive/v3/files/doc00000000000000000000001?fields=id%2Cname%2CmimeType%2Cproperties%2CmodifiedTime%2Cowners%28emailAddress%2CdisplayName%29%2ClastModifyingUser%28emailAddress%29%2CwebViewLink%2Cparents%2CdriveId%2Ccapabilities%28canEdit%2CcanComment%29&supportsAllDrives=true
+>> GET https://www.googleapis.com/drive/v3/files/doc00000000000000000000001/export?mimeType=text%2Fmarkdown&supportsAllDrives=true
+# stdout:
+# Design notes
+
+## Goals
+
+Ship the offline suite now.
+# calls:
+GET https://www.googleapis.com/drive/v3/files/doc00000000000000000000001?fields=id%2Cname%2CmimeType%2Cproperties%2CmodifiedTime%2Cowners%28emailAddress%2CdisplayName%29%2ClastModifyingUser%28emailAddress%29%2CwebViewLink%2Cparents%2CdriveId%2Ccapabilities%28canEdit%2CcanComment%29&supportsAllDrives=true auth=yes
+GET https://www.googleapis.com/drive/v3/files/doc00000000000000000000001/export?mimeType=text%2Fmarkdown&supportsAllDrives=true auth=yes

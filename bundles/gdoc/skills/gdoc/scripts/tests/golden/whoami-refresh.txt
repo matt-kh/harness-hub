@@ -1,0 +1,11 @@
+# exit=0
+# stderr:
+>> POST https://oauth2.googleapis.com/token grant_type=refresh_token&refresh_token=REDACTED&client_id=test-client-id.apps.example.com&client_secret=REDACTED
+>> GET https://www.googleapis.com/drive/v3/about?fields=user(emailAddress,displayName)
+# stdout:
+dev@example.com  (Dev Example)
+scopes: https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/gmail.readonly
+access token expires: TIMESTAMP
+# calls:
+POST https://oauth2.googleapis.com/token auth=no
+GET https://www.googleapis.com/drive/v3/about?fields=user(emailAddress,displayName) auth=yes

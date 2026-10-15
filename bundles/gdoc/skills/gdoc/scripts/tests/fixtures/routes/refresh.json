@@ -1,0 +1,22 @@
+[
+  {
+    "method": "POST",
+    "url": "https://oauth2\\.googleapis\\.com/token",
+    "body": {
+      "access_token": "test-refreshed-access-token",
+      "expires_in": 3599,
+      "scope": "https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/gmail.readonly",
+      "token_type": "Bearer"
+    }
+  },
+  {
+    "method": "GET",
+    "url": "https://www\\.googleapis\\.com/drive/v3/about\\?",
+    "body": {
+      "user": {
+        "emailAddress": "dev@example.com",
+        "displayName": "Dev Example"
+      }
+    }
+  }
+]

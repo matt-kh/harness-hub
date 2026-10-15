@@ -1,0 +1,12 @@
+# exit=0
+# stderr:
+>> GET https://www.googleapis.com/drive/v3/about?fields=user
+# stdout:
+{
+  "user": {
+    "emailAddress": "dev@example.com",
+    "displayName": "Dev Example"
+  }
+}
+# calls:
+GET https://www.googleapis.com/drive/v3/about?fields=user auth=yes

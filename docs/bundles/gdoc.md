@@ -232,8 +232,9 @@ Guides steer the agent before it acts; sensors detect at or after the action. Pa
 | sensor | doctor | `doctor_checks` | CLI, OAuth client, auth and token file modes |
 | sensor | test | `guard.d/tests.sh` | guard rows with a stubbed gdoc |
 | sensor | test | `tests/run.sh` | this bundle's rows against core + gdoc only |
+| sensor | test | `skills/gdoc/scripts/tests/run.sh` | offline goldens for the gdoc CLI over fixture-routed HTTP: dispatch, auth, id parsing, reads, host allow-list, dry-run writes (GET-only, no send, no credential in output) |
 
-**Not covered:** The gdoc CLI itself has no unit suite; its write paths are covered by the guard rows.
+**Not covered:** Whether a human file should be adopted (`mark`) and what a draft says stay judgement; the CLI's request shapes, auth handling and output are golden-tested offline.
 
 ## Uninstall
 

@@ -1,0 +1,11 @@
+# exit=0
+# stderr:
+# stdout:
+client_secret  present  SANDBOX/home-auth-status-ready/.config/gdoc/client_secret.json  mode 600
+token          present  SANDBOX/home-auth-status-ready/.config/gdoc/token.json  mode 600
+config dir     SANDBOX/home-auth-status-ready/.config/gdoc  mode 700
+refresh token  present
+access token   valid, expires 2100-01-01T00:00:00+00:00
+obtained       2020-01-01T00:00:00Z
+scopes         https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.compose
+# calls:

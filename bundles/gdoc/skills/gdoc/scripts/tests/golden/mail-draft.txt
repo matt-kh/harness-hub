@@ -1,0 +1,5 @@
+# exit=0
+# stderr:
+DRY-RUN POST https://gmail.googleapis.com/gmail/v1/users/me/drafts {"message": {"raw": "VG86IGJvYkBleGFtcGxlLmNvbQpDYzogdGVhbUBleGFtcGxlLmNvbQpTdWJqZWN0OiBBZ2VuZGEKQ29udGVudC1UeXBlOiB0ZXh0L3BsYWluOyBjaGFyc2V0PSJ1dGYtOCIKQ29udGVudC1UcmFuc2Zlci1FbmNvZGluZzogN2JpdApNSU1FLVZlcnNpb246IDEuMAoKRHJhZnQgYWdlbmRhIGF0dGFjaGVkLgo="}}
+# stdout:
+# calls:
