@@ -1,0 +1,63 @@
+{
+  "auth status --hostname github.com": {"rc": 0, "out": "github.com\n  Logged in to github.com account dev (keyring)\n"},
+  "api user": {"login": "dev", "id": 1001, "plan": {"name": "pro"}},
+  "repo set-default --view": {"rc": 0, "out": ""},
+  "repo view owner/repo": {
+    "nameWithOwner": "owner/repo", "isPrivate": false, "isFork": false, "parent": null,
+    "viewerPermission": "ADMIN", "viewerCanAdminister": true, "defaultBranchRef": {"name": "main"},
+    "deleteBranchOnMerge": true, "squashMergeAllowed": true, "mergeCommitAllowed": false,
+    "rebaseMergeAllowed": false, "hasIssuesEnabled": true, "isArchived": false, "visibility": "PUBLIC"
+  },
+  "api repos/owner/repo/branches/main/protection": {
+    "required_pull_request_reviews": {"required_approving_review_count": 1},
+    "required_status_checks": {"contexts": ["lint", "test"]},
+    "enforce_admins": {"enabled": false}, "allow_force_pushes": {"enabled": false},
+    "required_linear_history": {"enabled": true}
+  },
+  "api graphql -F o=owner -F n=repo": {"data": {"repository": {"branchProtectionRules": {"nodes": [
+    {"pattern": "main", "requiresApprovingReviews": true, "requiredApprovingReviewCount": 1, "allowsForcePushes": false},
+    {"pattern": "release/*", "requiresApprovingReviews": false, "requiredApprovingReviewCount": 0, "allowsForcePushes": false}
+  ]}}}},
+  "api repos/owner/repo/rulesets?includes_parents=true&per_page=100": [
+    {"id": 11, "name": "no-force-push", "target": "branch"},
+    {"id": 12, "name": "tag-guard", "target": "tag"},
+    {"id": 13, "name": "paused", "target": "branch"}
+  ],
+  "api repos/owner/repo/rulesets/11": {
+    "id": 11, "name": "no-force-push", "target": "branch", "enforcement": "active",
+    "conditions": {"ref_name": {"include": ["~DEFAULT_BRANCH", "refs/heads/feat-*"], "exclude": ["refs/heads/*-sub-*"]}},
+    "rules": [{"type": "non_fast_forward"}, {"type": "deletion"}]
+  },
+  "api repos/owner/repo/rulesets/13": {
+    "id": 13, "name": "paused", "target": "branch", "enforcement": "disabled",
+    "conditions": {"ref_name": {"include": ["~ALL"], "exclude": []}},
+    "rules": [{"type": "pull_request"}]
+  },
+  "api repos/owner/repo/rules/branches/feat-x": [{"type": "non_fast_forward"}, {"type": "deletion"}],
+  "api repos/owner/repo/rules/branches/*": [],
+  "label list -R owner/repo": [{"name": "agent-worked"}, {"name": "agent-drafted"}, {"name": "bug"}, {"name": "enhancement"}],
+  "api repos/owner/repo/milestones?state=open&per_page=100": [
+    {"number": 1, "title": "v1.0", "due_on": "2026-03-01T00:00:00Z", "state": "open", "open_issues": 3}
+  ],
+  "pr list -R owner/repo --state all --search 7": [
+    {"number": 21, "title": "Parser fix", "body": "Part of #7.", "headRefName": "parser-fix", "baseRefName": "main",
+     "state": "OPEN", "isDraft": true, "isCrossRepository": false, "url": "https://github.com/owner/repo/pull/21",
+     "labels": [{"name": "agent-worked"}]},
+    {"number": 22, "title": "Lexer part", "body": "See https://github.com/owner/repo/issues/7 (sub of #21)",
+     "headRefName": "parser-fix-sub-01-lexer", "baseRefName": "parser-fix", "state": "MERGED", "isDraft": false,
+     "isCrossRepository": false, "url": "https://github.com/owner/repo/pull/22", "labels": [{"name": "agent-worked"}]},
+    {"number": 23, "title": "Unrelated", "body": "Mentions #70 and #71 only.", "headRefName": "other", "baseRefName": "main",
+     "state": "CLOSED", "isDraft": false, "isCrossRepository": true, "url": "https://github.com/owner/repo/pull/23",
+     "labels": []}
+  ],
+  "issue view 7 -R owner/repo": {
+    "number": 7, "title": "Parser rejects empty input", "body": "Steps: run the parser on an empty file.",
+    "state": "OPEN", "labels": [{"name": "bug"}, {"name": "agent-worked"}], "assignees": [{"login": "dev"}],
+    "milestone": {"title": "v1.0"}, "comments": [], "url": "https://github.com/owner/repo/issues/7"
+  },
+  "api repos/owner/repo/issues/7/sub_issues?per_page=100": [
+    {"number": 8, "title": "Lexer part", "state": "open", "labels": [{"name": "agent-created"}, {"name": "agent-worked"}]}
+  ],
+  "api repos/owner/repo/issues/7/parent": {"rc": 1, "err": "gh: Not Found (HTTP 404)"},
+  "api repos/owner/repo/issues/7": {"number": 7, "title": "Parser rejects empty input", "state": "open"}
+}

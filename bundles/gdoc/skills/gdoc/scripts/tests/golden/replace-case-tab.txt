@@ -1,0 +1,5 @@
+# exit=0
+# stderr:
+DRY-RUN POST https://docs.googleapis.com/v1/documents/doc00000000000000000000001:batchUpdate {"requests": [{"replaceAllText": {"containsText": {"text": "Goals", "matchCase": true}, "replaceText": "Aims", "tabsCriteria": {"tabIds": ["t.0"]}}}]}
+# stdout:
+# calls:

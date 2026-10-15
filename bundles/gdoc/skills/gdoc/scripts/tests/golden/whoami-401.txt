@@ -1,0 +1,7 @@
+# exit=2
+# stderr:
+>> GET https://www.googleapis.com/drive/v3/about?fields=user(emailAddress,displayName)
+Auth failed (401): the token is invalid or revoked. Run `gdoc auth login` yourself in a terminal. {"error": {"code": 401, "message": "Invalid Credentials", "errors": [{"reason": "authError"}]}}
+# stdout:
+# calls:
+GET https://www.googleapis.com/drive/v3/about?fields=user(emailAddress,displayName) auth=yes

@@ -1,0 +1,5 @@
+# exit=1
+# stderr:
+mail draft needs --body TEXT or --body-file FILE.
+# stdout:
+# calls:

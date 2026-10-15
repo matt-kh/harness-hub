@@ -151,3 +151,14 @@ r pass  'kubectl get secret x -o yaml'
 r pass  'kubectl config use-context dev'
 decl
 t deny  'sh -c "kubectl config view --raw"'                    # quoted end of the flag (was a gap)
+# runtime deny/ask messages carry the # rule: alternative (lint guard-messages)
+tr 'pass --context <ctx> on every command instead' 'aws eks update-kubeconfig --name eks-prod --region ap-southeast-1'
+tr 'ask the user, or use read-only' 'kubectl create token shop-sa -n shop'
+tr "use 'k8s pod' / 'kubectl logs' for read-only triage instead" 'kubectl exec -it shop-api-0 -n shop -- sh'
+tr 'use --dry-run=server, or hand the command to the user' 'kubectl -n shop delete pod shop-api-0'
+tr "use 'helm template' read-only" 'helm upgrade shop ./chart -n shop'
+tr 'change the GitOps repo instead' 'argocd app sync shop'
+tr 'change the GitOps repo instead' 'flux reconcile kustomization apps --with-source'
+tr 'IaC repo instead' 'eksctl scale nodegroup --cluster eks-prod --name ng-1 --nodes 3'
+tr "run 'pulumi preview' instead" 'pulumi up'
+tr "run 'terraform plan' instead" 'terraform apply'

@@ -1,0 +1,4 @@
+# Kickoff
+
+- scope
+- owners

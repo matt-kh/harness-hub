@@ -1,0 +1,11 @@
+# exit=0
+# stderr:
+>> GET https://www.googleapis.com/drive/v3/files/doc00000000000000000000001/export?mimeType=text%2Fplain&supportsAllDrives=true
+# stdout:
+# Design notes
+
+## Goals
+
+Ship the offline suite now.
+# calls:
+GET https://www.googleapis.com/drive/v3/files/doc00000000000000000000001/export?mimeType=text%2Fplain&supportsAllDrives=true auth=yes

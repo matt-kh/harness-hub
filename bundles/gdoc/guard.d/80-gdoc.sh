@@ -32,12 +32,12 @@ gdoc_id() {  # TOKEN -> bare Drive id from a literal id or docs/drive URL; empty
   printf '%s' "$t" | grep -qE "$GDOC_ID_RE" && printf '%s' "$t"
 }
 if printf '%s' "$flat" | grep -qE '\bgdoc(\.py)?\s+(create|import|append|replace|mark|sheet\s+(append|update)|mail\s+(draft|send)|api)\b'; then
-  printf '%s' "$flat" | grep -qE '\bgdoc(\.py)?\s+mail\s+send\b' && ask "gdoc mail send — sends email (outward, irreversible)"
-  printf '%s' "$flat" | grep -qE '\bgdoc(\.py)?\s+api\b[^;&|]*(^|[[:space:]])(-X|--method|-d|--data)([= ]|$)' && deny "gdoc api is GET-only (no -X/--method/--data)"
+  printf '%s' "$flat" | grep -qE '\bgdoc(\.py)?\s+mail\s+send\b' && ask "gdoc mail send — sends email (outward, irreversible); use 'gdoc mail draft' instead and let the user send it"
+  printf '%s' "$flat" | grep -qE '\bgdoc(\.py)?\s+api\b[^;&|]*(^|[[:space:]])(-X|--method|-d|--data)([= ]|$)' && deny "gdoc api is GET-only (no -X/--method/--data) — use the create/append/replace/sheet subcommands instead"
   if printf '%s' "$flat" | grep -qE '\bgdoc(\.py)?\s+mark\b'; then
     mtok=$(printf '%s' "$flat" | grep -oE '\bgdoc(\.py)?\s+mark\s+[^;&| ]+' | head -1 | awk '{print $3}')
     printf '%s' "$mtok" | grep -q '\$' && ask "gdoc mark on \$VAR — use a literal file id/URL"
-    mid=$(gdoc_id "$mtok"); [ -n "$mid" ] || ask "gdoc mark without a literal file id/URL"
+    mid=$(gdoc_id "$mtok"); [ -n "$mid" ] || ask "gdoc mark without a literal file id/URL — use a literal id/URL, and ask the user before adopting a human file"
     ask "gdoc mark $mid — changes the file's provenance (later writes run promptless)"
   fi
   if printf '%s' "$flat" | grep -qE "$GDOC_WRITE_RE"; then
@@ -59,13 +59,13 @@ if printf '%s' "$flat" | grep -qE '\bgdoc(\.py)?\s+(create|import|append|replace
       done
       [ -n "$ref" ] || ask "gdoc write without a file id — pass the Doc/Sheet id or URL first"
       printf '%s' "$ref" | grep -q '\$' && ask "gdoc write on \$VAR — use a literal id/URL"
-      fid=$(gdoc_id "$ref"); [ -n "$fid" ] || ask "gdoc write — '$ref' is not a literal Drive id/URL"
-      prov=$(fetch_prov "$fid") || ask "gdoc write to $fid — could not read its provenance (gdoc meta failed: auth/timeout/no access)"
-      printf '%s' "$prov" | grep -qE "$AGENT_LABEL_RE" || ask "gdoc write to $fid — no agent provenance marker (human file; adopt with: gdoc mark $fid agent-worked)"
+      fid=$(gdoc_id "$ref"); [ -n "$fid" ] || ask "gdoc write — '$ref' is not a literal Drive id/URL; use the Doc/Sheet id or URL instead"
+      prov=$(fetch_prov "$fid") || ask "gdoc write to $fid — could not read its provenance (gdoc meta failed: auth/timeout/no access); check 'gdoc auth status', or ask the user"
+      printf '%s' "$prov" | grep -qE "$AGENT_LABEL_RE" || ask "gdoc write to $fid — no agent provenance marker (human file); ask the user, or adopt it first with 'gdoc mark $fid agent-worked'"
     done <<EOF
 $(printf '%s' "$flat" | grep -oE '\bgdoc(\.py)?\s+(import|append|replace|sheet\s+(append|update))\s+[^;&|]*')
 EOF
-    [ "$n_seen" -ge "$n_cmds" ] || ask "gdoc write — could not parse every clause"
+    [ "$n_seen" -ge "$n_cmds" ] || ask "gdoc write — could not parse every clause; run one write per command instead"
     allow "gdoc write(s) on agent-marked file(s)"
   fi
   printf '%s' "$flat" | grep -qE '\bgdoc(\.py)?\s+create\b' && allow "gdoc create (script stamps agent_provenance=agent-created)"

@@ -1,0 +1,9 @@
+# exit=0
+# stderr:
+>> GET https://www.googleapis.com/drive/v3/files?q=%27folder00000000000000000001%27+in+parents+and+trashed%3Dfalse&pageSize=10&orderBy=modifiedTime+desc&fields=files%28id%2Cname%2CmimeType%2CmodifiedTime%2Cowners%28emailAddress%29%2CwebViewLink%29%2CnextPageToken&includeItemsFromAllDrives=true&corpora=allDrives&supportsAllDrives=true
+# stdout:
+doc00000000000000000000001                     | g-document                   | 2020-01-02 | dev@example.com              | Design notes
+sheet000000000000000000001                     | g-spreadsheet                | 2020-01-01 | other@example.com            | Budget
+(2 shown)
+# calls:
+GET https://www.googleapis.com/drive/v3/files?q=%27folder00000000000000000001%27+in+parents+and+trashed%3Dfalse&pageSize=10&orderBy=modifiedTime+desc&fields=files%28id%2Cname%2CmimeType%2CmodifiedTime%2Cowners%28emailAddress%29%2CwebViewLink%29%2CnextPageToken&includeItemsFromAllDrives=true&corpora=allDrives&supportsAllDrives=true auth=yes

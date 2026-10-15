@@ -1,0 +1,5 @@
+# exit=1
+# stderr:
+'not-a-drive-id' is not a Drive file id or a docs/drive/sheets URL. Find one with `gdoc search <query>` or paste the document URL.
+# stdout:
+# calls:

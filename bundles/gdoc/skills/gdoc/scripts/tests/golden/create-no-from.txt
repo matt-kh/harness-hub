@@ -1,0 +1,5 @@
+# exit=1
+# stderr:
+create needs --from FILE.md (the document body).
+# stdout:
+# calls:

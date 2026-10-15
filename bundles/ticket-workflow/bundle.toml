@@ -117,7 +117,7 @@ function = "workflow"
 
 # Guides steer the agent before it acts; sensors detect at or after the action (principle 6).
 [harness]
-coverage_note = "The size rubric, Q-checklist and MR body content are judgement calls (inferential: code-reviewer); SCM verb conventions are sensed by the gitlab/github guard sections; work-ticket has no own test suite yet."
+coverage_note = "The size rubric, Q-checklist and MR body content are judgement calls (inferential: code-reviewer); SCM verb conventions are sensed by the gitlab/github guard sections; the preflight and facts scripts are sensed by golden suites against stubbed gh, glab and jira."
 guides = [
   { kind = "rule", ref = "rules/75-ticket-workflow.md", note = "ticket to MR/PR flow, label gate, key-free branches, stacked delivery" },
   { kind = "skill", ref = "skills/work-ticket", note = "the governed ticket workflow and its preflight scripts" },
@@ -128,5 +128,6 @@ sensors = [
   { kind = "doctor", ref = "doctor_checks", note = "a tracker CLI and an SCM CLI on PATH, both skills rendered" },
   { kind = "test", ref = "tests/run.sh", note = "this bundle's guard rows against core + ticket-workflow only, then every skill suite" },
   { kind = "test", ref = "guard.d/tests.sh", note = "rows for section 75 incl. bypasses" },
-  { kind = "test", ref = "skills/create-ticket/scripts/tests/run.sh", note = "golden renders of every ticket class" },
+  { kind = "test", ref = "skills/work-ticket/scripts/tests/run.sh", note = "preflight dispatch, GitHub and GitLab preflights, issue and Jira facts, repo-facts: one JSON object per run, goldens per fixture repository with and without PyYAML, read-only stub-log invariants" },
+  { kind = "test", ref = "skills/create-ticket/scripts/tests/run.sh", note = "golden renders of every ticket class; create-facts goldens for Jira and GitHub (config, unreachable, unauthenticated, not installed)" },
 ]

@@ -1,0 +1,6 @@
+build:
+  script:
+    - shellcheck ci/*.sh
+    - docker build -t app .
+  only:
+    - branches

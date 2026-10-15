@@ -1,0 +1,11 @@
+{"gh": {
+  "repo view other/repo": {"nameWithOwner": "other/repo", "viewerPermission": "TRIAGE", "hasIssuesEnabled": true, "isPrivate": true},
+  "issue view 9 -R other/repo": {
+    "number": 9, "title": "Add a config switch", "body": "Child of #3.", "state": "OPEN",
+    "labels": [{"name": "enhancement"}], "assignees": [], "milestone": null,
+    "comments": [{"author": {"login": "dev"}, "body": "Picking this up."}], "url": "https://github.com/other/repo/issues/9"
+  },
+  "api repos/other/repo/issues/9/sub_issues?per_page=100": [],
+  "api repos/other/repo/issues/9/parent": {"number": 3, "title": "Configuration epic", "state": "open", "labels": [{"name": "epic"}]},
+  "api repos/other/repo/issues/9": {"number": 9, "title": "Add a config switch", "state": "open"}
+}}

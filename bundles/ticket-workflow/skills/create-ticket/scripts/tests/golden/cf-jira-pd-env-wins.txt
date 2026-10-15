@@ -1,0 +1,122 @@
+# exit=0
+# stderr:
+# stdout:
+{
+  "me": "dev",
+  "project": "PROJ",
+  "creatable": true,
+  "can_assign": true,
+  "can_attach": false,
+  "types": [
+    {
+      "name": "Task",
+      "subtask": false,
+      "required": [
+        {
+          "id": "components",
+          "name": "Component/s",
+          "schema": "array",
+          "allowed": [
+            "parser",
+            "cli"
+          ]
+        }
+      ],
+      "has_description": true,
+      "has_problem_description": false,
+      "field_ids": {
+        "Summary": "summary",
+        "Issue Type": "issuetype",
+        "Project": "project",
+        "Description": "description",
+        "Component/s": "components"
+      }
+    },
+    {
+      "name": "CR",
+      "subtask": false,
+      "required": [
+        {
+          "id": "customfield_20103",
+          "name": "Type of Problem",
+          "schema": "option",
+          "allowed": [
+            "Bug Fix",
+            "Enhancement"
+          ]
+        },
+        {
+          "id": "versions",
+          "name": "Affects Version/s",
+          "schema": "array",
+          "allowed": [
+            "1.2.0"
+          ]
+        }
+      ],
+      "has_description": true,
+      "has_problem_description": false,
+      "field_ids": {
+        "Summary": "summary",
+        "Description": "description",
+        "Problem Description": "customfield_20000",
+        "Type of Problem": "customfield_20103",
+        "Affects Version/s": "versions"
+      }
+    },
+    {
+      "name": "Sub-task",
+      "subtask": true,
+      "required": [
+        {
+          "id": "parent",
+          "name": "Parent",
+          "schema": "issuelink",
+          "allowed": []
+        }
+      ],
+      "has_description": false,
+      "has_problem_description": false,
+      "field_ids": {
+        "Summary": "summary",
+        "Parent": "parent"
+      }
+    }
+  ],
+  "versions_unreleased": [
+    {
+      "name": "1.10.0",
+      "releaseDate": null
+    },
+    {
+      "name": "1.2.0",
+      "releaseDate": "2026-03-01"
+    }
+  ],
+  "components": [
+    "parser",
+    "cli"
+  ],
+  "priorities": [
+    "Highest",
+    "High",
+    "Medium",
+    "Low"
+  ],
+  "labels_in_use": [
+    "parser",
+    "agent-drafted",
+    "agent-worked",
+    "cli"
+  ],
+  "repo_declaration": null,
+  "repo_owns": false
+}
+# calls:
+jira whoami
+jira api /rest/api/2/mypermissions?projectKey=PROJ
+jira api /rest/api/2/issue/createmeta?projectKeys=PROJ&expand=projects.issuetypes.fields
+jira api /rest/api/2/project/PROJ/versions
+jira api /rest/api/2/project/PROJ/components
+jira api /rest/api/2/priority
+jira api /rest/api/2/search?jql=project%3DPROJ%20AND%20labels%20is%20not%20EMPTY%20ORDER%20BY%20updated%20DESC&fields=labels&maxResults=100

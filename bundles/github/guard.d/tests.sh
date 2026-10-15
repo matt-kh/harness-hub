@@ -236,3 +236,11 @@ decl '[owns]' 'domains = ["scm", "kubernetes", "tracker", "workspace"]'
 r pass  'gh pr merge 100'
 r pass  'gh issue close 3'
 decl
+# runtime deny/ask messages carry the # rule: alternative (lint guard-messages)
+tr 'matching gh subcommand' 'gh api -X POST repos/o/r/issues -f title=x'
+tr 'matching gh subcommand' 'gh api repos/o/r/issues --input -'
+tr 'pass the query inline' 'gh api graphql -F query=@q.graphql'
+tr 'literal inline query' 'gh api graphql -f query="$(cat q.graphql)"'
+tr 'drop operationName' "gh api graphql -f query='query A { viewer { login } }' -f operationName=A"
+tr 'human-only.*ask the user instead' 'gh pr merge 100 --squash'
+tr 'use an agent-\* name, or ask the user' 'gh label create bug'

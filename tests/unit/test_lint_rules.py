@@ -1,5 +1,6 @@
 """The lint rules env-provides, rule-guard-pairing, permissions-vs-guard, agent-tools,
-skill-description, fragments-target, profile-sane, stability and the provider-feature sensor kind:
+skill-description, fragments-target, profile-sane, stability, provider-honesty, shim-fixtures and
+the provider-feature sensor kind:
 one passing and one failing fixture bundle each, plus the hub's own bundles staying clean."""
 from __future__ import annotations
 
@@ -312,6 +313,112 @@ class ProviderFeatureTest(LintRuleCase):
             self.assertIsInstance(p.features, list, name)
 
 
+class ProviderHonestyTest(LintRuleCase):
+    HOOKS = {"path": "~/.x/hooks", "mode": "dir", "event": "PreToolUse", "shim": ""}
+
+    def provider(self, caps=None, targets=None, features=(), tier=None):
+        data = {"provider": {"name": "x", "docs": "docs/providers/x.md"}, "features": list(features),
+                "targets": targets if targets is not None else {"hooks": dict(self.HOOKS)},
+                "capabilities": caps if caps is not None else {"hook_enforced": True, "ask": True}}
+        if tier:
+            self.write(os.path.join(self.tmp, "docs", "providers", "x.md"), "# X\n\n**Tier: %s.** Text.\n" % tier)
+        return M.Provider(os.path.join(self.tmp, "providers", "x"), data)
+
+    def lint(self, p):
+        return self.run_rule(L.lint_provider_honesty, p, self.tmp)
+
+    def test_passing_provider(self):
+        rep = self.lint(self.provider(features=["permission-prompt"], tier="enforced"))
+        self.assertEqual((rep.errors, rep.warnings), ([], []))
+
+    def test_hooks_without_hook_enforced(self):
+        rep = self.lint(self.provider(caps={"hook_enforced": False}))
+        self.assertEqual(len(rep.errors), 1, rep.errors)
+        self.assertIn("providers/x: provider-honesty: [targets.hooks] is wired but [capabilities] hook_enforced = false",
+                      rep.errors[0])
+
+    def test_hook_enforced_and_ask_without_hooks(self):
+        unsupported = {"hooks": {"mode": "unsupported"}}
+        rep = self.lint(self.provider(caps={"hook_enforced": True, "ask": True}, targets=unsupported))
+        self.assertEqual(len(rep.errors), 2, rep.errors)
+        self.assertIn("hook_enforced = true without a [targets.hooks] target", rep.errors[0])
+        self.assertIn("ask = true without a [targets.hooks] target", rep.errors[1])
+
+    def test_capability_contradicts_target_mode(self):
+        targets = {"hooks": dict(self.HOOKS), "agents": {"path": "~/.x/agents/<name>.md", "mode": "file"},
+                   "mcp": {"mode": "unsupported"}, "skills": {"mode": "unsupported"}}
+        caps = {"hook_enforced": True, "ask": True, "agents": "inlined", "mcp": "native", "skills": "none",
+                "permissions": "advisory"}
+        rep = self.lint(self.provider(caps=caps, targets=targets))
+        self.assertEqual(len(rep.errors), 2, rep.errors)
+        self.assertIn("capabilities.agents = 'inlined' but targets.agents mode is 'file'; make the target mode inline",
+                      rep.errors[0])
+        self.assertIn("capabilities.mcp = 'native' but targets.mcp mode is 'unsupported'", rep.errors[1])
+
+    def test_none_capability_with_a_target(self):
+        targets = {"hooks": dict(self.HOOKS), "permissions": {"mode": "settings", "key": "permissions"}}
+        rep = self.lint(self.provider(caps={"hook_enforced": True, "ask": True, "permissions": "none"}, targets=targets))
+        self.assertIn("capabilities.permissions = 'none' but targets.permissions mode is 'settings'", rep.errors[0])
+
+    def test_permission_prompt_without_ask_warns(self):
+        rep = self.lint(self.provider(caps={"hook_enforced": True, "ask": False}, features=["permission-prompt"]))
+        self.assertEqual(rep.errors, [])
+        self.assertIn("features lists permission-prompt but ask = false", rep.warnings[0])
+
+    def test_doc_tier_disagrees_warns(self):
+        rep = self.lint(self.provider(caps={"hook_enforced": True, "ask": False}, tier="enforced"))
+        self.assertEqual(rep.errors, [])
+        self.assertEqual(rep.warnings, ["providers/x: provider-honesty: docs/providers/x.md says **Tier: enforced.** but "
+                                        "the capabilities give partial; fix the doc line (or the capabilities)"])
+
+    def test_missing_doc_is_fine(self):
+        self.assertEqual(self.lint(self.provider()).warnings, [])
+
+
+class ShimFixturesTest(LintRuleCase):
+    CASES = ("allow", "deny", "ask-as-deny", "unknown-tool", "malformed")
+
+    def provider(self, cases=CASES, run_sh=True, shim="shim.sh"):
+        path = os.path.join(self.tmp, "providers", "x")
+        tests = os.path.join(path, "tests")
+        os.makedirs(tests)
+        if run_sh:
+            self.write(os.path.join(tests, "run.sh"), "#!/usr/bin/env bash\n")
+        for c in cases:
+            self.write(os.path.join(tests, c + ".in.json"), "{}\n")
+            self.write(os.path.join(tests, c + ".out.json"), "")
+        hooks = {"path": "~/.x/hooks", "mode": "dir", "event": "BeforeTool", "shim": shim}
+        return M.Provider(path, {"provider": {"name": "x"}, "targets": {"hooks": hooks},
+                                 "capabilities": {"hook_enforced": True}})
+
+    def lint(self, p):
+        return self.run_rule(L.lint_shim_fixtures, p)
+
+    def test_passing_provider(self):
+        rep = self.lint(self.provider())
+        self.assertEqual((rep.errors, rep.warnings), ([], []))
+
+    def test_no_shim_is_exempt(self):
+        self.assertEqual(self.lint(self.provider(cases=(), run_sh=False, shim="")).errors, [])
+
+    def test_missing_cases_and_runner(self):
+        rep = self.lint(self.provider(cases=("allow", "deny-x"), run_sh=False))
+        self.assertEqual(len(rep.errors), 2, rep.errors)
+        self.assertIn("providers/x: shim-fixtures: tests/run.sh is missing", rep.errors[0])
+        self.assertIn("no fixture for case(s) ask, unknown tool, malformed;", rep.errors[1])
+
+    def test_in_without_out(self):
+        p = self.provider()
+        os.remove(os.path.join(p.path, "tests", "deny.out.json"))
+        rep = self.lint(p)
+        self.assertEqual(len(rep.errors), 1, rep.errors)
+        self.assertIn("tests/deny.in.json has no deny.out.json", rep.errors[0])
+
+    def test_case_word_must_lead_the_name(self):
+        rep = self.lint(self.provider(cases=("allow", "deny", "ask", "unknown-tool", "bad-malformed")))
+        self.assertIn("no fixture for case(s) malformed;", rep.errors[0])
+
+
 class RepoBundlesTest(LintRuleCase):
     """The hub's own bundles and profiles pass every new rule without a warning."""
 
@@ -325,21 +432,28 @@ class RepoBundlesTest(LintRuleCase):
             L.lint_harness(b, rep, hub.providers)
             L.lint_env_provides(b, prefixes, rep)
             L.lint_rule_guard_pairing(b, rep)
+            L.lint_guard_messages(b, rep)
             L.lint_agent_tools(b, rep)
             L.lint_skill_description(b, tpl, rep)
             L.lint_fragments_target(b, hub.bundles, rep)
             L.lint_stability(b, rep)
         L.lint_profiles(hub, rep)
+        for p in hub.providers.values():
+            L.lint_provider_honesty(p, REPO, rep)
+            L.lint_shim_fixtures(p, rep)
         if HAVE_JQ:
             L.lint_permissions_vs_guard(hub, rep)
         self.assertEqual((rep.errors, rep.warnings), ([], []))
 
     def test_rules_are_known_and_skippable(self):
-        for rule in ("env-provides", "rule-guard-pairing", "permissions-vs-guard", "agent-tools", "skill-description",
+        for rule in ("env-provides", "rule-guard-pairing", "guard-messages", "permissions-vs-guard", "agent-tools", "skill-description",
                      "fragments-target", "profile-sane", "stability"):
             self.assertIn(rule, L.LINT_RULES)
             self.assertIn(rule, L.SKIPPABLE_RULES)
         self.assertTrue(set(L.SKIPPABLE_RULES) <= L.LINT_RULES)
+        for rule in ("provider-honesty", "shim-fixtures"):
+            self.assertIn(rule, L.LINT_RULES)
+            self.assertNotIn(rule, L.SKIPPABLE_RULES)
 
 
 if __name__ == "__main__":

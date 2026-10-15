@@ -1,0 +1,13 @@
+# exit=0
+# stderr:
+>> GET https://gmail.googleapis.com/gmail/v1/users/me/messages?q=from%3Aalice+newer_than%3A7d&maxResults=20
+>> GET https://gmail.googleapis.com/gmail/v1/users/me/messages/msg0001?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date
+>> GET https://gmail.googleapis.com/gmail/v1/users/me/messages/msg0002?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date
+# stdout:
+msg0001            | thr0001            | Thu, 01 Jan 2026 09:00:00 | Alice <alice@example.com>          | Quarterly plan
+msg0002            | thr0002            | Fri, 02 Jan 2026 10:00:00 | Bob <bob@example.com>              | Re: Offsite
+(2 shown)
+# calls:
+GET https://gmail.googleapis.com/gmail/v1/users/me/messages?q=from%3Aalice+newer_than%3A7d&maxResults=20 auth=yes
+GET https://gmail.googleapis.com/gmail/v1/users/me/messages/msg0001?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date auth=yes
+GET https://gmail.googleapis.com/gmail/v1/users/me/messages/msg0002?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date auth=yes

@@ -44,6 +44,16 @@ prints every one between your applied version and the new one.
 
 ### Added
 
+- `ticket-workflow`: golden suite for the `work-ticket` scripts
+  (`skills/work-ticket/scripts/tests/run.sh`, 61 cases): provider dispatch, the GitHub and
+  GitLab preflights, `issue-facts.sh`, `jira-facts.sh` and `lib/repo-facts.sh`, each run in a
+  throw-away git repository against fixture-routed `gh`/`glab`/`jira` stubs
+  (`bundles/ticket-workflow/tests/stubs/`; an unrouted call fails the case). CI files are
+  parsed with PyYAML pinned on (a JSON-backed stand-in) and off, so both branches run on any
+  host. Invariants: one JSON object on stdout, read-only `gh`/`glab`/`jira` calls, `-R` on
+  every list/view, no credential from a credentialed remote in any output, fixture
+  repositories unchanged. `create-ticket`'s suite adds twelve `create-facts.sh` goldens (Jira
+  and GitHub, field-id config, unreachable, unauthenticated, not installed, repository-owned).
 - `tools/gate/companions.sh`, the companion-file gate: a branch whose guard code in
   `bundles/<b>/guard.d/NN-*.sh` (or `bundles/core/guard/engine*.sh`) changed needs
   `guard.d/tests.sh` changes, a net-new `# rule: … -> D :` needs an added `D` row (`tr` for
@@ -199,6 +209,28 @@ prints every one between your applied version and the new one.
   `gh` and a real-git sandbox, with invariants (lease pushes of sub branches only, never a
   push for an unlabelled MR, worktrees unchanged after a failed cascade, one leaf refresh per
   run).
+- `harness lint` rule `guard-messages` (principle 6, skippable): warns on a runtime
+  `deny "…"` / `ask "…"` / `defer "…"` message in a public `guard.d/NN-*.sh` that, with shell
+  expansions removed, names no alternative. The alternative word list shared with
+  `guard-reasons` gains *pass, pipe, check, drop, hand*.
+- `gdoc` CLI golden suite (`bundles/gdoc/skills/gdoc/scripts/tests/run.sh`): dispatch, offline
+  `auth status`, token refresh and HTTP error mapping (401, 403, 404, 429 retry, 500,
+  unreachable), id parsing, every read command, the `api` host allow-list and every write
+  under `GDOC_DRY_RUN=1`, each case in a throw-away `HOME` with fake credential files.
+  Invariants: no token, client secret or `Bearer` in any output; dry-run writes send only
+  GET; every Drive files request carries `supportsAllDrives=true`; no Gmail send endpoint.
+- `tests/fakes/http_fixture.py`: a stdlib, CLI-agnostic HTTP driver for python CLIs. It
+  loads the CLI by path, routes `urllib.request.urlopen` through a JSON routes file
+  (method, URL regex, status, body, once, error), logs `METHOD URL auth=yes|no` and never
+  a header value, and exits 3 on an unrouted request. Shared by the gdoc suite and, next,
+  the jira suite.
+- `harness lint` rules `provider-honesty` and `shim-fixtures` (principle 6, not skippable):
+  errors when a provider's `[capabilities]` contradict its `[targets]` (hooks wired with
+  `hook_enforced = false`, `hook_enforced` or `ask` without hooks, a `native`/`inlined`/`none`
+  capability whose target mode says otherwise) and when a shim lacks `tests/run.sh`, an
+  `.out.json` or a fixture for allow, deny, ask, unknown tool or malformed; warnings when
+  `features` lists `permission-prompt` with `ask = false` or `docs/providers/<name>.md`
+  states another tier than the capabilities give.
 
 ### Deprecated
 
@@ -223,6 +255,18 @@ prints every one between your applied version and the new one.
   names ten principles (it said eight) and states every manifest fact through a generated
   region; AGENTS.md, CONTRIBUTING.md and the PR template say to keep it true.
 
+- `bundles/ticket-workflow/tests/run.sh` is back to the shared bundle template; its seven
+  `repo-facts` checks moved into the `work-ticket` suite. `[harness]` declares the new suite
+  and drops "work-ticket has no own test suite yet"; principle 9 and the roadmap no longer
+  list it as a follow-up.
+- Docs and the provider-drift workflow match the code again: the roadmap's gap list and
+  reserved prefixes drop what shipped (P0 marked shipped), principle 6 and ARCHITECTURE list
+  `provider-feature` and the `yields`, `guides-sensors` and `guard-reasons` lint rules, the
+  Gemini page no longer claims permission denies become tool exclusions, and the Copilot page
+  states that `allow` prints `{"permissionDecision":"allow"}`. The weekly provider-drift
+  workflow reads `verified` from `providers/<p>/provider.toml` instead of each README, also
+  checks OpenCode (npm `opencode-ai`), and reports a `verified` without a version number as
+  unverified instead of drift.
 - README reframed as a public platform with three install paths (upstream, org instance,
   bundle file).
 - Air-gapped runbook: offline install and upgrade use the release bundle.
@@ -283,6 +327,11 @@ prints every one between your applied version and the new one.
   `stk status`; a merge train (`stk run`) is a v2 candidate; `glab stack` stays rejected while
   experimental upstream. Leaf refresh relies on the `glab mr rebase` / `gh pr update-branch`
   label gates of #17 (gitlab and github sections), not part of this bundle.
+- Guard messages: every runtime deny/ask message in core (credentials, git), gdoc, github,
+  gitlab, jira and k8s now states the alternative its `# rule:` comment names (ask the user,
+  push a branch, use the matching subcommand, `--dry-run=server`, `helm template`, ...);
+  decisions are unchanged and `docs/reference/hook-policy.md` is byte-identical. New `tr`
+  rows in each bundle's `guard.d/tests.sh` pin the wording.
 
 ### Stability
 

@@ -1,0 +1,7 @@
+{"gh": {
+  "api user": {"login": "dev", "id": 1001, "plan": {"name": "free"}},
+  "repo view owner/repo": {"isPrivate": true, "visibility": "PRIVATE", "viewerPermission": "READ", "viewerCanAdminister": false},
+  "api repos/owner/repo/branches/main/protection": {"rc": 1, "err": "gh: Upgrade to GitHub Pro or make this repository public to enable this feature. (HTTP 403)"},
+  "api graphql -F o=owner -F n=repo": {"data": {"repository": {"branchProtectionRules": {"nodes": []}}}},
+  "api repos/owner/repo/rulesets?includes_parents=true&per_page=100": {"rc": 1, "err": "gh: Upgrade to GitHub Pro or make this repository public to enable this feature. (HTTP 403)"}
+}}

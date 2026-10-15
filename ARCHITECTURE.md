@@ -230,16 +230,19 @@ Rules:
   `guard`, `doctor`, `test`, `lint`, `review-agent`, `provider-feature`. `ref` is a
   bundle-relative path; for `doctor` a `doctor_checks` id or `doctor_checks` (all of them), for
   `lint` a lint rule name (`manifest`, `templates`, `guard-syntax`, `guard-reasons`,
-  `guides-sensors`, `dependencies`, `private-ids`, `taxonomy`, `env-provides`,
+  `guard-messages`, `guides-sensors`, `dependencies`, `private-ids`, `taxonomy`, `env-provides`,
   `rule-guard-pairing`, `permissions-vs-guard`, `agent-tools`, `skill-description`,
-  `fragments-target`, `profile-sane`, `stability`), for `provider-feature` `<provider>:<feature>`
+  `fragments-target`, `profile-sane`, `stability`, `yields`), for `provider-feature` `<provider>:<feature>`
   naming an entry of that provider's `features` (§4) — an inferential sensor that lives in the
   product, such as `claude:auto-mode-classifier`. A ref that resolves to nothing is a lint error; a bundle with guides but no
   sensors, sensors but no guides, or (public bundles) no `[harness]` at all is a lint warning.
   `coverage_note` states what is deliberately not sensed. Rendered as "Guides and sensors" in
   `docs/bundles/<b>.md` and summarised in `docs/reference/harness-coverage.md`.
 - Every `deny`/`ask` `# rule:` reason in `guard.d/` states the alternative action; lint warns
-  when the reason contains none of *use, instead, ask, run, mention, see*.
+  (`guard-reasons`) when the reason contains none of *use, instead, ask, run, mention, see,
+  pass, pipe, check, drop, hand*. The runtime `deny "…"` / `ask "…"` / `defer "…"` strings the
+  agent actually sees carry that alternative too; lint warns (`guard-messages`) on one that,
+  with `$(…)`, `${…}` and `$NAME` removed, contains none of those words.
 - Every component has a stable **id** derived from its path, never declared and never
   renamed to fit: `<bundle>/<kind-dir>/<name>` without the extension
   (`k8s/agents/k8s-triage`, `core/guard.d/30-git`, `core/permissions`, `jira/mcp/jira-mcp`,
@@ -270,7 +273,8 @@ Rules:
 provider.toml             where each artifact goes and how it is written
 shim.sh                   hook envelope translation (only if the provider has command hooks)
 README.md                 verified-against version and date, quirks
-tests/*.in.json,*.out.json  shim fixtures
+tests/*.in.json,*.out.json  shim fixtures: NAME starts with the case word (allow, deny, ask,
+                          unknown-tool, malformed), variants after `-` (lint `shim-fixtures`)
 ```
 
 ```toml
@@ -361,7 +365,7 @@ with stubs from `bundles/core/guard/tests/stubs/` on `PATH`.
 `build/config.json` is never overwritten), `NO_COLOR`.
 
 `pack`, `verify`, `bootstrap --from`, `upgrade` and `release` are the distribution commands (§10). `lint` adds
-principle and consistency checks to the manifest checks: `guides-sensors`, `guard-reasons`,
+principle and consistency checks to the manifest checks: `guides-sensors`, `guard-reasons`, `guard-messages`,
 `taxonomy` (§3), `yields` (§11) and `rule-guard-pairing` (§3); `env-provides` (`[provides.env]` keys the guard would
 drop); `permissions-vs-guard` (each `Bash(<prefix>:*)` allow/deny rule run through the guard
 built from core + the bundle); `agent-tools` (read-only agents with write tools or a

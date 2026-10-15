@@ -1,0 +1,9 @@
+# exit=0
+# stderr:
+>> GET https://www.googleapis.com/drive/v3/about?fields=user(emailAddress,displayName)
+# stdout:
+dev@example.com  (Dev Example)
+scopes: https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.compose
+access token expires: 2100-01-01T00:00:00+00:00
+# calls:
+GET https://www.googleapis.com/drive/v3/about?fields=user(emailAddress,displayName) auth=yes

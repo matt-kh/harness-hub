@@ -1,0 +1,9 @@
+{"gh": {
+  "repo view dev/repo": {
+    "nameWithOwner": "dev/repo", "isPrivate": false, "isFork": true, "parent": {"owner": {"login": "owner"}, "name": "repo"},
+    "viewerPermission": "ADMIN", "viewerCanAdminister": true, "defaultBranchRef": {"name": "main"},
+    "deleteBranchOnMerge": false, "squashMergeAllowed": true, "mergeCommitAllowed": true,
+    "rebaseMergeAllowed": true, "hasIssuesEnabled": false, "isArchived": false, "visibility": "PUBLIC"
+  },
+  "repo view owner/repo": {"viewerPermission": "READ", "viewerCanAdminister": false}
+}}

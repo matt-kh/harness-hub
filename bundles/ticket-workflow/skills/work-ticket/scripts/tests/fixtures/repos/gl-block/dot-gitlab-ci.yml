@@ -1,0 +1,10 @@
+include:
+  - local: ci/jobs.yml
+stages: [test, build]
+test:
+  script:
+    - pytest
+  only:
+    - branches
+  except:
+    - /-sub-/

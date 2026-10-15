@@ -1,0 +1,25 @@
+# exit=0
+# stderr:
+# stdout:
+{
+  "me": "",
+  "project": "PROJ",
+  "creatable": false,
+  "can_assign": false,
+  "can_attach": false,
+  "types": [],
+  "versions_unreleased": [],
+  "components": [],
+  "priorities": [],
+  "labels_in_use": [],
+  "repo_declaration": null,
+  "repo_owns": false
+}
+# calls:
+jira whoami
+jira api /rest/api/2/mypermissions?projectKey=PROJ
+jira api /rest/api/2/issue/createmeta?projectKeys=PROJ&expand=projects.issuetypes.fields
+jira api /rest/api/2/project/PROJ/versions
+jira api /rest/api/2/project/PROJ/components
+jira api /rest/api/2/priority
+jira api /rest/api/2/search?jql=project%3DPROJ%20AND%20labels%20is%20not%20EMPTY%20ORDER%20BY%20updated%20DESC&fields=labels&maxResults=100

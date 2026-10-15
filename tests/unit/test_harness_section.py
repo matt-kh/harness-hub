@@ -1,4 +1,4 @@
-"""[harness] guides and sensors: schema, lint pairing and ref checks, the guard-reason heuristic,
+"""[harness] guides and sensors: schema, lint pairing and ref checks, the guard-reason and guard-message heuristics,
 and the generated docs (principle 6)."""
 from __future__ import annotations
 
@@ -130,6 +130,35 @@ class HarnessSectionTest(HubTestCase):
                    and int(w.split(".sh:")[1].split()[0]) > before]  # only the rows added here
         self.assertEqual(len(flagged), 1, flagged)
         self.assertIn("'prints the token'", flagged[0])
+
+    def test_message_heuristic(self):
+        text = "\n".join([
+            'ask "foo"',                                              # 1: flagged
+            'deny "foo — use bar instead"',                           # 2: clean
+            'ask "$(k8s_target) ${RUN:-x} $USE"',                     # 3: expansions only: flagged
+            '# deny "a comment is not a message"',                    # 4: skipped
+            'x && defer "multi',                                      # 5: flagged (spans two lines)
+            'line"',
+            'deny "quoted \\"use\\" word"',                           # 7: clean (escaped quotes)
+            'undeny "not a call"',                                    # 8: not a deny/ask/defer call
+            ''])
+        got = L.guard_message_findings(text)
+        self.assertEqual([(ln, fn) for ln, fn, _m in got], [(1, "ask"), (3, "ask"), (5, "defer")], got)
+        guard_dir = os.path.join(self.core, "guard.d")
+        section = sorted(f for f in os.listdir(guard_dir) if f[:2].isdigit())[0]
+        path = os.path.join(guard_dir, section)
+        rep = L.Report()
+        L.lint_guard_messages(self.core_bundle(), rep)
+        before = list(rep.warnings)                               # the fixture's own bare messages
+        self.write(path, self.read(path) + '\nask "bare message"\ndeny "bare - use x instead"\n')
+        rep = L.Report()
+        L.lint_guard_messages(self.core_bundle(), rep)
+        added = [w for w in rep.warnings if w not in before]
+        self.assertEqual(len(added), 1, added)
+        self.assertIn("guard-messages: the ask message 'bare message'", added[0])
+        rep = L.Report()
+        L.lint_guard_messages(M.load_bundle(self.core, origin="private"), rep)
+        self.assertEqual(rep.warnings, [])
 
     # ------------------------------------------------------------------ docs
     def test_docs_render_table_and_coverage(self):

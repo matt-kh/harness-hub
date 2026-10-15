@@ -1,0 +1,17 @@
+{
+  "stages": ["lint", "build", "deploy"],
+  "workflow": {"rules": [
+    {"if": "$CI_PIPELINE_SOURCE == \"merge_request_event\""},
+    {"if": "$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH"}
+  ]},
+  ".docker": {"image": "docker:27", "script": ["docker build -t app ."]},
+  "lint": {"stage": "lint", "script": ["pre-commit run --all-files", "ruff check ."]},
+  "build": {"stage": "build", "extends": ".docker"},
+  "build-sub": {"stage": "build", "extends": ".docker", "rules": [
+    {"if": "$CI_COMMIT_BRANCH =~ /-sub-/", "when": "never"},
+    {"if": "$CI_PIPELINE_SOURCE == \"merge_request_event\""}
+  ]},
+  "deploy-review": {"stage": "deploy", "script": ["helm upgrade --install app chart/"], "environment": "review",
+                    "rules": [{"if": "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME == $CI_DEFAULT_BRANCH"}]},
+  "push-image": {"stage": "deploy", "script": ["docker push app"], "when": "manual"}
+}

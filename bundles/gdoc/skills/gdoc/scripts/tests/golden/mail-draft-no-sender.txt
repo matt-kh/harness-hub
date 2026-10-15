@@ -1,0 +1,7 @@
+# exit=1
+# stderr:
+>> GET https://gmail.googleapis.com/gmail/v1/users/me/messages/msg0003?format=metadata&metadataHeaders=Message-ID&metadataHeaders=From&metadataHeaders=Reply-To&metadataHeaders=Subject&metadataHeaders=References
+mail draft needs --to (the --reply-to message has no Reply-To/From header).
+# stdout:
+# calls:
+GET https://gmail.googleapis.com/gmail/v1/users/me/messages/msg0003?format=metadata&metadataHeaders=Message-ID&metadataHeaders=From&metadataHeaders=Reply-To&metadataHeaders=Subject&metadataHeaders=References auth=yes

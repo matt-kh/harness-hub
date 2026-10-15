@@ -110,3 +110,13 @@ r pass  'jira transition HUM-1 "In Progress"'
 decl '[owns]' 'domains = ["scm"]'
 r deny  'jira transition HUM-1 "In Progress"'                 # another domain: unchanged
 decl
+# runtime deny/ask messages carry the # rule: alternative (lint guard-messages)
+tr "use 'jira link FROM TYPE TO' with literal keys" 'jira link "$A" Relates LBL-2'
+tr 'use one of the allowed types instead' 'jira link LBL-1 "Finish-to-Start Dependency" LBL-2'
+tr "check 'jira whoami', or ask the user" 'jira link LBL-1 Relates ERR-1'
+tr 'ask the user to link it, or label it first' 'jira link HUM-1 Relates LBL-1'
+tr 'pass --field labels=' "jira create PROJ Task \"[LBL-1] x\" --link \"Issue split:LBL-1\""
+tr 'ask the user to transition it' 'jira transition HUM-1 "Start Work"'
+tr 'use a literal key like PROJ-123' 'jira comment "$KEY" x'
+tr "check 'jira whoami', or ask the user" 'jira comment ERR-1 x'
+tr 'ask the user, or label first' 'jira comment HUM-1 "hi"'

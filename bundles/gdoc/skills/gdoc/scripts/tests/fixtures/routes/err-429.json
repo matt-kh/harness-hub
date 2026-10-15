@@ -1,0 +1,29 @@
+[
+  {
+    "method": "GET",
+    "url": "https://www\\.googleapis\\.com/drive/v3/about",
+    "status": 429,
+    "once": true,
+    "body": {
+      "error": {
+        "code": 429,
+        "message": "Rate Limit Exceeded",
+        "errors": [
+          {
+            "reason": "rateLimitExceeded"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "url": "https://www\\.googleapis\\.com/drive/v3/about",
+    "body": {
+      "user": {
+        "emailAddress": "dev@example.com",
+        "displayName": "Dev Example"
+      }
+    }
+  }
+]

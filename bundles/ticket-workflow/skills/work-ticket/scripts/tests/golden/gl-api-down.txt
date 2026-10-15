@@ -1,0 +1,51 @@
+# exit=0
+# stderr:
+# stdout:
+{
+  "provider": "gitlab",
+  "repo_root": "SANDBOX/repos/gl-bare",
+  "remote_host": "gitlab.example.com",
+  "default_branch": "",
+  "dirty_files": 0,
+  "gitlab": {
+    "version": null,
+    "stack_ui_available": null
+  },
+  "project": {
+    "id": null,
+    "path": null,
+    "squash_option": null,
+    "merge_method": null,
+    "merge_needs_pipeline": null,
+    "remove_source_branch_after_merge": null,
+    "my_access": "unknown"
+  },
+  "protected_branches": {
+    "rules": [],
+    "wildcards": [],
+    "matches": {
+      "feat-x": false
+    },
+    "sub_pattern_matches": false
+  },
+  "mr_template": null,
+  "ci": {
+    "mr_pipeline": false,
+    "checks": [],
+    "precommit": false,
+    "heuristic": "none",
+    "pipeline_model": null,
+    "per_branch_heavy": false,
+    "per_branch_heavy_jobs": [],
+    "mr_heavy_jobs": [],
+    "sub_branch_excluded": false
+  },
+  "repo_skill": null,
+  "repo_declaration": null,
+  "repo_owns": false
+}
+# calls:
+glab api projects/:id
+glab api version
+glab api projects/:id/protected_branches
+glab api user

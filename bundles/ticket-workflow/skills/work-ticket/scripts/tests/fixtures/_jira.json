@@ -1,0 +1,25 @@
+{
+  "whoami": {"name": "dev", "displayName": "Dev", "emailAddress": "dev@example.com"},
+  "api /rest/api/2/mypermissions?projectKey=PROJ": {"permissions": {
+    "CREATE_ISSUES": {"havePermission": true}, "LINK_ISSUES": {"havePermission": true},
+    "EDIT_ISSUES": {"havePermission": true}, "TRANSITION_ISSUES": {"havePermission": true},
+    "DELETE_ISSUES": {"havePermission": false}
+  }},
+  "api /rest/api/2/project/PROJ": {"key": "PROJ", "issueTypes": [
+    {"name": "Story", "subtask": false}, {"name": "Task", "subtask": false}, {"name": "Epic", "subtask": false},
+    {"name": "Bug", "subtask": false}, {"name": "CR", "subtask": false}, {"name": "Defects", "subtask": false},
+    {"name": "Sub-task", "subtask": true}
+  ]},
+  "api /rest/api/2/issueLinkType": {"issueLinkTypes": [{"name": "Blocks"}, {"name": "Issue split"}, {"name": "Relates"}]},
+  "get PROJ-123": {
+    "key": "PROJ-123", "summary": "Parser rejects empty input", "type": "Story", "status": "In Progress",
+    "priority": "Medium", "project": "PROJ", "assignee": "Dev", "reporter": "Dev", "parent": null,
+    "components": ["parser"], "affectsVersions": [], "fixVersions": ["1.2.0"], "labels": ["agent-worked"],
+    "description": "Steps: run the parser on an empty file.", "url": "https://jira.example.com/browse/PROJ-123",
+    "sprint": {"id": 3, "name": "Sprint 3"}, "storyPoints": 5,
+    "links": [
+      {"id": "501", "type": "Issue split", "direction": "split to", "key": "PROJ-124", "status": "Open", "summary": "Lexer part"},
+      {"id": "502", "type": "Relates", "direction": "relates to", "key": "PROJ-99", "status": "Done", "summary": "Old parser"}
+    ]
+  }
+}

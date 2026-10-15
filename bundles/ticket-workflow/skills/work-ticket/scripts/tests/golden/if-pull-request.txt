@@ -1,0 +1,47 @@
+# exit=0
+# stderr:
+# stdout:
+{
+  "provider": "github",
+  "auth_ok": true,
+  "me": "dev",
+  "repo": "owner/repo",
+  "number": 21,
+  "perms": {
+    "viewer_permission": "ADMIN",
+    "can_label": true,
+    "has_issues": true,
+    "is_private": false
+  },
+  "issue": {
+    "number": 21,
+    "title": "Parser fix",
+    "body": "Part of #7.",
+    "state": "OPEN",
+    "labels": [
+      "agent-worked"
+    ],
+    "assignees": [
+      "dev"
+    ],
+    "milestone": null,
+    "comments": [],
+    "url": "https://github.com/owner/repo/pull/21"
+  },
+  "is_pull_request": true,
+  "agent_labelled": true,
+  "parent": null,
+  "existing_children": [],
+  "sub_issues": [],
+  "sub_tickets_available": true
+}
+# calls:
+gh auth status --hostname github.com
+gh repo set-default --view
+gh repo view owner/repo --json isFork,parent
+gh api user
+gh repo view owner/repo --json nameWithOwner,viewerPermission,hasIssuesEnabled,isPrivate
+gh issue view 21 -R owner/repo --json number,title,body,state,labels,assignees,milestone,comments,url
+gh api repos/owner/repo/issues/21/sub_issues?per_page=100
+gh api repos/owner/repo/issues/21/parent
+gh api repos/owner/repo/issues/21

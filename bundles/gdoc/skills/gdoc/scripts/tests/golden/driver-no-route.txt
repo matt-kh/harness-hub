@@ -1,0 +1,7 @@
+# exit=3
+# stderr:
+>> GET https://www.googleapis.com/drive/v3/about?fields=user(emailAddress,displayName)
+http_fixture: no route for GET https://www.googleapis.com/drive/v3/about?fields=user(emailAddress,displayName)
+# stdout:
+# calls:
+GET https://www.googleapis.com/drive/v3/about?fields=user(emailAddress,displayName) auth=yes

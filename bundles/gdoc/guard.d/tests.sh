@@ -70,3 +70,11 @@ r ask   'gdoc mail send 1a2b3c4d5e6f7g8h9i0jKLMN'             # another domain: 
 decl '[overrides]' 'WORK_TICKET_GDOC_PY = "/bin/true"'      # bypass: client paths are never repo-settable
 r ask   'gdoc mail send 1a2b3c4d5e6f7g8h9i0jKLMN'
 decl
+# runtime deny/ask messages carry the # rule: alternative (lint guard-messages)
+tr "use 'gdoc mail draft' instead" 'gdoc mail send r123abc'
+tr 'create/append/replace/sheet subcommands instead' 'gdoc api -X POST https://www.googleapis.com/drive/v3/files'
+t ask   'gdoc mark short-id agent-worked'
+tr 'ask the user before adopting' 'gdoc mark short-id agent-worked'
+tr 'use the Doc/Sheet id or URL instead' 'gdoc append short-id "text"'
+tr "check 'gdoc auth status', or ask the user" 'gdoc append ERR1111111111111111111 "text"'
+tr "adopt it first with 'gdoc mark HUM1111111111111111111 agent-worked'" 'gdoc append HUM1111111111111111111 "text"'

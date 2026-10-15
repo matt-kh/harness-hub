@@ -41,12 +41,12 @@ if printf '%s' "$flat" | grep -qE '\bjira(\.py)?\s+(set|create|transition|upload
   if printf '%s' "$flat" | grep -qE '\bjira(\.py)?\s+link\b'; then
     clause=$(printf '%s' "$flat" | grep -oE '\bjira(\.py)?\s+link\s+[^;&|]*' | head -1)
     lkeys=$(printf '%s' "$clause" | grep -oE "$KEY_RE" | sort -u)
-    [ "$(printf '%s\n' "$lkeys" | grep -c .)" -eq 2 ] || deny "jira link needs exactly two distinct literal ticket keys (no \$VARS)"
+    [ "$(printf '%s\n' "$lkeys" | grep -c .)" -eq 2 ] || deny "jira link needs exactly two distinct literal ticket keys (no \$VARS) — use 'jira link FROM TYPE TO' with literal keys instead"
     ltype=$(printf '%s' "$clause" | sed -E "s/.*(^|[^[:alnum:]_])link[[:space:]]+${KEY_RE}[[:space:]]+//; s/[[:space:]]+${KEY_RE}.*$//; s/^[\"']//; s/[\"']$//" | tr 'A-Z' 'a-z')
-    printf '%s' "$ltype" | grep -qE "$LINK_TYPES_RE" || deny "jira link type '$ltype' not permitted (allowed: $LINK_TYPES_RE)"
+    printf '%s' "$ltype" | grep -qE "$LINK_TYPES_RE" || deny "jira link type '$ltype' not permitted (allowed: $LINK_TYPES_RE) — use one of the allowed types instead"
     for k in $lkeys; do
-      lb=$(fetch_labels "$k") || ask "jira link — could not verify labels on $k"
-      labels_have_write "$lb" || deny "linking to a human ticket is not permitted ($k has no agent-* label)"
+      lb=$(fetch_labels "$k") || ask "jira link — could not verify labels on $k; check 'jira whoami', or ask the user"
+      labels_have_write "$lb" || deny "linking to a human ticket is not permitted ($k has no agent-* label) — ask the user to link it, or label it first (jira label $k add $GOV_LABEL)"
     done
     allow "jira link $(printf '%s' "$lkeys" | tr '\n' ' ')— both tickets are agent-labelled"
   fi
@@ -55,10 +55,10 @@ if printf '%s' "$flat" | grep -qE '\bjira(\.py)?\s+(set|create|transition|upload
   if printf '%s' "$flat" | grep -qE '\bjira(\.py)?\s+create\b' && printf '%s' "$flat" | grep -qE -- '--link\b'; then
     lblflag=$(printf '%s' "$flat" | grep -oE -- "--field[= ]+[\"']?labels=[^ ]*" | head -1)
     { printf '%s' "$lblflag" | grep -q "$CREATED_LABEL" && printf '%s' "$lblflag" | grep -q "$GOV_LABEL"; } \
-      || deny "jira create --link without labels $CREATED_LABEL + $GOV_LABEL would create an unlabelled linked ticket"
+      || deny "jira create --link without labels $CREATED_LABEL + $GOV_LABEL would create an unlabelled linked ticket — pass --field labels=$CREATED_LABEL,$GOV_LABEL instead"
     for k in $(printf '%s' "$flat" | grep -oE -- "--link[= ]+[\"']?[^:\"']+:${KEY_RE}" | grep -oE "${KEY_RE}$" | sort -u); do
-      lb=$(fetch_labels "$k") || ask "jira create --link — could not verify labels on $k"
-      labels_have_write "$lb" || deny "linking to a human ticket is not permitted ($k lacks $GOV_LABEL)"
+      lb=$(fetch_labels "$k") || ask "jira create --link — could not verify labels on $k; check 'jira whoami', or ask the user"
+      labels_have_write "$lb" || deny "linking to a human ticket is not permitted ($k lacks $GOV_LABEL) — ask the user to link it, or label it first (jira label $k add $GOV_LABEL)"
     done
   fi
   # -- every agent-created ticket carries a provenance label: agent-drafted (create-ticket) or
@@ -94,15 +94,15 @@ EOF
   keys=$(printf '%s' "$flat" | grep -oE "\bjira(\.py)?\s+(set|upload|comment|transition|label)\s+${KEY_RE}" | grep -oE "${KEY_RE}$" | sort -u)
   is_transition=false; printf '%s' "$flat" | grep -qE '\bjira(\.py)?\s+transition\b' && is_transition=true
   if [ -z "$keys" ]; then
-    $is_transition && deny "jira transition without an identifiable ticket key — ticket state is human-only"
-    ask "jira write (could not identify the ticket key)"
+    $is_transition && deny "jira transition without an identifiable ticket key — ticket state is human-only; ask the user to transition it and mention the key instead"
+    ask "jira write (could not identify the ticket key) — use a literal key like PROJ-123 instead"
   fi
 
   all_gov=true
   for k in $keys; do
     lb=$(fetch_labels "$k") || {
-      $is_transition && deny "jira transition on $k — could not verify labels; ticket state is human-only"
-      ask "jira write to $k — could not verify its labels (jira get failed: timeout/auth/403)"
+      $is_transition && deny "jira transition on $k — could not verify labels; ticket state is human-only, ask the user to transition it instead"
+      ask "jira write to $k — could not verify its labels (jira get failed: timeout/auth/403); check 'jira whoami', or ask the user"
     }
     labels_have_write "$lb" || all_gov=false
   done
@@ -110,9 +110,9 @@ EOF
 
   if $all_gov; then
     [ "$LABELED_DECISION" = "allow" ] && allow "jira write to ${klist}— ticket(s) carry an agent-* label"
-    ask "jira write to $klist(ticket(s) carry an agent-* label)"
+    ask "jira write to $klist(ticket(s) carry an agent-* label; WORK_TICKET_LABELED_DECISION=ask here, so ask the user to confirm)"
   fi
-  $is_transition && [ "$ALLOW_TRANSITION" = 1 ] && ask "jira transition on $klist — human ticket; transition allowed in this repo by WORK_TICKET_ALLOW_TRANSITION=1"
-  $is_transition && deny "jira transition on $klist refused — human-written ticket state (move/close/reopen) is operated by humans only"
-  ask "ticket(s) $klist not all agent-labelled — writes to human tickets need an explicit user request; label first (jira label KEY add $GOV_LABEL)"
+  $is_transition && [ "$ALLOW_TRANSITION" = 1 ] && ask "jira transition on $klist — human ticket; transition allowed in this repo by WORK_TICKET_ALLOW_TRANSITION=1; ask the user to confirm"
+  $is_transition && deny "jira transition on $klist refused — human-written ticket state (move/close/reopen) is operated by humans only; ask the user to transition it and mention the key instead"
+  ask "ticket(s) $klist not all agent-labelled — writes to human tickets need an explicit user request; ask the user, or label first (jira label KEY add $GOV_LABEL)"
 fi

@@ -53,9 +53,9 @@ if printf '%s' "$flat" | grep -qE "${GHP}(pr|issue|label|api|release|repo|run|wo
   #       only a literal query ('{…}' / 'query …', no operationName, no @file, no $VAR/$(…)).
   while IFS= read -r clause; do
     [ -n "$clause" ] || continue
-    if printf '%s' "$clause" | grep -qiE '(^|[[:space:]])(-X|--method)[= ]*["'"'"']?(POST|PUT|PATCH|DELETE)\b'; then defer "gh api write (explicit non-GET method)"; continue; fi
-    if printf '%s' "$clause" | grep -qE '(^|[[:space:]])--input([= ]|$)'; then defer "gh api --input (request body from a file/stdin)"; continue; fi
-    words=$(shell_words "$clause") || { defer "gh api — could not parse the command line (unbalanced quotes)"; continue; }
+    if printf '%s' "$clause" | grep -qiE '(^|[[:space:]])(-X|--method)[= ]*["'"'"']?(POST|PUT|PATCH|DELETE)\b'; then defer "gh api write (explicit non-GET method) — ask the user, or use the matching gh subcommand instead"; continue; fi
+    if printf '%s' "$clause" | grep -qE '(^|[[:space:]])--input([= ]|$)'; then defer "gh api --input (request body from a file/stdin) — ask the user, or use the matching gh subcommand instead"; continue; fi
+    words=$(shell_words "$clause") || { defer "gh api — could not parse the command line (unbalanced quotes); use balanced literal arguments instead"; continue; }
     toks=(); [ -z "$words" ] || while IFS= read -r _w; do toks+=("$_w"); done <<<"$words"
     a_method=""; a_fields=false; a_files=false; a_opname=false; a_query=""; a_endpoint=""; i=2   # skip 'gh api'
     while [ "$i" -lt "${#toks[@]}" ]; do
@@ -81,10 +81,10 @@ if printf '%s' "$flat" | grep -qE "${GHP}(pr|issue|label|api|release|repo|run|wo
     case "$a_m" in ''|GET|HEAD) ;; *) defer "gh api with method '$a_method' (only GET/HEAD pass)"; continue ;; esac
     case "$a_endpoint" in
       graphql|/graphql)
-        [ -z "$a_m" ] || { defer "gh api graphql with an explicit method"; continue; }
-        $a_files && { defer "gh api graphql reading @file — the operation cannot be inspected"; continue; }
-        $a_opname && { defer "gh api graphql with operationName — cannot verify the operation is a query"; continue; }
-        if printf '%s' "$clause" | grep -qE '\$|`'; then defer "gh api graphql with \$VAR / \$(…) — the operation cannot be inspected"; continue; fi
+        [ -z "$a_m" ] || { defer "gh api graphql with an explicit method — drop -X/--method for a read-only query, or ask the user"; continue; }
+        $a_files && { defer "gh api graphql reading @file — the operation cannot be inspected; pass the query inline as a literal -f query=... instead"; continue; }
+        $a_opname && { defer "gh api graphql with operationName — cannot verify the operation is a query; drop operationName and pass a single literal query instead"; continue; }
+        if printf '%s' "$clause" | grep -qE '\$|`'; then defer "gh api graphql with \$VAR / \$(…) — the operation cannot be inspected; pass a literal inline query instead"; continue; fi
         a_q=$(printf '%s' "$a_query" | sed -E 's/^[[:space:]]+//')
         if ! printf '%s' "$a_q" | grep -qE '^(\{|query([^A-Za-z0-9_]|$))' \
            || printf '%s' "$a_q" | grep -qE '(^|[^A-Za-z0-9_])(mutation|subscription)([^A-Za-z0-9_]|$)'; then
@@ -99,13 +99,13 @@ EOF
 
   # -- 3. team-visible actions: humans merge/review; releases, repos, workflows, secrets, auth … ask
   printf '%s' "$flat" | grep -qE "$GH_TEAM_RE" \
-    && defer "gh team-visible action (PR merge/review is human-only; releases/repos/workflows/secrets/auth/gists are not governed)"
+    && defer "gh team-visible action (PR merge/review is human-only; releases/repos/workflows/secrets/auth/gists are not governed) — ask the user instead"
 
   # -- 4. gh label create NAME (positional): agent-* labels are free
   while IFS= read -r clause; do
     [ -n "$clause" ] || continue
     lhead=$(printf '%s' "$clause" | grep -oE "^${GHP}label\s+${GHR}create\b" | head -1)
-    words=$(shell_words "${clause:${#lhead}}") || { defer "gh label create — could not parse the command line"; continue; }
+    words=$(shell_words "${clause:${#lhead}}") || { defer "gh label create — could not parse the command line; pass a literal label name instead"; continue; }
     toks=(); [ -z "$words" ] || while IFS= read -r _w; do toks+=("$_w"); done <<<"$words"
     lname=""; i=0
     while [ "$i" -lt "${#toks[@]}" ]; do
@@ -118,7 +118,7 @@ EOF
     done
     case "$lname" in *'$'*|'') defer "gh label create '${lname:-?}' — pass a literal label name"; continue ;; esac
     if printf '%s' "$lname" | grep -qE "$AGENT_LABEL_RE"; then pending_allow="gh label create '$lname' (agent-* governance label)"
-    else defer "gh label create '$lname' (non-agent label)"; fi
+    else defer "gh label create '$lname' (non-agent label) — use an agent-* name, or ask the user"; fi
   done <<EOF
 $(printf '%s' "$flat" | grep -oE "${GHP}label\s+${GHR}create\b[^;&|]*")
 EOF
@@ -131,7 +131,7 @@ EOF
     while IFS= read -r clause; do
       [ -n "$clause" ] || continue
       # a clause cut out of `sh -c "…"` ends in the wrapper's quote: retry without it
-      words=$(shell_words "$clause") || words=$(shell_words "${clause%[\"\']}") || { defer "gh pr create — could not parse the command line (unbalanced quotes)"; continue; }
+      words=$(shell_words "$clause") || words=$(shell_words "${clause%[\"\']}") || { defer "gh pr create — could not parse the command line (unbalanced quotes); pass literal -t/-F/-l values instead"; continue; }
       toks=(); [ -z "$words" ] || while IFS= read -r _w; do toks+=("$_w"); done <<<"$words"
       phead=""; pbase=""; pweb=false; pfill=false; ptitle=""; phas_title=false; i=0
       while [ "$i" -lt "${#toks[@]}" ]; do
@@ -174,7 +174,7 @@ EOF
   if printf '%s' "$flat" | grep -qE "${GHP}issue\s+${GHR}create\b"; then
     while IFS= read -r clause; do
       [ -n "$clause" ] || continue
-      words=$(shell_words "$clause") || { defer "gh issue create — could not parse the command line (unbalanced quotes)"; continue; }
+      words=$(shell_words "$clause") || { defer "gh issue create — could not parse the command line (unbalanced quotes); pass literal -t/-F/-l values instead"; continue; }
       toks=(); [ -z "$words" ] || while IFS= read -r _w; do toks+=("$_w"); done <<<"$words"
       iprov=false; iweb=false; i=0
       while [ "$i" -lt "${#toks[@]}" ]; do

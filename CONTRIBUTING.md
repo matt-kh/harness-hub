@@ -97,7 +97,8 @@ Read [ARCHITECTURE §3](ARCHITECTURE.md#3-bundles-bundlesname) first. Checklist:
       bundle (a `provider-feature` ref is `<provider>:<feature>` from that provider's
       `features`), plus a `coverage_note` saying what the pairing does not cover. `harness lint`
       shows no unpaired-guide, unpaired-sensor or `rule-guard-pairing` warning.
-- [ ] Every guard `# rule:` reason states the alternative (what to run, use or ask instead).
+- [ ] Every guard `# rule:` reason states the alternative (what to run, use or ask instead),
+      and so does the runtime `deny`/`ask`/`defer` message (`harness lint` rule `guard-messages`).
 - [ ] `[taxonomy]` classifies the bundle: `domain` and `posture`, a `function` default if its
       skills and agents share one, and `[taxonomy.components]` overrides where a component
       differs ([taxonomy](docs/reference/taxonomy.md)). New components follow the naming
@@ -191,10 +192,14 @@ Read [ARCHITECTURE §4](ARCHITECTURE.md#4-providers-providersname) and
 
 - [ ] `providers/<name>/provider.toml` — every target path, its write mode and the
       `[capabilities]` honestly stated (`hook_enforced = false` when there is no pre-tool hook).
+      `harness lint` rule `provider-honesty` errors when they contradict `[targets]` and warns
+      when the doc's `**Tier: x.**` line disagrees.
 - [ ] `shim.sh` if the provider has command hooks: translate its stdin to the neutral
       envelope and the decision back. Map `ask` through `[providers.<name>].ask_as`.
 - [ ] Shim fixtures `tests/*.in.json` → `*.out.json` for allow, deny, ask, an unknown tool
-      (pass through) and malformed JSON (deny: fail closed).
+      (pass through) and malformed JSON (deny: fail closed), plus `tests/run.sh`. The base
+      name starts with the case word (`allow`, `deny`, `ask`, `unknown-tool`, `malformed`),
+      variants follow after `-` (`ask-as-allow`); `harness lint` rule `shim-fixtures` checks it.
 - [ ] `README.md` with a "verified against <version> on <date>" line (the weekly
       provider-drift workflow parses it) and the provider's quirks.
 - [ ] `docs/providers/<name>.md` and the README capability matrix (both generated:

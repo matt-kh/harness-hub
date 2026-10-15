@@ -1,0 +1,21 @@
+# exit=0
+# stderr:
+# stdout:
+{
+  "provider": "github",
+  "me": "",
+  "project": "owner/repo",
+  "creatable": false,
+  "can_assign": false,
+  "viewer_permission": null,
+  "labels": [],
+  "milestones": [],
+  "templates": [
+    ".github/ISSUE_TEMPLATE/bug.md",
+    ".github/ISSUE_TEMPLATE/feature.md"
+  ],
+  "repo_declaration": null,
+  "repo_owns": false,
+  "error": "gh not installed (harness install gh)"
+}
+# calls:
