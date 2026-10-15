@@ -1,0 +1,5 @@
+# exit=1
+# stderr:
+'meta' takes at most 1 argument(s), got 2.
+# stdout:
+# calls:

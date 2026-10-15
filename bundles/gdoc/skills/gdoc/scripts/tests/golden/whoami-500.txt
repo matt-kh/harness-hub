@@ -1,0 +1,7 @@
+# exit=1
+# stderr:
+>> GET https://www.googleapis.com/drive/v3/about?fields=user(emailAddress,displayName)
+HTTP 500 on GET https://www.googleapis.com/drive/v3/about?fields=user(emailAddress,displayName): {"error": {"code": 500, "message": "Backend Error", "errors": [{"reason": "backendError"}]}}
+# stdout:
+# calls:
+GET https://www.googleapis.com/drive/v3/about?fields=user(emailAddress,displayName) auth=yes

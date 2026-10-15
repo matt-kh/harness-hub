@@ -1,0 +1,5 @@
+# exit=0
+# stderr:
+DRY-RUN POST https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true&fields=id,name,webViewLink,properties {"name": "Kickoff", "mimeType": "application/vnd.google-apps.document", "properties": {"agent_provenance": "agent-created", "agent_tool": "claude-code", "agent_created_at": "TIMESTAMP"}, "parents": ["folder00000000000000000001"]}
+# stdout:
+# calls:

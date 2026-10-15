@@ -1,0 +1,5 @@
+# exit=0
+# stderr:
+DRY-RUN PATCH https://www.googleapis.com/drive/v3/files/doc00000000000000000000002?fields=id%2Cproperties&supportsAllDrives=true {"properties": {"agent_provenance": "agent-worked", "agent_tool": "claude-code", "agent_marked_at": "TIMESTAMP"}}
+# stdout:
+# calls:
