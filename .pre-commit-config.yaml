@@ -56,6 +56,17 @@ repos:
         pass_filenames: false
         always_run: true
         stages: [pre-commit]
+      # Companion files for the whole branch (what CI checks on the pull request): guard rows
+      # for guard.d changes, a CHANGELOG [Unreleased] entry for engine/bundle changes. The base
+      # is origin/main, not PRE_COMMIT_FROM_REF: a second push would otherwise miss the entry
+      # made by the first. Skips when origin/main or the pushed ref is unknown (branch deletion).
+      - id: companions
+        name: companion-file gate (guard rows, CHANGELOG)
+        entry: bash -c 'tools/gate/companions.sh --range "origin/main..${PRE_COMMIT_TO_REF:-HEAD}"'
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
       # Fast subset only: git opens the SSH connection before pre-push hooks run, and the full
       # suite (~5 min, guard rows on every bundle) idles it out. CI runs everything; run
       # `make test` before pushing guard or skill changes.

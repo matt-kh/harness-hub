@@ -21,7 +21,7 @@ loop. Agents: start with [AGENTS.md](AGENTS.md).
   | [3 Platform for everyone](principles/03-platform-for-everyone.md) | private-identifier gate, template key lint |
   | [4 Install as a platform](principles/04-install-as-a-platform.md) | offline bootstrap smoke test |
   | [5 Distributed as a git repo](principles/05-distributed-as-a-git-repo.md) | `tests/smoke/pack.sh` |
-  | [6 Harness engineering](principles/06-harness-engineering.md) | `harness lint` guides/sensors pairing and taxonomy checks, guard test rows |
+  | [6 Harness engineering](principles/06-harness-engineering.md) | `harness lint` guides/sensors pairing and taxonomy checks, guard test rows, companion-file gate (rows, CHANGELOG entry) |
   | [7 Extensible core](principles/07-extensible-core.md) | PR template, CHANGELOG "Principles" entries |
   | [8 User-level by design](principles/08-user-level-by-design.md) | `harness lint` `yields` rule, guard rows for `.harness.toml` yield, `harness repo` unit test |
   | [9 Deterministic by construction](principles/09-deterministic-by-construction.md) | render-determinism smoke, guard build `cmp`, pack unit tests, create-ticket and k8s goldens, `harness lint` `stability`, section-75 guard rows |
@@ -191,10 +191,14 @@ Read [ARCHITECTURE §4](ARCHITECTURE.md#4-providers-providersname) and
 
 - [ ] `providers/<name>/provider.toml` — every target path, its write mode and the
       `[capabilities]` honestly stated (`hook_enforced = false` when there is no pre-tool hook).
+      `harness lint` rule `provider-honesty` errors when they contradict `[targets]` and warns
+      when the doc's `**Tier: x.**` line disagrees.
 - [ ] `shim.sh` if the provider has command hooks: translate its stdin to the neutral
       envelope and the decision back. Map `ask` through `[providers.<name>].ask_as`.
 - [ ] Shim fixtures `tests/*.in.json` → `*.out.json` for allow, deny, ask, an unknown tool
-      (pass through) and malformed JSON (deny: fail closed).
+      (pass through) and malformed JSON (deny: fail closed), plus `tests/run.sh`. The base
+      name starts with the case word (`allow`, `deny`, `ask`, `unknown-tool`, `malformed`),
+      variants follow after `-` (`ask-as-allow`); `harness lint` rule `shim-fixtures` checks it.
 - [ ] `README.md` with a "verified against <version> on <date>" line (the weekly
       provider-drift workflow parses it) and the provider's quirks.
 - [ ] `docs/providers/<name>.md`, README capability matrix, SECURITY.md coverage table.
@@ -202,7 +206,11 @@ Read [ARCHITECTURE §4](ARCHITECTURE.md#4-providers-providersname) and
 ## Guard tests and goldens
 
 - Guard rows are the specification. A behaviour change without a row change will be
-  rejected; a row change without a reason in the PR description too.
+  rejected; a row change without a reason in the PR description too. The companion-file gate
+  (`tools/gate/companions.sh`, pre-push and CI) enforces the first half: guard code changed in
+  `bundles/<b>/guard.d/NN-*.sh` needs `bundles/<b>/guard.d/tests.sh` in the same branch, and a
+  net-new `# rule: … -> D :` needs an added `t|tc|g|r|tn D` row (or `tr` for ask/deny). A
+  refactor with no behaviour change says so in a commit body: `no-rows: <reason>`.
 - Goldens (rendered output, skill output) are regenerated with `UPDATE=1 bin/harness test`
   and **reviewed as a diff** before committing. For pure renames, check the diff is a token
   substitution: `git diff --word-diff-regex='[A-Za-z0-9_./-]+'`.
@@ -236,7 +244,11 @@ macOS ships bash 3.2 and BSD userland; CI parses every script with `/bin/bash -n
 - Name the principle(s) served, or "neutral", in the PR description.
 - Add a `CHANGELOG.md` entry under `[Unreleased]`. If you add, rename or remove a config key,
   change a default, or change a guard decision, include a **Migration** paragraph that tells
-  users exactly what to edit (`harness config migrate` handles pure renames).
+  users exactly what to edit (`harness config migrate` handles pure renames). The
+  companion-file gate requires the entry when the branch changes `bundles/`, `lib/harness/`,
+  `providers/`, `schema/`, `bin/`, `profiles/`, `templates/`, `bootstrap` or
+  `tools/*.lock.json` outside tests and goldens; `no-changelog: <reason>` in a commit body or
+  the PR description waives it.
 
 ## Releases (maintainers)
 

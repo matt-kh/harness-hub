@@ -18,17 +18,19 @@ Copilot can deny but not ask, so ask decisions follow `[providers.copilot].ask_a
 
 - stdin `{"toolName":"bash","toolArgs":"<JSON string>"}` — note `toolArgs` is a JSON
   **string** that the shim parses a second time to find the command.
-- `deny` → `{"permissionDecision":"deny","permissionDecisionReason":…}`; `allow` and
-  pass-through print nothing; `ask` → per `ask_as`.
+- `allow` → `{"permissionDecision":"allow"}`, `deny` →
+  `{"permissionDecision":"deny","permissionDecisionReason":…}`; `ask` → per `ask_as`;
+  pass-through (unknown tool, no opinion) prints nothing.
 - Unknown tool → pass through; malformed JSON (outer or inner) → deny.
 
 ## Quirks
 
 - Copilot CLI requires a GitHub account with a Copilot entitlement; organisation policy can
   disable the CLI or specific models. That is outside the hub's control.
-- The hook file format is young and versioned by the CLI; the adapter README states the
-  version it was verified against, and the weekly provider-drift workflow opens an issue when
-  a newer release appears.
+- The hook file format is young and versioned by the CLI; `verified` in
+  `providers/copilot/provider.toml` (shown below) states the version it was verified
+  against, and the weekly provider-drift workflow opens an issue when a newer release
+  appears.
 - Copilot's own tool approvals still apply on top of the guard.
 - Repository level: Copilot reads `.github/copilot-instructions.md`, which the hub does not
   manage; hook stacking with project settings is not covered. `.harness.toml` is honoured
