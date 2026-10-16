@@ -42,8 +42,8 @@ marks the developer's own credentials and the ask on writing `.harness.toml`.
 | 30-git.sh | core | `git push --all\|--mirror` | ask | would publish every local branch; push the named branch instead | owns scm |
 | 30-git.sh | core | `shell write to .harness.toml (> >> tee cp mv install ln dd of= sed -i perl -i, harness repo init --write)` | ask | the repository declaration lifts user-level rules; ask the user to review and commit it instead | never |
 | 32-obs.sh | obs | `<reader> ~/.config/obs/*` | deny | API key files; run 'obs backends' to see auth status instead | never |
-| 32-obs.sh | obs | `curl\|wget\|http\|xh ... -H 'Authorization\|SIGNOZ-API-KEY\|X-API-Key: <literal>' \| ?api_key=<literal>` | deny | API key on the command line; use the obs CLI instead (it reads the key file) | owns operations |
-| 32-obs.sh | obs | `curl\|wget\|http\|xh <host matching OBS_HOSTS_RE>` | ask | raw backend access; use the obs CLI (bounded, redacted, read-only) instead | owns operations |
+| 32-obs.sh | obs | `[/path/]curl\|wget\|http\|xh ... -H 'Authorization\|SIGNOZ-API-KEY\|X-API-Key: <literal>' \| ?api_key=<literal>` | deny | API key on the command line; use the obs CLI instead (it reads the key file) | owns operations |
+| 32-obs.sh | obs | `[/path/]curl\|wget\|http\|xh <host matching OBS_HOSTS_RE>` | ask | raw backend access; use the obs CLI (bounded, redacted, read-only) instead | owns operations |
 | 32-obs.sh | obs | `amtool silence add\|expire\|import \| amtool alert add` | ask | changes alert state; hand the command to the user, or change the alert rule in the repo instead | owns operations |
 | 32-obs.sh | obs | `logcli query --tail\|-f` | ask | never returns; pass --since and --limit instead | owns operations |
 | 32-obs.sh | obs | `grafana-cli admin\|plugins install\|remove` | ask | Grafana admin mutation; hand the command to the user, or change the chart values instead | owns operations |

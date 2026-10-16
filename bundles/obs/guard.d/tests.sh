@@ -50,6 +50,12 @@ t deny  'bash -lc '"'"'curl -H "Authorization: Bearer 0123456789abcdef" https://
 t deny  'env X=1 curl -H "SIGNOZ-API-KEY: sk0123456789abcdef" https://signoz.example.com/api/v1/rules'
 t deny  'cd /tmp && curl -sH "SIGNOZ-API-KEY: sk0123456789abcdef" https://signoz.example.com/api/v1/rules'
 t deny  'echo https://signoz.example.com/api/v1/rules | xargs curl -H "SIGNOZ-API-KEY: sk0123456789abcdef"'
+t deny  "/usr/bin/curl -H 'SIGNOZ-API-KEY: sk0123456789abcdef' https://signoz.example.com/api/v1/rules"   # bypass: path-qualified client
+t deny  "./curl -H 'Authorization: Bearer 0123456789abcdef' https://grafana.example.com/api/search"
+t deny  '/usr/local/bin/xh https://signoz.example.com/api/v1/rules SIGNOZ-API-KEY:0123456789abcdef'
+t deny  "command curl -H 'SIGNOZ-API-KEY: sk0123456789abcdef' https://signoz.example.com/api/v1/rules"
+t deny  "env curl -H 'SIGNOZ-API-KEY: sk0123456789abcdef' https://signoz.example.com/api/v1/rules"
+t deny  'sh -c "/usr/bin/curl -H \"SIGNOZ-API-KEY: sk0123456789abcdef\" https://signoz.example.com/api/v1/rules"'
 tr 'use the obs CLI'   'curl -H "SIGNOZ-API-KEY: sk0123456789abcdef" https://signoz.example.com/api/v1/rules'
 tr 'from a variable'   'curl -H "X-API-Key: 0123456789abcdef" https://api.example.org/v1/items'
 # ---- raw requests to a backend host (OBS_HOSTS_RE): ask ------------------------------
@@ -67,6 +73,15 @@ t ask   'env X=1 curl https://signoz.example.com/api/v1/rules'
 t ask   'cd /tmp && curl https://signoz.example.com/api/v1/rules'
 t ask   'curl --url=https://signoz.example.com/api/v1/rules'
 t ask   'curl https://example.com/a; curl https://signoz.example.com/api/v1/rules'
+t ask   '/usr/bin/curl https://signoz.example.com/api/v1/rules'                               # bypass: path-qualified client
+t ask   './curl -s https://grafana.example.com/api/health'
+t ask   '../bin/wget -qO- https://prometheus.example.com/api/v1/alerts'
+t ask   'command curl https://signoz.example.com/api/v1/rules'
+t ask   'env curl https://signoz.example.com/api/v1/rules'
+t ask   'cd /tmp && /usr/bin/curl https://signoz.example.com/api/v1/rules'
+tr 'use the obs CLI'   '/usr/bin/curl https://signoz.example.com/api/v1/rules'
+t pass  '/usr/bin/curl -s https://example.com/healthz'                                       # path-qualified, host outside OBS_HOSTS_RE
+t pass  'ls /tmp/curl-out https://signoz.example.com'                                        # curl only inside a path word: no client
 tr 'use the obs CLI'   'curl https://signoz.example.com/api/v1/rules'
 OBS_HOSTS_RE='' t pass 'curl https://signoz.example.com/api/v1/rules'                       # empty regex: host rows off
 OBS_HOSTS_RE='' t pass 'wget -qO- https://prometheus.example.com/api/v1/alerts'
