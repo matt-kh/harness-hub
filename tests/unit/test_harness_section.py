@@ -77,7 +77,56 @@ class HarnessSectionTest(HubTestCase):
             self.assertEqual(b.pairing(), "paired", name)
             rep = L.Report()
             L.lint_harness(b, rep)
+            L.lint_guide_checks(b, rep)
             self.assertEqual((rep.errors, rep.warnings), ([], []), name)
+            self.assertEqual(b.unpaired_guides(), [], name)
+
+    def test_schema_checks_on_guides(self):
+        ok = '\n[harness]\nguides = [{ kind = "rule", ref = "x", checks = ["a", "b"] }]\n'
+        self.write(self.manifest, self.base + ok)
+        self.assertEqual(SL.validate(self.schema, self.core_bundle().data).errors, [])
+        for bad in ('checks = []', 'checks = [""]', 'checks = ["a", "a"]', 'checks = "a"'):
+            self.write(self.manifest, self.base + '\n[harness]\nguides = [{ kind = "rule", ref = "x", %s }]\n' % bad)
+            self.assertTrue(SL.validate(self.schema, self.core_bundle().data).errors, bad)
+
+    # ------------------------------------------------------------------ guide-checks
+    def guide_checks(self, origin="public"):
+        rep = L.Report()
+        L.lint_guide_checks(M.load_bundle(self.core, origin=origin), rep)
+        return rep
+
+    def test_guide_without_checks_warns(self):
+        self.set_harness(HARNESS)
+        rep = self.guide_checks()
+        self.assertEqual(rep.errors, [])
+        self.assertEqual(len(rep.warnings), 1, rep.warnings)
+        self.assertIn("guide-checks: guide %s declares no sensor" % self.rule, rep.warnings[0])
+        self.assertIn('checks = ["<sensor ref>", ...]', rep.warnings[0])
+        self.assertEqual(self.guide_checks("private").warnings, [])
+
+    def test_guide_checks_silence(self):
+        self.set_harness(HARNESS.replace('note = "conventions"', 'checks = ["guard-reasons"], note = "conventions"'))
+        rep = self.guide_checks()
+        self.assertEqual((rep.errors, rep.warnings), ([], []))
+        self.assertEqual(self.core_bundle().unpaired_guides(), [])
+        topic = L.guide_topic(self.rule)
+        self.set_harness(HARNESS.replace('coverage_note = "fixture"', 'coverage_note = "the %s rule is guide-only"' % topic))
+        self.assertEqual(self.guide_checks().warnings, [])
+
+    def test_guide_checks_unknown_ref_is_error(self):
+        self.set_harness(HARNESS.replace('note = "conventions"', 'checks = ["guard.d/99-nope.sh"], note = "conventions"'))
+        for origin in ("public", "private"):
+            rep = self.guide_checks(origin)
+            self.assertEqual(len(rep.errors), 1, rep.errors)
+            self.assertIn("names 'guard.d/99-nope.sh' in checks, which no [harness] sensor declares", rep.errors[0])
+            self.assertIn('checks = ["<sensor ref>", ...]', rep.errors[0])
+            self.assertIn("doctor_checks, guard-reasons", rep.errors[0])
+
+    def test_guide_topic(self):
+        self.assertEqual(L.guide_topic("rules/60-github.md"), "github")
+        self.assertEqual(L.guide_topic("skills/gdoc"), "gdoc")
+        self.assertEqual(L.guide_topic("permissions.toml"), "permissions")
+        self.assertEqual(L.guide_topic("agents/k8s-triage.md"), "k8s-triage")
 
     # ------------------------------------------------------------------ pairing
     def test_paired_is_quiet(self):
@@ -166,11 +215,22 @@ class HarnessSectionTest(HubTestCase):
         b = self.core_bundle()
         body = D.bundle_body(b)
         self.assertIn("## Guides and sensors", body)
-        self.assertIn("Pairing: **paired**", body)
-        self.assertIn("| guide | rule | `%s` | conventions |" % self.rule, body)
+        self.assertIn("Pairing: **paired**; guides with a declared check: 0 of 1.", body)
+        self.assertIn("| side | kind | ref | note | pairs with |", body)
+        self.assertIn("| guide | rule | `%s` | conventions | — |" % self.rule, body)
+        self.assertIn("| sensor | lint | `guard-reasons` |  | — |", body)
         self.assertIn("**Not covered:** fixture", body)
         cov = D.coverage_body([b])
-        self.assertIn("| [core](../bundles/core.md#guides-and-sensors) | 1 | rule | 2 | doctor, lint | paired | fixture |", cov)
+        self.assertIn("| bundle | guides | guide kinds | sensors | sensor kinds | pairing | unpaired guides | not covered |", cov)
+        self.assertIn("| [core](../bundles/core.md#guides-and-sensors) | 1 | rule | 2 | doctor, lint | paired | `%s` | fixture |"
+                      % self.rule, cov)
+        self.set_harness(HARNESS.replace('note = "conventions"', 'checks = ["guard-reasons"], note = "conventions"'))
+        b = self.core_bundle()
+        body = D.bundle_body(b)
+        self.assertIn("guides with a declared check: 1 of 1.", body)
+        self.assertIn("| guide | rule | `%s` | conventions | `guard-reasons` |" % self.rule, body)
+        self.assertIn("| sensor | lint | `guard-reasons` |  | `%s` |" % self.rule, body)
+        self.assertIn("| doctor, lint | paired | none | fixture |", D.coverage_body([b]))
 
     def test_coverage_page_is_generated(self):
         pages = D.expected(REPO)

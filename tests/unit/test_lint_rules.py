@@ -432,6 +432,7 @@ class RepoBundlesTest(LintRuleCase):
             L.lint_harness(b, rep, hub.providers)
             L.lint_env_provides(b, prefixes, rep)
             L.lint_rule_guard_pairing(b, rep)
+            L.lint_guide_checks(b, rep)
             L.lint_guard_messages(b, rep)
             L.lint_agent_tools(b, rep)
             L.lint_skill_description(b, tpl, rep)
@@ -446,7 +447,7 @@ class RepoBundlesTest(LintRuleCase):
         self.assertEqual((rep.errors, rep.warnings), ([], []))
 
     def test_rules_are_known_and_skippable(self):
-        for rule in ("env-provides", "rule-guard-pairing", "guard-messages", "permissions-vs-guard", "agent-tools", "skill-description",
+        for rule in ("env-provides", "rule-guard-pairing", "guide-checks", "guard-messages", "permissions-vs-guard", "agent-tools", "skill-description",
                      "fragments-target", "profile-sane", "stability"):
             self.assertIn(rule, L.LINT_RULES)
             self.assertIn(rule, L.SKIPPABLE_RULES)

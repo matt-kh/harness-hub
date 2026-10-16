@@ -202,6 +202,14 @@ class Bundle:
     def sensors(self) -> List[Dict[str, Any]]:
         return list(self.harness.get("sensors") or [])
 
+    def sensor_refs(self) -> List[str]:
+        """The ``ref`` of every ``[harness]`` sensor, in manifest order (what a guide's ``checks`` may name)."""
+        return [str(e.get("ref", "")) for e in self.sensors if e.get("ref")]
+
+    def unpaired_guides(self) -> List[Dict[str, Any]]:
+        """Guides that declare no ``checks`` (no sensor named as checking them)."""
+        return [g for g in self.guides if not g.get("checks")]
+
     def pairing(self) -> str:
         """``paired`` | ``guides only`` | ``sensors only`` | ``empty`` | ``undeclared``."""
         if "harness" not in self.data:

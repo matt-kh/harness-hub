@@ -649,9 +649,9 @@ options:
   --yes, -y      assume yes; never prompt
   --dry-run      show what would happen, write nothing
   --skip RULE    skip a rule (repeatable; e.g. the slower permissions-vs-guard): agent-tools,
-                 dependencies, env-provides, fragments-target, guard-messages, permissions-vs-
-                 guard, private-ids, profile-sane, rule-guard-pairing, skill-description,
-                 stability
+                 dependencies, env-provides, fragments-target, guard-messages, guide-checks,
+                 permissions-vs-guard, private-ids, profile-sane, rule-guard-pairing, skill-
+                 description, stability
 ```
 
 ### harness docs

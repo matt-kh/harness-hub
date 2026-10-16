@@ -191,20 +191,22 @@ Never put a key in this file. Then run `harness apply` and `obs backends`.
 
 ## Guides and sensors
 
-Guides steer the agent before it acts; sensors detect at or after the action. Pairing: **paired**.
+Guides steer the agent before it acts; sensors detect at or after the action. Pairing: **paired**; guides with a declared check: 4 of 4.
 
-| side | kind | ref | note |
-|---|---|---|---|
-| guide | rule | `rules/32-obs.md` | read-only, obs backends first, bounded and redacted reads, alert rules and dashboards change as repo files |
-| guide | skill | `skills/obs` | the obs CLI: backends, query, logs, traces, services, alerts, dashboards, lint |
-| guide | permission | `permissions.toml` | obs and read-only rule tooling allowed, alert-state changes ask, key files denied to Read |
-| guide | agent | `agents/obs-triage.md` | read-only signal triage that hands remediations to the human |
-| sensor | guard | `guard.d/32-obs.sh` | key files, literal API keys, raw backend requests, amtool/logcli/grafana-cli |
-| sensor | doctor | `doctor_checks` | the CLI, backends, key files, hosts_re and reachability |
-| sensor | test | `guard.d/tests.sh` | guard rows incl. bypasses and the operations yield |
-| sensor | test | `tests/run.sh` | this bundle's rows against core + obs only |
-| sensor | test | `skills/obs/scripts/tests/run.sh` | the obs CLI against fixture-routed HTTP, incl. the dry-run request allow-list |
-| sensor | review-agent | `agents/obs-triage.md` | evidence-cited triage of firing alerts, logs and traces |
+| side | kind | ref | note | pairs with |
+|---|---|---|---|---|
+| guide | rule | `rules/32-obs.md` | read-only, obs backends first, bounded and redacted reads, alert rules and dashboards change as repo files | `guard.d/32-obs.sh` |
+| guide | skill | `skills/obs` | the obs CLI: backends, query, logs, traces, services, alerts, dashboards, lint | `skills/obs/scripts/tests/run.sh`, `doctor_checks` |
+| guide | permission | `permissions.toml` | obs and read-only rule tooling allowed, alert-state changes ask, key files denied to Read | `permissions-vs-guard`, `guard.d/32-obs.sh` |
+| guide | agent | `agents/obs-triage.md` | read-only signal triage that hands remediations to the human | `guard.d/32-obs.sh`, `agent-tools` |
+| sensor | guard | `guard.d/32-obs.sh` | key files, literal API keys, raw backend requests, amtool/logcli/grafana-cli | `rules/32-obs.md`, `permissions.toml`, `agents/obs-triage.md` |
+| sensor | doctor | `doctor_checks` | the CLI, backends, key files, hosts_re and reachability | `skills/obs` |
+| sensor | test | `guard.d/tests.sh` | guard rows incl. bypasses and the operations yield | — |
+| sensor | test | `tests/run.sh` | this bundle's rows against core + obs only | — |
+| sensor | test | `skills/obs/scripts/tests/run.sh` | the obs CLI against fixture-routed HTTP, incl. the dry-run request allow-list | `skills/obs` |
+| sensor | review-agent | `agents/obs-triage.md` | evidence-cited triage of firing alerts, logs and traces | — |
+| sensor | lint | `permissions-vs-guard` | each Bash allow/deny rule of permissions.toml run through the guard: no allowed command the guard denies or asks, no denied one it allows | `permissions.toml` |
+| sensor | lint | `agent-tools` | the read-only triage agent sets no permissionMode and lists no write tools | `agents/obs-triage.md` |
 
 **Not covered:** The CLI's own HTTP calls are not shell commands and are not guarded; the suite's dry-run request log is the read-only proof. Backends reached outside the CLI are not sensed. `obs lint` checks shape, not alert semantics.
 

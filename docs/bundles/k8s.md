@@ -198,22 +198,24 @@ and `harness apply`.
 
 ## Guides and sensors
 
-Guides steer the agent before it acts; sensors detect at or after the action. Pairing: **paired**.
+Guides steer the agent before it acts; sensors detect at or after the action. Pairing: **paired**; guides with a declared check: 6 of 6.
 
-| side | kind | ref | note |
-|---|---|---|---|
-| guide | rule | `rules/10-k8s.md` | read-only by default, explicit --context, Secret keys only, prod remediations are suggestions |
-| guide | skill | `skills/k8s` | the k8s CLI: contexts, triage views, secret-keys, redact |
-| guide | permission | `permissions.toml` | read-only kubectl/helm allowed |
-| guide | agent | `agents/k8s-triage.md` | read-only incident triage that hands remediations to the human |
-| guide | agent | `agents/k8s-auditor.md` | read-only posture review |
-| guide | agent | `agents/infra-architect.md` | design-only infrastructure advice |
-| sensor | guard | `guard.d/10-k8s.sh` | kubectl/helm clause parsing shared by the rules section |
-| sensor | guard | `guard.d/25-k8s-rules.sh` | kubeconfig, Secret data, cluster, release, GitOps and IaC mutations |
-| sensor | doctor | `doctor_checks` | kubectl, helm, the k8s CLI, contexts and the clusters doc |
-| sensor | test | `guard.d/tests.sh` | guard rows with stubbed kubectl and helm |
-| sensor | test | `tests/run.sh` | this bundle's rows against core + k8s only |
-| sensor | test | `skills/k8s/scripts/tests/run.sh` | the k8s CLI against stubbed kubectl and helm |
+| side | kind | ref | note | pairs with |
+|---|---|---|---|---|
+| guide | rule | `rules/10-k8s.md` | read-only by default, explicit --context, Secret keys only, prod remediations are suggestions | `guard.d/25-k8s-rules.sh` |
+| guide | skill | `skills/k8s` | the k8s CLI: contexts, triage views, secret-keys, redact | `skills/k8s/scripts/tests/run.sh`, `doctor_checks` |
+| guide | permission | `permissions.toml` | read-only kubectl/helm allowed | `permissions-vs-guard`, `guard.d/25-k8s-rules.sh` |
+| guide | agent | `agents/k8s-triage.md` | read-only incident triage that hands remediations to the human | `guard.d/25-k8s-rules.sh`, `agent-tools` |
+| guide | agent | `agents/k8s-auditor.md` | read-only posture review | `guard.d/25-k8s-rules.sh`, `agent-tools` |
+| guide | agent | `agents/infra-architect.md` | design-only infrastructure advice | `guard.d/25-k8s-rules.sh`, `agent-tools` |
+| sensor | guard | `guard.d/10-k8s.sh` | kubectl/helm clause parsing shared by the rules section | — |
+| sensor | guard | `guard.d/25-k8s-rules.sh` | kubeconfig, Secret data, cluster, release, GitOps and IaC mutations | `rules/10-k8s.md`, `permissions.toml`, `agents/k8s-triage.md`, `agents/k8s-auditor.md`, `agents/infra-architect.md` |
+| sensor | doctor | `doctor_checks` | kubectl, helm, the k8s CLI, contexts and the clusters doc | `skills/k8s` |
+| sensor | test | `guard.d/tests.sh` | guard rows with stubbed kubectl and helm | — |
+| sensor | test | `tests/run.sh` | this bundle's rows against core + k8s only | — |
+| sensor | test | `skills/k8s/scripts/tests/run.sh` | the k8s CLI against stubbed kubectl and helm | `skills/k8s` |
+| sensor | lint | `permissions-vs-guard` | each Bash allow/deny rule of permissions.toml run through the guard: no allowed command the guard denies or asks, no denied one it allows | `permissions.toml` |
+| sensor | lint | `agent-tools` | read-only agents set no permissionMode and list no write tools | `agents/k8s-triage.md`, `agents/k8s-auditor.md`, `agents/infra-architect.md` |
 
 **Not covered:** The agents' read-only stance is enforced for shell commands by the guard; MCP or API access outside the shell is not sensed. The k8s-rules guard section enforces rule text that lives in rules/10-k8s.md.
 
