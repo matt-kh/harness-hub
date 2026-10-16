@@ -109,3 +109,8 @@ make render-check   # render twice into one fresh HOME; diff must be empty
   `bundles/`, `lib/harness/`, `providers/`, `schema/`, `bin/`, `profiles/`, `templates/`,
   `bootstrap` or `tools/*.lock.json` changed (tests and goldens excepted); a commit-body or PR-body
   `no-changelog: <reason>` waives it.
+- `README.md` is the product page: a change that alters what it states updates it in the same
+  PR. Its bundle table, provider matrix, principle list and core requirements are generated
+  regions (`bin/harness docs generate`); prose is yours to edit. `tools/gate/companions.sh`
+  (check `readme`) fails a branch that changes a manifest, the CLI, a principle or a linked
+  install/governance page without touching `README.md`; `no-readme: <reason>` waives it.
