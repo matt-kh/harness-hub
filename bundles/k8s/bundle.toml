@@ -60,6 +60,12 @@ type = "string"
 default = "~/.local/state/harness/k8s/clusters.md"
 description = "File `k8s contexts --write` regenerates (a relative path is under HARNESS_HOME, e.g. a private bundle's references/). K8S_CLUSTERS_MD."
 
+[requires.config."k8s.redact_extra_re"]
+type = "string"
+default = ""
+description = "Extra ERE of token shapes `k8s redact` and every k8s output redacts in addition to the built-in list. K8S_REDACT_EXTRA_RE."
+example = "(?i)x-internal-token=[^ ]+"
+
 [requires.config."k8s.broken_contexts"]
 type = "array"
 items = "string"
@@ -87,6 +93,7 @@ K8S_PROD_RE = "{{ k8s.prod_re }}"
 K8S_GITOPS_ROOT = "{{ k8s.gitops_root }}"
 K8S_GITOPS_REPO_MATCH = "{{ k8s.gitops_repo_match }}"
 K8S_CLUSTERS_MD = "{{ k8s.clusters_doc }}"
+K8S_REDACT_EXTRA_RE = "{{ k8s.redact_extra_re }}"
 
 [[manual_steps]]
 id = "install-kubectl"

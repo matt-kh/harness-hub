@@ -238,6 +238,13 @@ prints every one between your applied version and the new one.
 
 ### Changed
 
+- `core`: the redactor is one shared block, `bundles/core/lib/redact.py` (`# >>> redact` …
+  `# <<< redact`: `KEY_BODY`, `SECRET_KEY_RE`, `REDACTED`, `redact_obj(obj, extra_re=None)`,
+  `redact_text(text, extra_re=None)`), registered in `sync_inline.py` and inlined into the
+  `k8s` CLI in place of its own copy (principle 10). Output with no extra regex is
+  byte-identical (every k8s golden unchanged). New optional key `k8s.redact_extra_re`
+  (`K8S_REDACT_EXTRA_RE`, default `""`): extra token shapes `k8s redact`, `pod`, `workload`
+  and `helm --values` mask on top of the built-in list; golden `redact-extra-re`.
 - `bundles/ticket-workflow/tests/run.sh` is back to the shared bundle template; its seven
   `repo-facts` checks moved into the `work-ticket` suite. `[harness]` declares the new suite
   and drops "work-ticket has no own test suite yet"; principle 9 and the roadmap no longer
@@ -402,6 +409,9 @@ prints every one between your applied version and the new one.
 - Core guard decision change for everyone: `git push --force-with-lease origin <-sub-NN-
   branches…>` typed as the whole command now allows instead of asking (every other
   force-push still asks); nothing to edit.
+- `k8s.redact_extra_re` (`K8S_REDACT_EXTRA_RE`): new optional key, default `""` keeps
+  today's redaction; nothing to edit. Set it to a regex (e.g. `"(?i)x-internal-token=[^ ]+"`)
+  under `[k8s]` and run `harness apply` to mask more token shapes.
 
 ## [0.1.0] - 2026-09-30
 

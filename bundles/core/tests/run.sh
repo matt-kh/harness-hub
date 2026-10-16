@@ -33,7 +33,7 @@ ck "the credential section never yields (no repo_owns line)" \
   [ -z "$(grep -E '^[[:space:]]*repo_owns ' "$core/guard.d/20-credentials.sh")" ]
 
 # 3. inlined helper copies match their canonical source
-python3 "$core/lib/sync_inline.py" --check "$bundles"; chk $? "inlined hn_timeout / harness_config / hcfg / hrepo / harness_repo copies are in sync"
+python3 "$core/lib/sync_inline.py" --check "$bundles"; chk $? "inlined hn_timeout / harness_config / hcfg / hrepo / harness_repo / redact copies are in sync"
 
 # 4. every shell file parses (under /bin/bash too, which is 3.2 on macOS)
 bad=""
@@ -79,6 +79,20 @@ ck "harness_config.py default when the file is missing" [ "$(HARNESS_CONFIG_JSON
 ck "hcfg number" [ "$(HARNESS_CONFIG_JSON="$tmp/c.json" hcfg a.n)" = 2 ]
 ck "hcfg default" [ "$(HARNESS_CONFIG_JSON="$tmp/c.json" hcfg a.missing d)" = d ]
 ck "hcfg prints nothing without file or default" [ -z "$(HARNESS_CONFIG_JSON=/nonexistent hcfg a.b)" ]
+
+# 6b. redactor (the `redact` block every log-printing CLI inlines)
+rd() { python3 "$core/lib/redact.py" "$@"; }
+ck "redact.py masks a secret-looking key in text" \
+  [ "$(printf 'ts INFO api_key=abc123 ok\n' | rd)" = 'ts INFO api_key=***REDACTED*** ok' ]
+ck "redact.py masks URL userinfo" [ "$(printf 'https://u:p@example.com/x\n' | rd)" = 'https://***:***@example.com/x' ]
+ck "redact.py masks JSON values under secret keys" \
+  [ "$(printf '{"password":"x","user":"u"}' | rd)" = '{"password": "***REDACTED***", "user": "u"}' ]
+ck "redact.py sizes Secret data, never the value" \
+  [ "$(printf '{"kind":"Secret","data":{"k":"aGVsbG8="}}' | rd)" = '{"kind": "Secret", "data": {"k": "<5 bytes>"}}' ]
+ck "redact.py leaves plain text alone" [ "$(printf 'host example.com up\n' | rd)" = 'host example.com up' ]
+ck "redact.py extra regex masks text" [ "$(printf 'host example.com up\n' | rd 'example\.com')" = 'host ***REDACTED*** up' ]
+ck "redact.py extra regex masks JSON string values" \
+  [ "$(printf '{"a":["id-42"]}' | rd 'id-[0-9]+')" = '{"a": ["***REDACTED***"]}' ]
 
 # 7. repository declaration helpers (principle 8): bash and python answer the same
 # shellcheck source=../lib/harness_repo.sh

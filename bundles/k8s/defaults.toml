@@ -5,4 +5,5 @@ prod_re = "(^|[-_./:])(prod|production)([-_./:]|$)"
 gitops_root = ""
 gitops_repo_match = ""
 clusters_doc = "~/.local/state/harness/k8s/clusters.md"
+redact_extra_re = ""
 broken_contexts = []

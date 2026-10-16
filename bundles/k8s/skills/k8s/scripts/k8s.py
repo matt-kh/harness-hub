@@ -85,6 +85,9 @@ HARNESS_CONFIG_JSON / HARNESS_HOME, then to the default):
                          that marks it as that checkout (default: basename of the root)
   K8S_CLUSTERS_MD [k8s.clusters_doc]  file `contexts --write` regenerates (default
                          ~/.local/state/harness/k8s/clusters.md; relative = under HARNESS_HOME)
+  K8S_REDACT_EXTRA_RE [k8s.redact_extra_re]  extra regex of token shapes that `redact`,
+                         `pod`, `workload` and `helm --values` replace in addition to the
+                         built-in list (default: empty = built-in list only)
 """
 import argparse
 import base64
@@ -164,6 +167,7 @@ def is_prod(*parts):
 
 
 # --------------------------------------------------------------------------- redaction
+# >>> redact
 KEY_BODY = (r"(pass(word|wd)?|secret|token|api[-_]?key|private[-_]?key|access[-_]?key"
             r"|client[-_]?secret|credential|auth|cert(ificate)?|jwt|dsn"
             r"|connection[-_]?string)")
@@ -203,31 +207,37 @@ def _secret_sizes(obj):
     return out
 
 
-def redact_obj(obj):
-    """Walk a JSON structure: secret-ish keys -> ***REDACTED***, Secret data -> sizes."""
+def redact_obj(obj, extra_re=None):
+    """Walk a JSON structure: secret-ish keys -> ***REDACTED***, Secret data -> sizes.
+    extra_re (compiled regex or None): its matches inside string values are redacted too."""
     if isinstance(obj, dict):
         if obj.get("kind") == "Secret":
             obj = _secret_sizes(obj)
         out = {}
         for k, v in obj.items():
             if isinstance(v, (dict, list)):
-                out[k] = redact_obj(v)
+                out[k] = redact_obj(v, extra_re)
             elif SECRET_KEY_RE.search(str(k)) and v is not None and not (
                     isinstance(v, str) and v.startswith("<") and v.endswith("bytes>")):
                 out[k] = REDACTED
             else:
-                out[k] = v
+                out[k] = redact_obj(v, extra_re)
         return out
     if isinstance(obj, list):
-        return [redact_obj(x) for x in obj]
+        return [redact_obj(x, extra_re) for x in obj]
+    if extra_re is not None and isinstance(obj, str):
+        return extra_re.sub(REDACTED, obj)
     return obj
 
 
-def redact_text(text):
-    """Redact free text / logs: key=value lines, AWS keys, JWTs, PEM blocks, URL creds."""
+def redact_text(text, extra_re=None):
+    """Redact free text / logs: key=value lines, AWS keys, JWTs, PEM blocks, URL creds.
+    extra_re (compiled regex or None): its matches are redacted too, before the line rules."""
     if not text:
         return text
     text = _PEM_RE.sub(REDACTED, text)
+    if extra_re is not None:
+        text = extra_re.sub(REDACTED, text)
     lines = []
     for line in text.split("\n"):
         m = _TEXT_KEY_RE.match(line)
@@ -241,6 +251,15 @@ def redact_text(text):
         line = _URLCRED_RE.sub("://***:***@", line)
         lines.append(line)
     return "\n".join(lines)
+# <<< redact
+
+
+# extra token shapes (k8s.redact_extra_re) every redacted output also replaces
+REDACT_EXTRA_RE = os.environ.get("K8S_REDACT_EXTRA_RE") or cfg("k8s.redact_extra_re") or ""
+try:
+    REDACT_EXTRA_RE = re.compile(REDACT_EXTRA_RE) if REDACT_EXTRA_RE else None
+except re.error as _e:
+    die("K8S_REDACT_EXTRA_RE / k8s.redact_extra_re is not a valid regex (%s); fix or unset it" % _e)
 
 
 # ------------------------------------------------------------------------- subprocesses
@@ -1122,7 +1141,7 @@ def fetch_logs(ctx, ns, pod, container, tail, timeout, previous=False):
     out, err = ktry(ctx, args, timeout=timeout, json_out=False)
     if out is None:
         return None
-    return redact_text(out.rstrip("\n"))
+    return redact_text(out.rstrip("\n"), REDACT_EXTRA_RE)
 
 
 def cmd_pod(a):
@@ -1675,7 +1694,7 @@ def cmd_helm(a):
                         a.timeout)
         if out is None:
             die("helm get values failed: %s" % err, 1)
-        rep.data["values"] = redact_obj(out)
+        rep.data["values"] = redact_obj(out, REDACT_EXTRA_RE)
         rep.data["values_note"] = ("redacted by k8s — secret-looking keys are "
                                    "***REDACTED***; Secret data is shown as byte sizes")
     rels, herr = htry(ctx, ["list"] + (["-n", ns] if ns else ["-A"]) + ["-o", "json"],
@@ -1767,12 +1786,12 @@ def cmd_redact(a):
     try:
         obj = json.loads(raw)
     except ValueError:
-        sys.stdout.write(redact_text(raw))
+        sys.stdout.write(redact_text(raw, REDACT_EXTRA_RE))
         if raw and not raw.endswith("\n"):
             sys.stdout.write("\n")
         sys.exit(0)
     indent = 2 if (sys.stdout.isatty() or a.md) else None
-    sys.stdout.write(json.dumps(redact_obj(obj), indent=indent, default=str) + "\n")
+    sys.stdout.write(json.dumps(redact_obj(obj, REDACT_EXTRA_RE), indent=indent, default=str) + "\n")
     sys.exit(0)
 
 

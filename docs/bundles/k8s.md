@@ -14,7 +14,8 @@ and `k8s-auditor` sub-agents, and the `infra-architect` design-only agent.
 
 Config: `k8s.prod_re` (regex marking prod contexts/namespaces), `k8s.gitops_root`,
 `k8s.gitops_repo_match`, `k8s.clusters_doc` (a private cluster inventory, usually in
-`local/bundles/<org>/references/`), `k8s.broken_contexts`.
+`local/bundles/<org>/references/`), `k8s.broken_contexts`, `k8s.redact_extra_re` (extra token
+shapes every redacted output masks, on top of the shared `core` redactor's built-in list).
 
 ## Troubleshooting
 
@@ -100,6 +101,7 @@ Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md
 | `k8s.gitops_repo_match` | string | no | `""` | Substring of an Application's repoURL that marks it as that checkout. Empty = the basename of k8s.gitops_root. K8S_GITOPS_REPO_MATCH. |
 | `k8s.gitops_root` | string | no | `""` | Local checkout of your GitOps repo; `k8s argocd` maps spec.source.path into it. Empty = the local-path check is skipped. K8S_GITOPS_ROOT. |
 | `k8s.prod_re` | string | no | `"(^\|[-_./:])(prod\|production)([-_./:]\|$)"` | Case-insensitive ERE on context and namespace names marking production ([PROD] banner; remediations become suggestions only). K8S_PROD_RE. |
+| `k8s.redact_extra_re` | string | no | `""` | Extra ERE of token shapes `k8s redact` and every k8s output redacts in addition to the built-in list. K8S_REDACT_EXTRA_RE. |
 
 ### Secrets (never in harness.toml)
 

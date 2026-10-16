@@ -50,6 +50,7 @@ Environment override for any key: `HARNESS_<SECTION>_<KEY>` (e.g. `HARNESS_JIRA_
 | `k8s.gitops_root` | string | `""` | k8s | Local checkout of your GitOps repo; `k8s argocd` maps spec.source.path into it. Empty = the local-path check is skipped. K8S_GITOPS_ROOT. |
 | `k8s.known_broken_contexts` | array |  |  | **Deprecated**, use `k8s.broken_contexts`. |
 | `k8s.prod_re` | string | `"(^\|[-_./:])(prod\|production)([-_./:]\|$)"` | k8s | Case-insensitive ERE on context and namespace names marking production ([PROD] banner; remediations become suggestions only). K8S_PROD_RE. |
+| `k8s.redact_extra_re` | string | `""` | k8s | Extra ERE of token shapes `k8s redact` and every k8s output redacts in addition to the built-in list. K8S_REDACT_EXTRA_RE. |
 | `kubernetes` | object |  |  | **Deprecated**, use `k8s`. Renamed to [k8s]. |
 | `providers` | table of object |  |  | Per-provider options, keyed by provider name. |
 | `schema_version` | integer |  |  | Configuration schema version. Bumped only with a CHANGELOG Migration entry. |

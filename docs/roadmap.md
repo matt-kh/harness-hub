@@ -94,7 +94,7 @@ bundle. **Status: planned.**
 | `harness report` | engine + core manual step | drift, offline doctor, pending steps and provider versions written to `~/.local/state/harness/report/latest.md`; manual step `schedule-report` with crontab and launchd snippets; doctor warns when the report is older than `core.report_max_age_days` | M | platform teams running an org instance |
 | Profiles | `profiles/` | `app-dev`, `sre`, `data-eng`; drop unverified providers from `platform-engineer` until verified | S | onboarding by discipline |
 | **`ci` bundle** | `bundles/ci` (`scm`, read-only; `any_of` gitlab or github) | CLI `ci runs|jobs|log|why|compare|lint|local-jobs` with bounded, redacted logs; agent `ci-triage` (investigate: root cause and the fix location, never a rerun); guard `55-ci` asks on `glab ci retry|cancel|run|trigger|delete` and on raw log reads not piped through the redactor; config `ci.log_tail`, `ci.redact_extra_re`, `ci.flaky_re` | L | everyone who waits on pipelines |
-| Shared redactor | `core/lib/redact.py` | one token-shape list (PATs, cloud keys, JWTs, private-key blocks, URL userinfo, values under secret-looking keys) inlined into `k8s`, `ci` and later CLIs with the existing `sync_inline.py` markers (principle 10) | S | every CLI that prints logs |
+| Shared redactor | `core/lib/redact.py` | **shipped**: the `redact` block (values under secret-looking keys, Secret data as sizes, AWS key ids, JWTs, private-key blocks, URL userinfo, plus a caller's `extra_re`), inlined into `k8s` with `k8s.redact_extra_re`; `ci` and later CLIs inline the same block (principle 10) | S | every CLI that prints logs |
 
 ## Tranche P2: breadth
 
@@ -190,7 +190,8 @@ Cross-tranche items that make the hub easier to maintain and to extend.
 
 ## Cross-cutting, built once
 
-- The shared redactor in `core/lib/redact.py` (P1) before any new CLI that prints logs.
+- The shared redactor in `core/lib/redact.py` (P1) before any new CLI that prints logs
+  (**shipped**: new CLIs inline the `redact` block and add a `<bundle>.redact_extra_re` key).
 - A `tests/run.sh` template for bundles, copied by the scaffolder.
 - Every new bundle ships `docs/bundles/<name>.md` with a Troubleshooting section, a README
   table row, a CHANGELOG entry (plus `### Taxonomy` for a new domain value) and, where it

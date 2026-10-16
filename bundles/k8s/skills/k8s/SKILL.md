@@ -58,7 +58,7 @@ k8s capacity --context dev-cluster [--ns NS]
 k8s argocd --context dev-cluster
 k8s helm --context dev-cluster [--ns NS] [--values NAME]
 k8s secret-keys NS NAME --context dev-cluster           # keys + byte sizes only; also `NS --all`, or `-` from stdin
-k8s redact                                              # stdin filter
+k8s redact                                              # stdin filter (+ k8s.redact_extra_re shapes)
 k8s promql 'up' --context dev-cluster [--svc NS/NAME:PORT] [--range 1h --step 60s]
 k8s certs --context dev-cluster
 k8s audit --context dev-cluster [--ns NS]

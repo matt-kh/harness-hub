@@ -14,6 +14,7 @@ Canonical sources (bundles/core/lib):
     hcfg            harness_config.sh
     hrepo           harness_repo.sh     (repository declaration, principle 8)
     harness_repo    harness_repo.py
+    redact          redact.py           (secret / token-shape redactor for CLI output)
 
 Usage: sync_inline.py [--check] [ROOT]   ROOT defaults to the bundles/ directory.
   --check  exit 1 and list every drifted copy (CI / bundles/core/tests/run.sh)
@@ -25,7 +26,7 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SOURCES = {"hn_timeout": "compat.sh", "harness_config": "harness_config.py", "hcfg": "harness_config.sh",
-           "hrepo": "harness_repo.sh", "harness_repo": "harness_repo.py"}
+           "hrepo": "harness_repo.sh", "harness_repo": "harness_repo.py", "redact": "redact.py"}
 BLOCK = r"(?ms)^# >>> {n}\n.*?^# <<< {n}$"
 
 
