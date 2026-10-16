@@ -274,8 +274,20 @@ class StabilityTest(LintRuleCase):
         self.assertEqual(len(warns), 1, warns)
         self.assertIn("coverage_note admits a missing suite ('no unit suite')", warns[0])
 
-    def test_beta_is_exempt(self):
+    def test_beta_warns_too(self):
         self.edit("core/bundle.toml", 'stability = "stable"', 'stability = "beta"')
+        self.write(os.path.join(self.core, "tests", "run.sh"), "#!/usr/bin/env bash\n")  # the CLI has a suite
+        self.write(os.path.join(self.core, "bundle.toml"), self.read(os.path.join(self.core, "bundle.toml"))
+                   + '\n[harness]\ncoverage_note = "The demo skill has no test suite yet."\n')
+        warns = self.run_rule(L.lint_stability, self.bundle()).warnings
+        self.assertEqual(len(warns), 2, warns)
+        self.assertIn("core: stability: [harness].coverage_note admits a missing suite ('no test suite'); beta "
+                      "requires a test suite per skill/CLI; move to experimental or add the suite", warns[0])
+        self.assertIn("core: stability: skill skills/demo has no scripts/tests/run.sh; beta requires a test suite "
+                      "per skill/CLI; move to experimental or add the suite", warns[1])
+
+    def test_experimental_is_exempt(self):
+        self.edit("core/bundle.toml", 'stability = "stable"', 'stability = "experimental"')
         self.assertEqual(self.run_rule(L.lint_stability, self.bundle()).warnings, [])
 
 

@@ -308,6 +308,11 @@ prints every one between your applied version and the new one.
 
 ### Changed
 
+- `harness lint` rule `stability` now checks `beta` bundles as well as `stable` ones: a skill
+  or CLI without a `tests/run.sh`, or a `coverage_note` admitting a missing suite, warns with
+  the level to move to (`beta` → `experimental`, `stable` → `beta`). CONTRIBUTING "Stability
+  levels" already required the suites at `beta`; `ticket-workflow` and `gdoc` pass. Principle 9
+  lists the check as shipped (principle 9).
 - `core`: the redactor is one shared block, `bundles/core/lib/redact.py` (`# >>> redact` …
   `# <<< redact`: `KEY_BODY`, `SECRET_KEY_RE`, `REDACTED`, `redact_obj(obj, extra_re=None)`,
   `redact_text(text, extra_re=None)`), registered in `sync_inline.py` and inlined into the

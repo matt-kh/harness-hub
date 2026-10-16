@@ -172,7 +172,7 @@ Org-specific content (your hosts, your cluster list, your ticket types) belongs 
 
 `[bundle].stability` says how far a bundle can be trusted. Each level includes the one
 before it; `harness lint` (rule `stability`) checks what it can and warns when a `stable`
-bundle falls short.
+or `beta` bundle falls short.
 
 | Level | Criteria |
 |---|---|
@@ -182,8 +182,9 @@ bundle falls short.
 | `deprecated` | A CHANGELOG entry announces it and its `summary` names the successor bundle. |
 
 Moving a bundle between levels is a CHANGELOG `### Stability` entry. Lint enforces the
-test-suite part of `stable` (a skill or CLI without `tests/run.sh`, or a `coverage_note` that
-admits "no … suite", warns); the other criteria are checked in review.
+test-suite part of both `beta` and `stable` (a skill or CLI without `tests/run.sh`, or a
+`coverage_note` that admits "no … suite", warns and names the level to move to); the other
+criteria are checked in review.
 
 ## Adding a provider
 
