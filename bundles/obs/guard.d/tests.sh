@@ -104,3 +104,10 @@ decl '[overrides]' 'OBS_HOSTS_RE = "^$"'                                        
 r ask   'curl https://signoz.example.com/api/v1/rules'
 decl
 unset OBS_HOSTS_RE
+# ---- OBS_HOSTS_RE from the rendered guard.env (the parser accepts OBS_ keys) ---------
+_oge=$(mktemp); printf '%s\n' "OBS_HOSTS_RE='^signoz\\.example\\.com\$'" > "$_oge"
+HARNESS_GUARD_ENV=$_oge t ask  'curl https://signoz.example.com/api/v1/rules'
+HARNESS_GUARD_ENV=$_oge t pass 'curl https://grafana.example.com/api/health'
+HARNESS_GUARD_ENV=$_oge OBS_HOSTS_RE='' t pass 'curl https://signoz.example.com/api/v1/rules'   # the environment wins
+t pass  'curl https://signoz.example.com/api/v1/rules'                                    # unset and no guard.env key: host rows off
+rm -f "$_oge"

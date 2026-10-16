@@ -60,7 +60,8 @@ prints every one between your applied version and the new one.
   runbook [rotate-obs-key](docs/runbooks/rotate-obs-key.md), docs page
   [obs](docs/bundles/obs.md). Golden suite `skills/obs/scripts/tests/run.sh` (30 cases,
   fixture-routed HTTP via `tests/fakes/http_fixture.py`, and an `OBS_DRY_RUN` request-log case
-  asserting only read endpoints); 87 guard rows incl. bypasses and the `operations` yield.
+  asserting only read endpoints); 91 guard rows incl. bypasses, the `operations` yield and
+  `OBS_HOSTS_RE` read from `guard.env`.
 - `tests/fakes/http_fixture.py`: the `--log` line's `auth=yes` also counts an `*-API-KEY`
   header (SigNoz), not only `Authorization`.
 - `ticket-workflow`: golden suite for the `work-ticket` scripts
