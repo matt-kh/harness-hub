@@ -1,0 +1,7 @@
+# exit=1
+# stderr:
+>> GET https://jira.example.com/rest/api/2/issue/PROJ-999?fields=summary,issuetype,status,priority,description,assignee,reporter,components,versions,fixVersions,labels,parent,project,issuelinks,customfield_20002,customfield_20006,customfield_20004
+HTTP 404 on GET /rest/api/2/issue/PROJ-999?fields=summary,issuetype,status,priority,description,assignee,reporter,components,versions,fixVersions,labels,parent,project,issuelinks,customfield_20002,customfield_20006,customfield_20004: {"errorMessages": ["Issue Does Not Exist"], "errors": {}}
+# stdout:
+# calls:
+GET https://jira.example.com/rest/api/2/issue/PROJ-999?fields=summary,issuetype,status,priority,description,assignee,reporter,components,versions,fixVersions,labels,parent,project,issuelinks,customfield_20002,customfield_20006,customfield_20004 auth=yes

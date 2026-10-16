@@ -1,0 +1,6 @@
+{"jira": {"url": "https://config.example.invalid",
+          "fields": {"story_points": "customfield_20002",
+                     "PROJ": {"epic_link": "customfield_20006",
+                              "sprint": "customfield_20004",
+                              "testing_solution": "customfield_20100"}},
+          "get_exclude": ["testing_solution"]}}

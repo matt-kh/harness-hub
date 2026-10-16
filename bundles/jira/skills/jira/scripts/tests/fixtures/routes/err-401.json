@@ -1,0 +1,7 @@
+[
+  {
+    "url": "https://jira\\.example\\.com",
+    "status": 401,
+    "body": "<html>Unauthorized</html>"
+  }
+]

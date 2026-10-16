@@ -1,0 +1,9 @@
+# exit=0
+# stderr:
+>> GET https://jira.example.com/rest/api/2/project/PROJ/versions
+# stdout:
+1.2.0 (released)
+1.1.0 (released) [archived]
+1.3.0
+# calls:
+GET https://jira.example.com/rest/api/2/project/PROJ/versions auth=yes

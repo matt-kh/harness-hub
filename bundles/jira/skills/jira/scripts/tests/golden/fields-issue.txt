@@ -1,0 +1,9 @@
+# exit=0
+# stderr:
+>> GET https://jira.example.com/rest/api/2/issue/PROJ-123/editmeta
+# stdout:
+description            | Description
+labels                 | Labels
+customfield_20100      | Testing Solution
+# calls:
+GET https://jira.example.com/rest/api/2/issue/PROJ-123/editmeta auth=yes

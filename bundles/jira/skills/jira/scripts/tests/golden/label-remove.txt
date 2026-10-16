@@ -1,0 +1,6 @@
+# exit=0
+# stderr:
+DRY-RUN PUT /rest/api/2/issue/PROJ-123 {"update": {"labels": [{"remove": "agent-drafted"}]}}
+# stdout:
+OK: remove label 'agent-drafted' on PROJ-123
+# calls:

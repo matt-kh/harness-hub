@@ -1,0 +1,56 @@
+# exit=0
+# stderr:
+>> GET https://jira.example.com/rest/api/2/issue/PROJ-123?fields=summary,issuetype,status,priority,description,assignee,reporter,components,versions,fixVersions,labels,parent,project,issuelinks,customfield_20002,customfield_20006,customfield_20004
+# stdout:
+{
+  "key": "PROJ-123",
+  "summary": "Fix the config parser",
+  "type": "Task",
+  "status": "In Progress",
+  "priority": "Major",
+  "project": "PROJ",
+  "assignee": "Dev Example",
+  "reporter": "Lead Example",
+  "parent": null,
+  "components": [
+    "parser"
+  ],
+  "affectsVersions": [
+    "1.2.0"
+  ],
+  "fixVersions": [
+    "1.3.0"
+  ],
+  "labels": [
+    "agent-worked",
+    "backend"
+  ],
+  "description": "h3. Problem\nThe parser drops *quoted* keys.\n{code}key = \"a b\"{code}",
+  "url": "https://jira.example.com/browse/PROJ-123",
+  "storyPoints": 3,
+  "epicLink": "PROJ-100",
+  "sprint": {
+    "id": 42,
+    "name": "Sprint 12"
+  },
+  "links": [
+    {
+      "id": "10501",
+      "type": "Relates",
+      "direction": "relates to",
+      "key": "PROJ-7",
+      "status": "Done",
+      "summary": "Parser rewrite"
+    },
+    {
+      "id": "10502",
+      "type": "Issue split",
+      "direction": "split from",
+      "key": "PROJ-100",
+      "status": "In Progress",
+      "summary": "Parser epic"
+    }
+  ]
+}
+# calls:
+GET https://jira.example.com/rest/api/2/issue/PROJ-123?fields=summary,issuetype,status,priority,description,assignee,reporter,components,versions,fixVersions,labels,parent,project,issuelinks,customfield_20002,customfield_20006,customfield_20004 auth=yes

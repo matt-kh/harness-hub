@@ -1,0 +1,5 @@
+# exit=2
+# stderr:
+No Jira token. Create a Personal Access Token at https://jira.example.com/secure/ViewProfile.jspa -> Personal Access Tokens, then save it (plain, one line) to SANDBOX/fakehome/.config/jira. Without it, fall back to the browser.
+# stdout:
+# calls:

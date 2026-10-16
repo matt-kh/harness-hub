@@ -194,9 +194,9 @@ Guides steer the agent before it acts; sensors detect at or after the action. Pa
 | sensor | doctor | `doctor_checks` | CLI, token file mode, auth and uvx for the MCP server |
 | sensor | test | `guard.d/tests.sh` | guard rows with a stubbed jira |
 | sensor | test | `tests/run.sh` | this bundle's rows against core + jira only |
-| sensor | test | `skills/jira/scripts/tests/run.sh` | the jira CLI offline: config resolution and dry-run writes |
+| sensor | test | `skills/jira/scripts/tests/run.sh` | offline goldens for the jira CLI over fixture-routed HTTP: config resolution, reads, error mapping, dry-run governance writes (GET-only, label verb, transition id, link side), upload (no token in output) |
 
-**Not covered:** The optional MCP server runs with READ_ONLY_MODE=true; no sensor inspects MCP calls.
+**Not covered:** The optional MCP server runs with READ_ONLY_MODE=true; no sensor inspects MCP calls. The CLI's request shapes, error mapping and output are golden-tested offline.
 
 ## Uninstall
 

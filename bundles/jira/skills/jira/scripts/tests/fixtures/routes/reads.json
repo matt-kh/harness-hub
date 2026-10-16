@@ -1,0 +1,411 @@
+[
+  {
+    "method": "GET",
+    "url": "https://jira\\.example\\.com/rest/api/2/myself$",
+    "body": {
+      "name": "dev",
+      "displayName": "Dev Example",
+      "emailAddress": "dev@example.com"
+    }
+  },
+  {
+    "method": "GET",
+    "url": "https://jira\\.example\\.com/rest/api/2/issue/PROJ-123\\?fields=summary,",
+    "body": {
+      "key": "PROJ-123",
+      "fields": {
+        "summary": "Fix the config parser",
+        "issuetype": {
+          "name": "Task"
+        },
+        "status": {
+          "name": "In Progress"
+        },
+        "priority": {
+          "name": "Major"
+        },
+        "project": {
+          "key": "PROJ"
+        },
+        "assignee": {
+          "displayName": "Dev Example"
+        },
+        "reporter": {
+          "displayName": "Lead Example"
+        },
+        "parent": null,
+        "components": [
+          {
+            "name": "parser"
+          }
+        ],
+        "versions": [
+          {
+            "name": "1.2.0"
+          }
+        ],
+        "fixVersions": [
+          {
+            "name": "1.3.0"
+          }
+        ],
+        "labels": [
+          "agent-worked",
+          "backend"
+        ],
+        "description": "h3. Problem\nThe parser drops *quoted* keys.\n{code}key = \"a b\"{code}",
+        "customfield_20002": 3,
+        "customfield_20006": "PROJ-100",
+        "customfield_20004": [
+          "com.atlassian.greenhopper.service.sprint.Sprint@1a2b[id=42,rapidViewId=7,state=ACTIVE,name=Sprint 12,startDate=2026-10-01T00:00:00.000Z]"
+        ],
+        "customfield_20100": "not surfaced by get",
+        "issuelinks": [
+          {
+            "id": "10501",
+            "type": {
+              "name": "Relates",
+              "inward": "relates to",
+              "outward": "relates to"
+            },
+            "outwardIssue": {
+              "key": "PROJ-7",
+              "fields": {
+                "status": {
+                  "name": "Done"
+                },
+                "summary": "Parser rewrite"
+              }
+            }
+          },
+          {
+            "id": "10502",
+            "type": {
+              "name": "Issue split",
+              "inward": "split from",
+              "outward": "split to"
+            },
+            "inwardIssue": {
+              "key": "PROJ-100",
+              "fields": {
+                "status": {
+                  "name": "In Progress"
+                },
+                "summary": "Parser epic"
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "url": "https://jira\\.example\\.com/rest/api/2/issue/PROJ-123\\?fields=issuelinks$",
+    "body": {
+      "key": "PROJ-123",
+      "fields": {
+        "issuelinks": [
+          {
+            "id": "10501",
+            "type": {
+              "name": "Relates",
+              "inward": "relates to",
+              "outward": "relates to"
+            },
+            "outwardIssue": {
+              "key": "PROJ-7",
+              "fields": {
+                "status": {
+                  "name": "Done"
+                },
+                "summary": "Parser rewrite"
+              }
+            }
+          },
+          {
+            "id": "10502",
+            "type": {
+              "name": "Issue split",
+              "inward": "split from",
+              "outward": "split to"
+            },
+            "inwardIssue": {
+              "key": "PROJ-100",
+              "fields": {
+                "status": {
+                  "name": "In Progress"
+                },
+                "summary": "Parser epic"
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "url": "https://jira\\.example\\.com/rest/api/2/issue/PROJ-[0-9]+\\?fields=issuelinks$",
+    "body": {
+      "fields": {
+        "issuelinks": []
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "url": "https://jira\\.example\\.com/rest/api/2/issue/PROJ-123\\?fields=attachment$",
+    "body": {
+      "fields": {
+        "attachment": [
+          {
+            "id": "20001",
+            "filename": "build.log",
+            "mimeType": "text/plain",
+            "size": 2048,
+            "content": "https://jira.example.com/secure/attachment/20001/build.log"
+          },
+          {
+            "id": "20002",
+            "filename": "screen.png",
+            "mimeType": "image/png",
+            "size": 153600,
+            "content": "https://jira.example.com/secure/attachment/20002/screen.png"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "url": "https://jira\\.example\\.com/rest/api/2/issue/PROJ-200\\?fields=attachment$",
+    "body": {
+      "fields": {
+        "attachment": []
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "url": "https://jira\\.example\\.com/secure/attachment/20001/build\\.log$",
+    "body": "log line 1\nlog line 2\n"
+  },
+  {
+    "method": "GET",
+    "url": "https://jira\\.example\\.com/secure/attachment/20002/screen\\.png$",
+    "body": "PNG-BYTES"
+  },
+  {
+    "method": "GET",
+    "url": "https://jira\\.example\\.com/rest/api/2/search\\?",
+    "body": {
+      "total": 7,
+      "issues": [
+        {
+          "key": "PROJ-123",
+          "fields": {
+            "status": {
+              "name": "In Progress"
+            },
+            "assignee": {
+              "displayName": "Dev Example"
+            },
+            "summary": "Fix the config parser",
+            "issuetype": {
+              "name": "Task"
+            }
+          }
+        },
+        {
+          "key": "PROJ-124",
+          "fields": {
+            "status": {
+              "name": "Open"
+            },
+            "assignee": null,
+            "summary": "Document the parser",
+            "issuetype": {
+              "name": "Task"
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "GET",
+    "url": "https://jira\\.example\\.com/rest/api/2/issue/createmeta\\?projectKeys=PROJ&expand=projects\\.issuetypes\\.fields$",
+    "body": {
+      "projects": [
+        {
+          "key": "PROJ",
+          "issuetypes": [
+            {
+              "name": "Task",
+              "fields": {
+                "summary": {
+                  "name": "Summary"
+                },
+                "customfield_20002": {
+                  "name": "Story Points"
+                },
+                "labels": {
+                  "name": "Labels"
+                }
+              }
+            },
+            {
+              "name": "CR",
+              "fields": {
+                "summary": {
+                  "name": "Summary"
+                },
+                "customfield_20103": {
+                  "name": "Type of Problem"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "method": "GET",
+    "url": "https://jira\\.example\\.com/rest/api/2/issue/PROJ-123/editmeta$",
+    "body": {
+      "fields": {
+        "description": {
+          "name": "Description"
+        },
+        "customfield_20100": {
+          "name": "Testing Solution"
+        },
+        "labels": {
+          "name": "Labels"
+        }
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "url": "https://jira\\.example\\.com/rest/api/2/mypermissions",
+    "body": {
+      "permissions": {
+        "BROWSE_PROJECTS": {
+          "key": "BROWSE_PROJECTS",
+          "havePermission": true
+        },
+        "TRANSITION_ISSUES": {
+          "key": "TRANSITION_ISSUES",
+          "havePermission": false
+        }
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "url": "https://jira\\.example\\.com/rest/api/2/project/PROJ/versions$",
+    "body": [
+      {
+        "name": "1.2.0",
+        "released": true
+      },
+      {
+        "name": "1.1.0",
+        "released": true,
+        "archived": true
+      },
+      {
+        "name": "1.3.0",
+        "released": false
+      }
+    ]
+  },
+  {
+    "method": "GET",
+    "url": "https://jira\\.example\\.com/rest/api/2/issue/PROJ-[0-9]+/transitions$",
+    "body": {
+      "transitions": [
+        {
+          "id": "21",
+          "name": "In Review",
+          "to": {
+            "name": "In Review"
+          }
+        },
+        {
+          "id": "31",
+          "name": "Done",
+          "to": {
+            "name": "Done"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "method": "GET",
+    "url": "https://jira\\.example\\.com/rest/agile/1\\.0/board\\?projectKeyOrId=PROJ$",
+    "body": {
+      "values": [
+        {
+          "id": 7
+        }
+      ]
+    }
+  },
+  {
+    "method": "GET",
+    "url": "https://jira\\.example\\.com/rest/agile/1\\.0/board\\?projectKeyOrId=",
+    "body": {
+      "values": []
+    }
+  },
+  {
+    "method": "GET",
+    "url": "https://jira\\.example\\.com/rest/agile/1\\.0/board/7/sprint\\?state=active,future$",
+    "body": {
+      "values": [
+        {
+          "id": 42,
+          "name": "Sprint 12",
+          "state": "active"
+        },
+        {
+          "id": 43,
+          "name": "Sprint 13",
+          "state": "future"
+        }
+      ]
+    }
+  },
+  {
+    "method": "GET",
+    "url": "https://jira\\.example\\.com/rest/api/2/issueLinkType$",
+    "body": {
+      "issueLinkTypes": [
+        {
+          "name": "Blocks"
+        },
+        {
+          "name": "Issue split"
+        },
+        {
+          "name": "Relates"
+        }
+      ]
+    }
+  },
+  {
+    "method": "POST",
+    "url": "https://jira\\.example\\.com/rest/api/2/issue/PROJ-123/attachments$",
+    "body": [
+      {
+        "id": "20003",
+        "filename": "build.txt"
+      }
+    ]
+  }
+]

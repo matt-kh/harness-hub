@@ -1,0 +1,7 @@
+# exit=3
+# stderr:
+>> GET https://jira.example.com/rest/api/2/myself
+http_fixture: no route for GET https://jira.example.com/rest/api/2/myself
+# stdout:
+# calls:
+GET https://jira.example.com/rest/api/2/myself auth=yes

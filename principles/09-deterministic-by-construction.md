@@ -93,6 +93,7 @@ artifact), or a script that produces one.
 | `work-ticket` preflights and facts scripts emit one JSON object under fixture-routed `gh`/`glab`/`jira` stubs; goldens per fixture repository, CI parsed with and without PyYAML; the stub log proves read-only calls | skill test | `bundles/ticket-workflow/skills/work-ticket/scripts/tests/run.sh` |
 | `k8s` CLI output matches goldens against stubbed `kubectl` and `helm` | skill test | `bundles/k8s/skills/k8s/scripts/tests/run.sh` |
 | `gdoc` CLI output and request shapes match goldens against fixture-routed HTTP; writes under `GDOC_DRY_RUN=1` send only GET requests | skill test | `bundles/gdoc/skills/gdoc/scripts/tests/run.sh`, driver `tests/fakes/http_fixture.py` |
+| `jira` CLI output and request shapes match goldens against fixture-routed HTTP (reads, 401/403/404/500/unreachable, upload); writes under `JIRA_DRY_RUN=1` send only GET requests and their bodies are asserted (label `update` verb, transition id, outward link side) | skill test | `bundles/jira/skills/jira/scripts/tests/run.sh`, driver `tests/fakes/http_fixture.py` |
 | `stable` bundle skills and CLIs have a `tests/run.sh`; `coverage_note` admits no missing suite | lint warning `stability` | `harness lint` |
 | Commit subject, branch name and sub-branch forms | guard rows | `bundles/ticket-workflow/guard.d/75-*.sh`, `guard.d/tests.sh` |
 | README facts from manifests and PRINCIPLES.md (bundles, providers, principle count, core binaries) are rendered, never typed | docs | `harness docs check`, `tests/unit/test_docsgen.py` |

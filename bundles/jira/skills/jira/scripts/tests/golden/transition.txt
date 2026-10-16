@@ -1,0 +1,8 @@
+# exit=0
+# stderr:
+>> GET https://jira.example.com/rest/api/2/issue/PROJ-123/transitions
+DRY-RUN POST /rest/api/2/issue/PROJ-123/transitions {"transition": {"id": "21"}}
+# stdout:
+OK: PROJ-123 -> In Review
+# calls:
+GET https://jira.example.com/rest/api/2/issue/PROJ-123/transitions auth=yes

@@ -1,0 +1,10 @@
+# exit=0
+# stderr:
+>> GET https://jira.example.com/rest/agile/1.0/board?projectKeyOrId=PROJ
+>> GET https://jira.example.com/rest/agile/1.0/board/7/sprint?state=active,future
+# stdout:
+42     | Sprint 12  (active)  board=7
+43     | Sprint 13  (future)  board=7
+# calls:
+GET https://jira.example.com/rest/agile/1.0/board?projectKeyOrId=PROJ auth=yes
+GET https://jira.example.com/rest/agile/1.0/board/7/sprint?state=active,future auth=yes

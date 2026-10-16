@@ -1,0 +1,11 @@
+# exit=0
+# stderr:
+>> GET https://jira.example.com/rest/api/2/myself
+# stdout:
+{
+  "name": "dev",
+  "displayName": "Dev Example",
+  "email": "dev@example.com"
+}
+# calls:
+GET https://jira.example.com/rest/api/2/myself auth=yes

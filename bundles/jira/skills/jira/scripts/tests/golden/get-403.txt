@@ -1,0 +1,7 @@
+# exit=2
+# stderr:
+>> GET https://jira.example.com/rest/api/2/issue/PROJ-123?fields=summary,issuetype,status,priority,description,assignee,reporter,components,versions,fixVersions,labels,parent,project,issuelinks,customfield_20002,customfield_20006,customfield_20004
+Permission denied (403) on GET /rest/api/2/issue/PROJ-123?fields=summary,issuetype,status,priority,description,assignee,reporter,components,versions,fixVersions,labels,parent,project,issuelinks,customfield_20002,customfield_20006,customfield_20004. If `jira whoami` succeeds, the token is valid but lacks browse/edit permission for this project/issue. {"errorMessages": ["You do not have the permission to see the specified issue."], "errors": {}}
+# stdout:
+# calls:
+GET https://jira.example.com/rest/api/2/issue/PROJ-123?fields=summary,issuetype,status,priority,description,assignee,reporter,components,versions,fixVersions,labels,parent,project,issuelinks,customfield_20002,customfield_20006,customfield_20004 auth=yes

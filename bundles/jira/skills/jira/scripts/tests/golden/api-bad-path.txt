@@ -1,0 +1,5 @@
+# exit=1
+# stderr:
+api path must start with /rest/ (GET only).
+# stdout:
+# calls:

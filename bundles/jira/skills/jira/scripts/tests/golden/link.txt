@@ -1,0 +1,12 @@
+# exit=0
+# stderr:
+>> GET https://jira.example.com/rest/api/2/issueLinkType
+DRY-RUN POST /rest/api/2/issueLink {"type": {"name": "Relates"}, "inwardIssue": {"key": "PROJ-100"}, "outwardIssue": {"key": "PROJ-123"}}
+>> GET https://jira.example.com/rest/api/2/issue/PROJ-123?fields=issuelinks
+# stdout:
+OK: linked PROJ-100 -[Relates]-> PROJ-123
+10501    | Relates        | relates to     | PROJ-7       | Done               | Parser rewrite
+10502    | Issue split    | split from     | PROJ-100     | In Progress        | Parser epic
+# calls:
+GET https://jira.example.com/rest/api/2/issueLinkType auth=yes
+GET https://jira.example.com/rest/api/2/issue/PROJ-123?fields=issuelinks auth=yes

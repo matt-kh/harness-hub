@@ -1,0 +1,7 @@
+# exit=2
+# stderr:
+>> GET https://jira.example.com/rest/api/2/myself
+Auth failed (401). Token invalid/expired. <html>Unauthorized</html>
+# stdout:
+# calls:
+GET https://jira.example.com/rest/api/2/myself auth=yes
