@@ -105,6 +105,22 @@ ck "redact.py leaves plain text alone" [ "$(printf 'host example.com up\n' | rd)
 ck "redact.py extra regex masks text" [ "$(printf 'host example.com up\n' | rd 'example\.com')" = 'host ***REDACTED*** up' ]
 ck "redact.py extra regex masks JSON string values" \
   [ "$(printf '{"a":["id-42"]}' | rd 'id-[0-9]+')" = '{"a": ["***REDACTED***"]}' ]
+ck "redact.py applies the extra regex after the scheme rule" \
+  sh -c "! printf 'ts Authorization: Bearer sk-abc path=/x\n' | python3 '$core/lib/redact.py' '(?i)bearer' | grep -q sk-abc"
+ck "redact.py applies the extra regex after the key rule" \
+  sh -c "! printf 'loaded client_secret: nOtAr3al\n' | python3 '$core/lib/redact.py' 'client_secret' | grep -q nOtAr3al"
+ck "redact.py ignores an empty-matching extra regex" \
+  [ "$(printf 'host example.com up\n' | rd 'x*' 2>/dev/null)" = 'host example.com up' ]
+ck "redact.py warns once about an empty-matching extra regex" \
+  [ "$(printf '{"a":"b","c":["d"]}' | rd 'x*' 2>&1 >/dev/null)" = 'redact: extra pattern matches the empty string; ignored' ]
+ck "redact.py never applies the extra regex to Secret byte sizes" \
+  [ "$(printf '{"kind":"Secret","data":{"k":"aGVsbG8="},"note":"5 bytes"}' | rd 'bytes')" = '{"kind": "Secret", "data": {"k": "<5 bytes>"}, "note": "5 ***REDACTED***"}' ]
+ck "redact.py masks only the scheme-looking word when it is not a scheme (no bare Key)" \
+  [ "$(printf 'ts INFO api_key=Key rotated ok\n' | rd)" = 'ts INFO api_key=***REDACTED*** rotated ok' ]
+printf 'x\n' | rd '(' > /dev/null 2> "$tmp/rd-bad.err"; rc=$?
+[ "$rc" = 1 ] && grep -q '^redact: not a valid Python regex: ' "$tmp/rd-bad.err" \
+  && [ "$(wc -l < "$tmp/rd-bad.err")" = 1 ]
+chk $? "redact.py rejects an invalid extra regex with exit 1 and a clean message"
 
 # 7. repository declaration helpers (principle 8): bash and python answer the same
 # shellcheck source=../lib/harness_repo.sh

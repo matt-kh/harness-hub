@@ -15,6 +15,19 @@ prints every one between your applied version and the new one.
   `ci` bundle; then the secret-tooling, toolchain, containers, release, cloud, iac, db, hosts
   and digest bundles), the guard prefix bands reserved for them, two proposed taxonomy domains and the
   rejected candidates. Linked from README and ARCHITECTURE §3.
+- [docs/roadmap.md](docs/roadmap.md): the SRE track — three new bundles (`obs` for
+  observability backends, `incident` for triage, timelines, postmortems and runbooks, `slo`
+  for SLOs, burn-rate rules and backup/DR review), the `operations` taxonomy domain, guard
+  prefixes 32–34, the pull-forward order `ci` → `iac` → `cloud`, the `k8s` and `core`
+  extensions and the slice plan; the observability row is un-deferred as `obs` and the
+  ADR/runbook row reshaped into `/draft-adr` and `incident runbook`.
+- CONTRIBUTING: "Stability levels" (experimental, beta, stable, deprecated), linked from
+  concepts "Bundles".
+- Principle 6 open questions: declaring inferential sensors that live in provider features is
+  resolved by the `provider-feature` sensor kind. Principle 2 open questions: the bootstrap
+  smoke's elapsed seconds and bootstrap's remaining-minutes line are the time-to-first-useful-
+  session proxies. Doc-only: the normative statements are unchanged, so `principles_version`
+  stays 1.
 
 ### Principles
 
@@ -273,12 +286,16 @@ prints every one between your applied version and the new one.
 ### Fixed
 - `core` redact block (`redact_text`, so `k8s redact`, `pod`, `workload` and `helm --values`):
   a mid-line `key: value` / `key=value` whose value starts with an HTTP auth scheme word
-  (`Bearer`, `Basic`, `Token`, `Digest`, `Negotiate`, `ApiKey`, `Api-Key`, `Key`, `SSWS`,
-  `OAuth`; any case) now masks the scheme word and the token after it as one value. Before,
-  only the scheme word was masked and the credential after it leaked
+  (`Bearer`, `Basic`, `Token`, `Digest`, `Negotiate`, `SSWS`, `OAuth`, `ApiKey` or
+  `Api-Key`; any case) now masks the scheme word and the token after it as one value. Before, only the
+  scheme word was masked and the credential after it leaked
   (`… Authorization: ***REDACTED*** <token>`). Lines that start with the key were already
-  fully masked. k8s goldens `redact-text`, `redact-extra-re`, `pod-md` and `pod-json` gain
-  one fixture line.
+  fully masked. `extra_re` now runs after the built-in rules (a pattern naming a key or scheme
+  word, e.g. `(?i)bearer`, hid the token from them), never touches Secret `<N bytes>` sizes,
+  and is ignored with one stderr warning when it matches the empty string. `k8s` compiles
+  `k8s.redact_extra_re` on first use, so an invalid value fails only the redacting commands
+  (`not a valid Python regex`) instead of every command; `redact.py` rejects one with exit 1.
+  k8s goldens `redact-text`, `redact-extra-re`, `pod-md` and `pod-json` gain one fixture line.
 - `bin/harness` runs the checkout it lives in: an inherited `HARNESS_HOME` naming another checkout
   is ignored with a note instead of silently making a worktree's pre-commit hooks and `make`
   targets lint and test the main checkout. `python3 -m harness` and rendered scripts still read
@@ -294,10 +311,12 @@ prints every one between your applied version and the new one.
 - `core`: the redactor is one shared block, `bundles/core/lib/redact.py` (`# >>> redact` …
   `# <<< redact`: `KEY_BODY`, `SECRET_KEY_RE`, `REDACTED`, `redact_obj(obj, extra_re=None)`,
   `redact_text(text, extra_re=None)`), registered in `sync_inline.py` and inlined into the
-  `k8s` CLI in place of its own copy (principle 10). Output with no extra regex is
-  byte-identical (every k8s golden unchanged). New optional key `k8s.redact_extra_re`
-  (`K8S_REDACT_EXTRA_RE`, default `""`): extra token shapes `k8s redact`, `pod`, `workload`
-  and `helm --values` mask on top of the built-in list; golden `redact-extra-re`.
+  `k8s` CLI in place of its own copy (principle 10). The block was extracted unchanged; the
+  `### Fixed` bullet above describes the only behaviour changes (auth-scheme masking,
+  `extra_re` ordering and empty-match guard, lazy compile). New optional key
+  `k8s.redact_extra_re` (`K8S_REDACT_EXTRA_RE`, default `""`): an extra Python regex of token
+  shapes `k8s redact`, the `pod`/`workload` log tails and `helm --values` mask on top of the
+  built-in list; golden `redact-extra-re`.
 - `README.md` rewritten as the product page: what you get, how it works, install, works
   with, principles, governance, organisation values, requirements, documentation. It now
   names ten principles (it said eight) and states every manifest fact through a generated
@@ -386,16 +405,6 @@ prints every one between your applied version and the new one.
   suite (work-ticket, the gdoc CLI), which the
   [stability criteria](CONTRIBUTING.md#stability-levels) require for `stable`.
 
-### Docs
-
-- CONTRIBUTING: "Stability levels" (experimental, beta, stable, deprecated), linked from
-  concepts "Bundles".
-- Principle 6 open questions: declaring inferential sensors that live in provider features is
-  resolved by the `provider-feature` sensor kind. Principle 2 open questions: the bootstrap
-  smoke's elapsed seconds and bootstrap's remaining-minutes line are the time-to-first-useful-
-  session proxies. Doc-only: the normative statements are unchanged, so `principles_version`
-  stays 1.
-
 ### Migration
 
 - MR/PR title conventions: two new optional config keys. `gitlab.mr_title_re` (default
@@ -467,7 +476,7 @@ prints every one between your applied version and the new one.
   branches…>` typed as the whole command now allows instead of asking (every other
   force-push still asks); nothing to edit.
 - `k8s.redact_extra_re` (`K8S_REDACT_EXTRA_RE`): new optional key, default `""` keeps
-  today's redaction; nothing to edit. Set it to a regex (e.g. `"(?i)x-internal-token=[^ ]+"`)
+  today's redaction; nothing to edit. Set it to a Python regex (e.g. `"(?i)x-internal-token=[^ ]+"`)
   under `[k8s]` and run `harness apply` to mask more token shapes.
 - `obs` bundle: new keys only when you enable it (`obs` in `[hub] bundles`): `obs.backends`
   (array of tables), `obs.default`, `obs.hosts_re` (`OBS_HOSTS_RE`), `obs.prod_re`

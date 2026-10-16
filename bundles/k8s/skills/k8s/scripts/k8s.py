@@ -85,9 +85,10 @@ HARNESS_CONFIG_JSON / HARNESS_HOME, then to the default):
                          that marks it as that checkout (default: basename of the root)
   K8S_CLUSTERS_MD [k8s.clusters_doc]  file `contexts --write` regenerates (default
                          ~/.local/state/harness/k8s/clusters.md; relative = under HARNESS_HOME)
-  K8S_REDACT_EXTRA_RE [k8s.redact_extra_re]  extra regex of token shapes that `redact`,
-                         `pod`, `workload` and `helm --values` replace in addition to the
-                         built-in list (default: empty = built-in list only)
+  K8S_REDACT_EXTRA_RE [k8s.redact_extra_re]  extra Python regex of token shapes replaced
+                         in addition to the built-in list by `redact`, the log tails of
+                         `pod`/`workload` and `helm --values`; event and container status
+                         messages are not redacted (default: empty = built-in list only)
 """
 import argparse
 import base64
@@ -177,8 +178,9 @@ _TEXT_KEY_RE = re.compile(r"^(\s*[\w.-]*" + KEY_BODY + r"[\w.-]*\s*[:=]\s*)(.+)$
 # the anchored rule above only catches `key: value` lines; logs usually carry a timestamp
 # and a level first, so the same key=value shape is redacted anywhere in the line too.
 # An HTTP auth scheme word (`Authorization: Bearer X`) is consumed with the token after it,
-# so the credential does not survive behind a masked scheme word.
-_AUTH_SCHEME = r"(?:bearer|basic|token|digest|negotiate|api-?key|key|ssws|oauth)"
+# so the credential does not survive behind a masked scheme word. Accepted cost: a value
+# that merely looks like a scheme word (`token=basic retry`) also masks the word after it.
+_AUTH_SCHEME = r"(?:bearer|basic|token|digest|negotiate|api-?key|ssws|oauth)"
 _TEXT_KEY_INLINE_RE = re.compile(
     r"(?P<key>[\w.-]*" + KEY_BODY + r"[\w.-]*)(?P<sep>\s*[:=]\s*)"
     r"(?P<val>\"[^\"]*\"|'[^']*'|" + _AUTH_SCHEME + r"\s+\S+|\S+)", re.I)
@@ -210,24 +212,46 @@ def _secret_sizes(obj):
     return out
 
 
+_EXTRA_WARNED = []
+
+
+def _usable_extra(extra_re):
+    """extra_re, or None when it is unset or matches the empty string (warned once)."""
+    if extra_re is None or not extra_re.match(""):
+        return extra_re
+    if not _EXTRA_WARNED:
+        _EXTRA_WARNED.append(True)
+        sys.stderr.write("redact: extra pattern matches the empty string; ignored\n")
+    return None
+
+
 def redact_obj(obj, extra_re=None):
     """Walk a JSON structure: secret-ish keys -> ***REDACTED***, Secret data -> sizes.
-    extra_re (compiled regex or None): its matches inside string values are redacted too."""
+    extra_re (compiled regex or None): its matches inside the remaining string values are
+    redacted too, after key masking; Secret `<N bytes>` sizes are never passed to it."""
+    return _redact_walk(obj, _usable_extra(extra_re))
+
+
+def _redact_walk(obj, extra_re):
     if isinstance(obj, dict):
+        sized = ()
         if obj.get("kind") == "Secret":
             obj = _secret_sizes(obj)
+            sized = ("data", "stringData")
         out = {}
         for k, v in obj.items():
-            if isinstance(v, (dict, list)):
-                out[k] = redact_obj(v, extra_re)
+            if k in sized and isinstance(v, dict):
+                out[k] = v  # byte sizes only: no value left to mask
+            elif isinstance(v, (dict, list)):
+                out[k] = _redact_walk(v, extra_re)
             elif SECRET_KEY_RE.search(str(k)) and v is not None and not (
                     isinstance(v, str) and v.startswith("<") and v.endswith("bytes>")):
                 out[k] = REDACTED
             else:
-                out[k] = redact_obj(v, extra_re)
+                out[k] = _redact_walk(v, extra_re)
         return out
     if isinstance(obj, list):
-        return [redact_obj(x, extra_re) for x in obj]
+        return [_redact_walk(x, extra_re) for x in obj]
     if extra_re is not None and isinstance(obj, str):
         return extra_re.sub(REDACTED, obj)
     return obj
@@ -235,12 +259,12 @@ def redact_obj(obj, extra_re=None):
 
 def redact_text(text, extra_re=None):
     """Redact free text / logs: key=value lines, AWS keys, JWTs, PEM blocks, URL creds.
-    extra_re (compiled regex or None): its matches are redacted too, before the line rules."""
+    extra_re (compiled regex or None): its matches are redacted too, after the built-in
+    rules, so a pattern naming a key or scheme word cannot hide what they would catch."""
     if not text:
         return text
+    extra_re = _usable_extra(extra_re)
     text = _PEM_RE.sub(REDACTED, text)
-    if extra_re is not None:
-        text = extra_re.sub(REDACTED, text)
     lines = []
     for line in text.split("\n"):
         m = _TEXT_KEY_RE.match(line)
@@ -253,16 +277,27 @@ def redact_text(text, extra_re=None):
         line = _JWT_RE.sub(REDACTED, line)
         line = _URLCRED_RE.sub("://***:***@", line)
         lines.append(line)
-    return "\n".join(lines)
+    text = "\n".join(lines)
+    if extra_re is not None:
+        text = extra_re.sub(REDACTED, text)
+    return text
 # <<< redact
 
 
-# extra token shapes (k8s.redact_extra_re) every redacted output also replaces
-REDACT_EXTRA_RE = os.environ.get("K8S_REDACT_EXTRA_RE") or cfg("k8s.redact_extra_re") or ""
-try:
-    REDACT_EXTRA_RE = re.compile(REDACT_EXTRA_RE) if REDACT_EXTRA_RE else None
-except re.error as _e:
-    die("K8S_REDACT_EXTRA_RE / k8s.redact_extra_re is not a valid regex (%s); fix or unset it" % _e)
+# extra token shapes (k8s.redact_extra_re) every redacted output also replaces. Compiled on
+# first use by a redacting path, so a bad value only fails the commands that redact.
+_EXTRA_RE_CACHE = []
+
+
+def _extra_re():
+    if not _EXTRA_RE_CACHE:
+        src = os.environ.get("K8S_REDACT_EXTRA_RE") or cfg("k8s.redact_extra_re") or ""
+        try:
+            _EXTRA_RE_CACHE.append(re.compile(src) if src else None)
+        except re.error as e:
+            die("k8s.redact_extra_re is not a valid Python regex: %s "
+                "(K8S_REDACT_EXTRA_RE / k8s.redact_extra_re; fix or unset it)" % e)
+    return _EXTRA_RE_CACHE[0]
 
 
 # ------------------------------------------------------------------------- subprocesses
@@ -1144,7 +1179,7 @@ def fetch_logs(ctx, ns, pod, container, tail, timeout, previous=False):
     out, err = ktry(ctx, args, timeout=timeout, json_out=False)
     if out is None:
         return None
-    return redact_text(out.rstrip("\n"), REDACT_EXTRA_RE)
+    return redact_text(out.rstrip("\n"), _extra_re())
 
 
 def cmd_pod(a):
@@ -1697,7 +1732,7 @@ def cmd_helm(a):
                         a.timeout)
         if out is None:
             die("helm get values failed: %s" % err, 1)
-        rep.data["values"] = redact_obj(out, REDACT_EXTRA_RE)
+        rep.data["values"] = redact_obj(out, _extra_re())
         rep.data["values_note"] = ("redacted by k8s — secret-looking keys are "
                                    "***REDACTED***; Secret data is shown as byte sizes")
     rels, herr = htry(ctx, ["list"] + (["-n", ns] if ns else ["-A"]) + ["-o", "json"],
@@ -1789,12 +1824,12 @@ def cmd_redact(a):
     try:
         obj = json.loads(raw)
     except ValueError:
-        sys.stdout.write(redact_text(raw, REDACT_EXTRA_RE))
+        sys.stdout.write(redact_text(raw, _extra_re()))
         if raw and not raw.endswith("\n"):
             sys.stdout.write("\n")
         sys.exit(0)
     indent = 2 if (sys.stdout.isatty() or a.md) else None
-    sys.stdout.write(json.dumps(redact_obj(obj, REDACT_EXTRA_RE), indent=indent, default=str) + "\n")
+    sys.stdout.write(json.dumps(redact_obj(obj, _extra_re()), indent=indent, default=str) + "\n")
     sys.exit(0)
 
 
