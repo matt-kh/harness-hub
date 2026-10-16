@@ -151,8 +151,9 @@ _TEXT_KEY_RE = re.compile(r"^(\s*[\w.-]*" + KEY_BODY + r"[\w.-]*\s*[:=]\s*)(.+)$
 # the anchored rule above only catches `key: value` lines; logs usually carry a timestamp
 # and a level first, so the same key=value shape is redacted anywhere in the line too.
 # An HTTP auth scheme word (`Authorization: Bearer X`) is consumed with the token after it,
-# so the credential does not survive behind a masked scheme word.
-_AUTH_SCHEME = r"(?:bearer|basic|token|digest|negotiate|api-?key|key|ssws|oauth)"
+# so the credential does not survive behind a masked scheme word. Accepted cost: a value
+# that merely looks like a scheme word (`token=basic retry`) also masks the word after it.
+_AUTH_SCHEME = r"(?:bearer|basic|token|digest|negotiate|api-?key|ssws|oauth)"
 _TEXT_KEY_INLINE_RE = re.compile(
     r"(?P<key>[\w.-]*" + KEY_BODY + r"[\w.-]*)(?P<sep>\s*[:=]\s*)"
     r"(?P<val>\"[^\"]*\"|'[^']*'|" + _AUTH_SCHEME + r"\s+\S+|\S+)", re.I)
@@ -184,24 +185,46 @@ def _secret_sizes(obj):
     return out
 
 
+_EXTRA_WARNED = []
+
+
+def _usable_extra(extra_re):
+    """extra_re, or None when it is unset or matches the empty string (warned once)."""
+    if extra_re is None or not extra_re.match(""):
+        return extra_re
+    if not _EXTRA_WARNED:
+        _EXTRA_WARNED.append(True)
+        sys.stderr.write("redact: extra pattern matches the empty string; ignored\n")
+    return None
+
+
 def redact_obj(obj, extra_re=None):
     """Walk a JSON structure: secret-ish keys -> ***REDACTED***, Secret data -> sizes.
-    extra_re (compiled regex or None): its matches inside string values are redacted too."""
+    extra_re (compiled regex or None): its matches inside the remaining string values are
+    redacted too, after key masking; Secret `<N bytes>` sizes are never passed to it."""
+    return _redact_walk(obj, _usable_extra(extra_re))
+
+
+def _redact_walk(obj, extra_re):
     if isinstance(obj, dict):
+        sized = ()
         if obj.get("kind") == "Secret":
             obj = _secret_sizes(obj)
+            sized = ("data", "stringData")
         out = {}
         for k, v in obj.items():
-            if isinstance(v, (dict, list)):
-                out[k] = redact_obj(v, extra_re)
+            if k in sized and isinstance(v, dict):
+                out[k] = v  # byte sizes only: no value left to mask
+            elif isinstance(v, (dict, list)):
+                out[k] = _redact_walk(v, extra_re)
             elif SECRET_KEY_RE.search(str(k)) and v is not None and not (
                     isinstance(v, str) and v.startswith("<") and v.endswith("bytes>")):
                 out[k] = REDACTED
             else:
-                out[k] = redact_obj(v, extra_re)
+                out[k] = _redact_walk(v, extra_re)
         return out
     if isinstance(obj, list):
-        return [redact_obj(x, extra_re) for x in obj]
+        return [_redact_walk(x, extra_re) for x in obj]
     if extra_re is not None and isinstance(obj, str):
         return extra_re.sub(REDACTED, obj)
     return obj
@@ -209,12 +232,12 @@ def redact_obj(obj, extra_re=None):
 
 def redact_text(text, extra_re=None):
     """Redact free text / logs: key=value lines, AWS keys, JWTs, PEM blocks, URL creds.
-    extra_re (compiled regex or None): its matches are redacted too, before the line rules."""
+    extra_re (compiled regex or None): its matches are redacted too, after the built-in
+    rules, so a pattern naming a key or scheme word cannot hide what they would catch."""
     if not text:
         return text
+    extra_re = _usable_extra(extra_re)
     text = _PEM_RE.sub(REDACTED, text)
-    if extra_re is not None:
-        text = extra_re.sub(REDACTED, text)
     lines = []
     for line in text.split("\n"):
         m = _TEXT_KEY_RE.match(line)
@@ -227,7 +250,10 @@ def redact_text(text, extra_re=None):
         line = _JWT_RE.sub(REDACTED, line)
         line = _URLCRED_RE.sub("://***:***@", line)
         lines.append(line)
-    return "\n".join(lines)
+    text = "\n".join(lines)
+    if extra_re is not None:
+        text = extra_re.sub(REDACTED, text)
+    return text
 # <<< redact
 
 
@@ -276,10 +302,19 @@ _AUTH_SCHEME_RE = re.compile(r"(?i)\b(?:bearer|basic)\s+[A-Za-z0-9._~+/=-]{6,}")
 class _ExtraRedactors(object):
     """The built-in scheme regex and the user's obs.redact_extra_re, each compiled on its own
     (a user pattern may start with a global flag such as `(?i)`, which is an error anywhere but
-    at the start of a pattern) and applied in turn. Duck-types the `.sub` the redact block calls."""
+    at the start of a pattern) and applied in turn. Duck-types the `.match` and `.sub` the redact
+    block calls; an empty-matching user pattern is dropped before it gets here, so the block's
+    empty-match guard never discards the built-in scheme regex with it."""
 
     def __init__(self, *rxs):
         self.rxs = [r for r in rxs if r is not None]
+
+    def match(self, s):
+        for r in self.rxs:
+            m = r.match(s)
+            if m is not None:
+                return m
+        return None
 
     def sub(self, repl, s):
         for r in self.rxs:
@@ -301,7 +336,7 @@ def extra_redactors():
         except re.error as e:
             die("OBS_REDACT_EXTRA_RE / obs.redact_extra_re is not a valid Python regex (%s); fix or "
                 "unset it (a global flag such as (?i) must come first)" % e)
-        _REDACTORS = _ExtraRedactors(_AUTH_SCHEME_RE, user_rx)
+        _REDACTORS = _ExtraRedactors(_AUTH_SCHEME_RE, _usable_extra(user_rx))
     return _REDACTORS
 
 
