@@ -119,7 +119,7 @@ ck "redact.py masks only the scheme-looking word when it is not a scheme (no bar
   [ "$(printf 'ts INFO api_key=Key rotated ok\n' | rd)" = 'ts INFO api_key=***REDACTED*** rotated ok' ]
 printf 'x\n' | rd '(' > /dev/null 2> "$tmp/rd-bad.err"; rc=$?
 [ "$rc" = 1 ] && grep -q '^redact: not a valid Python regex: ' "$tmp/rd-bad.err" \
-  && [ "$(wc -l < "$tmp/rd-bad.err")" = 1 ]
+  && [ "$(($(wc -l < "$tmp/rd-bad.err")))" = 1 ]
 chk $? "redact.py rejects an invalid extra regex with exit 1 and a clean message"
 
 # 7. repository declaration helpers (principle 8): bash and python answer the same
