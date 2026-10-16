@@ -58,10 +58,15 @@ prints every one between your applied version and the new one.
   `amtool alert add`, `logcli query --tail|-f` and `grafana-cli admin|plugins install|remove`
   ask. Permissions, five doctor checks, manual steps `configure-backends` and `obs-api-key`,
   runbook [rotate-obs-key](docs/runbooks/rotate-obs-key.md), docs page
-  [obs](docs/bundles/obs.md). Golden suite `skills/obs/scripts/tests/run.sh` (30 cases,
+  [obs](docs/bundles/obs.md). Golden suite `skills/obs/scripts/tests/run.sh` (50 cases,
   fixture-routed HTTP via `tests/fakes/http_fixture.py`, and an `OBS_DRY_RUN` request-log case
-  asserting only read endpoints); 91 guard rows incl. bypasses, the `operations` yield and
-  `OBS_HOSTS_RE` read from `guard.env`.
+  asserting only read endpoints); 106 guard rows incl. bypasses (path-qualified clients such as
+  `/usr/bin/curl`), the `operations` yield and `OBS_HOSTS_RE` read from `guard.env`. The CLI
+  never follows a redirect (the key stays on the configured host), maps 404, 3xx and a non-JSON
+  answer to exit 2 (exit 3 only for a verb the backend kind lacks), refuses a backend `url` with
+  userinfo, keeps `--json` output a whole document under `--max-bytes` (`"truncated"`), refuses
+  to overwrite an export without `--force`, compiles `obs.redact_extra_re` on its own (a leading
+  `(?i)` works) and checks `obs.hosts_re` with `grep -E`, as the guard applies it.
 - `tests/fakes/http_fixture.py`: the `--log` line's `auth=yes` also counts an `*-API-KEY`
   header (SigNoz), not only `Authorization`.
 - `ticket-workflow`: golden suite for the `work-ticket` scripts

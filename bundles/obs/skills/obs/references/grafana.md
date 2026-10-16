@@ -23,5 +23,12 @@ Service accounts → Add service account → Add token*), sent as `Authorization
 `POST /api/ds/query` is a read (the query travels in the body); the CLI's allow-list permits
 POST only there. `traces`, `trace` and `services` exit 3 (Tempo is not supported in v1).
 
+Every answer outside 2xx JSON is exit 2: a 404 (the endpoint is not served by this version,
+or the id does not exist; `backends --probe` reports a 404 on the first endpoint above as
+unreachable with a note), a redirect (never followed, so the key never leaves the configured
+host; the message names the target), and a non-JSON body such as a login page. A Grafana
+served under a sub-path (`root_url` with `serve_from_sub_path`) redirects or 404s at the bare
+host: put the sub-path into `url`.
+
 The datasource uid is in *Connections → Data sources → <name>* (the URL ends with it). Never
 hard-code it into a dashboard: `obs lint` flags panels that pin one.

@@ -10,11 +10,13 @@ redacted; a read allow-list of endpoints), the `obs-triage` sub-agent, and guard
 - `amtool silence add|expire|import`, `amtool alert add`, `logcli query --tail` and
   `grafana-cli admin|plugins install|remove` **ask**: the agent hands you the command.
 - Alert rules, dashboards and silences change as files in the owning repository, through an MR:
-  `obs dashboards --export UID FILE`, edit, `obs lint FILE`. `obs` never writes to a backend.
+  `obs dashboards --export UID FILE`, edit, `obs lint FILE`. `obs` never writes to a backend,
+  never follows a redirect (the API key stays on the configured host), and `--export` never
+  overwrites an existing file without `--force`.
 
 Config: `[[obs.backends]]` tables (`name`, `kind` = `signoz` | `prometheus` | `grafana`, `url`,
-`auth_file`), `obs.default`, `obs.hosts_re` (the guard's backend host regex; empty turns the
-host rows off), `obs.prod_re`, `obs.log_tail`, `obs.max_bytes`, `obs.redact_extra_re`. Keys live
+`auth_file`), `obs.default`, `obs.hosts_re` (the guard's backend host regex, a POSIX ERE applied
+with `grep -E`; empty turns the host rows off), `obs.prod_re`, `obs.log_tail`, `obs.max_bytes`, `obs.redact_extra_re`. Keys live
 one per backend in `~/.config/obs/<name>.key` (mode 0600; see the
 [rotation runbook](../runbooks/rotate-obs-key.md)). An in-cluster Prometheus without an ingress
 stays with `k8s promql` (k8s bundle).
@@ -30,7 +32,13 @@ unverified are listed in `bundles/obs/skills/obs/references/signoz.md`.
 | `answered 401` / `403` | key revoked, expired, or without the Viewer role | create a new Viewer key and replace the file ([rotate-obs-key](../runbooks/rotate-obs-key.md)) |
 | `warning: key file … has mode-0644` | the key file is readable by other users | `chmod 600 ~/.config/obs/<name>.key` |
 | `unreachable: … Connection refused` / timeouts | wrong `url`, VPN not connected, or the backend is down | `obs backends --probe`; check the url in `[[obs.backends]]` |
-| `answered 404` (exit 3) | the backend version does not serve that endpoint | `obs backends --probe` shows the version; compare with `references/signoz.md` |
+| `answered 404` (exit 2) | the backend version does not serve that endpoint, the id does not exist, or `url` misses a path prefix | check the id; `obs backends --probe` shows the version (a 404 there means the url points elsewhere); compare with `references/signoz.md` |
+| `redirected to <host>; refusing to follow with credentials` (exit 2) | an SSO proxy, a login page or a sub-path redirect in front of the API | set `url` to the address that serves the API directly; the CLI never follows a redirect, so the key never leaves the configured host |
+| `returned non-JSON … (<!DOCTYPE html>…)` (exit 2) | a login page or proxy answered 200 instead of the API | as above: fix `url` |
+| `url must not carry credentials` (exit 2) | `user:password@` in a backend `url` | remove it; the key belongs in `auth_file` |
+| `<file> already exists` from `dashboards --export` | the export never overwrites silently | export to a new file, or pass `--force` after checking `git status` |
+| `hosts_re is a POSIX ERE used by the guard` | `obs.hosts_re` uses Python-only syntax (`\d`, `\w`, `\s`, `(?…)`), or `grep -E` and Python disagree on a host | rewrite it with `[0-9]`, `[A-Za-z0-9_]`, `[[:space:]]` and run `harness apply` |
+| JSON output carries `"truncated"` | the output exceeded `--max-bytes`; trailing list items were dropped, the JSON is whole | narrow the query (`--since`, `--max-items`, a filter) |
 | `… is not available on a prometheus backend` (exit 3) | logs, traces, services and dashboards need SigNoz or Grafana | use the backend kind the message names, or `obs query` |
 | A grafana `query` or `logs` asks for `--datasource` | Grafana proxies to one datasource per query | pass the datasource uid (*Connections → Data sources*) |
 | The agent asks before `curl https://<backend>/…` | the host matches `obs.hosts_re` | use `obs`; the raw request skips the bounds and the redactor |
@@ -102,11 +110,11 @@ Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md
 |---|---|---|---|---|
 | `obs.backends` | array | no | `[]` | Observability backends, as [[obs.backends]] tables: name, kind (signoz \| prometheus \| grafana), url, auth_file (a key file under ~/.config/obs, mode 0600; optional for prometheus). Never the key itself. |
 | `obs.default` | string | no | `""` | Backend name `obs` uses without --backend. Empty = the first entry of obs.backends. |
-| `obs.hosts_re` | string | no | `""` | ERE matching your backends' host names (no scheme, no port); raw curl/wget/http/xh to a matching host asks (guard section 32). Empty = those rows are off; doctor warns when backends exist. OBS_HOSTS_RE. |
+| `obs.hosts_re` | string | no | `""` | POSIX ERE (the guard applies it with grep -E) matching your backends' host names (no scheme, no port); raw curl/wget/http/xh to a matching host asks (guard section 32). Use [0-9], [A-Za-z0-9_] and [[:space:]], never \d, \w, \s or (?…): `obs backends` and doctor check it with grep -E and flag Python-only syntax. Empty = those rows are off; doctor warns when backends exist. OBS_HOSTS_RE. |
 | `obs.log_tail` | integer | no | `200` | Default number of lines `obs logs` returns (--limit overrides). |
 | `obs.max_bytes` | integer | no | `65536` | Default output cap in bytes (--max-bytes overrides); `dashboards --export` refuses larger files. |
 | `obs.prod_re` | string | no | `"(^\|[-_./:])(prod\|production)([-_./:]\|$)"` | Case-insensitive ERE on backend names and hosts marking production ([PROD] banner; remediations become suggestions only). OBS_PROD_RE. |
-| `obs.redact_extra_re` | string | no | `""` | Extra ERE of token shapes every obs output redacts in addition to the built-in list. OBS_REDACT_EXTRA_RE. |
+| `obs.redact_extra_re` | string | no | `""` | Extra Python regex of token shapes every obs output redacts in addition to the built-in list; compiled on its own, so a leading global flag such as (?i) works. OBS_REDACT_EXTRA_RE. |
 
 ### Secrets (never in harness.toml)
 

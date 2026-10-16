@@ -30,6 +30,13 @@ Create a key with the **Viewer** role (*Settings → API Keys*); every endpoint 
 | `dashboards` | `GET /api/v1/dashboards` | view | `{status, data: [{id, createdAt, updatedAt, data: {title, tags, …}, locked}]}` |
 | `dashboards --export ID` | `GET /api/v1/dashboards/{id}` | view | `{status, data: {id, data: {…dashboard JSON…}}}`; the CLI writes `data.data` |
 
+Every answer outside 2xx JSON is exit 2: a 404 (the endpoint is not served by this version,
+or the id does not exist; `backends --probe` reports a 404 on the first endpoint above as
+unreachable with a note), a redirect (never followed, so the key never leaves the configured
+host; the message names the target), and a non-JSON body such as a login page. A SigNoz
+behind an SSO proxy usually answers with a redirect to the proxy's login page: point `url` at
+an address that accepts the API key directly.
+
 The same paths also register `POST`, `PUT`, `PATCH` and `DELETE` handlers (create/edit/delete
 rules and dashboards); the CLI's allow-list never sends those methods.
 

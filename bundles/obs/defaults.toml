@@ -3,8 +3,10 @@
 [obs]
 default = ""
 backends = []
+# POSIX ERE (grep -E, as the guard applies it): [0-9] not \d, [A-Za-z0-9_] not \w, no (?…)
 hosts_re = ""
 prod_re = "(^|[-_./:])(prod|production)([-_./:]|$)"
 log_tail = 200
 max_bytes = 65536
+# Python regex, compiled on its own (a leading (?i) is fine)
 redact_extra_re = ""

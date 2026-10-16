@@ -164,7 +164,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | [`k8s/doctor/kubectl-binary`](bundles/k8s.md#doctor-checks) | sensor | kubernetes | kubectl installed |
 | [`obs/doctor/obs-backends`](bundles/obs.md#doctor-checks) | sensor | operations | at least one observability backend configured |
 | [`obs/doctor/obs-cli`](bundles/obs.md#doctor-checks) | sensor | operations | obs CLI on PATH |
-| [`obs/doctor/obs-hosts-re`](bundles/obs.md#doctor-checks) | sensor | operations | obs.hosts_re covers every configured backend |
+| [`obs/doctor/obs-hosts-re`](bundles/obs.md#doctor-checks) | sensor | operations | obs.hosts_re is a POSIX ERE covering every configured backend |
 | [`obs/doctor/obs-keys`](bundles/obs.md#doctor-checks) | sensor | operations | every backend's key file exists |
 | [`obs/doctor/obs-reach`](bundles/obs.md#doctor-checks) | sensor | operations | every backend reachable and accepts its key |
 | [`stack/doctor/stk-cli`](bundles/stack.md#doctor-checks) | sensor | scm | stk CLI on PATH |

@@ -54,11 +54,11 @@ Environment override for any key: `HARNESS_<SECTION>_<KEY>` (e.g. `HARNESS_JIRA_
 | `kubernetes` | object |  |  | **Deprecated**, use `k8s`. Renamed to [k8s]. |
 | `obs.backends` | array | `[]` | obs | Observability backends, as [[obs.backends]] tables: name, kind (signoz \| prometheus \| grafana), url, auth_file (a key file under ~/.config/obs, mode 0600; optional for prometheus). Never the key itself. |
 | `obs.default` | string | `""` | obs | Backend name `obs` uses without --backend. Empty = the first entry of obs.backends. |
-| `obs.hosts_re` | string | `""` | obs | ERE matching your backends' host names (no scheme, no port); raw curl/wget/http/xh to a matching host asks (guard section 32). Empty = those rows are off; doctor warns when backends exist. OBS_HOSTS_RE. |
+| `obs.hosts_re` | string | `""` | obs | POSIX ERE (the guard applies it with grep -E) matching your backends' host names (no scheme, no port); raw curl/wget/http/xh to a matching host asks (guard section 32). Use [0-9], [A-Za-z0-9_] and [[:space:]], never \d, \w, \s or (?…): `obs backends` and doctor check it with grep -E and flag Python-only syntax. Empty = those rows are off; doctor warns when backends exist. OBS_HOSTS_RE. |
 | `obs.log_tail` | integer | `200` | obs | Default number of lines `obs logs` returns (--limit overrides). |
 | `obs.max_bytes` | integer | `65536` | obs | Default output cap in bytes (--max-bytes overrides); `dashboards --export` refuses larger files. |
 | `obs.prod_re` | string | `"(^\|[-_./:])(prod\|production)([-_./:]\|$)"` | obs | Case-insensitive ERE on backend names and hosts marking production ([PROD] banner; remediations become suggestions only). OBS_PROD_RE. |
-| `obs.redact_extra_re` | string | `""` | obs | Extra ERE of token shapes every obs output redacts in addition to the built-in list. OBS_REDACT_EXTRA_RE. |
+| `obs.redact_extra_re` | string | `""` | obs | Extra Python regex of token shapes every obs output redacts in addition to the built-in list; compiled on its own, so a leading global flag such as (?i) works. OBS_REDACT_EXTRA_RE. |
 | `providers` | table of object |  |  | Per-provider options, keyed by provider name. |
 | `schema_version` | integer |  |  | Configuration schema version. Bumped only with a CHANGELOG Migration entry. |
 | `stack.label` | string | `"stack"` | stack | Label that selects stacks when neither refs nor --stack are given (the stacks of open MRs/PRs carrying it). HARNESS_STACK_LABEL. |
