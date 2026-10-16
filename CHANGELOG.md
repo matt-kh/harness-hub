@@ -226,6 +226,14 @@ prints every one between your applied version and the new one.
   "bundle.tags: is deprecated; use taxonomy.domain". Classify the bundle with `[taxonomy]`.
 
 ### Fixed
+- `core` redact block (`redact_text`, so `k8s redact`, `pod`, `workload` and `helm --values`):
+  a mid-line `key: value` / `key=value` whose value starts with an HTTP auth scheme word
+  (`Bearer`, `Basic`, `Token`, `Digest`, `Negotiate`, `ApiKey`, `Api-Key`, `Key`, `SSWS`,
+  `OAuth`; any case) now masks the scheme word and the token after it as one value. Before,
+  only the scheme word was masked and the credential after it leaked
+  (`… Authorization: ***REDACTED*** <token>`). Lines that start with the key were already
+  fully masked. k8s goldens `redact-text`, `redact-extra-re`, `pod-md` and `pod-json` gain
+  one fixture line.
 - `bin/harness` runs the checkout it lives in: an inherited `HARNESS_HOME` naming another checkout
   is ignored with a note instead of silently making a worktree's pre-commit hooks and `make`
   targets lint and test the main checkout. `python3 -m harness` and rendered scripts still read

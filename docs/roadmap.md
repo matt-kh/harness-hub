@@ -140,6 +140,10 @@ Cross-tranche items that make the hub easier to maintain and to extend.
 - Lint rules not in P0: `provider-verified`, `skill-triggers`, `tests-boilerplate` (every
   `bundles/*/tests/run.sh` is identical today; introduce a template the scaffolder copies;
   principle 10).
+- Follow-up for the shared redactor: `redact_obj` masks values only under secret-looking keys
+  and never runs `redact_text` on other string values, so `{"msg": "Authorization: Bearer …"}`
+  passes through; make `redact_obj` apply `redact_text` to string values (needs a golden
+  review in `k8s` and `obs`).
 - `skill_fragments`: keep the mechanism, repurpose it for org overlays
   (`local/bundles/<org>/skill-fragments/<public-skill>/references/…`) and say so in ARCHITECTURE
   §3 and the self-host runbook. Public bundles keep SCM- or tracker-specific text as references
