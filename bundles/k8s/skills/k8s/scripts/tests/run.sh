@@ -143,7 +143,13 @@ printf '{"k8s":{"redact_extra_re":"shop-api [0-9.]+"}}' > "$tmp/cfg-rx.json"
 HARNESS_CONFIG_JSON="$tmp/cfg-rx.json" python3 "$CLI" redact < "$FIX/logs-shop-api-0-api-previous.txt" > "$tmp/p-rx.out" 2>&1
 grep -q 'starting \*\*\*REDACTED\*\*\*' "$tmp/p-rx.out"; chk $? "k8s.redact_extra_re from the harness config is redacted"
 K8S_REDACT_EXTRA_RE='(' python3 "$CLI" redact < /dev/null > /dev/null 2> "$tmp/p-rxbad.err"; rc=$?
-[ "$rc" = 1 ] && grep -q 'not a valid regex' "$tmp/p-rxbad.err"; chk $? "an invalid K8S_REDACT_EXTRA_RE exits 1 with a message"
+[ "$rc" = 1 ] && grep -q 'not a valid Python regex' "$tmp/p-rxbad.err"; chk $? "an invalid K8S_REDACT_EXTRA_RE exits 1 with a message"
+K8S_REDACT_EXTRA_RE='(' python3 "$CLI" health -h > /dev/null 2> "$tmp/p-rxbad-h.err"; rc=$?
+[ "$rc" = 0 ] && ! grep -q 'not a valid' "$tmp/p-rxbad-h.err"; chk $? "an invalid K8S_REDACT_EXTRA_RE does not break \`health -h\` (lazy compile)"
+python3 "$CLI" contexts --json > "$tmp/p-ctx-ok.out" 2>/dev/null; rc_ok=$?
+K8S_REDACT_EXTRA_RE='(' python3 "$CLI" contexts --json > "$tmp/p-ctx-bad.out" 2> "$tmp/p-rxbad-ctx.err"; rc=$?
+[ "$rc" = "$rc_ok" ] && cmp -s "$tmp/p-ctx-ok.out" "$tmp/p-ctx-bad.out" && ! grep -q 'not a valid' "$tmp/p-rxbad-ctx.err"
+chk $? "an invalid K8S_REDACT_EXTRA_RE leaves \`contexts\` unchanged (lazy compile)"
 
 # usage / unknown command
 python3 "$CLI" > "$tmp/usage.out" 2>&1; rc=$?

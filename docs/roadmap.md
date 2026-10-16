@@ -143,7 +143,9 @@ Cross-tranche items that make the hub easier to maintain and to extend.
 - Follow-up for the shared redactor: `redact_obj` masks values only under secret-looking keys
   and never runs `redact_text` on other string values, so `{"msg": "Authorization: Bearer …"}`
   passes through; make `redact_obj` apply `redact_text` to string values (needs a golden
-  review in `k8s` and `obs`).
+  review in `k8s` and `obs`). Two `redact_text` limits for the same pass: JSON-quoted keys in
+  text log lines (`"password":"…"`) are not matched by the inline rule, and a non-scheme
+  multi-word value masks only its first word.
 - `skill_fragments`: keep the mechanism, repurpose it for org overlays
   (`local/bundles/<org>/skill-fragments/<public-skill>/references/…`) and say so in ARCHITECTURE
   §3 and the self-host runbook. Public bundles keep SCM- or tracker-specific text as references
