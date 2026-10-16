@@ -10,7 +10,7 @@ export KUBECTL="$here/kubectl-stub.sh"
 export HELM="$here/helm-stub.sh"
 export K8S_TIMEOUT=20
 export K8S_GITOPS_ROOT="$here/fixtures/gitops"
-unset K8S_PROD_RE K8S_CLUSTERS_MD K8S_GITOPS_REPO_MATCH
+unset K8S_PROD_RE K8S_CLUSTERS_MD K8S_GITOPS_REPO_MATCH K8S_REDACT_EXTRA_RE
 export HARNESS_CONFIG_JSON=/dev/null   # hermetic: never read a real build/config.json
 tmp=$(mktemp -d)
 export STUB_LOG="$tmp/stub.log"; : > "$STUB_LOG"
@@ -95,6 +95,8 @@ t access-forbidden   2 health --context forbidden --json
 ts secret-keys-stdin 0 "$FIX/secrets-shop.json" secret-keys - --json
 ts redact-json       0 "$FIX/helm-values-shop.json" redact
 ts redact-text       0 "$FIX/logs-shop-api-0-api-previous.txt" redact
+K8S_REDACT_EXTRA_RE='pg\.[a-z.]+:[0-9]+' \
+  ts redact-extra-re 0 "$FIX/logs-shop-api-0-api-previous.txt" redact
 
 # ------------------------------------------------------------------------- assertions
 chk() {  # chk <label> <condition-exit>
@@ -111,7 +113,7 @@ chk $? "banner carries ns and no [PROD] on a non-prod namespace"
 
 # secrets and credentials never reach stdout
 for f in pod-json pod-md workload-json workload-md helm-values-json secret-keys-json \
-         secret-keys-all-md secret-keys-stdin redact-json redact-text; do
+         secret-keys-all-md secret-keys-stdin redact-json redact-text redact-extra-re; do
   if grep -qE 'hunter2|s3cr3t-value|AKIA[0-9A-Z]{16}|BEGIN RSA PRIVATE KEY' "$tmp/$f.out"; then
     echo "FAIL $f leaks a credential"; fail=1
   else
@@ -137,6 +139,19 @@ K8S_PROD_RE='^never$' HARNESS_CONFIG_JSON="$tmp/cfg.json" python3 "$CLI" health 
 ! grep -q '\[PROD\]' "$tmp/p-env.err"; chk $? "K8S_PROD_RE in the environment wins over the config"
 HARNESS_CONFIG_JSON="$tmp/cfg.json" python3 "$CLI" contexts --write --json > /dev/null 2>&1
 ck "k8s.clusters_doc from the harness config is the --write target" [ -s "$tmp/cfg/clusters.md" ]
+printf '{"k8s":{"redact_extra_re":"shop-api [0-9.]+"}}' > "$tmp/cfg-rx.json"
+HARNESS_CONFIG_JSON="$tmp/cfg-rx.json" python3 "$CLI" redact < "$FIX/logs-shop-api-0-api-previous.txt" > "$tmp/p-rx.out" 2>&1
+grep -q 'starting \*\*\*REDACTED\*\*\*' "$tmp/p-rx.out"; chk $? "k8s.redact_extra_re from the harness config is redacted"
+K8S_REDACT_EXTRA_RE='(' python3 "$CLI" redact < /dev/null > /dev/null 2> "$tmp/p-rxbad.err"; rc=$?
+[ "$rc" = 1 ] && grep -q 'not a valid Python regex' "$tmp/p-rxbad.err"; chk $? "an invalid K8S_REDACT_EXTRA_RE exits 1 with a message"
+K8S_REDACT_EXTRA_RE='(' python3 "$CLI" health -h > /dev/null 2> "$tmp/p-rxbad-h.err"; rc=$?
+[ "$rc" = 0 ] && ! grep -q 'not a valid' "$tmp/p-rxbad-h.err"; chk $? "an invalid K8S_REDACT_EXTRA_RE does not break \`health -h\` (lazy compile)"
+python3 "$CLI" contexts --json > "$tmp/p-ctx-ok.out" 2>/dev/null; rc_ok=$?
+K8S_REDACT_EXTRA_RE='(' python3 "$CLI" contexts --json > "$tmp/p-ctx-bad.out" 2> "$tmp/p-rxbad-ctx.err"; rc=$?
+# generated_at has one-second resolution: drop it so the two runs compare across a second boundary
+[ "$rc" = "$rc_ok" ] && cmp -s <(grep -v '"generated_at"' "$tmp/p-ctx-ok.out") <(grep -v '"generated_at"' "$tmp/p-ctx-bad.out") \
+  && ! grep -q 'not a valid' "$tmp/p-rxbad-ctx.err"
+chk $? "an invalid K8S_REDACT_EXTRA_RE leaves \`contexts\` unchanged (lazy compile)"
 
 # usage / unknown command
 python3 "$CLI" > "$tmp/usage.out" 2>&1; rc=$?

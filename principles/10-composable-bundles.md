@@ -42,9 +42,9 @@ script, adding a `depends_on`, calling another bundle's tool, or creating `skill
   `work-ticket/SKILL.md`, `create-ticket/SKILL.md`). Fakes in `tests/fakes/bin/` stand in for
   every CLI in tests.
 - **One canonical source, inlined copies, one check.** `bundles/core/lib/compat.sh`,
-  `harness_config.{py,sh}` and `harness_repo.{py,sh}` each hold a block between
+  `harness_config.{py,sh}`, `harness_repo.{py,sh}` and `redact.py` each hold a block between
   `# >>> NAME` and `# <<< NAME` markers (`hn_timeout`, `harness_config`, `hcfg`, `hrepo`,
-  `harness_repo`). The copies in the guard engine and in the skill scripts are rewritten by
+  `harness_repo`, `redact`). The copies in the guard engine and in the skill scripts are rewritten by
   `bundles/core/lib/sync_inline.py` and verified by `sync_inline.py --check` from
   `bundles/core/tests/run.sh`. Adding a shared helper means adding a block to `SOURCES` in
   that script, nothing else.
@@ -86,7 +86,7 @@ script, adding a `depends_on`, calling another bundle's tool, or creating `skill
 
 | Check | Kind | Where |
 |---|---|---|
-| Inlined copies of the five core blocks match their canonical source | bundle test | `bundles/core/tests/run.sh` (`sync_inline.py --check`) |
+| Inlined copies of the six core blocks match their canonical source | bundle test | `bundles/core/tests/run.sh` (`sync_inline.py --check`) |
 | `harness_repo.sh` and `harness_repo.py` agree on fixture files | bundle test | `bundles/core/tests/run.sh` |
 | Unknown names in `depends_on`, `recommends`, `conflicts_with`, `any_of`; profiles that do not resolve | lint error `manifest`, `profile-sane` | `harness lint` |
 | Fragment directories target a skill some declared dependency provides; public bundles ship none | lint error and warning `fragments-target` | `harness lint` |
@@ -96,7 +96,7 @@ script, adding a `depends_on`, calling another bundle's tool, or creating `skill
 | A known helper body (`hn_timeout() {`, `hcfg() {`, `hrepo_root() {`, …) appearing outside its `# >>> NAME` markers | check (follow-up) | `bundles/core/lib/sync_inline.py --check`, a signature list next to `SOURCES` |
 | Jira facts shared: a `jira facts PROJECT` subcommand of the `jira` CLI (or one core block) used by both skills | refactor (follow-up) | `bundles/jira/skills/jira/scripts/jira.py`, `create-facts.sh`, `jira-facts.sh` |
 | `bundles/*/tests/run.sh` generated from one template | lint `tests-boilerplate` (follow-up, [roadmap](../docs/roadmap.md)) | `harness lint` |
-| Shared redactor inlined into every CLI that prints logs | block (follow-up, [roadmap](../docs/roadmap.md)) | `bundles/core/lib/redact.py` |
+| One redactor (`redact` block) inlined into every CLI that prints logs; the `k8s` CLI carries it today | bundle test | `bundles/core/lib/redact.py`, `sync_inline.py --check` |
 
 ## Tensions and how they are resolved
 

@@ -33,7 +33,7 @@ ck "the credential section never yields (no repo_owns line)" \
   [ -z "$(grep -E '^[[:space:]]*repo_owns ' "$core/guard.d/20-credentials.sh")" ]
 
 # 3. inlined helper copies match their canonical source
-python3 "$core/lib/sync_inline.py" --check "$bundles"; chk $? "inlined hn_timeout / harness_config / hcfg / hrepo / harness_repo copies are in sync"
+python3 "$core/lib/sync_inline.py" --check "$bundles"; chk $? "inlined hn_timeout / harness_config / hcfg / hrepo / harness_repo / redact copies are in sync"
 
 # 4. every shell file parses (under /bin/bash too, which is 3.2 on macOS)
 bad=""
@@ -79,6 +79,48 @@ ck "harness_config.py default when the file is missing" [ "$(HARNESS_CONFIG_JSON
 ck "hcfg number" [ "$(HARNESS_CONFIG_JSON="$tmp/c.json" hcfg a.n)" = 2 ]
 ck "hcfg default" [ "$(HARNESS_CONFIG_JSON="$tmp/c.json" hcfg a.missing d)" = d ]
 ck "hcfg prints nothing without file or default" [ -z "$(HARNESS_CONFIG_JSON=/nonexistent hcfg a.b)" ]
+
+# 6b. redactor (the `redact` block every log-printing CLI inlines)
+rd() { python3 "$core/lib/redact.py" "$@"; }
+ck "redact.py masks a secret-looking key in text" \
+  [ "$(printf 'ts INFO api_key=abc123 ok\n' | rd)" = 'ts INFO api_key=***REDACTED*** ok' ]
+ck "redact.py masks URL userinfo" [ "$(printf 'https://u:p@example.com/x\n' | rd)" = 'https://***:***@example.com/x' ]
+ck "redact.py masks JSON values under secret keys" \
+  [ "$(printf '{"password":"x","user":"u"}' | rd)" = '{"password": "***REDACTED***", "user": "u"}' ]
+ck "redact.py sizes Secret data, never the value" \
+  [ "$(printf '{"kind":"Secret","data":{"k":"aGVsbG8="}}' | rd)" = '{"kind": "Secret", "data": {"k": "<5 bytes>"}}' ]
+ck "redact.py masks the token after a mid-line Bearer scheme" \
+  [ "$(printf 'ts INFO Authorization: Bearer abc123 path=/x\n' | rd)" = 'ts INFO Authorization: ***REDACTED*** path=/x' ]
+ck "redact.py masks the token after a mid-line Basic scheme" \
+  [ "$(printf 'ts DEBUG authorization=Basic dXNlcjpwYXNz next\n' | rd)" = 'ts DEBUG authorization=***REDACTED*** next' ]
+ck "redact.py masks the token after an ApiKey scheme" \
+  [ "$(printf 'ts x-api-key: ApiKey sek123 ok\n' | rd)" = 'ts x-api-key: ***REDACTED*** ok' ]
+ck "redact.py masks a bare scheme word at end of line" \
+  [ "$(printf 'ts Authorization: Bearer\n' | rd)" = 'ts Authorization: ***REDACTED***' ]
+# known limit: only auth scheme words extend the mid-line value; any other unquoted
+# multi-word value masks its first word only (quote it, or use an anchored `key: value` line).
+ck "redact.py masks only the first word of a non-scheme mid-line value" \
+  [ "$(printf 'ts password: hunter two\n' | rd)" = 'ts password: ***REDACTED*** two' ]
+ck "redact.py leaves plain text alone" [ "$(printf 'host example.com up\n' | rd)" = 'host example.com up' ]
+ck "redact.py extra regex masks text" [ "$(printf 'host example.com up\n' | rd 'example\.com')" = 'host ***REDACTED*** up' ]
+ck "redact.py extra regex masks JSON string values" \
+  [ "$(printf '{"a":["id-42"]}' | rd 'id-[0-9]+')" = '{"a": ["***REDACTED***"]}' ]
+ck "redact.py applies the extra regex after the scheme rule" \
+  sh -c "! printf 'ts Authorization: Bearer sk-abc path=/x\n' | python3 '$core/lib/redact.py' '(?i)bearer' | grep -q sk-abc"
+ck "redact.py applies the extra regex after the key rule" \
+  sh -c "! printf 'loaded client_secret: nOtAr3al\n' | python3 '$core/lib/redact.py' 'client_secret' | grep -q nOtAr3al"
+ck "redact.py ignores an empty-matching extra regex" \
+  [ "$(printf 'host example.com up\n' | rd 'x*' 2>/dev/null)" = 'host example.com up' ]
+ck "redact.py warns once about an empty-matching extra regex" \
+  [ "$(printf '{"a":"b","c":["d"]}' | rd 'x*' 2>&1 >/dev/null)" = 'redact: extra pattern matches the empty string; ignored' ]
+ck "redact.py never applies the extra regex to Secret byte sizes" \
+  [ "$(printf '{"kind":"Secret","data":{"k":"aGVsbG8="},"note":"5 bytes"}' | rd 'bytes')" = '{"kind": "Secret", "data": {"k": "<5 bytes>"}, "note": "5 ***REDACTED***"}' ]
+ck "redact.py masks only the scheme-looking word when it is not a scheme (no bare Key)" \
+  [ "$(printf 'ts INFO api_key=Key rotated ok\n' | rd)" = 'ts INFO api_key=***REDACTED*** rotated ok' ]
+printf 'x\n' | rd '(' > /dev/null 2> "$tmp/rd-bad.err"; rc=$?
+[ "$rc" = 1 ] && grep -q '^redact: not a valid Python regex: ' "$tmp/rd-bad.err" \
+  && [ "$(($(wc -l < "$tmp/rd-bad.err")))" = 1 ]
+chk $? "redact.py rejects an invalid extra regex with exit 1 and a clean message"
 
 # 7. repository declaration helpers (principle 8): bash and python answer the same
 # shellcheck source=../lib/harness_repo.sh
