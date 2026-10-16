@@ -78,7 +78,7 @@ skills whose SKILL.md ``name`` differs from the directory, and three principle c
 * ``provider-honesty``: a provider listing the ``permission-prompt`` feature with ``ask = false``;
   ``docs/providers/<name>.md`` whose ``**Tier: x.**`` line differs from the tier the
   capabilities give (``taxonomy.provider_tier``)
-* ``stability``: a ``stability = "stable"`` bundle whose coverage_note admits a missing suite,
+* ``stability``: a ``stable`` or ``beta`` bundle whose coverage_note admits a missing suite,
   or whose skill or CLI has no ``tests/run.sh`` (CONTRIBUTING "Stability levels")
 
 ``harness lint --skip RULE`` turns off one of :data:`SKIPPABLE_RULES` (e.g. the slower
@@ -144,7 +144,9 @@ CI_CONFIG = os.path.join("tests", "fixtures", "harness.ci.toml")
 
 # stability
 NO_SUITE_RE = re.compile(r"no (unit |own )?(test )?suite", re.I)
-STABLE_HINT = "stable requires a test suite per skill/CLI; move to beta or add the suite"
+# a level that requires a suite per skill/CLI -> the level to move to instead of adding one
+STABILITY_NEXT = {"stable": "beta", "beta": "experimental"}
+STABILITY_HINT = "%s requires a test suite per skill/CLI; move to %s or add the suite"
 
 # principle 8: a public skill's Step 0, an agent's baseline sentence, a rule's closing sentence
 YIELD_SKILL_RE = re.compile(r"\b(harness repo owns|hrepo_owns|repo_owns)\b")
@@ -844,20 +846,22 @@ def _has_suite(path: str) -> bool:
 
 
 def lint_stability(b: M.Bundle, rep: Report) -> None:
-    """``stability = "stable"`` needs a test suite for every skill and CLI (CONTRIBUTING "Stability levels")."""
-    if (b.data.get("bundle") or {}).get("stability") != "stable":
+    """``stable`` and ``beta`` need a test suite for every skill and CLI (CONTRIBUTING "Stability levels")."""
+    level = (b.data.get("bundle") or {}).get("stability")
+    if level not in STABILITY_NEXT:
         return
+    hint = STABILITY_HINT % (level, STABILITY_NEXT[level])
     where = "%s: stability:" % b.name
     note = " ".join(str(b.harness.get("coverage_note") or "").split())
     m = NO_SUITE_RE.search(note)
     if m:
-        rep.warn("%s [harness].coverage_note admits a missing suite (%r); %s" % (where, m.group(0), STABLE_HINT))
+        rep.warn("%s [harness].coverage_note admits a missing suite (%r); %s" % (where, m.group(0), hint))
     checked = set()
     for rel in b.skills():
         rel = rel.rstrip("/")
         checked.add(rel)
         if os.path.isdir(b.rel(rel)) and not _has_suite(b.rel(rel)):
-            rep.warn("%s skill %s has no scripts/tests/run.sh; %s" % (where, rel, STABLE_HINT))
+            rep.warn("%s skill %s has no scripts/tests/run.sh; %s" % (where, rel, hint))
     for name, target in b.bins():
         parts = target.split("/")
         home = "/".join(parts[:2]) if parts[0] == "skills" and len(parts) > 2 else os.path.dirname(target)
@@ -865,7 +869,7 @@ def lint_stability(b: M.Bundle, rep: Report) -> None:
             continue
         checked.add(home)
         if not (_has_suite(b.rel(home)) if home else False) and not os.path.isfile(b.rel("tests", "run.sh")):
-            rep.warn("%s CLI %s (%s) has no tests/run.sh; %s" % (where, name, target, STABLE_HINT))
+            rep.warn("%s CLI %s (%s) has no tests/run.sh; %s" % (where, name, target, hint))
 
 
 def lint_yields(b: M.Bundle, rep: Report) -> None:
