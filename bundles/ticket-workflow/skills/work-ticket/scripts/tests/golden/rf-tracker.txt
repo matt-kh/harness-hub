@@ -1,0 +1,40 @@
+scp-ssh                | none         | {"tracker":"github-issues","tracker_source":"host","project":null,"remote_id":"github.com/owner/repo"}
+scp-ssh                | config       | {"tracker":"github-issues","tracker_source":"config","project":null,"remote_id":"github.com/owner/repo","warnings":["ticket_workflow.trackers[0].match is not a valid ERE and was skipped (harness doctor names the fix)"]}
+scp-ssh                | repo-jira    | {"tracker":"jira","tracker_source":"repo","project":"PROJ","remote_id":"github.com/owner/repo"}
+scp-ssh                | repo-invalid | {"tracker":null,"tracker_source":"repo","project":null,"remote_id":"github.com/owner/repo","error":"invalid tracker 'trello' in .harness.toml [repo]; use github-issues or jira"}
+https-credentialed     | none         | {"tracker":"github-issues","tracker_source":"host","project":null,"remote_id":"github.com/owner/repo"}
+https-credentialed     | config       | {"tracker":"github-issues","tracker_source":"config","project":null,"remote_id":"github.com/owner/repo","warnings":["ticket_workflow.trackers[0].match is not a valid ERE and was skipped (harness doctor names the fix)"]}
+https-credentialed     | repo-jira    | {"tracker":"jira","tracker_source":"repo","project":"PROJ","remote_id":"github.com/owner/repo"}
+https-credentialed     | repo-invalid | {"tracker":null,"tracker_source":"repo","project":null,"remote_id":"github.com/owner/repo","error":"invalid tracker 'trello' in .harness.toml [repo]; use github-issues or jira"}
+ssh-port-443           | none         | {"tracker":"github-issues","tracker_source":"host","project":null,"remote_id":"github.com/owner/repo"}
+ssh-port-443           | config       | {"tracker":"github-issues","tracker_source":"config","project":null,"remote_id":"github.com/owner/repo","warnings":["ticket_workflow.trackers[0].match is not a valid ERE and was skipped (harness doctor names the fix)"]}
+ssh-port-443           | repo-jira    | {"tracker":"jira","tracker_source":"repo","project":"PROJ","remote_id":"github.com/owner/repo"}
+ssh-port-443           | repo-invalid | {"tracker":null,"tracker_source":"repo","project":null,"remote_id":"github.com/owner/repo","error":"invalid tracker 'trello' in .harness.toml [repo]; use github-issues or jira"}
+https-www-no-suffix    | none         | {"tracker":"github-issues","tracker_source":"host","project":null,"remote_id":"github.com/owner/repo"}
+https-www-no-suffix    | config       | {"tracker":"github-issues","tracker_source":"config","project":null,"remote_id":"github.com/owner/repo","warnings":["ticket_workflow.trackers[0].match is not a valid ERE and was skipped (harness doctor names the fix)"]}
+https-www-no-suffix    | repo-jira    | {"tracker":"jira","tracker_source":"repo","project":"PROJ","remote_id":"github.com/owner/repo"}
+https-www-no-suffix    | repo-invalid | {"tracker":null,"tracker_source":"repo","project":null,"remote_id":"github.com/owner/repo","error":"invalid tracker 'trello' in .harness.toml [repo]; use github-issues or jira"}
+https-mixed-case       | none         | {"tracker":"jira","tracker_source":"host","project":null,"remote_id":"gitlab.example.com/group/repo"}
+https-mixed-case       | config       | {"tracker":"jira","tracker_source":"config","project":"PROJ","remote_id":"gitlab.example.com/group/repo","warnings":["ticket_workflow.trackers[0].match is not a valid ERE and was skipped (harness doctor names the fix)"]}
+https-mixed-case       | repo-jira    | {"tracker":"jira","tracker_source":"repo","project":"PROJ","remote_id":"gitlab.example.com/group/repo"}
+https-mixed-case       | repo-invalid | {"tracker":null,"tracker_source":"repo","project":null,"remote_id":"gitlab.example.com/group/repo","error":"invalid tracker 'trello' in .harness.toml [repo]; use github-issues or jira"}
+scp-ssh-subgroup       | none         | {"tracker":"jira","tracker_source":"host","project":null,"remote_id":"gitlab.example.com/group/sub/repo"}
+scp-ssh-subgroup       | config       | {"tracker":"jira","tracker_source":"config","project":"PROJ","remote_id":"gitlab.example.com/group/sub/repo","warnings":["ticket_workflow.trackers[0].match is not a valid ERE and was skipped (harness doctor names the fix)"]}
+scp-ssh-subgroup       | repo-jira    | {"tracker":"jira","tracker_source":"repo","project":"PROJ","remote_id":"gitlab.example.com/group/sub/repo"}
+scp-ssh-subgroup       | repo-invalid | {"tracker":null,"tracker_source":"repo","project":null,"remote_id":"gitlab.example.com/group/sub/repo","error":"invalid tracker 'trello' in .harness.toml [repo]; use github-issues or jira"}
+ssh-custom-port        | none         | {"tracker":null,"tracker_source":null,"project":null,"remote_id":"code.example.com/group/repo"}
+ssh-custom-port        | config       | {"tracker":"jira","tracker_source":"config","project":null,"remote_id":"code.example.com/group/repo","warnings":["ticket_workflow.trackers[0].match is not a valid ERE and was skipped (harness doctor names the fix)"]}
+ssh-custom-port        | repo-jira    | {"tracker":"jira","tracker_source":"repo","project":"PROJ","remote_id":"code.example.com/group/repo"}
+ssh-custom-port        | repo-invalid | {"tracker":null,"tracker_source":"repo","project":null,"remote_id":"code.example.com/group/repo","error":"invalid tracker 'trello' in .harness.toml [repo]; use github-issues or jira"}
+https-custom-port      | none         | {"tracker":null,"tracker_source":null,"project":null,"remote_id":"code.example.com/other/repo"}
+https-custom-port      | config       | {"tracker":null,"tracker_source":null,"project":null,"remote_id":"code.example.com/other/repo","warnings":["ticket_workflow.trackers[0].match is not a valid ERE and was skipped (harness doctor names the fix)"]}
+https-custom-port      | repo-jira    | {"tracker":"jira","tracker_source":"repo","project":"PROJ","remote_id":"code.example.com/other/repo"}
+https-custom-port      | repo-invalid | {"tracker":null,"tracker_source":"repo","project":null,"remote_id":"code.example.com/other/repo","error":"invalid tracker 'trello' in .harness.toml [repo]; use github-issues or jira"}
+https-enterprise-host  | none         | {"tracker":null,"tracker_source":null,"project":null,"remote_id":"github.example.com/owner/repo"}
+https-enterprise-host  | config       | {"tracker":"github-issues","tracker_source":"config","project":null,"remote_id":"github.example.com/owner/repo","warnings":["ticket_workflow.trackers[0].match is not a valid ERE and was skipped (harness doctor names the fix)","project 'PROJ' is used only with tracker = jira; ignored"]}
+https-enterprise-host  | repo-jira    | {"tracker":"jira","tracker_source":"repo","project":"PROJ","remote_id":"github.example.com/owner/repo"}
+https-enterprise-host  | repo-invalid | {"tracker":null,"tracker_source":"repo","project":null,"remote_id":"github.example.com/owner/repo","error":"invalid tracker 'trello' in .harness.toml [repo]; use github-issues or jira"}
+local-path             | none         | {"tracker":null,"tracker_source":null,"project":null,"remote_id":"/srv/git/repo"}
+local-path             | config       | {"tracker":null,"tracker_source":null,"project":null,"remote_id":"/srv/git/repo","warnings":["ticket_workflow.trackers[0].match is not a valid ERE and was skipped (harness doctor names the fix)"]}
+local-path             | repo-jira    | {"tracker":"jira","tracker_source":"repo","project":"PROJ","remote_id":"/srv/git/repo"}
+local-path             | repo-invalid | {"tracker":null,"tracker_source":"repo","project":null,"remote_id":"/srv/git/repo","error":"invalid tracker 'trello' in .harness.toml [repo]; use github-issues or jira"}

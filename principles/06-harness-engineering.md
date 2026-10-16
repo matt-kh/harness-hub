@@ -83,6 +83,8 @@ bundle ships: rules, skills, permissions, agents, guard sections, doctor checks,
 | Generated "Guides and sensors" tables are current | docs | `harness docs check` |
 | README generated regions (bundle table, provider matrix, principle list and count, core requirements) are current | docs | `harness docs check` |
 | A change to what README prose states (manifest, CLI, principle, install or governance page) touches `README.md` | gate | `tools/gate/companions.sh` check `readme` (pre-push, CI `gate`) |
+| A pull request names the GitHub issue it builds on as `#N` (never after a closing keyword), or waives with `no-issue: <reason>` | gate | `tools/gate/companions.sh` check `issue` (CI `gate`, on the PR body) |
+| `ticket_workflow.trackers` entries are valid (the `match` ERE compiles, the tracker is known, `project` only with Jira) | doctor | `harness doctor` (check `ticket-workflow-trackers`) |
 | PR states the pairing was checked | review | [PR template](../.github/PULL_REQUEST_TEMPLATE.md) |
 
 ## Tensions and how they are resolved

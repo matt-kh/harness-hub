@@ -13,7 +13,7 @@ Rules
 
 | pri | id | header | ask only if… | question | options (default first) | → model |
 |---|---|---|---|---|---|---|
-| 1 | P1 | Project | no explicit key/prefix/project-name match in the input AND (top reporter project share < 60% or it isn't creatable) | Which Jira project should this ticket go in? | `<top>` — your most recent tickets (N of 30) / `<2nd>` / `<3rd>` — creatable projects only | `project`; re-run `create-facts.sh` |
+| 1 | P1 | Project | no explicit key/prefix/project-name match in the input AND no creatable declared `tracker.project` AND (top reporter project share < 60% or it isn't creatable) | Which Jira project should this ticket go in? | `<declared>` — this repository's project (`tracker.project`, when set) / `<top>` — your most recent tickets (N of 30) / `<2nd>` / `<3rd>` — creatable projects only | `project`; re-run `create-facts.sh` |
 | 2 | P2 | Issue type | class keywords absent or conflicting (defect + enhancement words), or resolved type not in this project | What kind of ticket is this? | **Bug fix** — the org's defect type (`type-rules.md`; generic: `Bug`) / **Enhancement** — Story / New Feature / Improvement / **Task** — chore, refactor, docs, investigation / **Epic** — umbrella for several tickets | `class`, `type`, `type_of_problem` |
 | 2b | P2b | Type of Problem | type already fixed by the user to one that carries a problem-kind field (org rules, e.g. a change-request type) but class ambiguous | Is this a bug fix or an enhancement? | **Bug Fix** / Enhancement | `type_of_problem` |
 | 2c | P2c | Category | the type requires Category (facts `required`, or a `jira.issue_types` rule) | Which Category for this <TYPE>? | createmeta `allowed` values (first 4) | `category` |

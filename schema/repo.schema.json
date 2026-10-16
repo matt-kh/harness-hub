@@ -8,11 +8,17 @@
   "properties": {
     "repo": {
       "type": "object", "additionalProperties": false,
-      "description": "Informational.",
+      "description": "The repository itself: informational name and harness pointer, plus its declared tracker (the source of truth for tickets).",
       "properties": {
         "name": {"type": "string", "description": "The repository's name."},
-        "harness": {"type": "string", "description": "Where the repository's own harness is described (a path or URL)."}
-      }
+        "harness": {"type": "string", "description": "Where the repository's own harness is described (a path or URL)."},
+        "tracker": {"type": "string", "enum": ["github-issues", "jira"], "description": "Where this repository's tickets live. Wins over the user's ticket_workflow.trackers and the host heuristic (github.com -> github-issues, GitLab -> jira); /work-ticket and /create-ticket read it at preflight and stop on a mismatching argument."},
+        "project": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]*$", "description": "Default Jira project key for /create-ticket; only with tracker = \"jira\"."}
+      },
+      "anyOf": [
+        {"not": {"required": ["project"]}},
+        {"required": ["tracker"], "properties": {"tracker": {"const": "jira"}}}
+      ]
     },
     "owns": {
       "type": "object", "additionalProperties": false,

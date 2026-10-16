@@ -61,7 +61,13 @@
   },
   "repo_skill": null,
   "repo_declaration": null,
-  "repo_owns": false
+  "repo_owns": false,
+  "tracker": {
+    "tracker": "jira",
+    "tracker_source": "host",
+    "project": null,
+    "remote_id": "code.example.com/group/repo"
+  }
 }
 # calls:
 glab api projects/:id

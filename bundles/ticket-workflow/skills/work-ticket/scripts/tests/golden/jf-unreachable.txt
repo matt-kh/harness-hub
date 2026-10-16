@@ -17,7 +17,13 @@
   "link_type": null,
   "parent": null,
   "existing_children": [],
-  "sub_tickets_available": false
+  "sub_tickets_available": false,
+  "tracker": {
+    "tracker": null,
+    "tracker_source": null,
+    "project": null,
+    "remote_id": null
+  }
 }
 # calls:
 jira whoami

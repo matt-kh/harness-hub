@@ -151,6 +151,26 @@ class RepoCommandTest(HubTestCase):
                      "WORK_TICKET_LABEL is not a repo override"):
             self.assertIn(want, msgs)
 
+    def test_repo_tracker_declaration(self):
+        # [repo] tracker / project: the repository's source of truth for tickets (schema enum)
+        self.write(self.decl, '[repo]\nname = "shop"\ntracker = "jira"\nproject = "PROJ"\n')
+        decl = RP.load(self.root, home=REPO)
+        self.assertEqual([str(p) for p in decl.problems], [])
+        self.assertEqual(decl.to_dict()["repo"], {"name": "shop", "tracker": "jira", "project": "PROJ"})
+        self.write(self.decl, '[repo]\ntracker = "github-issues"\n')
+        self.assertEqual([str(p) for p in RP.load(self.root, home=REPO).problems], [])
+        for text, want in (('[repo]\ntracker = "trello"\n', "schema: repo.tracker"),
+                           ('[repo]\ntracker = "github-issues"\nproject = "PROJ"\n', "schema: repo"),
+                           ('[repo]\nproject = "PROJ"\n', "schema: repo"),
+                           ('[repo]\ntracker = "jira"\nproject = "proj"\n', "schema: repo.project")):
+            self.write(self.decl, text)
+            msgs = [str(p) for p in RP.load(self.root, home=REPO).problems if p.level == "error"]
+            self.assertTrue(any(want in m for m in msgs), (text, msgs))
+        self.write(self.decl, '[repo]\ntracker = "jira"\nproject = "PROJ"\n')
+        rc, out = self.run_cli("repo", self.root)
+        self.assertEqual(rc, 0, out)
+        self.assertIn("tracker      jira project PROJ (declared in [repo]", out)
+
     def test_load_reports_duplicates_and_non_utf8(self):
         self.write(self.decl, '[owns]\ndomains = ["tracker"]\ndomains = ["scm"]\n[overrides]\nWORK_TICKET_FOO_PY = "x"\n')
         decl = RP.load(self.root, self.comps(), ["WORK_TICKET_ALLOW_TRANSITION"], home=REPO)
@@ -257,6 +277,7 @@ class RepoCommandTest(HubTestCase):
         rc, out = self.run_cli("repo", "init", self.root)
         self.assertEqual(rc, 0)
         self.assertIn("[owns]", out)
+        self.assertIn('# tracker = "jira"', out)
         self.assertIn("#   core/guard.d/20-core", out)
         self.assertFalse(os.path.exists(self.decl))
         data, problems = RP.parser_module().parse_subset(out)

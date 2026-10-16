@@ -70,6 +70,9 @@ providers = @@PROVIDERS@@
 #@ stack push = true  # `stk sync` pushes the rebased sub branches with --force-with-lease; false rebases local...
 #@ stack update_method = "rebase"  # GitHub leaf refresh: `gh pr update-branch --rebase` (rebase) or a merge commit from the...
 
+#@ ticket-workflow [ticket_workflow]
+#@ ticket-workflow trackers = []  # Which tracker each repository uses, by origin remote: [[ticket_workflow.trackers]] matc...
+
 # Providers without an 'ask' decision map guard asks to deny (default) or allow.
 [providers.gemini]
 ask_as = "deny"
