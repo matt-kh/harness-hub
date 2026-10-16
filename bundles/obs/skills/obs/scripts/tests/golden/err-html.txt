@@ -1,0 +1,8 @@
+# exit=2
+# stderr:
+backend=prom kind=prometheus url=prometheus.example.com
+>> GET https://prometheus.example.com/api/v1/query?query=up
+prom returned non-JSON for GET /api/v1/query (<!DOCTYPE html> <html><head><title>Sign in</title></head> <b) — a login page or proxy answered instead of the API; check the url in [[obs.backends]]
+# stdout:
+# calls:
+GET https://prometheus.example.com/api/v1/query?query=up auth=no

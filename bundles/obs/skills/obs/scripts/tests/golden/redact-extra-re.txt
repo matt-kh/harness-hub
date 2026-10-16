@@ -1,0 +1,8 @@
+# exit=0
+# stderr:
+# stdout:
+{
+  "msg": "GET /v1/items ***REDACTED*** 200",
+  "auth": "***REDACTED***"
+}
+# calls:

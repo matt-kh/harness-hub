@@ -63,6 +63,9 @@ routes "$tmp/r-trace.json" "$FIX/signoz/trace.json"
 routes "$tmp/r-loki.json" "$FIX/grafana/loki.json"
 cp "$FIX/errors/err-401.json" "$tmp/r-401.json"
 cp "$FIX/errors/err-unreachable.json" "$tmp/r-unreachable.json"
+cp "$FIX/errors/err-redirect.json" "$tmp/r-redirect.json"
+cp "$FIX/errors/err-html.json" "$tmp/r-html.json"
+cp "$FIX/errors/err-404.json" "$tmp/r-404.json"
 
 # Normalise what moves: the sandbox and checkout paths, wall-clock timestamps and epochs.
 norm() {
@@ -145,11 +148,37 @@ rm -f "$tmp/work/dash.json"
 (cd "$tmp/work" && HOME="$tmp/home" python3 "$DRIVER" "$CLI" "$tmp/r-common.json" --log "$tmp/dashboards-export.log" -- \
   dashboards --export 0199aaaa-bbbb-7ccc-8ddd-eeeeeeee0001 dash.json --md) > "$tmp/dashboards-export.out" 2> "$tmp/dashboards-export.err"
 rc=$?; check_rc "$rc" 1 dashboards-export; record dashboards-export "$rc" "$tmp/work/dash.json"
+# An existing FILE is never overwritten without --force (no request is made either).
+printf 'keep me\n' > "$tmp/work/exists.json"
+: > "$tmp/dashboards-export-exists.log"
+(cd "$tmp/work" && HOME="$tmp/home" python3 "$DRIVER" "$CLI" "$tmp/r-common.json" --log "$tmp/dashboards-export-exists.log" -- \
+  dashboards --export 0199aaaa-bbbb-7ccc-8ddd-eeeeeeee0001 exists.json --md) > "$tmp/dashboards-export-exists.out" 2> "$tmp/dashboards-export-exists.err"
+rc=$?; check_rc "$rc" 1 dashboards-export-exists; record dashboards-export-exists "$rc" "$tmp/work/exists.json"
+: > "$tmp/dashboards-export-force.log"
+(cd "$tmp/work" && HOME="$tmp/home" python3 "$DRIVER" "$CLI" "$tmp/r-common.json" --log "$tmp/dashboards-export-force.log" -- \
+  dashboards --export 0199aaaa-bbbb-7ccc-8ddd-eeeeeeee0001 exists.json --force --md) > "$tmp/dashboards-export-force.out" 2> "$tmp/dashboards-export-force.err"
+rc=$?; check_rc "$rc" 1 dashboards-export-force
+cases=$((cases + 1))
+if cmp -s "$tmp/work/dash.json" "$tmp/work/exists.json"; then echo "PASS dashboards-export-force (overwritten)"
+else echo "FAIL dashboards-export-force: --force did not write the export"; fail=1; fi
+# An empty answer (OBS_DRY_RUN=1 without fixtures answers {}) writes nothing.
+: > "$tmp/dashboards-export-empty.log"
+(cd "$tmp/work" && HOME="$tmp/home" OBS_DRY_RUN=1 OBS_DRY_RUN_LOG="$tmp/dashboards-export-empty.log" python3 "$CLI" \
+  --backend grafana dashboards --export api-red empty.json --md) > "$tmp/dashboards-export-empty.out" 2> "$tmp/dashboards-export-empty.err"
+rc=$?; check_rc "$rc" 1 dashboards-export-empty; record dashboards-export-empty "$rc"
+cases=$((cases + 1))
+if [ -e "$tmp/work/empty.json" ]; then echo "FAIL dashboards-export-empty-file: a file was written"; fail=1
+else echo "PASS dashboards-export-empty-file (nothing written)"; fi
 # ----------------------------------------------------------------------------- lint
 l  lint-prom-ok           0 lint lint/rules-ok.json --md
 l  lint-prom-findings     1 lint lint/rules-bad.json --md
 l  lint-signoz-alert      1 lint lint/signoz-alert.json --json
 l  lint-grafana-dashboard 1 lint lint/dashboard-bad.json --md
+l  lint-prom-prefix       1 lint lint/rules-prefix.json --md       # HighLatency is a prefix of HighLatencyCritical
+cases=$((cases + 1))
+if grep -qF 'rules-prefix.json:19 | alert HighLatency has no `for:`' "$tmp/lint-prom-prefix.txt" \
+   && ! grep -qF 'rules-prefix.json:7 | alert HighLatency ' "$tmp/lint-prom-prefix.txt"; then echo "PASS lint-prom-prefix-line"
+else echo "FAIL lint-prom-prefix-line: HighLatency not reported at line 19"; fail=1; fi
 # YAML needs PyYAML (optional): exit 0 with it, exit 1 and a "PyYAML" finding without it.
 if python3 -c 'import yaml' 2>/dev/null; then want=0; else want=1; fi
 (cd "$FIX" && python3 "$CLI" lint lint/rules-ok.yaml --md) > "$tmp/yaml.out" 2>&1; rc=$?
@@ -159,11 +188,57 @@ else echo "FAIL lint-prom-yaml: exit $rc, expected $want"; cat "$tmp/yaml.out"; 
 # ---------------------------------------------------------------------- errors, prod
 t  err-401                2 401 alerts --md
 t  err-unreachable        2 unreachable query up --md
+t  err-redirect           2 redirect alerts --md                   # a 3xx is never followed: the key stays on the host
+cases=$((cases + 1))
+if grep -q 'login.example.net' "$tmp/err-redirect.log"; then echo "FAIL err-redirect-host: a request reached the redirect target"; fail=1
+else echo "PASS err-redirect-host (no request to the target)"; fi
+t  err-html               2 html --backend prom query up --md        # a login page answering 200
+t  err-404                2 404 alerts --md
+t  probe-404              2 404 backends --probe --md               # 404 on the version endpoint: unreachable, with a note
+# A backend url with userinfo is refused at load time; the credential is never printed.
+python3 -c '
+import json, sys
+c = json.load(open(sys.argv[1]))
+c["obs"]["backends"][0]["url"] = "https://admin:hunter2@signoz.example.com"  # pragma: allowlist secret (fake fixture value)
+json.dump(c, open(sys.argv[2], "w"))
+' "$tmp/config.json" "$tmp/config-userinfo.json"
+HARNESS_CONFIG_JSON="$tmp/config-userinfo.json" t backends-url-userinfo 2 common backends --md
+# obs.hosts_re is a POSIX ERE (the guard runs grep -E): Python-only syntax and dialect
+# disagreements are findings.
+OBS_HOSTS_RE='^(signoz|signoz-prod|grafana|prometheus)\d*\.example\.com$' t backends-hosts-re-pyonly 1 common backends --md
+OBS_HOSTS_RE='^[[:alnum:].-]+$' t backends-hosts-re-dialect 1 common backends --md
+# --------------------------------------------------------------------- --max-bytes
+t  backends-truncated-json 0 common backends --json --max-bytes 900
+cases=$((cases + 1))
+if python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert d["truncated"]["items_dropped"] > 0 and d["truncated"]["max_bytes"] == 900' "$tmp/backends-truncated-json.out" \
+   && [ "$(wc -c < "$tmp/backends-truncated-json.out")" -le 901 ]; then echo "PASS backends-truncated-json-valid"
+else echo "FAIL backends-truncated-json-valid: not one whole JSON document within --max-bytes carrying truncated"; fail=1; fi
 t  prod-banner            1 common --backend signoz-prod alerts --md
 # --------------------------------------------------------------------------- redact
 printf 'Authorization: Bearer test-bearer-0123456789abcdef\npassword=hunter2\nok line\n' > "$tmp/redact.in"
 (cd "$tmp/work" && python3 "$CLI" redact < "$tmp/redact.in") > "$tmp/redact-text.out" 2> "$tmp/redact-text.err"
 rc=$?; : > "$tmp/redact-text.log"; check_rc "$rc" 0 redact-text; record redact-text "$rc"
+# The documented obs.redact_extra_re example (bundle.toml) starts with a global flag: it is
+# compiled on its own, never spliced mid-pattern (re.error on Python 3.11+).
+extra_example=$(python3 -c '
+import re, sys
+t = open(sys.argv[1]).read()
+sec = t.split("[requires.config.\"obs.redact_extra_re\"]", 1)[1].split("\n[", 1)[0]
+print(re.search(r"(?m)^example = \"(.*)\"$", sec).group(1))
+' "$here/../../../../bundle.toml")
+cases=$((cases + 1))
+case "$extra_example" in
+  "(?i)"*) echo "PASS redact-extra-re-example ($extra_example)" ;;
+  *) echo "FAIL redact-extra-re-example: no (?i) example read from bundle.toml: $extra_example"; fail=1 ;;
+esac
+printf '{"msg": "GET /v1/items x-internal-token=abcd1234efgh5678 200", "auth": "Bearer test-bearer-0123456789abcdef"}\n' \
+  | (cd "$tmp/work" && OBS_REDACT_EXTRA_RE="$extra_example" python3 "$CLI" redact --md) > "$tmp/redact-extra-re.out" 2> "$tmp/redact-extra-re.err"
+rc=$?; : > "$tmp/redact-extra-re.log"; check_rc "$rc" 0 redact-extra-re; record redact-extra-re "$rc"
+(cd "$tmp/work" && HOME="$tmp/home" OBS_REDACT_EXTRA_RE="$extra_example" python3 "$CLI" backends --md) > /dev/null 2> "$tmp/redact-extra-re-cmd.err"
+rc=$?; cases=$((cases + 1))
+if [ "$rc" = 0 ]; then echo "PASS redact-extra-re-backends"; else echo "FAIL redact-extra-re-backends: exit $rc"; cat "$tmp/redact-extra-re-cmd.err"; fail=1; fi
+printf 'x\n' | (cd "$tmp/work" && OBS_REDACT_EXTRA_RE='x(' python3 "$CLI" redact) > "$tmp/redact-extra-re-bad.out" 2> "$tmp/redact-extra-re-bad.err"
+rc=$?; : > "$tmp/redact-extra-re-bad.log"; check_rc "$rc" 1 redact-extra-re-bad; record redact-extra-re-bad "$rc"
 
 # ------------------------------------------------------------------- dry-run requests
 # The CLI's own dry-run path (no driver): every request is logged, none leaves the machine,

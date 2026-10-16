@@ -12,8 +12,12 @@ Output is findings-first: JSON when stdout is not a TTY (or --json), Markdown on
 (or --md):
   {"backend","kind","prod","generated_at","command",
    "findings":[{"severity","kind","ns","name","message","evidence"}],"data":{...}}
-Exit codes: 0 clean, 1 findings (or a usage / query error), 2 access error (401/403,
-unreachable, timeout, key file missing), 3 unsupported by this backend kind.
+Exit codes: 0 clean, 1 findings (or a usage / query error), 2 access error (401/403, 404
+not found, a redirect — never followed, the key stays on the configured host —, a non-JSON
+answer such as a login page, unreachable, timeout, key file missing), 3 the command does not
+exist for this backend kind (a static decision, never an HTTP status).
+When JSON output exceeds --max-bytes, trailing items of the largest list are dropped until it
+fits and the envelope carries "truncated": {"items_dropped": N, "max_bytes": M}.
 
 Every backend command prints a banner to STDERR first:
   backend=signoz-dev kind=signoz url=signoz.example.com [PROD]
@@ -47,10 +51,11 @@ Commands (run with no args to print this list):
   alerts [--firing] [--rules]
                         Firing alerts (default) and/or alert rule definitions. A firing
                         alert with severity critical|warning is a finding.
-  dashboards [--export UID FILE.json]
+  dashboards [--export UID FILE.json [--force]]
                         List dashboards; --export writes one dashboard's JSON (sorted keys,
                         secret-looking keys redacted, at most --max-bytes) to FILE — the only
-                        local write. Edit the file in the owning repository and open an MR.
+                        local write. It refuses an existing FILE unless --force, and an empty
+                        answer. Edit the file in the owning repository and open an MR.
   lint FILE...          Alert rules and dashboards as code, offline: Prometheus rule files
                         (YAML through PyYAML when importable, else JSON), SigNoz alert JSON,
                         Grafana dashboard JSON. Findings carry file:line and the fix.
@@ -77,11 +82,14 @@ HARNESS_HOME; env first where named):
   OBS_DEFAULT [obs.default]          backend used without --backend
   OBS_PROD_RE [obs.prod_re]          default `(^|[-_./:])(prod|production)([-_./:]|$)`,
                                      matched case-insensitively on backend name and host
-  OBS_HOSTS_RE [obs.hosts_re]        the guard's backend host regex; `backends` warns when
-                                     it is empty or misses a configured host
+  OBS_HOSTS_RE [obs.hosts_re]        the guard's backend host regex, a POSIX ERE (grep -E):
+                                     `backends` warns when it is empty, misses a configured
+                                     host, uses Python-only syntax (\\d \\w \\s (?…) or when
+                                     grep -E and Python disagree on a host
   OBS_LOG_TAIL [obs.log_tail]        default --limit for `logs` (200)
   OBS_MAX_BYTES [obs.max_bytes]      default --max-bytes (65536)
-  OBS_REDACT_EXTRA_RE [obs.redact_extra_re]  extra regex of token shapes to redact
+  OBS_REDACT_EXTRA_RE [obs.redact_extra_re]  extra regex (Python re) of token shapes to
+                                     redact; compiled on its own, so a leading (?i) works
   OBS_TIMEOUT                        default --timeout seconds (20)
 Test hooks (never needed in normal use):
   OBS_DRY_RUN=1          no request leaves the machine: each one is appended as
@@ -262,20 +270,47 @@ KINDS = ("signoz", "prometheus", "grafana")
 # and its token after a secret-looking key (`Authorization: Bearer X`); this stays as belt
 # and braces for a scheme with no such key in front, and for JSON string values, which
 # redact_obj passes through extra_re only.
-_AUTH_SCHEME_RE = r"(?i)\b(?:bearer|basic)\s+[A-Za-z0-9._~+/=-]{6,}"
-_EXTRA = _env_or_cfg("OBS_REDACT_EXTRA_RE", "obs.redact_extra_re", "")
-try:
-    REDACT_EXTRA_RE = re.compile(_AUTH_SCHEME_RE + ("|(?:%s)" % _EXTRA if _EXTRA else ""))
-except re.error as _e:
-    die("OBS_REDACT_EXTRA_RE / obs.redact_extra_re is not a valid regex (%s); fix or unset it" % _e)
+_AUTH_SCHEME_RE = re.compile(r"(?i)\b(?:bearer|basic)\s+[A-Za-z0-9._~+/=-]{6,}")
+
+
+class _ExtraRedactors(object):
+    """The built-in scheme regex and the user's obs.redact_extra_re, each compiled on its own
+    (a user pattern may start with a global flag such as `(?i)`, which is an error anywhere but
+    at the start of a pattern) and applied in turn. Duck-types the `.sub` the redact block calls."""
+
+    def __init__(self, *rxs):
+        self.rxs = [r for r in rxs if r is not None]
+
+    def sub(self, repl, s):
+        for r in self.rxs:
+            s = r.sub(repl, s)
+        return s
+
+
+_REDACTORS = None
+
+
+def extra_redactors():
+    """Compiled lazily, on the first redacting use: a bad user pattern fails that command with a
+    clean message, never a traceback, and never commands that do not redact."""
+    global _REDACTORS
+    if _REDACTORS is None:
+        user = _env_or_cfg("OBS_REDACT_EXTRA_RE", "obs.redact_extra_re", "")
+        try:
+            user_rx = re.compile(user) if user else None
+        except re.error as e:
+            die("OBS_REDACT_EXTRA_RE / obs.redact_extra_re is not a valid Python regex (%s); fix or "
+                "unset it (a global flag such as (?i) must come first)" % e)
+        _REDACTORS = _ExtraRedactors(_AUTH_SCHEME_RE, user_rx)
+    return _REDACTORS
 
 
 def red_text(s):
-    return redact_text(str(s), REDACT_EXTRA_RE) if s not in (None, "") else ("" if s is None else s)
+    return redact_text(str(s), extra_redactors()) if s not in (None, "") else ("" if s is None else s)
 
 
 def red_obj(o):
-    return redact_obj(o, REDACT_EXTRA_RE)
+    return redact_obj(o, extra_redactors())
 
 
 # ------------------------------------------------------------------------------ backends
@@ -284,7 +319,18 @@ def is_prod(*parts):
 
 
 def host_of(url):
-    return urllib.parse.urlsplit(url or "").netloc or (url or "")
+    """host[:port] of a URL — never its userinfo (load_backends rejects one; defence in depth)."""
+    parts = urllib.parse.urlsplit(url or "")
+    if not parts.netloc:
+        return (url or "").rsplit("@", 1)[-1]
+    host = parts.hostname or ""
+    if ":" in host:
+        host = "[%s]" % host
+    try:
+        port = parts.port
+    except ValueError:
+        port = None
+    return host + (":%d" % port if port else "")
 
 
 def load_backends():
@@ -301,6 +347,9 @@ def load_backends():
                 "configure-backends" % (i, "|".join(KINDS)))
         if not re.match(r"^https?://[^/\s]+", url):
             die("obs.backends[%d] (%s): url must start with https:// (or http://)" % (i, name))
+        if "@" in urllib.parse.urlsplit(url).netloc:
+            die("backend %s: url must not carry credentials; put them in auth_file (a key file under "
+                "~/.config/obs, mode 0600) and remove the user:password@ part from the url" % name, 2)
         out.append({"name": name, "kind": kind, "url": url.rstrip("/"),
                     "auth_file": b.get("auth_file") or ""})
     return out
@@ -406,12 +455,43 @@ def _fixture_answer(method, url):
             raise AccessError("%s unreachable: %s — check the url in [[obs.backends]] and the "
                               "network (`obs backends --probe`)" % (host_of(url), r["error"]))
         status, body = int(r.get("status", 200)), r.get("body", "")
-        return status, (body if isinstance(body, str) else json.dumps(body))
+        return status, (body if isinstance(body, str) else json.dumps(body)), r.get("headers") or {}
     raise AccessError("no fixture route for %s %s (OBS_HTTP_FIXTURES)" % (method, url))
 
 
+class NotFound(AccessError):
+    """HTTP 404: the endpoint is not served by this backend version, or the resource is missing.
+    An access error (exit 2), not "unsupported" (exit 3 is only for a verb this backend kind
+    lacks by design)."""
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """Never follow a redirect: urllib would resend the API key header to the new host. The 3xx
+    surfaces as an HTTPError and _http reports it (exit 2) with the target host."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+urllib.request.install_opener(urllib.request.build_opener(_NoRedirect))
+
+
+def _header(headers, name):
+    if not headers:
+        return ""
+    for k, v in (headers.items() if hasattr(headers, "items") else []):
+        if str(k).lower() == name.lower():
+            return v or ""
+    return ""
+
+
+def _snippet(text, n=60):
+    return red_text(" ".join(str(text).split()))[:n]
+
+
 def _http(b, method, path, query=None, body=None, key=None, timeout=TIMEOUT):
-    """The only network path. Returns parsed JSON (or text). Raises AccessError/Unsupported."""
+    """The only network path. Returns parsed JSON. Raises AccessError (incl. NotFound) — a
+    redirect, a 404 and a non-JSON 2xx body are access errors; nothing is followed."""
     if not any(m == method and re.match(rx, path) for m, rx in READ_ENDPOINTS[b["kind"]]):
         die("obs: refusing %s %s on a %s backend — not a read endpoint this CLI allows"
             % (method, path, b["kind"]), 1)
@@ -427,8 +507,9 @@ def _http(b, method, path, query=None, body=None, key=None, timeout=TIMEOUT):
             sys.stderr.write("dry-run: " + line)
         if not os.environ.get("OBS_HTTP_FIXTURES"):
             return {}
+    resp_headers = {}
     if os.environ.get("OBS_HTTP_FIXTURES"):
-        status, text = _fixture_answer(method, url)
+        status, text, resp_headers = _fixture_answer(method, url)
     else:
         headers = {"Accept": "application/json", "User-Agent": "harness-obs/1"}
         if data is not None:
@@ -443,7 +524,7 @@ def _http(b, method, path, query=None, body=None, key=None, timeout=TIMEOUT):
             with urllib.request.urlopen(req, timeout=timeout) as resp:
                 status, text = resp.status, resp.read().decode("utf-8", "replace")
         except urllib.error.HTTPError as e:
-            status, text = e.code, (e.read() or b"").decode("utf-8", "replace")
+            status, text, resp_headers = e.code, (e.read() or b"").decode("utf-8", "replace"), e.headers
         except urllib.error.URLError as e:
             raise AccessError("%s unreachable: %s — check the url in [[obs.backends]] and the "
                               "network (`obs backends --probe`)" % (host_of(url), e.reason))
@@ -454,16 +535,28 @@ def _http(b, method, path, query=None, body=None, key=None, timeout=TIMEOUT):
         raise AccessError("%s answered %d for %s %s — the key in %s is invalid, expired or lacks "
                           "the Viewer role; replace it (docs/runbooks/rotate-obs-key.md)"
                           % (b["name"], status, method, path, b["auth_file"] or "(no auth_file)"))
+    if 300 <= status < 400:
+        loc = _header(resp_headers, "Location")
+        target = host_of(urllib.parse.urljoin(url, loc)) if loc else "(no Location header)"
+        raise AccessError("%s answered %d for %s %s: redirected to %s; refusing to follow with "
+                          "credentials — set url in [[obs.backends]] to the address that serves the "
+                          "API directly (scheme, host and path prefix)"
+                          % (b["name"], status, method, path, target))
     if status == 404:
-        raise Unsupported("%s answered 404 for %s %s — this backend version does not serve that "
-                          "endpoint; `obs backends --probe` shows its version"
-                          % (b["name"], method, path))
+        raise NotFound("%s answered 404 for %s %s%s: not found: endpoint unsupported by this version "
+                       "or resource missing — check the name or id you passed, and `obs backends "
+                       "--probe` for the version"
+                       % (b["name"], method, b["url"], path))
     if status >= 500:
         raise AccessError("%s answered %d for %s %s — the backend is failing; retry later or "
                           "check its own health" % (b["name"], status, method, path))
     try:
         parsed = json.loads(text) if text else {}
     except ValueError:
+        if status < 400:
+            raise AccessError("%s returned non-JSON for %s %s (%s) — a login page or proxy answered "
+                              "instead of the API; check the url in [[obs.backends]]"
+                              % (b["name"], method, path, _snippet(text)))
         parsed = text
     if status >= 400:
         msg = parsed.get("error") if isinstance(parsed, dict) else parsed
@@ -472,6 +565,17 @@ def _http(b, method, path, query=None, body=None, key=None, timeout=TIMEOUT):
         die("%s rejected the request (%d): %s — fix the query and rerun"
             % (b["name"], status, red_text(str(msg))[:300]), 1)
     return parsed
+
+
+def as_dict(b, body, path):
+    """A JSON object, or AccessError (exit 2): a list or a bare string where the API answers an
+    object means something else answered (a proxy, a login page, another product)."""
+    if body is None or body == "":
+        return {}
+    if not isinstance(body, dict):
+        raise AccessError("%s returned non-JSON for %s (%s) — expected a JSON object; check the url "
+                          "in [[obs.backends]]" % (b["name"], path, _snippet(json.dumps(body, default=str))))
+    return body
 
 
 def unwrap(body):
@@ -578,8 +682,41 @@ class Report(object):
             out.append("")
         return "\n".join(out)
 
+    def fitted_envelope(self, max_bytes):
+        """The envelope, always a whole JSON document: over max_bytes, trailing items of the
+        largest list (data lists first, then findings) are dropped until it fits, and
+        "truncated" says how many. Still over with every list empty: emitted as is."""
+        env = self.envelope()
+
+        def dump(e):
+            return json.dumps(e, indent=2, default=str)
+
+        txt = dump(env)
+        if not max_bytes or len(txt.encode("utf-8")) <= max_bytes:
+            return txt
+        data = env["data"] = dict(env["data"])
+        lists = {k: list(v) for k, v in data.items() if isinstance(v, list)}
+        data.update(lists)
+        env["findings"] = list(env["findings"])
+        dropped = 0
+        env["truncated"] = {"items_dropped": 0, "max_bytes": max_bytes}
+        while len(txt.encode("utf-8")) > max_bytes:
+            pool = [v for v in lists.values() if v] or ([env["findings"]] if env["findings"] else [])
+            if not pool:
+                break
+            biggest = max(pool, key=lambda v: len(json.dumps(v, default=str)))
+            biggest.pop()
+            dropped += 1
+            env["truncated"]["items_dropped"] = dropped
+            txt = dump(env)
+        return txt
+
     def emit(self, fmt, max_bytes):
-        txt = json.dumps(self.envelope(), indent=2, default=str) if fmt == "json" else self.markdown()
+        if fmt == "json":
+            txt = self.fitted_envelope(max_bytes)
+            sys.stdout.write(txt + "\n")
+            return
+        txt = self.markdown()
         raw = txt.encode("utf-8")
         if max_bytes and len(raw) > max_bytes:
             txt = raw[:max_bytes].decode("utf-8", "ignore")
@@ -648,7 +785,8 @@ def signoz_range(b, key, a, rtype, queries, rng=None):
     st, en = window(a, rng)
     body = {"schemaVersion": "v1", "start": ms(st), "end": ms(en), "requestType": rtype,
             "compositeQuery": {"queries": queries}}
-    data = unwrap(_http(b, "POST", "/api/v5/query_range", body=body, key=key, timeout=a.timeout))
+    data = unwrap(as_dict(b, _http(b, "POST", "/api/v5/query_range", body=body, key=key, timeout=a.timeout),
+                          "/api/v5/query_range"))
     return ((data or {}).get("data") or {}).get("results") or [] if isinstance(data, dict) else []
 
 
@@ -708,8 +846,9 @@ def prom_query(b, key, a):
                      key=key, timeout=a.timeout)
     else:
         body = _http(b, "GET", "/api/v1/query", {"query": a.query}, key=key, timeout=a.timeout)
-    if not isinstance(body, dict) or body.get("status") != "success":
-        die("prometheus: %s %s" % ((body or {}).get("errorType", ""), (body or {}).get("error", "")), 1)
+    body = as_dict(b, body, "/api/v1/query")
+    if body.get("status") != "success":
+        die("prometheus: %s %s" % (body.get("errorType", ""), red_text(body.get("error", ""))[:300]), 1)
     data = body.get("data") or {}
     rows = []
     for item in data.get("result") or []:
@@ -729,7 +868,7 @@ def grafana_ds(b, key, a, query, rng=None):
     st, en = window(a, rng)
     body = {"queries": [dict(query, refId="A", datasource={"uid": a.datasource})],
             "from": str(ms(st)), "to": str(ms(en))}
-    resp = _http(b, "POST", "/api/ds/query", body=body, key=key, timeout=a.timeout)
+    resp = as_dict(b, _http(b, "POST", "/api/ds/query", body=body, key=key, timeout=a.timeout), "/api/ds/query")
     res = ((resp or {}).get("results") or {}).get("A") or {} if isinstance(resp, dict) else {}
     if res.get("error"):
         die("grafana datasource %s: %s" % (a.datasource, red_text(res["error"])[:300]), 1)
@@ -918,7 +1057,8 @@ def cmd_alerts(a):
     want_firing = a.firing or not a.rules
     if want_firing:
         if b["kind"] == "prometheus":
-            raw = (unwrap(_http(b, "GET", "/api/v1/alerts", key=key, timeout=a.timeout)) or {}).get("alerts") or []
+            raw = as_dict(b, unwrap(_http(b, "GET", "/api/v1/alerts", key=key, timeout=a.timeout)),
+                          "/api/v1/alerts").get("alerts") or []
         elif b["kind"] == "signoz":
             raw = unwrap(_http(b, "GET", "/api/v1/alerts", key=key, timeout=a.timeout)) or []
         else:
@@ -974,6 +1114,9 @@ def cmd_dashboards(a):
         unsupported(b, "dashboards", "use a grafana or signoz backend")
     if a.export:
         uid, path = a.export
+        if os.path.lexists(path) and not a.force:
+            die("%s already exists — nothing fetched or written; pass --force to overwrite it, or "
+                "export to a new file and diff the two" % path, 1)
         if b["kind"] == "signoz":
             if not re.match(r"^[A-Za-z0-9-]+$", uid):
                 die("dashboard id must be letters, digits and dashes", 1)
@@ -984,6 +1127,10 @@ def cmd_dashboards(a):
                 die("dashboard uid must be letters, digits, dot, dash or underscore", 1)
             dash = (_http(b, "GET", "/api/dashboards/uid/" + uid, key=key, timeout=a.timeout) or {})
             dash = dash.get("dashboard", dash) if isinstance(dash, dict) else dash
+        if not dash:
+            die("dashboard %s: the backend answered an empty body — nothing written%s"
+                % (uid, " (OBS_DRY_RUN=1 without OBS_HTTP_FIXTURES answers every request with {})"
+                   if os.environ.get("OBS_DRY_RUN") == "1" else "; check the uid with `obs dashboards`"), 1)
         clean = red_obj(dash)
         n_red = json.dumps(clean).count(REDACTED)
         txt = json.dumps(clean, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
@@ -1020,6 +1167,58 @@ def cmd_dashboards(a):
 
 
 # ----------------------------------------------------------------------------- backends
+HOSTS_RE_DIALECT_MSG = ("hosts_re is a POSIX ERE used by the guard; use [0-9], [A-Za-z0-9_], "
+                        "[[:space:]]")
+_PY_ONLY_RE = re.compile(r"\\[dwsDWS]|\(\?")
+
+
+class HostsEre(object):
+    """obs.hosts_re as the guard applies it: `grep -E` (POSIX ERE), pattern passed via argv.
+    Python-only syntax is a finding; so is any host where Python re and grep -E disagree."""
+
+    def __init__(self, pattern, rep):
+        self.pattern, self.rep, self.grep_ok, self.py = pattern, rep, True, None
+        if _PY_ONLY_RE.search(pattern):
+            rep.add("warn", "hosts_re", "obs.hosts_re", "%s (found %s)"
+                    % (HOSTS_RE_DIALECT_MSG, _PY_ONLY_RE.search(pattern).group(0)))
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            try:
+                self.py = re.compile(pattern)
+            except re.error:
+                self.py = None
+        rc = self._grep("")
+        if rc == 2:
+            self.grep_ok = False
+            rep.add("warn", "hosts_re", "obs.hosts_re", "not a valid POSIX ERE (grep -E rejects it): the guard's "
+                    "host rows never match; fix obs.hosts_re and run `harness apply`")
+
+    def _grep(self, host):
+        """0 match, 1 no match, 2 invalid pattern, None when grep is not on PATH."""
+        import subprocess
+        try:
+            return subprocess.run(["grep", "-qE", "-e", self.pattern], input=host.encode(),
+                                  stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode
+        except OSError:
+            return None
+
+    def covers(self, name, host):
+        py = bool(self.py.search(host)) if self.py is not None else None
+        if not self.grep_ok:
+            return False
+        rc = self._grep(host)
+        if rc is None:
+            return bool(py)
+        grep = rc == 0
+        if py is not None and py != grep:
+            self.rep.add("warn", "hosts_re", name, "Python re and grep -E disagree on host %s (grep -E: %s, "
+                         "Python: %s); the guard uses grep -E — %s"
+                         % (host, "match" if grep else "no match", "match" if py else "no match",
+                            HOSTS_RE_DIALECT_MSG))
+        return grep
+
+
 def cmd_backends(a):
     backends = load_backends()
     if a.names:
@@ -1029,12 +1228,7 @@ def cmd_backends(a):
     rep = Report("backends")
     default = _env_or_cfg("OBS_DEFAULT", "obs.default", "") or (backends[0]["name"] if backends else "")
     hosts_re = _env_or_cfg("OBS_HOSTS_RE", "obs.hosts_re", "")
-    rx = None
-    if hosts_re:
-        try:
-            rx = re.compile(hosts_re)
-        except re.error as e:
-            rep.add("warn", "hosts_re", "OBS_HOSTS_RE", "not a valid regex (%s); fix obs.hosts_re" % e)
+    ere = HostsEre(hosts_re, rep) if hosts_re else None
     worst = 0
     rows = []
     if not backends:
@@ -1060,9 +1254,10 @@ def cmd_backends(a):
             rep.add("crit", "key", b["name"], "no auth_file set; a %s backend needs one (manual step "
                     "obs-api-key)" % b["kind"])
         hostname = urllib.parse.urlsplit(b["url"]).hostname or host
-        if rx is not None and not rx.search(hostname):
-            rep.add("warn", "hosts_re", b["name"], "host %s does not match obs.hosts_re (matched against the "
-                    "host name, no scheme or port): raw curl to it is not guarded; extend obs.hosts_re" % hostname)
+        if ere is not None and not ere.covers(b["name"], hostname):
+            rep.add("warn", "hosts_re", b["name"], "host %s does not match obs.hosts_re under grep -E (matched "
+                    "against the host name, no scheme or port): raw curl to it is not guarded; extend "
+                    "obs.hosts_re" % hostname)
         if a.probe:
             row.update(probe(b, a, status, rep))
             if row.get("reachable") is False or row.get("auth") == "refused":
@@ -1083,28 +1278,38 @@ def probe(b, a, status, rep):
     print("probe: backend=%s kind=%s url=%s%s" % (b["name"], b["kind"], host_of(b["url"]),
                                                   " [PROD]" if is_prod(b["name"], host_of(b["url"])) else ""),
           file=sys.stderr)
+    # step 1: the version/health endpoint proves the url reaches this kind of backend; a 404
+    # there means the url points somewhere else (wrong host or path prefix): unreachable.
+    # step 2: an authenticated read proves the key.
+    first = {"signoz": "/api/v1/version", "prometheus": "/api/v1/status/buildinfo",
+             "grafana": "/api/health"}[b["kind"]]
+    step = 1
     try:
         key = read_key(b)
+        v = unwrap(_http(b, "GET", first, key=key, timeout=a.timeout))
+        out["version"] = v.get("version", "") if isinstance(v, dict) else ""
+        step = 2
         if b["kind"] == "signoz":
-            v = _http(b, "GET", "/api/v1/version", key=key, timeout=a.timeout)
-            out["version"] = (v or {}).get("version", "") if isinstance(v, dict) else ""
             _http(b, "GET", "/api/v1/rules", key=key, timeout=a.timeout)
-        elif b["kind"] == "prometheus":
-            v = unwrap(_http(b, "GET", "/api/v1/status/buildinfo", key=key, timeout=a.timeout))
-            out["version"] = (v or {}).get("version", "") if isinstance(v, dict) else ""
-        else:
-            v = _http(b, "GET", "/api/health", key=key, timeout=a.timeout)
-            out["version"] = (v or {}).get("version", "") if isinstance(v, dict) else ""
+        elif b["kind"] == "grafana":
             _http(b, "GET", "/api/search", {"limit": 1}, key=key, timeout=a.timeout)
         out["reachable"], out["auth"] = True, "ok"
+    except NotFound as e:
+        if step == 1:
+            out["reachable"] = False
+            out["note"] = "%s answered 404 — not a %s API at this url" % (first, b["kind"])
+            rep.add("crit", "probe", b["name"], "%s answered 404 for GET %s%s: not a %s API at this url — "
+                    "check the url (host and path prefix) in [[obs.backends]]"
+                    % (b["name"], b["url"], first, b["kind"]))
+        else:
+            out["reachable"], out["auth"] = True, "?"
+            out["note"] = "authenticated read answered 404"
+            rep.add("warn", "probe", b["name"], str(e))
     except AccessError as e:
         msg = str(e)
         refused = re.search(r"answered (401|403)", msg)
         out["reachable"], out["auth"] = (True, "refused") if refused else (False, "")
         rep.add("crit", "probe", b["name"], msg)
-    except Unsupported as e:
-        out["reachable"], out["auth"] = True, "?"
-        rep.add("warn", "probe", b["name"], str(e))
     return out
 
 
@@ -1112,17 +1317,26 @@ def probe(b, a, status, rep):
 _HARDCODED_RE = re.compile(r"\b(namespace|instance|pod|node)\s*(=|=~)\s*\"(?!\$)[^\"]+\"")
 
 
-_NTH = {}
+def _key_lines(text, key, value):
+    """1-based lines where `key: value` / "key": "value" appears with value as a whole token —
+    `alert: HighLatency` never matches `alert: HighLatencyCritical`."""
+    rx = re.compile(r"""(?m)(?<![\w-])["']?%s["']?\s*:\s*(["']?)%s\1(?![\w.:-])"""
+                    % (re.escape(key), re.escape(value)))
+    return [text.count("\n", 0, m.start()) + 1 for m in rx.finditer(text)]
 
 
-def _line_of(text, needle):
-    """1-based line of the next unreported occurrence of needle in text (1 when absent)."""
-    key = (id(text), needle)
-    i = text.find(needle, _NTH.get(key, 0))
-    if i < 0:
-        return 1
-    _NTH[key] = i + len(needle)
-    return text.count("\n", 0, i) + 1
+class _Lines(object):
+    """Per-file line lookup: the n-th call for the same (key, value) returns its n-th
+    occurrence, so duplicates point at their own lines. No state outlives one file."""
+
+    def __init__(self, text):
+        self.text, self.seen = text, {}
+
+    def of(self, value, *keys):
+        found = sorted(set(n for k in keys for n in _key_lines(self.text, k, value)))
+        n = self.seen.get((keys, value), 0)
+        self.seen[(keys, value)] = n + 1
+        return found[n] if n < len(found) else (found[-1] if found else 1)
 
 
 def _load(path, rep):
@@ -1153,12 +1367,13 @@ def _load(path, rep):
 
 
 def lint_prom(path, doc, text, rep, seen):
+    lines = _Lines(text)
     for g in doc.get("groups") or []:
         for r in g.get("rules") or []:
             name = r.get("alert")
             if not name:
                 continue
-            at = "%s:%d" % (path, _line_of(text, name))
+            at = "%s:%d" % (path, lines.of(name, "alert"))
             if name in seen:
                 rep.add("warn", "duplicate", at, "alert %s is also defined at %s — give each alert a unique "
                         "name" % (name, seen[name]))
@@ -1185,7 +1400,7 @@ def lint_prom(path, doc, text, rep, seen):
 
 def lint_signoz(path, doc, text, rep, seen):
     name = doc.get("alert", "")
-    at = "%s:%d" % (path, _line_of(text, '"alert"'))
+    at = "%s:%d" % (path, _Lines(text).of(name, "alert") if isinstance(name, str) and name else 1)
     if name in seen:
         rep.add("warn", "duplicate", at, "alert %s is also defined at %s — give each alert a unique name"
                 % (name, seen[name]))
@@ -1219,6 +1434,7 @@ def _panels(doc):
 def lint_grafana(path, doc, text, rep, seen):
     doc = doc.get("dashboard", doc)
     title = doc.get("title", "")
+    lines = _Lines(text)
     if not doc.get("uid"):
         rep.add("warn", "uid", "%s:1" % path, "dashboard %r has no uid — set a stable uid so links and "
                 "provisioning survive re-imports" % title)
@@ -1228,7 +1444,7 @@ def lint_grafana(path, doc, text, rep, seen):
         for ds in [p.get("datasource")] + [t.get("datasource") for t in p.get("targets") or []]:
             uid = ds.get("uid") if isinstance(ds, dict) else ds
             if isinstance(uid, str) and uid and not uid.startswith("$") and uid not in ("-- Grafana --", "-- Mixed --", "-- Dashboard --"):
-                rep.add("warn", "datasource", "%s:%d" % (path, _line_of(text, uid)),
+                rep.add("warn", "datasource", "%s:%d" % (path, lines.of(uid, "uid", "datasource")),
                         "panel %r pins datasource uid %r — use a datasource template variable "
                         "(${datasource}) so the dashboard works in every environment"
                         % (p.get("title", ""), uid))
@@ -1342,6 +1558,7 @@ def build_parser():
 
     s = sub("dashboards", help="list or export dashboards")
     s.add_argument("--export", nargs=2, metavar=("UID", "FILE"))
+    s.add_argument("--force", action="store_true", help="--export: overwrite an existing FILE")
     s.set_defaults(fn=cmd_dashboards)
 
     s = sub("lint", help="alert rules and dashboards as code")

@@ -1,0 +1,7 @@
+# exit=1
+# stderr:
+backend=grafana kind=grafana url=grafana.example.com
+dashboard api-red: the backend answered an empty body — nothing written (OBS_DRY_RUN=1 without OBS_HTTP_FIXTURES answers every request with {})
+# stdout:
+# calls:
+GET https://grafana.example.com/api/dashboards/uid/api-red

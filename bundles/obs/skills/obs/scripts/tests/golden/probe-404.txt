@@ -1,0 +1,43 @@
+# exit=2
+# stderr:
+probe: backend=signoz-dev kind=signoz url=signoz.example.com
+>> GET https://signoz.example.com/api/v1/version
+probe: backend=signoz-prod kind=signoz url=signoz-prod.example.com [PROD]
+>> GET https://signoz-prod.example.com/api/v1/version
+probe: backend=prom kind=prometheus url=prometheus.example.com
+>> GET https://prometheus.example.com/api/v1/status/buildinfo
+probe: backend=grafana kind=grafana url=grafana.example.com
+>> GET https://grafana.example.com/api/health
+# stdout:
+# obs backends
+
+## Findings (4)
+
+| sev | kind | name | message |
+|---|---|---|---|
+| crit | probe | grafana | grafana answered 404 for GET https://grafana.example.com/api/health: not a grafana API at this url — check the url (host and path prefix) in [[obs.backends]] |
+| crit | probe | prom | prom answered 404 for GET https://prometheus.example.com/api/v1/status/buildinfo: not a prometheus API at this url — check the url (host and path prefix) in [[obs.backends]] |
+| crit | probe | signoz-dev | signoz-dev answered 404 for GET https://signoz.example.com/api/v1/version: not a signoz API at this url — check the url (host and path prefix) in [[obs.backends]] |
+| crit | probe | signoz-prod | signoz-prod answered 404 for GET https://signoz-prod.example.com/api/v1/version: not a signoz API at this url — check the url (host and path prefix) in [[obs.backends]] |
+
+## default
+
+signoz-dev
+
+## hosts_re
+
+^(signoz\|signoz-prod\|grafana\|prometheus)\.example\.com$
+
+## backends
+
+| name | kind | host | key | default | prod | reachable | version | auth | note |
+|---|---|---|---|---|---|---|---|---|---|
+| signoz-dev | signoz | signoz.example.com | ok | True | False | False |  |  | /api/v1/version answered 404 — not a signoz API at this url |
+| signoz-prod | signoz | signoz-prod.example.com | ok | False | True | False |  |  | /api/v1/version answered 404 — not a signoz API at this url |
+| prom | prometheus | prometheus.example.com | none | False | False | False |  |  | /api/v1/status/buildinfo answered 404 — not a prometheus API at this url |
+| grafana | grafana | grafana.example.com | ok | False | False | False |  |  | /api/health answered 404 — not a grafana API at this url |
+# calls:
+GET https://signoz.example.com/api/v1/version auth=yes
+GET https://signoz-prod.example.com/api/v1/version auth=yes
+GET https://prometheus.example.com/api/v1/status/buildinfo auth=no
+GET https://grafana.example.com/api/health auth=yes
