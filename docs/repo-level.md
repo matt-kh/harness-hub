@@ -54,6 +54,10 @@ guard under every provider that runs it and the hub's skills under every provide
 name = "shop"
 # optional: where your own harness is described
 harness = "docs/agent-workflow.md"
+# where this repository's tickets live: github-issues | jira (wins over the user's config)
+tracker = "jira"
+# optional, jira only: /create-ticket's default project
+project = "PROJ"
 
 [owns]
 # Domains this repository's own harness covers: every hub component in them yields here.
@@ -75,7 +79,15 @@ WORK_TICKET_LABELED_DECISION = "allow"
 
 `harness repo` prints what the file changes; commit the file; nothing in it is a secret.
 
-- **`[repo]`** is informational: a name and a pointer to where your own harness is described.
+- **`[repo]`** names the repository and points to where your own harness is described, and
+  declares the repository's **tracker** — its source of truth for tickets: `tracker =
+  "github-issues"` or `"jira"`, plus `project = "KEY"` (Jira only) as `/create-ticket`'s default
+  project. Precedence: this declaration → the developer's `ticket_workflow.trackers` (first
+  entry whose `match` ERE hits `<host>/<path>` of `origin`) → the host (github.com → GitHub
+  Issues, a GitLab host → Jira). The facts scripts of `/work-ticket` and `/create-ticket`
+  report the result and its source (`tracker.tracker_source`: `repo`, `config` or `host`); an
+  argument that does not fit (a Jira key in a `github-issues` repository, `#N` in a `jira` one)
+  stops the skill, and an unknown value stops it too instead of falling back to the host.
 - **`[owns] domains`** takes the taxonomy domains (`base`, `scm`, `tracker`, `delivery`,
   `kubernetes`, `workspace`; [taxonomy](reference/taxonomy.md)). Every hub component in an
   owned domain yields here.

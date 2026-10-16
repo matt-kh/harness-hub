@@ -2,6 +2,7 @@
 # work-ticket GitHub issue facts (twin of jira-facts.sh): READ-ONLY, prints one JSON object.
 # Usage: issue-facts.sh <N | #N | owner/repo#N | https://github.com/owner/repo/issues/N>
 # Repo: from the ref, else `gh repo set-default --view`, else the parent of a fork origin, else origin.
+# `tracker`: the repository's declared tracker and its source (lib/repo-facts.sh rf_tracker).
 # Every gh call is wrapped in `hn_timeout 20` and tolerated (partial JSON, never a crash).
 # Override the binary with WORK_TICKET_GH (tests / stubs).
 set -uo pipefail
@@ -21,10 +22,13 @@ except OSError:
   fi
 }
 # <<< hn_timeout
+# shellcheck source=lib/repo-facts.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/repo-facts.sh"
 ref="${1:-}"; [ -n "$ref" ] || { echo '{"error":"usage: issue-facts.sh N|#N|owner/repo#N|URL"}'; exit 1; }
 GH="${WORK_TICKET_GH:-gh}"
 export GH_PROMPT_DISABLED=1 GH_NO_UPDATE_NOTIFIER=1 GH_PAGER=cat NO_COLOR=1
 root=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+tracker=$(rf_tracker "$root"); [ -n "$tracker" ] || tracker=null
 ghc() { command -v "$GH" >/dev/null 2>&1 || return 127; (cd "$root" && hn_timeout 20 "$GH" "$@" 2>/dev/null); }
 json_or() { local v="$1" d="$2"; if [ -n "$v" ] && jq -e . <<<"$v" >/dev/null 2>&1; then printf '%s' "$v"; else printf '%s' "$d"; fi; }
 
@@ -65,7 +69,8 @@ fi
 : "${is_pr:=null}"
 
 jq -n --arg me "$me" --arg repo "$repo" --argjson num "$num" --argjson auth "$auth_ok" \
-      --argjson rv "$repo_view" --argjson issue "$issue" --argjson subs "$subs" --argjson parent "$parent" --argjson ispr "$is_pr" '
+      --argjson rv "$repo_view" --argjson issue "$issue" --argjson subs "$subs" --argjson parent "$parent" --argjson ispr "$is_pr" \
+      --argjson tracker "$tracker" '
 def nn: if . == "" then null else . end;
 ($issue | if . == null then null else
    . + {labels:[.labels[]?.name], assignees:[.assignees[]?.login], milestone:(.milestone.title // null)} end) as $i
@@ -77,4 +82,5 @@ def nn: if . == "" then null else . end;
    agent_labelled:(if $i == null then null else ($i.labels | any(startswith("agent-"))) end),
    parent:$parent,
    existing_children:[$subs[].number], sub_issues:$subs,
-   sub_tickets_available:((($rv.hasIssuesEnabled // false) and ($canlabel // false)))}'
+   sub_tickets_available:((($rv.hasIssuesEnabled // false) and ($canlabel // false))),
+   tracker:$tracker}'

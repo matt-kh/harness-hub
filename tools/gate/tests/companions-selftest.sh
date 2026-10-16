@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Self-test for tools/gate/companions.sh: builds a throw-away git repo with a guard section,
 # its rows, the guard engine, an engine module, a bundle manifest, a README and a CHANGELOG,
-# then asserts what the gate
+# plus pull-request bodies for the issue check, then asserts what the gate
 # reports for each kind of change on a branch off main.
 # Usage: tools/gate/tests/companions-selftest.sh [-v]
 set -o pipefail
@@ -173,7 +173,7 @@ expect_rc "9 docs/tests-only change is clean" 0 $rc "$out"
 branch c10
 printf 'VALUE = 3\n' >"$R/lib/harness/mod.py"
 commit "lib: bump value"
-printf 'Summary\r\n\r\nno-changelog: internal refactor, no user-visible change\r\n' >"$T/body.txt"
+printf 'Summary, see #12\r\n\r\nno-changelog: internal refactor, no user-visible change\r\n' >"$T/body.txt"
 out=$(run --range main..HEAD --markers-file "$T/body.txt"); rc=$?
 expect_rc "10 no-changelog in the markers file (CRLF) waives" 0 $rc "$out"
 
@@ -234,6 +234,47 @@ commit "providers: new adapter directory"
 out=$(run --only readme --range main..HEAD); rc=$?
 expect_rc "14f an added provider directory hits" 1 $rc "$out"
 has   "14f message marks the directory as added" '^readme: .*providers/newp/ \(added\)' "$out"
+
+# ---- 15. issue reference in the PR body (markers file) -------------------------------------------
+branch c15
+printf 'more\n' >>"$R/docs/a.md"
+commit "docs: more"
+body() { printf '%b' "$1" >"$T/body.txt"; }
+body '## What and why\n\nIssue: #12\n\nDeclares the tracker.\n'
+out=$(run --range main..HEAD --markers-file "$T/body.txt"); rc=$?
+expect_rc "15a body naming #12 is clean" 0 $rc "$out"
+has   "15a the issue check ran" 'clean \(rows, changelog, readme, issue;' "$out"
+body 'Builds on owner/repo#7.\n'
+out=$(run --only issue --range main..HEAD --markers-file "$T/body.txt"); rc=$?
+expect_rc "15b owner/repo#7 counts" 0 $rc "$out"
+body 'See https://github.com/owner/repo/issues/7 for context.\n'
+out=$(run --only issue --range main..HEAD --markers-file "$T/body.txt"); rc=$?
+expect_rc "15c an issues URL counts" 0 $rc "$out"
+body '## What and why\n\nDeclares the tracker.\n\n```\nIssue: #12\n```\n<!-- Mention the issue as "#N"; e.g. #3 -->\nUses `#4` in code.\n'
+out=$(run --only issue --range main..HEAD --markers-file "$T/body.txt"); rc=$?
+expect_rc "15d no reference outside code and comments hits" 1 $rc "$out"
+has   "15d message says how to mention it and names the marker" \
+      "^issue: pull-request body names no issue .*#N.*no-issue: <reason>" "$out"
+hasnt "15d --only issue runs no CHANGELOG check" '^changelog: ' "$out"
+for kw in 'Fixes #12' 'closes: #12' 'Resolved owner/repo#12' 'fix https://github.com/owner/repo/issues/12'; do
+  body "Summary.\n\n$kw\n"
+  out=$(run --only issue --range main..HEAD --markers-file "$T/body.txt"); rc=$?
+  expect_rc "15e '$kw' hits" 1 $rc "$out"
+  has   "15e '$kw': message says mention #N, state is human-only" \
+        "^issue: .*closing keyword.*mention the issue as #N instead; issue state is human-only" "$out"
+done
+body 'Prefix #12 and a fixed-width #13: no closing keyword.\n'
+out=$(run --only issue --range main..HEAD --markers-file "$T/body.txt"); rc=$?
+expect_rc "15f words that merely contain a keyword do not hit" 0 $rc "$out"
+body 'Typo fix in a comment.\n\nno-issue: one-word typo\n'
+out=$(run --only issue --range main..HEAD --markers-file "$T/body.txt"); rc=$?
+expect_rc "15g no-issue with a reason waives the check" 0 $rc "$out"
+has   "15g waiver is announced" "issue check waived" "$out"
+out=$(run --range main..HEAD); rc=$?
+expect_rc "15h no markers file: the issue check is skipped" 0 $rc "$out"
+has   "15h skip is announced" 'issue: skipped \(no PR body\)' "$out"
+out=$(run --only issue --range main..HEAD); rc=$?
+expect_rc "15i --only issue without a body skips" 0 $rc "$out"
 
 echo "companions selftest: passed=$pass failed=$fail"
 [ $fail -eq 0 ]

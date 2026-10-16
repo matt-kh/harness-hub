@@ -42,7 +42,8 @@ Pick the bundles you need; each one is a capability with its own docs page.
 ## How it works
 
 1. **Describe your organisation once**, in one gitignored file, `local/harness.toml`: your
-   email, hosts, project keys, the bundles and providers you use.
+   email, hosts, project keys, which tracker each repository uses (GitHub Issues or Jira;
+   a repository's own `.harness.toml` can declare it too), the bundles and providers you use.
 2. **Pick bundles**, or a profile from `profiles/`. Dependencies are added for you; a
    conflict stops with one sentence saying what is missing.
 3. **Run `bootstrap`.** It renders the bundles into every provider you selected: it shows

@@ -161,6 +161,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | [`ticket-workflow/doctor/ticket-workflow-scm`](bundles/ticket-workflow.md#doctor-checks) | sensor | delivery | An SCM CLI is on PATH (glab or gh) |
 | [`ticket-workflow/doctor/ticket-workflow-skills`](bundles/ticket-workflow.md#doctor-checks) | sensor | delivery | work-ticket and create-ticket skills rendered |
 | [`ticket-workflow/doctor/ticket-workflow-tracker`](bundles/ticket-workflow.md#doctor-checks) | sensor | delivery | A tracker CLI is on PATH (jira or gh) |
+| [`ticket-workflow/doctor/ticket-workflow-trackers`](bundles/ticket-workflow.md#doctor-checks) | sensor | delivery | ticket_workflow.trackers entries are valid (match compiles, tracker known, project only with jira) |
 
 ## Manual steps
 

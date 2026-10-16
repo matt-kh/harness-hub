@@ -58,6 +58,7 @@ CF="$here/../create-facts.sh"; RP="$tmp/repos"
 tw_repo "$RP/clone" "git@github.com:owner/repo.git"         "$FIXT/repos/gh-templates"
 tw_repo "$RP/ghe"   "git@github.example.com:owner/repo.git" "$FIXT/repos/gh-templates"
 tw_repo "$RP/owns"  "https://github.com/owner/repo.git"     "$FIXT/repos/owns"
+tw_repo "$RP/trk"   "git@gitlab.example.com:group/repo.git" "$FIXT/repos/tracker-jira"
 mkdir -p "$RP/plain"
 t cf-jira-full            0 -                   "$RP/plain" "$CF" PROJ
 HARNESS_CONFIG_JSON="$FIXT/config-pd-global.json" \
@@ -74,7 +75,12 @@ PATH="$SYSBIN" \
   t cf-gh-not-installed   0 -                   "$RP/clone" "$CF" owner/repo
 HARNESS_GITHUB_HOST=github.example.com \
   t cf-gh-host            0 cf-gh-host          "$RP/ghe"   "$CF" owner/repo
+HARNESS_CONFIG_JSON="$FIXT/config-ghe.json" \
+  t cf-gh-ghe-templates   0 cf-gh-host          "$RP/ghe"   "$CF" owner/repo
 t cf-repo-owns            0 -                   "$RP/owns"  "$CF" PROJ
+t cf-tracker-host         0 -                   "$RP/clone" "$CF" --repo
+t cf-tracker-declared     0 -                   "$RP/trk"   "$CF" --repo
+t cf-tracker-none         0 -                   "$RP/plain" "$CF" --repo
 t cf-usage                1 -                   "$RP/plain" "$CF"
 
 A="$tmp/calls.all"
@@ -85,6 +91,12 @@ ck "create-facts: no gh write flags" [ -z "$bad" ]
 bad=$(grep '^jira ' "$A" | grep -vE '^jira (whoami|api /rest/api/2/[^ ]+)$' | head -3)
 ck "create-facts: jira calls are whoami and api GETs" [ -z "$bad" ]
 grep -q '"error": "gh not installed' "$tmp/cf-gh-not-installed.out"; chk $? "create-facts: gh missing from PATH is reported, not fatal"
-grep -q '"templates": \[\]' "$tmp/cf-gh-host.out"; chk $? "create-facts: templates only for github.com clones (create-facts.sh matches github\\.com literally)"
+grep -q '"templates": \[\]' "$tmp/cf-gh-outside-clone.out"; chk $? "create-facts: no templates outside a clone of the repository"
+for c in cf-gh-full cf-gh-host cf-gh-ghe-templates; do
+  grep -q '"\.github/ISSUE_TEMPLATE/bug\.md"' "$tmp/$c.out"; chk $? "create-facts: $c reports the clone's issue templates (remote id = github host/owner/repo)"
+done
+blk() { sed -n '/^# >>> rf_tracker$/,/^# <<< rf_tracker$/p' "$1"; }
+[ -n "$(blk "$CF")" ] && cmp -s <(blk "$CF") <(blk "$here/../../../work-ticket/scripts/lib/repo-facts.sh")
+chk $? "create-facts: the rf_tracker block is identical to work-ticket/scripts/lib/repo-facts.sh (copy it over)"
 
 tw_finish create-ticket

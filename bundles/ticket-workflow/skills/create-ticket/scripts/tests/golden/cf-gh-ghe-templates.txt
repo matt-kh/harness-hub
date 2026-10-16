@@ -1,0 +1,37 @@
+# exit=0
+# stderr:
+# stdout:
+{
+  "provider": "github",
+  "me": "dev",
+  "project": "owner/repo",
+  "creatable": true,
+  "can_assign": true,
+  "viewer_permission": "WRITE",
+  "labels": [
+    "bug",
+    "enhancement",
+    "agent-drafted"
+  ],
+  "milestones": [
+    "v1.0"
+  ],
+  "templates": [
+    ".github/ISSUE_TEMPLATE/bug.md",
+    ".github/ISSUE_TEMPLATE/feature.md"
+  ],
+  "repo_declaration": null,
+  "repo_owns": false,
+  "tracker": {
+    "tracker": null,
+    "tracker_source": null,
+    "project": null,
+    "remote_id": "github.example.com/owner/repo"
+  }
+}
+# calls:
+gh auth status --hostname github.example.com
+gh api user --jq .login
+gh repo view owner/repo --json hasIssuesEnabled,viewerPermission,nameWithOwner
+gh label list -R owner/repo --json name,description --limit 200
+gh api repos/owner/repo/milestones?per_page=100 --jq [.[]|select(.state=="open")|.title]

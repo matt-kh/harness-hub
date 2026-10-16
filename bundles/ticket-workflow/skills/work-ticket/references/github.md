@@ -1,8 +1,12 @@
-# GitHub provider (github.com, GitHub Issues as the tracker)
+# GitHub provider (github.com PRs, GitHub Issues as the tracker)
 
-Used when preflight reports `provider: "github"`. Same procedure, same non-negotiables as
-`SKILL.md`; this file only maps each step's commands. Section numbers match SKILL steps
-(`§0` … `§7`). Nothing here calls `jira` — GitHub repos use GitHub Issues.
+Used when preflight reports `provider: "github"` (PR commands) and `tracker.tracker:
+"github-issues"` (issue commands). Same procedure, same non-negotiables as `SKILL.md`; this
+file only maps each step's commands. Section numbers match SKILL steps (`§0` … `§7`). The
+issue rows never call `jira`. A GitHub repository whose tracker is declared `jira`
+(`.harness.toml [repo] tracker` or `ticket_workflow.trackers`) keeps the Jira ticket commands of
+SKILL.md and takes only the PR rows from here; the tracker is declared, never inferred from
+the host alone.
 
 **Command rules (the guard hook reads the command text):**
 - Always `-R OWNER/REPO` **literally** in the command (like literal Jira keys). Never `$REPO`,

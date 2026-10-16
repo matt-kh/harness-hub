@@ -1,0 +1,69 @@
+# exit=0
+# stderr:
+# stdout:
+{
+  "provider": "github",
+  "auth_ok": true,
+  "me": "dev",
+  "repo": "owner/repo",
+  "number": 7,
+  "perms": {
+    "viewer_permission": "ADMIN",
+    "can_label": true,
+    "has_issues": true,
+    "is_private": false
+  },
+  "issue": {
+    "number": 7,
+    "title": "Parser rejects empty input",
+    "body": "Steps: run the parser on an empty file.",
+    "state": "OPEN",
+    "labels": [
+      "bug",
+      "agent-worked"
+    ],
+    "assignees": [
+      "dev"
+    ],
+    "milestone": "v1.0",
+    "comments": [],
+    "url": "https://github.com/owner/repo/issues/7"
+  },
+  "is_pull_request": false,
+  "agent_labelled": true,
+  "parent": null,
+  "existing_children": [
+    8
+  ],
+  "sub_issues": [
+    {
+      "number": 8,
+      "title": "Lexer part",
+      "state": "open",
+      "labels": [
+        "agent-created",
+        "agent-worked"
+      ]
+    }
+  ],
+  "sub_tickets_available": true,
+  "tracker": {
+    "tracker": "github-issues",
+    "tracker_source": "config",
+    "project": null,
+    "remote_id": "github.com/owner/repo",
+    "warnings": [
+      "ticket_workflow.trackers[0].match is not a valid ERE and was skipped (harness doctor names the fix)"
+    ]
+  }
+}
+# calls:
+gh auth status --hostname github.com
+gh repo set-default --view
+gh repo view owner/repo --json isFork,parent
+gh api user
+gh repo view owner/repo --json nameWithOwner,viewerPermission,hasIssuesEnabled,isPrivate
+gh issue view 7 -R owner/repo --json number,title,body,state,labels,assignees,milestone,comments,url
+gh api repos/owner/repo/issues/7/sub_issues?per_page=100
+gh api repos/owner/repo/issues/7/parent
+gh api repos/owner/repo/issues/7

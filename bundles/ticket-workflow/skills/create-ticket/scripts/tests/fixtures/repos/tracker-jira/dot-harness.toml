@@ -1,0 +1,5 @@
+# Repository-level harness declaration (fixture): the tracker is Jira, project PROJ
+[repo]
+name = "repo"
+tracker = "jira"
+project = "PROJ"

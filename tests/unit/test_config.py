@@ -148,5 +148,45 @@ class EditTest(unittest.TestCase):
         self.assertIn("merge them by hand", notes[0])
 
 
+
+class TrackersKeyTest(unittest.TestCase):
+    """ticket_workflow.trackers (bundles/ticket-workflow): array of {match, tracker, project (jira only)}."""
+
+    @classmethod
+    def setUpClass(cls):
+        from harness import manifest as M
+
+        repo = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+        b = M.load_bundle(os.path.join(repo, "bundles", "ticket-workflow"))
+        cls.schema = C.compile_schema(C.load_base_schema(repo), [b], [])
+
+    def errors(self, trackers):
+        from harness import schema_lite
+
+        doc = {"schema_version": 1, "ticket_workflow": {"trackers": trackers}}
+        return [e for e in schema_lite.validate(self.schema, doc).errors if e.startswith("ticket_workflow")]
+
+    def test_accepts_the_documented_shapes(self):
+        self.assertEqual(self.errors([]), [])
+        self.assertEqual(self.errors([
+            {"match": "^github\\.com/owner/", "tracker": "github-issues"},
+            {"match": "^gitlab\\.example\\.com/group/", "tracker": "jira", "project": "PROJ"},
+        ]), [])
+
+    def test_rejects_bad_shapes(self):
+        for bad, want in (
+            ([{"match": "^x/", "tracker": "trello"}], "ticket_workflow.trackers[0].tracker"),
+            ([{"tracker": "jira"}], "ticket_workflow.trackers[0]"),
+            ([{"match": "", "tracker": "jira"}], "ticket_workflow.trackers[0].match"),
+            ([{"match": "^x/", "tracker": "github-issues", "project": "PROJ"}], "ticket_workflow.trackers[0]"),
+            ([{"match": "^x/", "tracker": "jira", "projekt": "PROJ"}], "ticket_workflow.trackers[0]"),
+            ([{"match": "^x/", "tracker": "jira", "project": "proj"}], "ticket_workflow.trackers[0].project"),
+            (["^x/"], "ticket_workflow.trackers[0]"),
+            ({"match": "^x/", "tracker": "jira"}, "ticket_workflow.trackers"),
+        ):
+            errs = self.errors(bad)
+            self.assertTrue(any(e.startswith(want) for e in errs), (bad, errs))
+
+
 if __name__ == "__main__":
     unittest.main()

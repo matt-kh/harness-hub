@@ -192,11 +192,12 @@ if [ -n "$me" ] && [ "$(jq -r '.id // empty' <<<"$proj")" != "" ]; then
   access=$(api "projects/:id/members/all/$me" | jq -r '.access_level // "unknown"' 2>/dev/null); [ -n "$access" ] || access="unknown"
 fi
 
+tracker=$(rf_tracker "$root"); [ -n "$tracker" ] || tracker=null
 jq -n --arg root "$root" --arg host "$host" --arg def "$def" --arg tmpl "$tmpl" --arg skill "$repo_skill" \
       --arg rdecl "$repo_decl" --argjson rowns "$repo_owns" \
       --arg access "$access" --arg glver "$gl_ver" --argjson stackui "$stack_ui" --argjson prot "$prot_json" \
       --argjson proj "$proj" --argjson mr "$mr_pipeline" --argjson checks "$ci_checks" --argjson cost "$ci_cost" \
-      --argjson precommit "$precommit" --argjson dirty "$dirty" '
+      --argjson precommit "$precommit" --argjson dirty "$dirty" --argjson tracker "$tracker" '
 {provider:"gitlab", repo_root:$root, remote_host:$host, default_branch:$def, dirty_files:$dirty,
  gitlab:{version:(if $glver=="" then null else $glver end), stack_ui_available:$stackui},
  project:{id:$proj.id, path:$proj.path_with_namespace, squash_option:$proj.squash_option, merge_method:$proj.merge_method,
@@ -206,4 +207,4 @@ jq -n --arg root "$root" --arg host "$host" --arg def "$def" --arg tmpl "$tmpl" 
  mr_template:(if $tmpl=="" then null else $tmpl end),
  ci:({mr_pipeline:$mr, checks:$checks, precommit:$precommit} + $cost),
  repo_skill:(if $skill=="" then null else $skill end),
- repo_declaration:(if $rdecl=="" then null else $rdecl end), repo_owns:$rowns}'
+ repo_declaration:(if $rdecl=="" then null else $rdecl end), repo_owns:$rowns, tracker:$tracker}'

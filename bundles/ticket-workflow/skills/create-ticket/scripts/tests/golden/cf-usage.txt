@@ -1,5 +1,5 @@
 # exit=1
 # stderr:
 # stdout:
-{"error":"usage: create-facts.sh PROJECT|owner/repo"}
+{"error":"usage: create-facts.sh PROJECT|owner/repo|--repo"}
 # calls:

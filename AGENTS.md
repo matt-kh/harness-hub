@@ -90,6 +90,18 @@ make render-check   # render twice into one fresh HOME; diff must be empty
 - **Config changes carry a migration.** Adding, renaming or removing a config key, changing a
   default or a guard decision needs a CHANGELOG **Migration** paragraph.
 
+## Issues are the source of truth
+
+- Every change beyond a typo starts from a GitHub Issue on `matt-kh/harness-hub`.
+  `/create-ticket` drafts it with `agent-drafted`; a human confirms it and labels it
+  `agent-worked` before an agent works it.
+- The branch and the PR come from `/work-ticket #N`. The PR body names the issue as `#N`
+  (first line `Issue: #N`), never after a closing keyword: issue state is human-only.
+- `tools/gate/companions.sh` (check `issue`, CI on the PR body) fails a PR whose body names no
+  issue or closes one; a trivial fix waives it with `no-issue: <reason>`.
+- The repository declares this itself: `.harness.toml` `[repo] tracker = "github-issues"`, which
+  the ticket-workflow skills read before the host or your config.
+
 ## The steering loop
 
 - When a check fires (guard, lint, test, gate, doctor), fix the cause first.

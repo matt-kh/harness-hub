@@ -39,6 +39,19 @@ version_cmd = "git --version"
 version_regex = 'git version ([0-9]+\.[0-9]+)'
 why = "Worktrees for subagents, branch facts, stacked delivery."
 
+[requires.config."ticket_workflow.trackers"]
+type = "array"
+default = []
+description = "Which tracker each repository uses, by origin remote: [[ticket_workflow.trackers]] match (ERE on <host>/<path>, case-insensitive), tracker (github-issues or jira), project (jira only: create-ticket's default project). First match wins; a repository's .harness.toml [repo] tracker wins over it; no match = the host decides (github.com -> github-issues, GitLab -> jira)."
+examples = [[{ match = "^github\\.com/owner/", tracker = "github-issues" }, { match = "^gitlab\\.example\\.com/group/", tracker = "jira", project = "PROJ" }]]
+
+[requires.config."ticket_workflow.trackers".items]
+type = "object"
+additionalProperties = false
+required = ["match", "tracker"]
+properties = { match = { type = "string", minLength = 1, description = "ERE on <host>/<path> of origin (lower-case host, no scheme, credentials, port or .git)" }, tracker = { type = "string", enum = ["github-issues", "jira"] }, project = { type = "string", pattern = "^[A-Z][A-Z0-9_]*$", description = "Default Jira project key for create-ticket (tracker = jira only)" } }
+anyOf = [{ not = { required = ["project"] } }, { properties = { tracker = { const = "jira" } } }]
+
 [provides]
 rules = ["rules/75-ticket-workflow.md"]
 skills = ["skills/work-ticket", "skills/create-ticket"]
@@ -105,6 +118,17 @@ offline_skip = false
 fix = "harness apply --provider claude"
 providers = ["claude"]
 
+[[doctor_checks]]
+id = "ticket-workflow-trackers"
+title = "ticket_workflow.trackers entries are valid (match compiles, tracker known, project only with jira)"
+severity = "fail"
+cmd = '''bash "${HARNESS_HOME:-$HOME/harness-hub}/bundles/ticket-workflow/lib/check-trackers.sh" <<'HARNESS_TRACKERS'
+[{{ ticket_workflow.trackers }}]
+HARNESS_TRACKERS'''
+expect = { exit = 0 }
+offline_skip = false
+fix = "Edit [[ticket_workflow.trackers]] in harness.toml at the index named above: match is an ERE on <host>/<path> (escape dots), tracker is github-issues or jira, project only with jira; then harness doctor"
+
 [uninstall]
 keeps = []
 notes = "Removes the two rendered skills and the rule block; tickets, MRs and labels they created are untouched."
@@ -119,15 +143,16 @@ function = "workflow"
 [harness]
 coverage_note = "The size rubric, Q-checklist and MR body content are judgement calls (inferential: code-reviewer); SCM verb conventions are sensed by the gitlab/github guard sections; the preflight and facts scripts are sensed by golden suites against stubbed gh, glab and jira."
 guides = [
-  { kind = "rule", ref = "rules/75-ticket-workflow.md", note = "ticket to MR/PR flow, label gate, key-free branches, stacked delivery" },
+  { kind = "rule", ref = "rules/75-ticket-workflow.md", note = "ticket to MR/PR flow, label gate, key-free branches, stacked delivery; the tracker is declared per repository (sensed by the work-ticket golden suite and the ticket-workflow-trackers doctor check)" },
   { kind = "skill", ref = "skills/work-ticket", note = "the governed ticket workflow and its preflight scripts" },
   { kind = "skill", ref = "skills/create-ticket", note = "one drafted ticket or issue, rendered deterministically" },
 ]
 sensors = [
   { kind = "guard", ref = "guard.d/75-ticket-workflow.sh", note = "key-free branches and subjects, sub worktree paths, squash delivery" },
   { kind = "doctor", ref = "doctor_checks", note = "a tracker CLI and an SCM CLI on PATH, both skills rendered" },
-  { kind = "test", ref = "tests/run.sh", note = "this bundle's guard rows against core + ticket-workflow only, then every skill suite" },
+  { kind = "doctor", ref = "ticket-workflow-trackers", note = "every ticket_workflow.trackers match compiles, tracker is known, project only with jira" },
+  { kind = "test", ref = "tests/run.sh", note = "this bundle's guard rows against core + ticket-workflow only, then every skill suite, then the ticket-workflow-trackers doctor script (lib/check-trackers.sh) per input" },
   { kind = "test", ref = "guard.d/tests.sh", note = "rows for section 75 incl. bypasses" },
-  { kind = "test", ref = "skills/work-ticket/scripts/tests/run.sh", note = "preflight dispatch, GitHub and GitLab preflights, issue and Jira facts, repo-facts: one JSON object per run, goldens per fixture repository with and without PyYAML, read-only stub-log invariants" },
-  { kind = "test", ref = "skills/create-ticket/scripts/tests/run.sh", note = "golden renders of every ticket class; create-facts goldens for Jira and GitHub (config, unreachable, unauthenticated, not installed)" },
+  { kind = "test", ref = "skills/work-ticket/scripts/tests/run.sh", note = "preflight dispatch, GitHub and GitLab preflights, issue and Jira facts, repo-facts incl. the rf-tracker table (repo > config > host): one JSON object per run, goldens per fixture repository with and without PyYAML, read-only stub-log invariants" },
+  { kind = "test", ref = "skills/create-ticket/scripts/tests/run.sh", note = "golden renders of every ticket class; create-facts goldens for Jira and GitHub (config, unreachable, unauthenticated, not installed, GitHub Enterprise templates, --repo tracker); the inlined rf_tracker block matches work-ticket's" },
 ]

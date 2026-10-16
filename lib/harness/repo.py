@@ -334,6 +334,9 @@ def template(comps: List[Any]) -> str:
         "[repo]",
         "# name = \"shop\"",
         "# harness = \"docs/agent-workflow.md\"   # where your own harness is described",
+        "# Where tickets live (wins over the user's ticket_workflow.trackers and the host): github-issues | jira.",
+        "# tracker = \"jira\"",
+        "# project = \"PROJ\"   # default Jira project for /create-ticket (tracker = jira only)",
         "",
         "[owns]",
         "# Domains your harness covers: every hub component in them yields here.",
@@ -452,6 +455,10 @@ def _print_show(report: Dict[str, Any], decl: Declaration) -> None:
     else:
         print("repository   %s" % decl.root)
         print("declaration  %s" % (decl.path or "none - `harness repo init` prints a template"))
+        repo = decl.data.get("repo") or {}
+        if repo.get("tracker"):
+            print("tracker      %s%s (declared in [repo]; wins over ticket_workflow.trackers and the host)" % (
+                repo["tracker"], " project %s" % repo["project"] if repo.get("project") else ""))
     if decl.problems:
         print("\nproblems")
         for p in decl.problems:
