@@ -148,7 +148,9 @@ K8S_REDACT_EXTRA_RE='(' python3 "$CLI" health -h > /dev/null 2> "$tmp/p-rxbad-h.
 [ "$rc" = 0 ] && ! grep -q 'not a valid' "$tmp/p-rxbad-h.err"; chk $? "an invalid K8S_REDACT_EXTRA_RE does not break \`health -h\` (lazy compile)"
 python3 "$CLI" contexts --json > "$tmp/p-ctx-ok.out" 2>/dev/null; rc_ok=$?
 K8S_REDACT_EXTRA_RE='(' python3 "$CLI" contexts --json > "$tmp/p-ctx-bad.out" 2> "$tmp/p-rxbad-ctx.err"; rc=$?
-[ "$rc" = "$rc_ok" ] && cmp -s "$tmp/p-ctx-ok.out" "$tmp/p-ctx-bad.out" && ! grep -q 'not a valid' "$tmp/p-rxbad-ctx.err"
+# generated_at has one-second resolution: drop it so the two runs compare across a second boundary
+[ "$rc" = "$rc_ok" ] && cmp -s <(grep -v '"generated_at"' "$tmp/p-ctx-ok.out") <(grep -v '"generated_at"' "$tmp/p-ctx-bad.out") \
+  && ! grep -q 'not a valid' "$tmp/p-rxbad-ctx.err"
 chk $? "an invalid K8S_REDACT_EXTRA_RE leaves \`contexts\` unchanged (lazy compile)"
 
 # usage / unknown command
