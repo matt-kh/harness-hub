@@ -15,6 +15,12 @@ prints every one between your applied version and the new one.
   `ci` bundle; then the secret-tooling, toolchain, containers, release, cloud, iac, db, hosts
   and digest bundles), the guard prefix bands reserved for them, two proposed taxonomy domains and the
   rejected candidates. Linked from README and ARCHITECTURE §3.
+- [docs/roadmap.md](docs/roadmap.md): the SRE track — three new bundles (`obs` for
+  observability backends, `incident` for triage, timelines, postmortems and runbooks, `slo`
+  for SLOs, burn-rate rules and backup/DR review), the `operations` taxonomy domain, guard
+  prefixes 32–34, the pull-forward order `ci` → `iac` → `cloud`, the `k8s` and `core`
+  extensions and the slice plan; the observability row is un-deferred as `obs` and the
+  ADR/runbook row reshaped into `/draft-adr` and `incident runbook`.
 
 ### Principles
 
