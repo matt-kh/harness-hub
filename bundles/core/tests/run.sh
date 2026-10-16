@@ -89,6 +89,18 @@ ck "redact.py masks JSON values under secret keys" \
   [ "$(printf '{"password":"x","user":"u"}' | rd)" = '{"password": "***REDACTED***", "user": "u"}' ]
 ck "redact.py sizes Secret data, never the value" \
   [ "$(printf '{"kind":"Secret","data":{"k":"aGVsbG8="}}' | rd)" = '{"kind": "Secret", "data": {"k": "<5 bytes>"}}' ]
+ck "redact.py masks the token after a mid-line Bearer scheme" \
+  [ "$(printf 'ts INFO Authorization: Bearer abc123 path=/x\n' | rd)" = 'ts INFO Authorization: ***REDACTED*** path=/x' ]
+ck "redact.py masks the token after a mid-line Basic scheme" \
+  [ "$(printf 'ts DEBUG authorization=Basic dXNlcjpwYXNz next\n' | rd)" = 'ts DEBUG authorization=***REDACTED*** next' ]
+ck "redact.py masks the token after an ApiKey scheme" \
+  [ "$(printf 'ts x-api-key: ApiKey sek123 ok\n' | rd)" = 'ts x-api-key: ***REDACTED*** ok' ]
+ck "redact.py masks a bare scheme word at end of line" \
+  [ "$(printf 'ts Authorization: Bearer\n' | rd)" = 'ts Authorization: ***REDACTED***' ]
+# known limit: only auth scheme words extend the mid-line value; any other unquoted
+# multi-word value masks its first word only (quote it, or use an anchored `key: value` line).
+ck "redact.py masks only the first word of a non-scheme mid-line value" \
+  [ "$(printf 'ts password: hunter two\n' | rd)" = 'ts password: ***REDACTED*** two' ]
 ck "redact.py leaves plain text alone" [ "$(printf 'host example.com up\n' | rd)" = 'host example.com up' ]
 ck "redact.py extra regex masks text" [ "$(printf 'host example.com up\n' | rd 'example\.com')" = 'host ***REDACTED*** up' ]
 ck "redact.py extra regex masks JSON string values" \

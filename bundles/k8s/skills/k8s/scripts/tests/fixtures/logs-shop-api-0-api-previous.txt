@@ -1,5 +1,6 @@
 2026-09-23T02:05:01Z INFO  starting shop-api 1.4.2
 2026-09-23T02:05:01Z DEBUG loaded client_secret: nOtAr3alS3cret
+2026-09-23T02:05:01Z DEBUG upstream call Authorization: Bearer sk-n0tAr3alT0ken0123456789 path=/orders
 2026-09-23T02:05:02Z INFO  signing key:
 -----BEGIN RSA PRIVATE KEY-----
 MIIBOgIBAAJBAKj34GkxFhD9Sc+H0000000000000000000000000000000000000

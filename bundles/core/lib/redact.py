@@ -5,6 +5,9 @@ One token-shape list for every CLI that prints cluster objects, pipeline logs or
 (principle 10): values under secret-looking keys (password, token, api_key, client_secret,
 credential, auth, cert, jwt, dsn, connection_string, ...), Kubernetes Secret data (shown as
 byte sizes), AWS access key ids, JWTs, PEM private-key blocks and URL userinfo.
+A mid-line `key: <scheme> <token>` value whose first word is an HTTP auth scheme (Bearer,
+Basic, Token, Digest, Negotiate, ApiKey, Api-Key, Key, SSWS, OAuth; any case) is masked as
+one value, scheme word and token together.
 
 Standalone CLIs are rendered without this directory next to them, so each carries an inlined
 copy of the block between the `>>> redact` / `<<< redact` markers below;
@@ -37,9 +40,12 @@ REDACTED = "***REDACTED***"
 _TEXT_KEY_RE = re.compile(r"^(\s*[\w.-]*" + KEY_BODY + r"[\w.-]*\s*[:=]\s*)(.+)$", re.I)
 # the anchored rule above only catches `key: value` lines; logs usually carry a timestamp
 # and a level first, so the same key=value shape is redacted anywhere in the line too.
+# An HTTP auth scheme word (`Authorization: Bearer X`) is consumed with the token after it,
+# so the credential does not survive behind a masked scheme word.
+_AUTH_SCHEME = r"(?:bearer|basic|token|digest|negotiate|api-?key|key|ssws|oauth)"
 _TEXT_KEY_INLINE_RE = re.compile(
     r"(?P<key>[\w.-]*" + KEY_BODY + r"[\w.-]*)(?P<sep>\s*[:=]\s*)"
-    r"(?P<val>\"[^\"]*\"|'[^']*'|\S+)", re.I)
+    r"(?P<val>\"[^\"]*\"|'[^']*'|" + _AUTH_SCHEME + r"\s+\S+|\S+)", re.I)
 _AKIA_RE = re.compile(r"AKIA[0-9A-Z]{16}")
 _JWT_RE = re.compile(r"eyJ[\w-]+\.[\w-]+\.[\w-]+")
 _PEM_RE = re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----",
