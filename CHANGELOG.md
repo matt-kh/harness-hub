@@ -15,6 +15,19 @@ prints every one between your applied version and the new one.
   `ci` bundle; then the secret-tooling, toolchain, containers, release, cloud, iac, db, hosts
   and digest bundles), the guard prefix bands reserved for them, two proposed taxonomy domains and the
   rejected candidates. Linked from README and ARCHITECTURE §3.
+- [docs/roadmap.md](docs/roadmap.md): the SRE track — three new bundles (`obs` for
+  observability backends, `incident` for triage, timelines, postmortems and runbooks, `slo`
+  for SLOs, burn-rate rules and backup/DR review), the `operations` taxonomy domain, guard
+  prefixes 32–34, the pull-forward order `ci` → `iac` → `cloud`, the `k8s` and `core`
+  extensions and the slice plan; the observability row is un-deferred as `obs` and the
+  ADR/runbook row reshaped into `/draft-adr` and `incident runbook`.
+- CONTRIBUTING: "Stability levels" (experimental, beta, stable, deprecated), linked from
+  concepts "Bundles".
+- Principle 6 open questions: declaring inferential sensors that live in provider features is
+  resolved by the `provider-feature` sensor kind. Principle 2 open questions: the bootstrap
+  smoke's elapsed seconds and bootstrap's remaining-minutes line are the time-to-first-useful-
+  session proxies. Doc-only: the normative statements are unchanged, so `principles_version`
+  stays 1.
 
 ### Principles
 
@@ -358,16 +371,6 @@ prints every one between your applied version and the new one.
 - `ticket-workflow` and `gdoc`: `stable` → `beta`; their coverage notes admit a missing test
   suite (work-ticket, the gdoc CLI), which the
   [stability criteria](CONTRIBUTING.md#stability-levels) require for `stable`.
-
-### Docs
-
-- CONTRIBUTING: "Stability levels" (experimental, beta, stable, deprecated), linked from
-  concepts "Bundles".
-- Principle 6 open questions: declaring inferential sensors that live in provider features is
-  resolved by the `provider-feature` sensor kind. Principle 2 open questions: the bootstrap
-  smoke's elapsed seconds and bootstrap's remaining-minutes line are the time-to-first-useful-
-  session proxies. Doc-only: the normative statements are unchanged, so `principles_version`
-  stays 1.
 
 ### Migration
 
