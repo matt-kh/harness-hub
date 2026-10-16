@@ -36,6 +36,7 @@ ARCHITECTURE §3 is updated when a band is first used.
 | `26` | `26-iac` | iac | next to `25-k8s-rules`, which already asks on `terraform apply` and `pulumi up`; same decisions, first wins |
 | `27` | `27-cloud` | cloud | after `25`, so the k8s deny on `aws eks update-kubeconfig` fires before cloud's generic `update-* -> ask` |
 | `31` | `31-git-hygiene` | core | git family, after `30-git` |
+| `32` | `32-obs` | obs | **shipped**: observability backends; after the git family, before the SCM sections |
 | `35` | `35-shell-hygiene` | core | shell-level hazards (pipe to shell, privilege escalation, destructive removal outside the checkout) |
 | `36` | `36-containers` | containers | local-workstation tooling |
 | `37` | `37-db` | db | local and remote data tooling |
@@ -44,17 +45,18 @@ ARCHITECTURE §3 is updated when a band is first used.
 | `55` | `55-ci` | ci | between `50-gitlab` and `60-github`; adds only the rows those two lack |
 | `82` | `82-hosts` | hosts | miscellaneous band, with `80-gdoc` |
 
-Free after this table: `15`, `32`–`34`, `39`, `42`–`44`, `46`–`49`, `85`.
+Free after this table: `15`, `33`–`34`, `39`, `42`–`44`, `46`–`49`, `85`.
 
 ## Proposed taxonomy values
 
-Two new `domain` values, added through the procedure in
+New `domain` values, added through the procedure in
 [taxonomy](reference/taxonomy.md#adding-a-value) when the first bundle using them lands:
 
 | Value | Meaning | Used by |
 |---|---|---|
 | `infrastructure` | cloud accounts, hosts, containers, databases and IaC outside Kubernetes | cloud, iac, containers, db, hosts |
 | `code` | the checkout itself: toolchains, dependencies, generated artefacts | toolchain |
+| `operations` | running systems: signals, incidents, reliability targets | **shipped** with obs; incident, slo |
 
 Everything else reuses existing values: `ci`, `release` and the worktree work are `scm`
 (pipelines, tags and worktrees live on or for the source host); `secrets` is `base` (its
@@ -178,7 +180,7 @@ Cross-tranche items that make the hub easier to maintain and to extend.
 | `/standup` inside `ticket-workflow` | rejected | it spans more sources than that bundle's `any_of` allows and must degrade per missing CLI |
 | EKS/GKE/AKS reads inside `k8s` | rejected | `k8s` is Kubernetes-API-only by its own contract and never reads kubeconfig; the `cloud` bundle supplies them |
 | Per-language toolchain bundles | rejected | one `toolchain` bundle; splitting multiplies manifests without new sensors |
-| Observability bundle (Prometheus, Grafana, Loki) | deferred | `k8s promql` covers the Kubernetes case; a standalone bundle needs per-backend auth and URL guards for a narrower audience |
+| Observability bundle (Prometheus, Grafana, Loki) | **shipped** as `obs` | un-deferred: key files by path, backend URLs in config and a host-regex guard row are generic mechanisms; read-only SigNoz, Prometheus and Grafana adapters; `k8s promql` stays for in-cluster Prometheus without ingress |
 | SAST wrapper | reshaped | `semgrep` needs pip (principle 1); `secrets scan` and `code-reviewer` cover the lightweight cases; CI keeps the thorough scan |
 | SBOM and licence policy | reshaped | ecosystem auditors plus optional `osv-scanner` in `toolchain audit`; licence policy is org-specific and belongs in an org bundle |
 | ADR / runbook documentation skill | deferred | its only sensor would be a lint; revisit as `adr` after `release` ships the `template` guide kind |

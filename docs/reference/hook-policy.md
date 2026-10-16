@@ -41,6 +41,12 @@ marks the developer's own credentials and the ask on writing `.harness.toml`.
 | 30-git.sh | core | `git push of a -sub- branch from (or via cd into) a sub worktree` | ask | only the main thread pushes stacked branches; run the push from the main checkout instead | owns scm |
 | 30-git.sh | core | `git push --all\|--mirror` | ask | would publish every local branch; push the named branch instead | owns scm |
 | 30-git.sh | core | `shell write to .harness.toml (> >> tee cp mv install ln dd of= sed -i perl -i, harness repo init --write)` | ask | the repository declaration lifts user-level rules; ask the user to review and commit it instead | never |
+| 32-obs.sh | obs | `<reader> ~/.config/obs/*` | deny | API key files; run 'obs backends' to see auth status instead | never |
+| 32-obs.sh | obs | `curl\|wget\|http\|xh ... -H 'Authorization\|SIGNOZ-API-KEY\|X-API-Key: <literal>' \| ?api_key=<literal>` | deny | API key on the command line; use the obs CLI instead (it reads the key file) | owns operations |
+| 32-obs.sh | obs | `curl\|wget\|http\|xh <host matching OBS_HOSTS_RE>` | ask | raw backend access; use the obs CLI (bounded, redacted, read-only) instead | owns operations |
+| 32-obs.sh | obs | `amtool silence add\|expire\|import \| amtool alert add` | ask | changes alert state; hand the command to the user, or change the alert rule in the repo instead | owns operations |
+| 32-obs.sh | obs | `logcli query --tail\|-f` | ask | never returns; pass --since and --limit instead | owns operations |
+| 32-obs.sh | obs | `grafana-cli admin\|plugins install\|remove` | ask | Grafana admin mutation; hand the command to the user, or change the chart values instead | owns operations |
 | 40-gitlab-closing.sh | gitlab | `(close\|fix\|resolve\|implement) KEY-123 in git commit \| glab mr create\|update \| glab api` | deny | ticket state is human-only; mention the key instead (KEY-123 fix parser) | owns tracker |
 | 41-github-closing.sh | github | `(close\|fix\|resolve) #N \| owner/repo#N \| issue URL in git commit \| gh pr create\|edit\|merge \| gh api` | deny | issue state is human-only; mention #N instead (see #N, refs #N) | owns tracker |
 | 50-gitlab.sh | gitlab | `glab api -X POST\|PUT\|PATCH\|DELETE \| payload flag` | ask | API write; ask the user, or use the matching glab subcommand | owns scm |

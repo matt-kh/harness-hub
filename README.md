@@ -61,6 +61,7 @@ A bundle is one capability, built along the lines of Martin Fowler's
 | [stack](docs/bundles/stack.md) | scm / label-gated | `stk` CLI: keeps stacked MRs/PRs retargeted, rebased and lease-pushed on free tiers over `glab`/`gh`/`git` (experimental) | project settings (`stk check`); needs the gitlab or github bundle |
 | [k8s](docs/bundles/k8s.md) | kubernetes / read-only | read-only `k8s` CLI, triage and audit agents, Secret redaction | kubeconfig contexts |
 | [gdoc](docs/bundles/gdoc.md) | workspace / label-gated | `gdoc` CLI for Docs, Drive, Sheets and Gmail drafts | a GCP OAuth client |
+| [obs](docs/bundles/obs.md) | operations / read-only | read-only `obs` CLI for SigNoz, Prometheus and Grafana, `obs-triage` agent, API-key and raw-backend guards (experimental) | backends in `harness.toml`, a Viewer API key per backend |
 
 ## Governance
 
