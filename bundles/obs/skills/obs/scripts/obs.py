@@ -142,9 +142,12 @@ REDACTED = "***REDACTED***"
 _TEXT_KEY_RE = re.compile(r"^(\s*[\w.-]*" + KEY_BODY + r"[\w.-]*\s*[:=]\s*)(.+)$", re.I)
 # the anchored rule above only catches `key: value` lines; logs usually carry a timestamp
 # and a level first, so the same key=value shape is redacted anywhere in the line too.
+# An HTTP auth scheme word (`Authorization: Bearer X`) is consumed with the token after it,
+# so the credential does not survive behind a masked scheme word.
+_AUTH_SCHEME = r"(?:bearer|basic|token|digest|negotiate|api-?key|key|ssws|oauth)"
 _TEXT_KEY_INLINE_RE = re.compile(
     r"(?P<key>[\w.-]*" + KEY_BODY + r"[\w.-]*)(?P<sep>\s*[:=]\s*)"
-    r"(?P<val>\"[^\"]*\"|'[^']*'|\S+)", re.I)
+    r"(?P<val>\"[^\"]*\"|'[^']*'|" + _AUTH_SCHEME + r"\s+\S+|\S+)", re.I)
 _AKIA_RE = re.compile(r"AKIA[0-9A-Z]{16}")
 _JWT_RE = re.compile(r"eyJ[\w-]+\.[\w-]+\.[\w-]+")
 _PEM_RE = re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----",
@@ -255,8 +258,10 @@ LOG_TAIL = _int(_env_or_cfg("OBS_LOG_TAIL", "obs.log_tail", 200), 200)
 MAX_BYTES = _int(_env_or_cfg("OBS_MAX_BYTES", "obs.max_bytes", 65536), 65536)
 KINDS = ("signoz", "prometheus", "grafana")
 
-# Bearer / Basic credentials anywhere in a line: the shared block redacts the value after a
-# secret-looking key (`Authorization: Bearer`), which would leave the token itself behind.
+# Bearer / Basic credentials anywhere in a line. The shared block now masks the scheme word
+# and its token after a secret-looking key (`Authorization: Bearer X`); this stays as belt
+# and braces for a scheme with no such key in front, and for JSON string values, which
+# redact_obj passes through extra_re only.
 _AUTH_SCHEME_RE = r"(?i)\b(?:bearer|basic)\s+[A-Za-z0-9._~+/=-]{6,}"
 _EXTRA = _env_or_cfg("OBS_REDACT_EXTRA_RE", "obs.redact_extra_re", "")
 try:
