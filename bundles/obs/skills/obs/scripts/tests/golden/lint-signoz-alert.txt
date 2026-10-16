@@ -1,0 +1,53 @@
+# exit=1
+# stderr:
+# stdout:
+{
+  "backend": "",
+  "kind": "",
+  "prod": false,
+  "generated_at": "TIMESTAMP",
+  "command": "lint",
+  "findings": [
+    {
+      "severity": "warn",
+      "kind": "description",
+      "ns": "",
+      "name": "lint/signoz-alert.json:2",
+      "message": "SigNoz alert CheckoutErrors has no description/summary annotation \u2014 say what is wrong and for whom",
+      "evidence": null
+    },
+    {
+      "severity": "warn",
+      "kind": "ruleType",
+      "ns": "",
+      "name": "lint/signoz-alert.json:2",
+      "message": "SigNoz alert CheckoutErrors has no ruleType \u2014 set \"threshold_rule\" or \"promql_rule\"",
+      "evidence": null
+    },
+    {
+      "severity": "warn",
+      "kind": "severity",
+      "ns": "",
+      "name": "lint/signoz-alert.json:2",
+      "message": "SigNoz alert CheckoutErrors has no severity label \u2014 add labels.severity",
+      "evidence": null
+    },
+    {
+      "severity": "warn",
+      "kind": "threshold",
+      "ns": "",
+      "name": "lint/signoz-alert.json:2",
+      "message": "SigNoz alert CheckoutErrors has no threshold (condition.target or condition.thresholds) \u2014 set one, or the rule never fires",
+      "evidence": null
+    }
+  ],
+  "data": {
+    "files": [
+      {
+        "file": "lint/signoz-alert.json",
+        "kind": "signoz-alert"
+      }
+    ]
+  }
+}
+# calls:

@@ -1,0 +1,47 @@
+# exit=1
+# stderr:
+backend=grafana kind=grafana url=grafana.example.com
+>> GET https://grafana.example.com/api/alertmanager/grafana/api/v2/alerts?active=true
+>> GET https://grafana.example.com/api/prometheus/grafana/api/v1/rules
+# stdout:
+{
+  "backend": "grafana",
+  "kind": "grafana",
+  "prod": false,
+  "generated_at": "TIMESTAMP",
+  "command": "alerts",
+  "findings": [
+    {
+      "severity": "warn",
+      "kind": "firing",
+      "ns": "",
+      "name": "DiskFull",
+      "message": "DiskFull firing (warning)",
+      "evidence": null
+    }
+  ],
+  "data": {
+    "firing": [
+      {
+        "alert": "DiskFull",
+        "severity": "warning",
+        "since": "TIMESTAMP",
+        "labels": "instance=192.0.2.3:9100",
+        "summary": "disk above 90%"
+      }
+    ],
+    "rules": [
+      {
+        "rule": "DiskFull",
+        "group": "disk",
+        "state": "firing",
+        "for": "600s",
+        "severity": "warning",
+        "expr": ""
+      }
+    ]
+  }
+}
+# calls:
+GET https://grafana.example.com/api/alertmanager/grafana/api/v2/alerts?active=true auth=yes
+GET https://grafana.example.com/api/prometheus/grafana/api/v1/rules auth=yes

@@ -1,0 +1,8 @@
+# exit=2
+# stderr:
+backend=signoz-dev kind=signoz url=signoz.example.com
+>> POST https://signoz.example.com/api/v5/query_range {"compositeQuery": {"queries": [{"spec": {"name": "A", "query": "up", "step": 60}, "type": "promql"}]}, "end": EPOCH_MS, "requestType": "time_series", "schemaVersion": "v1", "start": EPOCH_CUT
+signoz.example.com unreachable: [Errno 111] Connection refused — check the url in [[obs.backends]] and the network (`obs backends --probe`)
+# stdout:
+# calls:
+POST https://signoz.example.com/api/v5/query_range auth=yes

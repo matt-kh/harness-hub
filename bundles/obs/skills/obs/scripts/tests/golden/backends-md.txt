@@ -1,0 +1,26 @@
+# exit=0
+# stderr:
+# stdout:
+# obs backends
+
+## Findings (0)
+
+none
+
+## default
+
+signoz-dev
+
+## hosts_re
+
+^(signoz\|signoz-prod\|grafana\|prometheus)\.example\.com$
+
+## backends
+
+| name | kind | host | key | default | prod |
+|---|---|---|---|---|---|
+| signoz-dev | signoz | signoz.example.com | ok | True | False |
+| signoz-prod | signoz | signoz-prod.example.com | ok | False | True |
+| prom | prometheus | prometheus.example.com | none | False | False |
+| grafana | grafana | grafana.example.com | ok | False | False |
+# calls:

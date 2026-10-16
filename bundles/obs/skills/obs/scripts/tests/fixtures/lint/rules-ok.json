@@ -1,0 +1,26 @@
+{
+  "groups": [
+    {
+      "name": "api.rules",
+      "rules": [
+        {
+          "alert": "ApiHighErrorRate",
+          "expr": "sum by (service) (rate(http_requests_total{code=~\"5..\"}[5m])) / sum by (service) (rate(http_requests_total[5m])) > 0.05",
+          "for": "10m",
+          "labels": {
+            "severity": "critical"
+          },
+          "annotations": {
+            "summary": "{{ $labels.service }} error rate above 5%",
+            "description": "More than 5% of requests fail.",
+            "runbook_url": "https://runbooks.example.com/api-errors"
+          }
+        },
+        {
+          "record": "service:http_requests:rate5m",
+          "expr": "sum by (service) (rate(http_requests_total[5m]))"
+        }
+      ]
+    }
+  ]
+}

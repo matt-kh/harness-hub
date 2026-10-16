@@ -1,0 +1,19 @@
+# exit=0
+# stderr:
+backend=prom kind=prometheus url=prometheus.example.com
+>> GET https://prometheus.example.com/api/v1/rules
+# stdout:
+# obs alerts — prom (prometheus)
+
+## Findings (0)
+
+none
+
+## rules
+
+| rule | group | state | for | severity | expr |
+|---|---|---|---|---|---|
+| ApiDown | api.rules | firing | 300s | critical | up{job="api"} == 0 |
+| ApiSlow | api.rules | inactive | 600s | warning | histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket[5m]))) > 1 |
+# calls:
+GET https://prometheus.example.com/api/v1/rules auth=no

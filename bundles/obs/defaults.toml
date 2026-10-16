@@ -1,0 +1,10 @@
+# Defaults for bundle `obs`.
+
+[obs]
+default = ""
+backends = []
+hosts_re = ""
+prod_re = "(^|[-_./:])(prod|production)([-_./:]|$)"
+log_tail = 200
+max_bytes = 65536
+redact_extra_re = ""

@@ -1,0 +1,32 @@
+# exit=0
+# stderr:
+backend=prom kind=prometheus url=prometheus.example.com
+>> GET https://prometheus.example.com/api/v1/query_range?query=up&start=EPOCH_S&end=EPOCH_S&step=60s
+# stdout:
+{
+  "backend": "prom",
+  "kind": "prometheus",
+  "prod": false,
+  "generated_at": "TIMESTAMP",
+  "command": "query",
+  "findings": [],
+  "data": {
+    "query": "up",
+    "result": [
+      {
+        "metric": "up",
+        "labels": "instance=192.0.2.1:9100, job=api",
+        "value": 0,
+        "samples": 3
+      },
+      {
+        "metric": "up",
+        "labels": "instance=192.0.2.2:9100, job=db",
+        "value": 1,
+        "samples": 3
+      }
+    ]
+  }
+}
+# calls:
+GET https://prometheus.example.com/api/v1/query_range?query=up&start=EPOCH_S&end=EPOCH_S&step=60s auth=no

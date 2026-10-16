@@ -1,0 +1,8 @@
+# exit=2
+# stderr:
+backend=signoz-dev kind=signoz url=signoz.example.com
+>> GET https://signoz.example.com/api/v1/alerts
+signoz-dev answered 401 for GET /api/v1/alerts — the key in ~/.config/obs/signoz-dev.key is invalid, expired or lacks the Viewer role; replace it (docs/runbooks/rotate-obs-key.md)
+# stdout:
+# calls:
+GET https://signoz.example.com/api/v1/alerts auth=yes

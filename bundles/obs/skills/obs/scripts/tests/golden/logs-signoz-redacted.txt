@@ -1,0 +1,28 @@
+# exit=0
+# stderr:
+backend=signoz-dev kind=signoz url=signoz.example.com
+>> POST https://signoz.example.com/api/v5/query_range {"compositeQuery": {"queries": [{"spec": {"filter": {"expression": "service.name = 'checkout' AND (severity_text = 'ERROR')"}, "limit": 50, "name": "A", "order": [{"direction": "desc", "key": {"name":
+# stdout:
+# obs logs — signoz-dev (signoz)
+
+## Findings (0)
+
+none
+
+## filter
+
+severity_text = 'ERROR'
+
+## limit
+
+50
+
+## lines
+
+| time | service | severity | body |
+|---|---|---|---|
+| TIMESTAMP | checkout | ERROR | upstream call failed: GET https://***:***@payments.example.com/charge Authorization: ***REDACTED*** |
+| TIMESTAMP | checkout | ERROR | db connect retry user=app password=***REDACTED*** host=db.example.com |
+| TIMESTAMP | checkout | ERROR | charge declined for order 1234 (card expired) |
+# calls:
+POST https://signoz.example.com/api/v5/query_range auth=yes

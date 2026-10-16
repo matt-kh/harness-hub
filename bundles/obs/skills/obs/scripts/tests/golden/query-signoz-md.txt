@@ -1,0 +1,23 @@
+# exit=0
+# stderr:
+backend=signoz-dev kind=signoz url=signoz.example.com
+>> POST https://signoz.example.com/api/v5/query_range {"compositeQuery": {"queries": [{"spec": {"name": "A", "query": "sum(rate(calls_total[5m])) by (service_name)", "step": 60}, "type": "promql"}]}, "end": EPOCH_MS, "requestType": "time_series", "s
+# stdout:
+# obs query — signoz-dev (signoz)
+
+## Findings (0)
+
+none
+
+## query
+
+sum(rate(calls_total[5m])) by (service_name)
+
+## result
+
+| metric | labels | value |
+|---|---|---|
+| A | service_name=checkout | 13.25 |
+| A | service_name=payments | 6.75 |
+# calls:
+POST https://signoz.example.com/api/v5/query_range auth=yes
