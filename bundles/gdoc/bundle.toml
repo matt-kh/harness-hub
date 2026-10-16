@@ -207,9 +207,9 @@ function = "client"
 [harness]
 coverage_note = "Whether a human file should be adopted (`mark`) and what a draft says stay judgement; the CLI's request shapes, auth handling and output are golden-tested offline."
 guides = [
-  { kind = "rule", ref = "rules/80-gdoc.md", note = "provenance-gated writes, drafts only for mail, no sharing" },
-  { kind = "skill", ref = "skills/gdoc", note = "the gdoc CLI and its round-trip editing workflow" },
-  { kind = "permission", ref = "permissions.toml", note = "read commands allowed, writes left to the guard" },
+  { kind = "rule", ref = "rules/80-gdoc.md", checks = ["guard.d/80-gdoc.sh"], note = "provenance-gated writes, drafts only for mail, no sharing" },
+  { kind = "skill", ref = "skills/gdoc", checks = ["guard.d/80-gdoc.sh", "doctor_checks", "skills/gdoc/scripts/tests/run.sh"], note = "the gdoc CLI and its round-trip editing workflow" },
+  { kind = "permission", ref = "permissions.toml", checks = ["permissions-vs-guard"], note = "read commands allowed, writes left to the guard" },
 ]
 sensors = [
   { kind = "guard", ref = "guard.d/80-gdoc.sh", note = "GET-only api, provenance check before writes, ask on mark and mail send" },
@@ -217,4 +217,5 @@ sensors = [
   { kind = "test", ref = "guard.d/tests.sh", note = "guard rows with a stubbed gdoc" },
   { kind = "test", ref = "tests/run.sh", note = "this bundle's rows against core + gdoc only" },
   { kind = "test", ref = "skills/gdoc/scripts/tests/run.sh", note = "offline goldens for the gdoc CLI over fixture-routed HTTP: dispatch, auth, id parsing, reads, host allow-list, dry-run writes (GET-only, no send, no credential in output)" },
+  { kind = "lint", ref = "permissions-vs-guard", note = "each Bash allow/deny rule of permissions.toml run through the guard: no allowed command the guard denies or asks, no denied one it allows" },
 ]

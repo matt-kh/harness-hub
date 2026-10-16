@@ -95,8 +95,10 @@ Read [ARCHITECTURE §3](ARCHITECTURE.md#3-bundles-bundlesname) first. Checklist:
       `template`) and **sensors** (`guard`, `doctor`, `test`, `lint`, `review-agent`,
       `provider-feature`) as `{kind, ref, note}`, each `ref` naming a real path or id in the
       bundle (a `provider-feature` ref is `<provider>:<feature>` from that provider's
-      `features`), plus a `coverage_note` saying what the pairing does not cover. `harness lint`
-      shows no unpaired-guide, unpaired-sensor or `rule-guard-pairing` warning.
+      `features`), plus a `coverage_note` saying what the pairing does not cover. Each guide
+      names the sensors that check it: `checks = ["guard.d/NN-x.sh", ...]` (sensor refs of the
+      same bundle), or its topic is named in `coverage_note` as guide-only. `harness lint`
+      shows no unpaired-guide, unpaired-sensor, `guide-checks` or `rule-guard-pairing` warning.
 - [ ] Every guard `# rule:` reason states the alternative (what to run, use or ask instead),
       and so does the runtime `deny`/`ask`/`defer` message (`harness lint` rule `guard-messages`).
 - [ ] `[taxonomy]` classifies the bundle: `domain` and `posture`, a `function` default if its

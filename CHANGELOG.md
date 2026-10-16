@@ -57,6 +57,16 @@ prints every one between your applied version and the new one.
 
 ### Added
 
+- Per-guide pairing (principle 6): `[harness]` guides take an optional `checks` list naming the
+  sensors that check them (`ref` values of the same bundle's `sensors`; schema only, no
+  `schema_version` bump). Lint rule `guide-checks` (skippable) errors on a ref no sensor
+  declares and warns on a public guide without `checks` unless `coverage_note` names its topic.
+  `Bundle.sensor_refs()` and `Bundle.unpaired_guides()`; `pairing()` is unchanged. Each bundle
+  page's "Guides and sensors" table gains a **pairs with** column and a "guides with a declared
+  check: n of m" line; `docs/reference/harness-coverage.md` gains an **unpaired guides** column.
+  All nine public bundles declare `checks` on every guide and add the `permissions-vs-guard`
+  lint sensor where they ship a permission list, `agent-tools` where they ship agents (core,
+  k8s, obs).
 - `obs` bundle (experimental; domain `operations`, read-only): the stdlib `obs` CLI
   (`backends [--probe]`, `query`, `logs`, `traces`, `trace`, `services`, `alerts`,
   `dashboards [--export]`, `lint`, `redact`) with SigNoz (verified against the v0.121.x

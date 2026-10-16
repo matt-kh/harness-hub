@@ -69,6 +69,9 @@ skills whose SKILL.md ``name`` differs from the directory, and three principle c
   neither guide nor sensor (empty permission lists excepted)
 * ``rule-guard-pairing`` (principle 6): a public ``rules/NN-x.md`` without a ``guard.d/NN-*.sh``
   (or the reverse) unless ``[harness].coverage_note`` names the topic ``x``
+* ``guide-checks`` (principle 6): a guide whose ``checks`` names a ref no ``[harness]`` sensor
+  declares (error); a public guide without ``checks`` unless ``coverage_note`` names its topic
+  (basename without extension and ``NN-``)
 * ``agent-tools``: a read-only agent whose front matter sets a non-default ``permissionMode``
   or lists ``Edit``/``Write``/``MultiEdit``/``NotebookEdit`` in ``tools:`` (public bundles)
 * ``skill-description``: a public SKILL.md description, expanded with
@@ -106,10 +109,11 @@ SHELL_EXPANSION_RE = re.compile(r"\$\([^()]*\)|\$\{[^{}]*\}|\$[A-Za-z_][A-Za-z0-
 LINT_RULES = {"manifest", "templates", "guard-syntax", "guard-reasons", "guard-messages", "guides-sensors", "dependencies", "private-ids",
               "taxonomy", "env-provides", "rule-guard-pairing", "permissions-vs-guard", "agent-tools",
               "skill-description", "fragments-target", "profile-sane", "stability", "yields",
-              "provider-honesty", "shim-fixtures"}
+              "provider-honesty", "shim-fixtures", "guide-checks"}
 # rules `harness lint --skip RULE` can turn off (the others are woven into the manifest pass)
-SKIPPABLE_RULES = ("agent-tools", "dependencies", "env-provides", "fragments-target", "guard-messages", "permissions-vs-guard",
-                   "private-ids", "profile-sane", "rule-guard-pairing", "skill-description", "stability")
+SKIPPABLE_RULES = ("agent-tools", "dependencies", "env-provides", "fragments-target", "guard-messages", "guide-checks",
+                   "permissions-vs-guard", "private-ids", "profile-sane", "rule-guard-pairing", "skill-description",
+                   "stability")
 
 # env-provides: the guard.env parser in bundles/core/guard/engine.sh accepts only keys with these
 # prefixes. The list is parsed out of the engine's `case "$_gk" in ...` line; this copy is the
@@ -522,6 +526,29 @@ def lint_rule_guard_pairing(b: M.Bundle, rep: Report) -> None:
             rep.warn("%s: rule-guard-pairing: %s has no rules/%s-*.md telling the agent the rule up front; add that "
                      "rule, or name %r in [harness].coverage_note and say where its rule text lives"
                      % (b.name, rel, nn, topic))
+
+
+def guide_topic(ref: str) -> str:
+    """``rules/60-github.md`` -> ``github``, ``skills/gdoc`` -> ``gdoc``, ``permissions.toml`` -> ``permissions``."""
+    base = os.path.splitext(os.path.basename(ref.rstrip("/")))[0]
+    return re.sub(r"^[0-9][0-9]-", "", base)
+
+
+def lint_guide_checks(b: M.Bundle, rep: Report) -> None:
+    """Every guide names the sensors that check it (``checks``), or coverage_note says why not."""
+    refs = set(b.sensor_refs())
+    note = str(b.harness.get("coverage_note") or "")
+    for g in b.guides:
+        ref, checks = str(g.get("ref", "")), list(g.get("checks") or [])
+        for c in checks:
+            if c not in refs:
+                rep.err("%s: guide-checks: guide %s names %r in checks, which no [harness] sensor declares; use "
+                        "checks = [\"<sensor ref>\", ...] with refs from sensors (%s), or add that sensor"
+                        % (b.name, ref, c, ", ".join(sorted(refs)) or "none"))
+        if not checks and b.origin == "public" and not mentions_topic(note, guide_topic(ref)):
+            rep.warn("%s: guide-checks: guide %s declares no sensor that checks it; add checks = [\"<sensor ref>\", ...] "
+                     "naming its guard section, test, doctor check or lint rule, or name %r in [harness].coverage_note "
+                     "and say why it is guide-only" % (b.name, ref, guide_topic(ref)))
 
 
 # ----------------------------------------------------------------- permissions-vs-guard
@@ -1103,6 +1130,8 @@ def run_lint(hub: Any, skip: Sequence[str] = ()) -> Report:
             lint_env_provides(b, prefixes, rep)
         if on("rule-guard-pairing"):
             lint_rule_guard_pairing(b, rep)
+        if on("guide-checks"):
+            lint_guide_checks(b, rep)
         if on("guard-messages"):
             lint_guard_messages(b, rep)
         if on("agent-tools"):
