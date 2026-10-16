@@ -20,6 +20,10 @@ Pages and sources:
 * ``docs/repo-level.md``             ``lib/harness/taxonomy.py#repo`` (what yields to a repository, by domain and id)
 * ``docs/catalog.md``                 ``bundles/*/bundle.toml#catalog`` (every component by kind) and
                                       ``bundles/*/bundle.toml#posture`` (domain × posture matrix)
+* ``README.md``                       ``bundles/*/bundle.toml#readme`` (bundle table),
+                                      ``providers/*/provider.toml#readme`` (capability matrix),
+                                      ``PRINCIPLES.md#readme`` (principle list and count) and
+                                      ``bundles/core/bundle.toml#readme`` (required binaries)
 * ``templates/harness.toml.tmpl``     whole file, from the compiled schema
 
 Manual steps render as ``<a id="<id>"></a>`` + ``### <id> — <title>`` so that the doctor's
@@ -568,6 +572,119 @@ def matrix_body(providers: Sequence[M.Provider]) -> str:
     return table(rows[0], rows[1:])
 
 
+# ----------------------------------------------------------------- README (the product page)
+
+PRINCIPLE_RE = re.compile(r"^(\d+)\. \*\*(.+?)\*\*.*→ \[([^\]]+)\]\(([^)]+)\)")
+NUMBER_WORDS = ("zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
+                "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen",
+                "nineteen", "twenty")
+
+
+PLACEHOLDER_RE = re.compile(r"\{\{\s*([A-Za-z0-9_.-]+)\s*\}\}")
+
+
+def doc_values(text: str, b: M.Bundle) -> str:
+    """``{{ key }}`` → the key's ``example`` from ``[requires.config]``, else ``<key>``.
+
+    The README is read by people deciding to install: it shows documentation values, never a
+    template placeholder.
+    """
+    def sub(m: "re.Match[str]") -> str:
+        spec = b.requires_config.get(m.group(1)) or {}
+        ex = spec.get("example")
+        if ex is None and spec.get("examples"):
+            ex = spec["examples"][0]
+        return str(ex) if isinstance(ex, (str, int, float)) and not isinstance(ex, bool) else "<%s>" % m.group(1)
+
+    return PLACEHOLDER_RE.sub(sub, str(text))
+
+
+def readme_bundles_body(bundles: Sequence[M.Bundle]) -> str:
+    """``README.md#bundles``: what agents get from each bundle and how much a human sets up once.
+
+    The setup column is a step count linked to the bundle page's ``## Manual steps`` section,
+    which ``bundle_body`` always renders.
+    """
+    rows = []
+    for b in bundles:
+        tax = b.taxonomy or {}
+        n = len(b.manual_steps)
+        setup = "[%d step%s](%s#manual-steps)" % (n, "" if n == 1 else "s", b.docs_path()) if n else "none"
+        rows.append(["[%s](%s)" % (b.name, b.docs_path()),
+                     "%s / %s" % (tax.get("domain") or "unclassified", tax.get("posture") or "unclassified"),
+                     b.data.get("bundle", {}).get("stability") or "", doc_values(b.summary, b), setup])
+    return table(["Bundle", "Domain / posture", "Stability", "What agents get", "One-time setup"], rows)
+
+
+def principle_items(text: str) -> List[Tuple[int, str, str, str]]:
+    """``(number, title, link text, link target)`` per item of PRINCIPLES.md's numbered list.
+
+    An item is a ``N. **Title.** …`` line plus its indented continuation lines.
+    """
+    items: List[str] = []
+    open_item = False
+    for line in text.splitlines():
+        if re.match(r"^\d+\. ", line):
+            items.append(line.strip())
+            open_item = True
+        elif open_item and line.startswith((" ", "\t")) and line.strip():
+            items[-1] += " " + line.strip()
+        else:
+            open_item = False
+    out = []
+    for item in items:
+        m = PRINCIPLE_RE.match(item)
+        if m:
+            out.append((int(m.group(1)), m.group(2).strip(), m.group(3), m.group(4)))
+    return out
+
+
+def number_word(n: int) -> str:
+    return NUMBER_WORDS[n] if 0 <= n < len(NUMBER_WORDS) else str(n)
+
+
+def readme_principles_body(home: str) -> str:
+    """``README.md#principles``: the heading with the principle count, one bullet per principle."""
+    path = os.path.join(home, "PRINCIPLES.md")
+    items = principle_items(read_text(path) or "")
+    if not items:
+        raise HarnessError("%s: no principles parsed; each must read `N. **Title.** … → [NN-name](principles/NN-name.md)`"
+                           " on one line or with indented continuation lines" % path)
+    out = ["## Built on %s principles\n" % number_word(len(items)),
+           "%s principles govern every change to the hub; each links to its document "
+           "(checks, tensions, examples). Summary and vocabulary: [PRINCIPLES.md](PRINCIPLES.md).\n"
+           % number_word(len(items)).capitalize()]
+    lines = []
+    for n, title, text, target in items:
+        title = title if title.endswith((".", "!", "?")) else title + "."
+        lines.append("- **%d. %s** → [%s](%s)" % (n, title, text, target))
+    out.append("\n".join(lines) + "\n")
+    return "\n".join(out)
+
+
+def readme_requirements_body(core: M.Bundle) -> str:
+    """``README.md#requirements``: the binaries the core bundle requires, from ``[requires.binaries]``."""
+    rows = []
+    for name, spec in sorted(core.requires_binaries.items()):
+        if spec.get("optional"):
+            continue
+        rows.append([code(name), ("≥ %s" % spec["min_version"]) if spec.get("min_version") else "any",
+                     doc_values(" ".join(str(spec.get("description") or spec.get("why") or "").split()), core)])
+    return table(["Binary", "Minimum", "Why"], rows)
+
+
+def readme_providers_body(providers: Sequence[M.Provider]) -> str:
+    """``README.md#providers``: the capability matrix plus each provider's tier."""
+    from . import taxonomy as T
+
+    tiers: Dict[str, List[str]] = {}
+    for p in providers:
+        tiers.setdefault(T.provider_tier(p.capabilities), []).append(p.name)
+    line = "; ".join("%s on %s" % (t, ", ".join(sorted(tiers[t]))) for t in ("enforced", "partial", "advisory")
+                     if t in tiers)
+    return matrix_body(providers) + "\n**Tier:** %s.\n" % line
+
+
 # ----------------------------------------------------------------- template
 
 
@@ -736,6 +853,13 @@ def expected(home: str) -> Dict[str, List[Tuple[str, str, str]]]:
         ("bundles/*/bundle.toml#catalog", catalog_body(bundles, providers, home), "# Catalog"),
         ("bundles/*/bundle.toml#posture", posture_body(bundles), "# Catalog"),
     ])
+    readme = pages.setdefault("README.md", [])
+    readme.append(("bundles/*/bundle.toml#readme", readme_bundles_body(bundles), "# harness-hub"))
+    readme.append(("providers/*/provider.toml#readme", readme_providers_body(providers), "# harness-hub"))
+    readme.append(("PRINCIPLES.md#readme", readme_principles_body(home), "# harness-hub"))
+    core = [b for b in bundles if b.name == "core"]
+    if core:
+        readme.append(("bundles/core/bundle.toml#readme", readme_requirements_body(core[0]), "# harness-hub"))
     return pages
 
 

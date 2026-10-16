@@ -8,21 +8,25 @@
 #   changelog  a change under bundles/ lib/harness/ providers/ schema/ bin/ profiles/ templates/,
 #              bootstrap or tools/*.lock.json (tests, goldens and provider READMEs excepted) needs
 #              a new line in CHANGELOG.md `## [Unreleased]`.
+#   readme     a change to what README.md states (bootstrap, bin/harness, lib/harness/cli.py,
+#              PRINCIPLES.md, principles/, a bundle.toml or provider.toml, an added or deleted
+#              bundles/<b>/ or providers/<p>/, the getting-started, distribution, governance and
+#              repo-level pages, docs/runbooks/, SECURITY.md, LICENSE) needs README.md in the diff.
 #
-# Usage: companions.sh [--ci] --range A..B [--markers-file F] [--only rows|changelog]
+# Usage: companions.sh [--ci] --range A..B [--markers-file F] [--only rows|changelog|readme]
 #   --range A..B        compare the merge base of A and B with B (B defaults to HEAD)
 #   --markers-file F    extra text searched for markers (CI passes the pull-request body)
 #   --only CHECK        run one check
 #   --ci                also print each hit as a GitHub Actions `::error::` annotation
 # Markers (reason required), in any commit body of the range or in the markers file:
-#   no-rows: <reason>        no-changelog: <reason>
+#   no-rows: <reason>        no-changelog: <reason>        no-readme: <reason>
 # Exit: 0 clean (or no usable base: skipped), 1 hits, 2 usage error.
 #
 # Portability: bash 3.2, git, POSIX grep -E / sed / awk (no assoc arrays, no grep -P).
 set -o pipefail
 
 ci=false; range=""; markers_file=""; only=""
-usage() { sed -n '2,23p' "$0" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '2,25p' "$0" | sed 's/^# \{0,1\}//'; }
 while [ $# -gt 0 ]; do
   case "$1" in
     --ci) ci=true ;;
@@ -38,7 +42,7 @@ while [ $# -gt 0 ]; do
   esac
   shift
 done
-case "$only" in ''|rows|changelog) ;; *) echo "companions: --only takes rows or changelog" >&2; exit 2 ;; esac
+case "$only" in ''|rows|changelog|readme) ;; *) echo "companions: --only takes rows, changelog or readme" >&2; exit 2 ;; esac
 [ -n "$range" ] || { echo "companions: --range A..B is required (see --help)" >&2; exit 2; }
 case "$range" in *..*) ;; *) echo "companions: --range needs A..B, got: $range" >&2; exit 2 ;; esac
 if [ -n "$markers_file" ] && [ ! -r "$markers_file" ]; then
@@ -162,16 +166,40 @@ check_changelog() {
   hit "changelog: CHANGELOG.md: $n changed file(s) need an entry under '## [Unreleased]' ($list) — add a bullet under ### Added, Changed, Fixed or Deprecated (plus a **Migration** paragraph if a config key, default or guard decision changed), or write 'no-changelog: <reason>' in a commit body"
 }
 
+# ---- check 3: README ------------------------------------------------------------------
+README_TRIGGER='^(bootstrap$|bin/harness$|lib/harness/cli\.py$|PRINCIPLES\.md$|principles/|bundles/[^/]+/bundle\.toml$|providers/[^/]+/provider\.toml$|docs/getting-started\.md$|docs/distribution\.md$|docs/governance\.md$|docs/repo-level\.md$|docs/runbooks/|SECURITY\.md$|LICENSE$)'
+has_tree() { git cat-file -e "$1:$2" 2>/dev/null; }  # $1 rev, $2 path → 0 when the path exists there
+check_readme() {
+  local d n list
+  changed README.md && return 0
+  grep -E "$README_TRIGGER" "$CHANGED" >"$TMP/rtrig" || true
+  # a bundle or provider directory that exists on one side only (added or deleted)
+  grep -E '^(bundles|providers)/[^/]+/' "$CHANGED" | sed -E 's#^((bundles|providers)/[^/]+)/.*#\1#' | sort -u |
+    while IFS= read -r d; do
+      if has_tree "$base" "$d"; then has_tree "$b" "$d" || echo "$d/ (deleted)"
+      else echo "$d/ (added)"; fi
+    done >>"$TMP/rtrig"
+  [ -s "$TMP/rtrig" ] || return 0
+  n=$(wc -l <"$TMP/rtrig" | tr -d ' ')
+  list=$(head -3 "$TMP/rtrig" | tr '\n' ' ' | sed 's/ $//'); [ "$n" -gt 3 ] && list="$list …"
+  hit "readme: README.md: $n changed path(s) can change what it states ($list) — README.md is the product page; update the section that states this, run \`bin/harness docs generate\`, or add 'no-readme: <reason>' in a commit body"
+}
+
 ran=""
-if [ "$only" != changelog ]; then
+if [ -z "$only" ] || [ "$only" = rows ]; then
   if marker no-rows; then echo "companions: rows check waived by a 'no-rows:' marker" >&2
   else check_rows; fi
   ran="rows"
 fi
-if [ "$only" != rows ]; then
+if [ -z "$only" ] || [ "$only" = changelog ]; then
   if marker no-changelog; then echo "companions: changelog check waived by a 'no-changelog:' marker" >&2
   else check_changelog; fi
   ran="${ran:+$ran, }changelog"
+fi
+if [ -z "$only" ] || [ "$only" = readme ]; then
+  if marker no-readme; then echo "companions: readme check waived by a 'no-readme:' marker" >&2
+  else check_readme; fi
+  ran="${ran:+$ran, }readme"
 fi
 
 # ---- report ---------------------------------------------------------------------------

@@ -338,7 +338,7 @@ class ReviewRegressionTest(HubTestCase):
         self.assertEqual(T.first_sentence("One line only"), "One line only")
 
     def test_readme_bundle_table_matches_manifests(self):
-        """The hand-written README column repeats [taxonomy]; keep it honest."""
+        """The README bundle table (a generated region) repeats [taxonomy]; keep it honest."""
         import re
         text = open(os.path.join(REPO, "README.md"), encoding="utf-8").read()
         rows = dict(re.findall(r"^\| \[([a-z0-9-]+)\]\(docs/bundles/[a-z0-9-]+\.md\) \| ([^|]+?) \|", text, re.M))

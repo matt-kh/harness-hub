@@ -82,6 +82,18 @@ prints every one between your applied version and the new one.
   line. Waivers: `no-rows: <reason>` / `no-changelog: <reason>` in a commit body or the PR
   description. Runs in the CI `gate` job on pull requests, as a pre-push hook and in
   `make gate`; self-test `tools/gate/tests/companions-selftest.sh` on ubuntu and macOS.
+- `README.md` generated regions, rendered by `harness docs generate` and checked by
+  `harness docs check`: the bundle table (`bundles/*/bundle.toml#readme`: domain / posture,
+  stability, summary with `{{ key }}` placeholders shown as the key's `example` or `<key>`, and
+  the manual-step count linked to the bundle page), the provider matrix with tiers
+  (`providers/*/provider.toml#readme`), the principle heading, count and list
+  (`PRINCIPLES.md#readme`) and the core bundle's required binaries
+  (`bundles/core/bundle.toml#readme`).
+- Companion-file gate check `readme`: a branch that changes `bootstrap`, `bin/harness`,
+  `lib/harness/cli.py`, `PRINCIPLES.md`, `principles/`, a `bundle.toml` or `provider.toml`,
+  adds or deletes a bundle or provider, or changes the getting-started, distribution,
+  governance, repo-level, runbook, `SECURITY.md` or `LICENSE` pages needs a `README.md`
+  change; `no-readme: <reason>` waives it. `--only readme` runs it alone.
 - `harness pack [--out DIR] [--tag TAG] [--tools os/arch,...]`: writes the release artifact,
   a `git bundle` of the hub plus optional pinned tool archives, `SHA256SUMS` and
   `INSTALL.txt`. Refuses a dirty tree and never includes `local/`.
@@ -281,6 +293,10 @@ prints every one between your applied version and the new one.
   byte-identical (every k8s golden unchanged). New optional key `k8s.redact_extra_re`
   (`K8S_REDACT_EXTRA_RE`, default `""`): extra token shapes `k8s redact`, `pod`, `workload`
   and `helm --values` mask on top of the built-in list; golden `redact-extra-re`.
+- `README.md` rewritten as the product page: what you get, how it works, install, works
+  with, principles, governance, organisation values, requirements, documentation. It now
+  names ten principles (it said eight) and states every manifest fact through a generated
+  region; AGENTS.md, CONTRIBUTING.md and the PR template say to keep it true.
 - `bundles/ticket-workflow/tests/run.sh` is back to the shared bundle template; its seven
   `repo-facts` checks moved into the `work-ticket` suite. `[harness]` declares the new suite
   and drops "work-ticket has no own test suite yet"; principle 9 and the roadmap no longer
