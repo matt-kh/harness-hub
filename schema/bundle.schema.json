@@ -155,7 +155,7 @@
         "providers": {"type": "array", "items": {"type": "string"}}
       }
     },
-    "domain": {"type": "string", "enum": ["base", "scm", "tracker", "delivery", "kubernetes", "workspace"],
+    "domain": {"type": "string", "enum": ["base", "scm", "tracker", "delivery", "kubernetes", "workspace", "operations"],
                "description": "What the component is about (lib/harness/taxonomy.py FACETS)."},
     "function": {"type": "string", "enum": ["govern", "client", "workflow", "investigate", "plan", "execute", "review", "setup"],
                  "description": "What the component does for the agent."},

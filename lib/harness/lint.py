@@ -114,7 +114,7 @@ SKIPPABLE_RULES = ("agent-tools", "dependencies", "env-provides", "fragments-tar
 # env-provides: the guard.env parser in bundles/core/guard/engine.sh accepts only keys with these
 # prefixes. The list is parsed out of the engine's `case "$_gk" in ...` line; this copy is the
 # fallback when that line cannot be found (lint then warns once).
-GUARD_ENV_PREFIXES_FALLBACK = ("WORK_TICKET_", "HARNESS_", "K8S_", "GUARD_", "JIRA_", "GDOC_", "CREATE_TICKET_")
+GUARD_ENV_PREFIXES_FALLBACK = ("WORK_TICKET_", "HARNESS_", "K8S_", "GUARD_", "JIRA_", "GDOC_", "CREATE_TICKET_", "OBS_")
 _ENV_CASE_RE = re.compile(r'case\s+"\$_gk"\s+in\s+((?:[A-Z][A-Z0-9_]*\*\|?)+)\)')
 
 # permissions-vs-guard: client-path variables pointing the guard at the stubs in
