@@ -101,17 +101,18 @@ portable ERE: no `\b`, `\d` or lookarounds (BSD grep on macOS).
 ## Companion-file gate
 
 `companions.sh` checks a branch (the merge base of `A` and `B`, up to `B`) for files that must
-change together. It is the sensor for two guides in AGENTS.md and CONTRIBUTING.md.
+change together. It is the sensor for three guides in AGENTS.md and CONTRIBUTING.md.
 
 | Check | Fires when | Fix |
 |---|---|---|
 | `rows` | `bundles/<b>/guard.d/NN-*.sh` changed a non-comment, non-blank line and `bundles/<b>/guard.d/tests.sh` did not change (engine: `bundles/core/guard/engine*.sh` without `bundles/core/guard.d/tests.sh` or `bundles/core/guard/tests/`) | add rows for the behaviour and its bypass forms |
 | `rows` | a bundle's sections gained more `# rule: … -> D :` lines than they lost, and its `tests.sh` adds no `t\|tc\|g\|r\|tn D` row (for ask/deny: no `tr` row either) | add a row with that decision |
 | `changelog` | the branch touches `bundles/ lib/harness/ providers/ schema/ bin/ profiles/ templates/ bootstrap tools/*.lock.json`, outside `tests/`, `golden(s)/`, `guard.d/tests.sh` and `providers/*/README.md`, and `## [Unreleased]` in `CHANGELOG.md` gained no line | add a bullet under Added, Changed, Fixed or Deprecated (**Migration** when a key, default or decision changed) |
+| `readme` | the branch touches `bootstrap`, `bin/harness`, `lib/harness/cli.py`, `PRINCIPLES.md`, `principles/`, a `bundles/*/bundle.toml` or `providers/*/provider.toml`, adds or deletes a `bundles/<b>/` or `providers/<p>/` directory, or changes `docs/getting-started.md`, `docs/distribution.md`, `docs/governance.md`, `docs/repo-level.md`, `docs/runbooks/`, `SECURITY.md` or `LICENSE`, and `README.md` did not change | update the README section that states it, run `bin/harness docs generate` (a regenerated region counts) |
 
 A reworded rule (one removed, one added) needs no new row. Waive a check with a marker and a
 reason, in any commit body of the branch or (CI) the PR description: `no-rows: <reason>`,
-`no-changelog: <reason>`. A marker without a reason is ignored and reported.
+`no-changelog: <reason>`, `no-readme: <reason>`. A marker without a reason is ignored and reported.
 
 ```sh
 tools/gate/companions.sh --range origin/main..HEAD                 # what make gate runs

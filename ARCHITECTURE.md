@@ -414,7 +414,11 @@ manual steps, doctor checks, guides and sensors, uninstall), `docs/providers/<p>
 `capability-matrix.md`, `harness-coverage.md` and `taxonomy.md` (facet values, facets and
 reach by kind, source `lib/harness/taxonomy.py`); `docs/catalog.md` holds two regions, every
 component by kind (`bundles/*/bundle.toml#catalog`) and the domain × posture matrix
-(`bundles/*/bundle.toml#posture`).
+(`bundles/*/bundle.toml#posture`). `README.md` holds four regions: the bundle table
+(`bundles/*/bundle.toml#readme`), the provider matrix with tiers (`providers/*/provider.toml#readme`),
+the principle heading, count and list (`PRINCIPLES.md#readme`) and the core bundle's required
+binaries (`bundles/core/bundle.toml#readme`); the rest of the README is prose, kept true by the
+companion-file gate's `readme` check.
 
 ### 9. Portability
 

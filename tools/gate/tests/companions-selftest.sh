@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Self-test for tools/gate/companions.sh: builds a throw-away git repo with a guard section,
-# its rows, the guard engine, an engine module and a CHANGELOG, then asserts what the gate
+# its rows, the guard engine, an engine module, a bundle manifest, a README and a CHANGELOG,
+# then asserts what the gate
 # reports for each kind of change on a branch off main.
 # Usage: tools/gate/tests/companions-selftest.sh [-v]
 set -o pipefail
@@ -39,6 +40,9 @@ printf 't allow "git status"\n' >"$R/bundles/core/guard.d/tests.sh"
 printf 't() { :; }\n' >"$R/bundles/core/guard/tests/lib.sh"
 printf 'VALUE = 1\n' >"$R/lib/harness/mod.py"
 printf '# Docs\n' >"$R/docs/a.md"
+printf '# Concepts\n' >"$R/docs/concepts.md"
+printf '[bundle]\nname = "demo"\nsummary = "Demo guard"\n' >"$R/bundles/demo/bundle.toml"
+printf '# demo hub\n\n| Bundle | What agents get |\n|---|---|\n| demo | Demo guard |\n' >"$R/README.md"
 cat >"$R/CHANGELOG.md" <<'EOF'
 # Changelog
 
@@ -195,6 +199,41 @@ out=$(run --only everything --range main..HEAD); rc=$?
 expect_rc "13b bad --only value" 2 $rc "$out"
 out=$(run); rc=$?
 expect_rc "13c --range is required" 2 $rc "$out"
+
+# ---- 14. README companion -------------------------------------------------------------------------
+TOML="$R/bundles/demo/bundle.toml"
+branch c14
+sed 's/Demo guard/Demo guard for force pushes/' "$TOML" >"$T/b" && cat "$T/b" >"$TOML"
+commit "demo: sharper summary"
+out=$(run --only readme --range main..HEAD); rc=$?
+expect_rc "14a manifest summary change without README hits" 1 $rc "$out"
+has   "14a message names the file, the product page, docs generate and the marker" \
+      '^readme: README\.md: 1 changed path\(s\).*bundles/demo/bundle\.toml.*product page.*bin/harness docs generate.*no-readme: <reason>' "$out"
+hasnt "14d --only readme runs no CHANGELOG check" '^changelog: ' "$out"
+out=$(run --only rows --range main..HEAD); rc=$?
+expect_rc "14d --only rows skips the README check" 0 $rc "$out"
+sed 's/| Demo guard |/| Demo guard for force pushes |/' "$R/README.md" >"$T/r" && cat "$T/r" >"$R/README.md"
+commit "readme: regenerate"
+out=$(run --only readme --range main..HEAD); rc=$?
+expect_rc "14b same change with README is clean" 0 $rc "$out"
+branch c14c
+sed 's/Demo guard/Demo guard for force pushes/' "$TOML" >"$T/b" && cat "$T/b" >"$TOML"
+git -C "$R" add -A; git -C "$R" commit -q --no-verify -m "demo: sharper summary" -m "no-readme: README does not show this bundle"
+out=$(run --only readme --range main..HEAD); rc=$?
+expect_rc "14c no-readme with a reason waives the check" 0 $rc "$out"
+has   "14c waiver is announced" "readme check waived" "$out"
+branch c14e
+printf 'more\n' >>"$R/docs/concepts.md"
+commit "docs: concepts"
+out=$(run --range main..HEAD); rc=$?
+expect_rc "14e unrelated docs page needs no README change" 0 $rc "$out"
+hasnt "14e no readme hit" '^readme: ' "$out"
+branch c14f
+mkdir -p "$R/providers/newp"; printf 'notes\n' >"$R/providers/newp/notes.txt"
+commit "providers: new adapter directory"
+out=$(run --only readme --range main..HEAD); rc=$?
+expect_rc "14f an added provider directory hits" 1 $rc "$out"
+has   "14f message marks the directory as added" '^readme: .*providers/newp/ \(added\)' "$out"
 
 echo "companions selftest: passed=$pass failed=$fail"
 [ $fail -eq 0 ]

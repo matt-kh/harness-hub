@@ -17,6 +17,7 @@
 - [ ] `make gate` passes, and nothing in this PR contains organisation or personal identifiers
       (hostnames, project keys, account ids, internal IPs, work emails) — placeholders only
 - [ ] `make docs` passes (`harness docs check`); regenerated regions are committed
+- [ ] README.md still states the truth (generated regions regenerated; prose updated or `no-readme: <reason>`)
 - [ ] New or changed guard rules have test rows; golden updates (`UPDATE=1`) were reviewed as a diff
 - [ ] Guide/sensor pairing checked: new guides have a sensor and new sensors a guide, declared in the bundle's `[harness]` section; every new deny/ask reason states the alternative
 - [ ] No new dependency outside python stdlib, bash, jq, git, curl (or it is a bundle's declared, optional `requires.binaries`)

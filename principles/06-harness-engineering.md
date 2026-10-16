@@ -81,6 +81,8 @@ bundle ships: rules, skills, permissions, agents, guard sections, doctor checks,
 | A guard code change comes with row changes; a net-new `-> D` rule with a `D` (or `tr`) row | gate | `tools/gate/companions.sh` (pre-push, CI `gate`) |
 | A bundle, engine, provider, schema or profile change has a CHANGELOG `[Unreleased]` entry | gate | `tools/gate/companions.sh` (pre-push, CI `gate`) |
 | Generated "Guides and sensors" tables are current | docs | `harness docs check` |
+| README generated regions (bundle table, provider matrix, principle list and count, core requirements) are current | docs | `harness docs check` |
+| A change to what README prose states (manifest, CLI, principle, install or governance page) touches `README.md` | gate | `tools/gate/companions.sh` check `readme` (pre-push, CI `gate`) |
 | PR states the pairing was checked | review | [PR template](../.github/PULL_REQUEST_TEMPLATE.md) |
 
 ## Tensions and how they are resolved

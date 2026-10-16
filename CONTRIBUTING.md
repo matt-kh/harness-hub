@@ -120,7 +120,8 @@ Read [ARCHITECTURE §3](ARCHITECTURE.md#3-bundles-bundlesname) first. Checklist:
 - [ ] `docs/bundles/<name>.md` exists with a hand-written header, a **Troubleshooting**
       section, and an empty generated region; run `bin/harness docs generate`.
 - [ ] `[uninstall].keeps` lists every path the user's tools own (credentials, caches).
-- [ ] README bundle table and CHANGELOG updated.
+- [ ] README bundle table regenerated (`make docs-generate`; it is a generated region), README
+      prose updated where it describes the bundle, and CHANGELOG updated.
 
 ### Standard texts
 
@@ -201,7 +202,8 @@ Read [ARCHITECTURE §4](ARCHITECTURE.md#4-providers-providersname) and
       variants follow after `-` (`ask-as-allow`); `harness lint` rule `shim-fixtures` checks it.
 - [ ] `README.md` with a "verified against <version> on <date>" line (the weekly
       provider-drift workflow parses it) and the provider's quirks.
-- [ ] `docs/providers/<name>.md`, README capability matrix, SECURITY.md coverage table.
+- [ ] `docs/providers/<name>.md` and the README capability matrix (both generated:
+      `make docs-generate`), SECURITY.md coverage table, README prose that names the providers.
 
 ## Guard tests and goldens
 
@@ -249,6 +251,14 @@ macOS ships bash 3.2 and BSD userland; CI parses every script with `/bin/bash -n
   `providers/`, `schema/`, `bin/`, `profiles/`, `templates/`, `bootstrap` or
   `tools/*.lock.json` outside tests and goldens; `no-changelog: <reason>` in a commit body or
   the PR description waives it.
+- Keep `README.md` true: it is the product page. Generated regions (bundles, providers,
+  principles, core requirements) come from `make docs-generate`; prose is hand-written. The
+  companion-file gate (check `readme`) requires a `README.md` change when the branch touches
+  `bootstrap`, `bin/harness`, `lib/harness/cli.py`, `PRINCIPLES.md`, `principles/`, a
+  `bundle.toml` or `provider.toml`, adds or deletes a bundle or provider, or changes
+  `docs/getting-started.md`, `docs/distribution.md`, `docs/governance.md`,
+  `docs/repo-level.md`, `docs/runbooks/`, `SECURITY.md` or `LICENSE`; `no-readme: <reason>`
+  waives it.
 
 ## Releases (maintainers)
 
