@@ -1,0 +1,17 @@
+# exit=1
+# stderr:
+# stdout:
+# obs lint
+
+## Findings (1)
+
+| sev | kind | name | message |
+|---|---|---|---|
+| warn | for | lint/rules-prefix.json:19 | alert HighLatency has no `for:` — add `for: 5m` (or longer) so one bad scrape does not page |
+
+## files
+
+| file | kind |
+|---|---|
+| lint/rules-prefix.json | prometheus-rules |
+# calls:

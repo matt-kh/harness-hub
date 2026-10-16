@@ -1,0 +1,48 @@
+# exit=0
+# stderr:
+probe: backend=signoz-dev kind=signoz url=signoz.example.com
+probe: backend=signoz-prod kind=signoz url=signoz-prod.example.com [PROD]
+probe: backend=prom kind=prometheus url=prometheus.example.com
+probe: backend=grafana kind=grafana url=grafana.example.com
+backend=signoz-dev kind=signoz url=signoz.example.com
+backend=signoz-dev kind=signoz url=signoz.example.com
+backend=signoz-dev kind=signoz url=signoz.example.com
+backend=signoz-dev kind=signoz url=signoz.example.com
+backend=signoz-dev kind=signoz url=signoz.example.com
+backend=signoz-dev kind=signoz url=signoz.example.com
+backend=signoz-dev kind=signoz url=signoz.example.com
+backend=signoz-dev kind=signoz url=signoz.example.com
+backend=prom kind=prometheus url=prometheus.example.com
+backend=prom kind=prometheus url=prometheus.example.com
+backend=grafana kind=grafana url=grafana.example.com
+backend=grafana kind=grafana url=grafana.example.com
+backend=grafana kind=grafana url=grafana.example.com
+backend=grafana kind=grafana url=grafana.example.com
+backend=grafana kind=grafana url=grafana.example.com
+# stdout:
+GET https://signoz.example.com/api/v1/version
+GET https://signoz.example.com/api/v1/rules
+GET https://signoz-prod.example.com/api/v1/version
+GET https://signoz-prod.example.com/api/v1/rules
+GET https://prometheus.example.com/api/v1/status/buildinfo
+GET https://grafana.example.com/api/health
+GET https://grafana.example.com/api/search?limit=1
+POST https://signoz.example.com/api/v5/query_range
+POST https://signoz.example.com/api/v5/query_range
+POST https://signoz.example.com/api/v5/query_range
+POST https://signoz.example.com/api/v5/query_range
+POST https://signoz.example.com/api/v1/services
+GET https://signoz.example.com/api/v1/alerts
+GET https://signoz.example.com/api/v1/rules
+GET https://signoz.example.com/api/v1/dashboards
+GET https://signoz.example.com/api/v1/dashboards/0199aaaa-bbbb-7ccc-8ddd-eeeeeeee0001
+GET https://prometheus.example.com/api/v1/query_range?query=up&start=EPOCH_S&end=EPOCH_S&step=60s
+GET https://prometheus.example.com/api/v1/alerts
+GET https://prometheus.example.com/api/v1/rules
+POST https://grafana.example.com/api/ds/query
+POST https://grafana.example.com/api/ds/query
+GET https://grafana.example.com/api/alertmanager/grafana/api/v2/alerts?active=true
+GET https://grafana.example.com/api/prometheus/grafana/api/v1/rules
+GET https://grafana.example.com/api/search?type=dash-db&limit=50
+GET https://grafana.example.com/api/dashboards/uid/api-red
+# calls:

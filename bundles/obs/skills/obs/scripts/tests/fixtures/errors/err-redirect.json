@@ -1,0 +1,10 @@
+[
+  {
+    "url": ".*",
+    "status": 302,
+    "headers": {
+      "Location": "https://login.example.net/sso?next=/api/v1/alerts"
+    },
+    "body": ""
+  }
+]

@@ -1,0 +1,60 @@
+[
+  {
+    "method": "POST",
+    "url": "https://signoz(-prod)?\\.example\\.com/api/v5/query_range$",
+    "body": {
+      "status": "success",
+      "data": {
+        "type": "raw",
+        "data": {
+          "results": [
+            {
+              "queryName": "A",
+              "nextCursor": "",
+              "rows": [
+                {
+                  "timestamp": "2026-01-15T10:00:03Z",
+                  "data": {
+                    "body": "upstream call failed: GET https://svc:s3cr3tpass@payments.example.com/charge Authorization: Bearer test-bearer-0123456789abcdef",
+                    "severity_text": "ERROR",
+                    "resources_string": {
+                      "service.name": "checkout"
+                    },
+                    "attributes_string": {
+                      "http.method": "GET"
+                    }
+                  }
+                },
+                {
+                  "timestamp": "2026-01-15T10:00:02Z",
+                  "data": {
+                    "body": "db connect retry user=app password=hunter2 host=db.example.com",
+                    "severity_text": "ERROR",
+                    "resources_string": {
+                      "service.name": "checkout"
+                    }
+                  }
+                },
+                {
+                  "timestamp": "2026-01-15T10:00:01Z",
+                  "data": {
+                    "body": "charge declined for order 1234 (card expired)",
+                    "severity_text": "ERROR",
+                    "resources_string": {
+                      "service.name": "checkout"
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "meta": {
+          "rowsScanned": 42,
+          "bytesScanned": 4096,
+          "durationMs": 12
+        }
+      }
+    }
+  }
+]

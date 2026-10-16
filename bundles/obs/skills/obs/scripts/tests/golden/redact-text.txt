@@ -1,0 +1,7 @@
+# exit=0
+# stderr:
+# stdout:
+Authorization: ***REDACTED***
+password=***REDACTED***
+ok line
+# calls:

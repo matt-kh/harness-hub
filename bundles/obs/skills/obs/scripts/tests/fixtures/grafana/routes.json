@@ -1,0 +1,200 @@
+[
+  {
+    "method": "GET",
+    "url": "https://grafana\\.example\\.com/api/health$",
+    "body": {
+      "database": "ok",
+      "version": "12.1.0",
+      "commit": "0000000"
+    }
+  },
+  {
+    "method": "GET",
+    "url": "https://grafana\\.example\\.com/api/search\\?",
+    "body": [
+      {
+        "id": 7,
+        "uid": "api-red",
+        "title": "API RED",
+        "uri": "db/api-red",
+        "url": "/d/api-red/api-red",
+        "type": "dash-db",
+        "tags": [
+          "red"
+        ],
+        "isStarred": false,
+        "folderUid": "f1",
+        "folderTitle": "Services"
+      },
+      {
+        "id": 9,
+        "uid": "nodes",
+        "title": "Node exporter",
+        "uri": "db/nodes",
+        "url": "/d/nodes/node-exporter",
+        "type": "dash-db",
+        "tags": [],
+        "isStarred": false
+      }
+    ]
+  },
+  {
+    "method": "GET",
+    "url": "https://grafana\\.example\\.com/api/dashboards/uid/api-red$",
+    "body": {
+      "meta": {
+        "type": "db",
+        "slug": "api-red",
+        "folderTitle": "Services"
+      },
+      "dashboard": {
+        "uid": "api-red",
+        "title": "API RED",
+        "schemaVersion": 39,
+        "panels": [
+          {
+            "id": 1,
+            "title": "Rate",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "${datasource}"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "url": "https://grafana\\.example\\.com/api/ds/query$",
+    "body": {
+      "results": {
+        "A": {
+          "status": 200,
+          "frames": [
+            {
+              "schema": {
+                "refId": "A",
+                "name": "up",
+                "fields": [
+                  {
+                    "name": "Time",
+                    "type": "time"
+                  },
+                  {
+                    "name": "Value",
+                    "type": "number",
+                    "labels": {
+                      "__name__": "up",
+                      "job": "api",
+                      "instance": "192.0.2.1:9100"
+                    }
+                  }
+                ]
+              },
+              "data": {
+                "values": [
+                  [
+                    1768471320000
+                  ],
+                  [
+                    0
+                  ]
+                ]
+              }
+            },
+            {
+              "schema": {
+                "refId": "A",
+                "name": "up",
+                "fields": [
+                  {
+                    "name": "Time",
+                    "type": "time"
+                  },
+                  {
+                    "name": "Value",
+                    "type": "number",
+                    "labels": {
+                      "__name__": "up",
+                      "job": "db",
+                      "instance": "192.0.2.2:9100"
+                    }
+                  }
+                ]
+              },
+              "data": {
+                "values": [
+                  [
+                    1768471320000
+                  ],
+                  [
+                    1
+                  ]
+                ]
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "url": "https://grafana\\.example\\.com/api/alertmanager/grafana/api/v2/alerts\\?",
+    "body": [
+      {
+        "labels": {
+          "alertname": "DiskFull",
+          "severity": "warning",
+          "instance": "192.0.2.3:9100"
+        },
+        "annotations": {
+          "summary": "disk above 90%"
+        },
+        "startsAt": "2026-01-15T09:00:00Z",
+        "endsAt": "2026-01-15T11:00:00Z",
+        "status": {
+          "state": "active",
+          "silencedBy": [],
+          "inhibitedBy": []
+        },
+        "fingerprint": "1234",
+        "receivers": [
+          {
+            "name": "grafana-default-email"
+          }
+        ],
+        "updatedAt": "2026-01-15T10:00:00Z"
+      }
+    ]
+  },
+  {
+    "method": "GET",
+    "url": "https://grafana\\.example\\.com/api/prometheus/grafana/api/v1/rules$",
+    "body": {
+      "status": "success",
+      "data": {
+        "groups": [
+          {
+            "name": "disk",
+            "file": "Infra",
+            "rules": [
+              {
+                "name": "DiskFull",
+                "query": "",
+                "duration": 600,
+                "state": "firing",
+                "labels": {
+                  "severity": "warning"
+                },
+                "type": "alerting",
+                "health": "ok"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+]

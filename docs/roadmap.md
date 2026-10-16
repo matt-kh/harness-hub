@@ -123,7 +123,7 @@ extensions to `k8s` and `core`. **Status: in progress.**
 |---|---|---|---|---|
 | `core/lib/redact.py` block | core extension | base | — | S0a |
 | credential paths from `[requires.secrets]` → guard | engine + core `20` | base | `20` | S0b |
-| **`obs`** | new bundle | operations / read-only / client (+ `obs-triage` investigate) | `32` | S2 |
+| **`obs`** | new bundle | operations / read-only / client (+ `obs-triage` investigate) | `32` | S2 (**shipped**) |
 | `k8s` v2a: `backups`, `audit` PDB/HPA + `--manifests`, `chart-reviewer`, auditor steps | extension | kubernetes | — | S3 |
 | `/draft-adr` + `render-adr.py` | core skill | base / local / workflow | — | S4a |
 | `infra-architect` ends with an ADR JSON block | k8s text | kubernetes / plan | — | S4b |
@@ -137,6 +137,8 @@ extensions to `k8s` and `core`. **Status: in progress.**
 | org overlay (`local/bundles/<org>`) | private | — | — | after S2, S5, S6 |
 
 ### `obs` bundle
+
+**Status: shipped** (see CHANGELOG).
 
 `depends_on = ["core"]`, `recommends = ["k8s", "ci"]`, stability `experimental`; taxonomy
 operations / read-only / client, agent `obs-triage` investigate. Adapters `signoz` (first),

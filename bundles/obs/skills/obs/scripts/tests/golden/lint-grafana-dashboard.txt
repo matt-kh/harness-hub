@@ -1,0 +1,19 @@
+# exit=1
+# stderr:
+# stdout:
+# obs lint
+
+## Findings (3)
+
+| sev | kind | name | message |
+|---|---|---|---|
+| warn | datasource | lint/dashboard-bad.json:33 | panel 'Latency' pins datasource uid 'P1809F7CD0C75ACF3' — use a datasource template variable (${datasource}) so the dashboard works in every environment |
+| warn | datasource | lint/dashboard-bad.json:9 | panel 'Rate' pins datasource uid 'P1809F7CD0C75ACF3' — use a datasource template variable (${datasource}) so the dashboard works in every environment |
+| warn | uid | lint/dashboard-bad.json:1 | dashboard 'API RED' has no uid — set a stable uid so links and provisioning survive re-imports |
+
+## files
+
+| file | kind |
+|---|---|
+| lint/dashboard-bad.json | grafana-dashboard |
+# calls:

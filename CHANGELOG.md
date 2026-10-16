@@ -57,6 +57,31 @@ prints every one between your applied version and the new one.
 
 ### Added
 
+- `obs` bundle (experimental; domain `operations`, read-only): the stdlib `obs` CLI
+  (`backends [--probe]`, `query`, `logs`, `traces`, `trace`, `services`, `alerts`,
+  `dashboards [--export]`, `lint`, `redact`) with SigNoz (verified against the v0.121.x
+  source), Prometheus and Grafana adapters; every request goes through one helper with a read
+  allow-list (GET, and POST only to the query endpoints), every log line, span attribute and
+  label value through the shared `core` redact block (plus bearer/basic credentials and
+  `obs.redact_extra_re`). Skill `obs` with references (RED/USE walk, alerts as code, one page
+  per backend with the exact endpoints), agent `obs-triage` (investigate), rule
+  `rules/32-obs.md`, guard section `32-obs`: reading `~/.config/obs/*` denies (a
+  `# never-yields:` prelude), a literal API key on a curl/wget/http/xh command line denies,
+  raw requests to a host matching `obs.hosts_re` ask, `amtool silence add|expire|import`,
+  `amtool alert add`, `logcli query --tail|-f` and `grafana-cli admin|plugins install|remove`
+  ask. Permissions, five doctor checks, manual steps `configure-backends` and `obs-api-key`,
+  runbook [rotate-obs-key](docs/runbooks/rotate-obs-key.md), docs page
+  [obs](docs/bundles/obs.md). Golden suite `skills/obs/scripts/tests/run.sh` (50 cases,
+  fixture-routed HTTP via `tests/fakes/http_fixture.py`, and an `OBS_DRY_RUN` request-log case
+  asserting only read endpoints); 106 guard rows incl. bypasses (path-qualified clients such as
+  `/usr/bin/curl`), the `operations` yield and `OBS_HOSTS_RE` read from `guard.env`. The CLI
+  never follows a redirect (the key stays on the configured host), maps 404, 3xx and a non-JSON
+  answer to exit 2 (exit 3 only for a verb the backend kind lacks), refuses a backend `url` with
+  userinfo, keeps `--json` output a whole document under `--max-bytes` (`"truncated"`), refuses
+  to overwrite an export without `--force`, compiles `obs.redact_extra_re` on its own (a leading
+  `(?i)` works) and checks `obs.hosts_re` with `grep -E`, as the guard applies it.
+- `tests/fakes/http_fixture.py`: the `--log` line's `auth=yes` also counts an `*-API-KEY`
+  header (SigNoz), not only `Authorization`.
 - `ticket-workflow`: golden suite for the `work-ticket` scripts
   (`skills/work-ticket/scripts/tests/run.sh`, 61 cases): provider dispatch, the GitHub and
   GitLab preflights, `issue-facts.sh`, `jira-facts.sh` and `lib/repo-facts.sh`, each run in a
@@ -244,6 +269,14 @@ prints every one between your applied version and the new one.
   `.out.json` or a fixture for allow, deny, ask, unknown tool or malformed; warnings when
   `features` lists `permission-prompt` with `ask = false` or `docs/providers/<name>.md`
   states another tier than the capabilities give.
+
+### Taxonomy
+
+- New domain value `operations` ("running systems: signals, incidents, reliability
+  targets"), first used by `obs`: `schema/bundle.schema.json`, `lib/harness/taxonomy.py`
+  `FACETS`, and the `[owns] domains` enum of `schema/repo.schema.json`, so a repository's
+  `.harness.toml` can declare `domains = ["operations"]` and every `obs` component yields there
+  (except the key-file prelude).
 
 ### Deprecated
 
@@ -445,6 +478,12 @@ prints every one between your applied version and the new one.
 - `k8s.redact_extra_re` (`K8S_REDACT_EXTRA_RE`): new optional key, default `""` keeps
   today's redaction; nothing to edit. Set it to a Python regex (e.g. `"(?i)x-internal-token=[^ ]+"`)
   under `[k8s]` and run `harness apply` to mask more token shapes.
+- `obs` bundle: new keys only when you enable it (`obs` in `[hub] bundles`): `obs.backends`
+  (array of tables), `obs.default`, `obs.hosts_re` (`OBS_HOSTS_RE`), `obs.prod_re`
+  (`OBS_PROD_RE`), `obs.log_tail`, `obs.max_bytes`, `obs.redact_extra_re`
+  (`OBS_REDACT_EXTRA_RE`); see the manual step `configure-backends`. The guard's `guard.env`
+  parser now also accepts `OBS_` keys (core engine and the `env-provides` lint list); nothing
+  to edit for existing setups.
 
 ## [0.1.0] - 2026-09-30
 

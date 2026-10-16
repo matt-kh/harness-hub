@@ -148,7 +148,8 @@ options:
 ```text
 usage: harness catalog [-h] [--config PATH] [--home DIR] [--json] [--offline] [--yes] [--dry-run]
                        [--kind {bundle,skill,agent,rule,guard,permission,mcp,bin,installer,doctor,step,provider,profile}]
-                       [--bundle NAME] [--domain {base,scm,tracker,delivery,kubernetes,workspace}]
+                       [--bundle NAME]
+                       [--domain {base,scm,tracker,delivery,kubernetes,workspace,operations}]
 
 list every component with its id, kind, domain, function and posture
 
@@ -163,7 +164,7 @@ options:
   --kind {bundle,skill,agent,rule,guard,permission,mcp,bin,installer,doctor,step,provider,profile}
                         only this kind of component
   --bundle NAME         only this bundle's components (and the bundle itself)
-  --domain {base,scm,tracker,delivery,kubernetes,workspace}
+  --domain {base,scm,tracker,delivery,kubernetes,workspace,operations}
                         only this domain
 ```
 

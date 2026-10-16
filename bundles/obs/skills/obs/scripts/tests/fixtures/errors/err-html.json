@@ -1,0 +1,10 @@
+[
+  {
+    "url": ".*",
+    "status": 200,
+    "headers": {
+      "Content-Type": "text/html"
+    },
+    "body": "<!DOCTYPE html>\n<html><head><title>Sign in</title></head>\n<body><form action=\"/login\">Please sign in to continue</form></body></html>\n"
+  }
+]

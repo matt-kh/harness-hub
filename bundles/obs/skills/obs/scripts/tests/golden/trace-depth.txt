@@ -1,0 +1,31 @@
+# exit=1
+# stderr:
+backend=signoz-dev kind=signoz url=signoz.example.com
+>> POST https://signoz.example.com/api/v5/query_range {"compositeQuery": {"queries": [{"spec": {"filter": {"expression": "trace_id = '4bf92f3577b34da6a3ce929d0e0e4736'"}, "limit": 1000, "name": "A", "order": [{"direction": "desc", "key": {"name": "timest
+# stdout:
+# obs trace — signoz-dev (signoz)
+
+## Findings (2)
+
+| sev | kind | name | message |
+|---|---|---|---|
+| warn | span-error | POST /checkout | span POST /checkout (checkout) has an error status |
+| warn | span-error | charge | span charge (payments) has an error status |
+
+## trace_id
+
+4bf92f3577b34da6a3ce929d0e0e4736
+
+## spans_below_depth
+
+1 spans below --depth 2 (rerun with a larger --depth)
+
+## tree
+
+| span | service | duration_ms | error | attributes |
+|---|---|---|---|---|
+| POST /checkout | checkout | 1840.0 | yes | {"attributes_string": {"http.route": "/checkout"}} |
+| └ charge | payments | 1700.0 | yes | {"attributes_string": {"db.password": "***REDACTED***", "db.statement": "select 1"}} |
+| └ reserve stock | inventory | 40.0 |  |  |
+# calls:
+POST https://signoz.example.com/api/v5/query_range auth=yes

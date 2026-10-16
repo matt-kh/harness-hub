@@ -1,0 +1,28 @@
+# exit=1
+# stderr:
+# stdout:
+# obs backends
+
+## Findings (1)
+
+| sev | kind | name | message |
+|---|---|---|---|
+| warn | hosts_re | obs.hosts_re | hosts_re is a POSIX ERE used by the guard; use [0-9], [A-Za-z0-9_], [[:space:]] (found \d) |
+
+## default
+
+signoz-dev
+
+## hosts_re
+
+^(signoz\|signoz-prod\|grafana\|prometheus)\d*\.example\.com$
+
+## backends
+
+| name | kind | host | key | default | prod |
+|---|---|---|---|---|---|
+| signoz-dev | signoz | signoz.example.com | ok | True | False |
+| signoz-prod | signoz | signoz-prod.example.com | ok | False | True |
+| prom | prometheus | prometheus.example.com | none | False | False |
+| grafana | grafana | grafana.example.com | ok | False | False |
+# calls:

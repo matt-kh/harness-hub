@@ -1,0 +1,51 @@
+# exit=1
+# stderr:
+backend=signoz-dev kind=signoz url=signoz.example.com
+>> GET https://signoz.example.com/api/v1/dashboards/0199aaaa-bbbb-7ccc-8ddd-eeeeeeee0001
+# stdout:
+# obs dashboards — signoz-dev (signoz)
+
+## Findings (2)
+
+| sev | kind | name | message |
+|---|---|---|---|
+| warn | redacted | 0199aaaa-bbbb-7ccc-8ddd-eeeeeeee0001 | 1 secret-looking value(s) replaced by ***REDACTED*** in dash.json — review them before committing |
+| info | next | 0199aaaa-bbbb-7ccc-8ddd-eeeeeeee0001 | edit dash.json in the owning repository and open an MR; never write the dashboard back through the API |
+
+## exported
+
+| key | value |
+|---|---|
+| uid | 0199aaaa-bbbb-7ccc-8ddd-eeeeeeee0001 |
+| file | dash.json |
+| bytes | 505 |
+| title | Checkout overview |
+# calls:
+GET https://signoz.example.com/api/v1/dashboards/0199aaaa-bbbb-7ccc-8ddd-eeeeeeee0001 auth=yes
+# file:
+{
+  "datasource_password": "***REDACTED***",
+  "tags": [
+    "checkout",
+    "red"
+  ],
+  "title": "Checkout overview",
+  "variables": {},
+  "version": "v5",
+  "widgets": [
+    {
+      "id": "w1",
+      "panelTypes": "graph",
+      "query": {
+        "promql": [
+          {
+            "name": "A",
+            "query": "sum(rate(calls_total{status_code=\"STATUS_CODE_ERROR\"}[5m])) by (service_name)"
+          }
+        ],
+        "queryType": "promql"
+      },
+      "title": "Error rate"
+    }
+  ]
+}

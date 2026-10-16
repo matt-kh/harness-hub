@@ -1,0 +1,31 @@
+# exit=1
+# stderr:
+# stdout:
+# obs backends
+
+## Findings (4)
+
+| sev | kind | name | message |
+|---|---|---|---|
+| warn | hosts_re | grafana | Python re and grep -E disagree on host grafana.example.com (grep -E: match, Python: no match); the guard uses grep -E — hosts_re is a POSIX ERE used by the guard; use [0-9], [A-Za-z0-9_], [[:space:]] |
+| warn | hosts_re | prom | Python re and grep -E disagree on host prometheus.example.com (grep -E: match, Python: no match); the guard uses grep -E — hosts_re is a POSIX ERE used by the guard; use [0-9], [A-Za-z0-9_], [[:space:]] |
+| warn | hosts_re | signoz-dev | Python re and grep -E disagree on host signoz.example.com (grep -E: match, Python: no match); the guard uses grep -E — hosts_re is a POSIX ERE used by the guard; use [0-9], [A-Za-z0-9_], [[:space:]] |
+| warn | hosts_re | signoz-prod | Python re and grep -E disagree on host signoz-prod.example.com (grep -E: match, Python: no match); the guard uses grep -E — hosts_re is a POSIX ERE used by the guard; use [0-9], [A-Za-z0-9_], [[:space:]] |
+
+## default
+
+signoz-dev
+
+## hosts_re
+
+^[[:alnum:].-]+$
+
+## backends
+
+| name | kind | host | key | default | prod |
+|---|---|---|---|---|---|
+| signoz-dev | signoz | signoz.example.com | ok | True | False |
+| signoz-prod | signoz | signoz-prod.example.com | ok | False | True |
+| prom | prometheus | prometheus.example.com | none | False | False |
+| grafana | grafana | grafana.example.com | ok | False | False |
+# calls:

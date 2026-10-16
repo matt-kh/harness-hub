@@ -1,0 +1,19 @@
+# exit=0
+# stderr:
+backend=grafana kind=grafana url=grafana.example.com
+>> GET https://grafana.example.com/api/search?type=dash-db&limit=50
+# stdout:
+# obs dashboards — grafana (grafana)
+
+## Findings (0)
+
+none
+
+## dashboards
+
+| uid | title | folder | tags |
+|---|---|---|---|
+| api-red | API RED | Services | red |
+| nodes | Node exporter |  |  |
+# calls:
+GET https://grafana.example.com/api/search?type=dash-db&limit=50 auth=yes

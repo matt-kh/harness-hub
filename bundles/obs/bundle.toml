@@ -1,0 +1,240 @@
+[bundle]
+name = "obs"
+schema_version = "1"
+summary = "Read-only observability client (obs CLI + skill) for SigNoz, Prometheus and Grafana, an obs-triage agent, and API-key and raw-backend guards"
+description = """
+Ships the stdlib `obs` CLI (backends, query, logs, traces, trace, services, alerts, dashboards,
+lint, redact — every call bounded, redacted and limited to a read allow-list of endpoints), with
+adapters for SigNoz, Prometheus-compatible servers and Grafana, its skill and references, the
+obs-triage agent (execution model, investigate only) and guard section 32: reading the API key
+files denies, an API key written on a command line denies, raw curl/wget to a configured backend
+host asks, and alert-state changes (amtool silence), live tails (logcli --tail) and Grafana admin
+commands ask. Alert rules, dashboards and silences change only as files in the owning
+repository, through a merge request.
+"""
+depends_on = ["core"]
+recommends = ["k8s"]
+conflicts_with = []
+any_of = []
+owners = []
+docs = "docs/bundles/obs.md"
+stability = "experimental"
+
+[requires.binaries.python3]
+min_version = "3.9"
+version_cmd = "python3 --version"
+version_regex = 'Python ([0-9]+\.[0-9]+)'
+why = "The obs CLI is stdlib python."
+
+[requires.config."obs.backends"]
+type = "array"
+default = []
+description = "Observability backends, as [[obs.backends]] tables: name, kind (signoz | prometheus | grafana), url, auth_file (a key file under ~/.config/obs, mode 0600; optional for prometheus). Never the key itself."
+example = [{ name = "signoz-dev", kind = "signoz", url = "https://signoz.example.com", auth_file = "~/.config/obs/signoz-dev.key" }]
+[requires.config."obs.backends".items]
+type = "object"
+required = ["name", "kind", "url"]
+additionalProperties = false
+[requires.config."obs.backends".items.properties.name]
+type = "string"
+pattern = '^[a-z0-9][a-z0-9-]*$'
+[requires.config."obs.backends".items.properties.kind]
+type = "string"
+enum = ["signoz", "prometheus", "grafana"]
+[requires.config."obs.backends".items.properties.url]
+type = "string"
+pattern = '^https?://[^/\s]+'
+[requires.config."obs.backends".items.properties.auth_file]
+type = "string"
+pattern = '^~/\.config/obs/[A-Za-z0-9._-]+$'
+
+[requires.config."obs.default"]
+type = "string"
+default = ""
+description = "Backend name `obs` uses without --backend. Empty = the first entry of obs.backends."
+example = "signoz-dev"
+
+[requires.config."obs.hosts_re"]
+type = "string"
+default = ""
+description = "POSIX ERE (the guard applies it with grep -E) matching your backends' host names (no scheme, no port); raw curl/wget/http/xh to a matching host asks (guard section 32). Use [0-9], [A-Za-z0-9_] and [[:space:]], never \\d, \\w, \\s or (?…): `obs backends` and doctor check it with grep -E and flag Python-only syntax. Empty = those rows are off; doctor warns when backends exist. OBS_HOSTS_RE."
+example = '^(signoz|grafana)\.example\.com$'
+
+[requires.config."obs.prod_re"]
+type = "string"
+default = "(^|[-_./:])(prod|production)([-_./:]|$)"
+description = "Case-insensitive ERE on backend names and hosts marking production ([PROD] banner; remediations become suggestions only). OBS_PROD_RE."
+
+[requires.config."obs.log_tail"]
+type = "integer"
+default = 200
+minimum = 1
+description = "Default number of lines `obs logs` returns (--limit overrides)."
+
+[requires.config."obs.max_bytes"]
+type = "integer"
+default = 65536
+minimum = 1024
+description = "Default output cap in bytes (--max-bytes overrides); `dashboards --export` refuses larger files."
+
+[requires.config."obs.redact_extra_re"]
+type = "string"
+default = ""
+description = "Extra Python regex of token shapes every obs output redacts in addition to the built-in list; compiled on its own, so a leading global flag such as (?i) works. OBS_REDACT_EXTRA_RE."
+example = "(?i)x-internal-token=[^ ]+"
+
+[requires.secrets.obs_keys]
+where = "~/.config/obs/*.key"
+written_by = "human (a Viewer-role API key or service-account token pasted from each backend's UI)"
+mode = "0600"
+description = "One key file per backend, named in obs.backends auth_file. The obs CLI sends it as SIGNOZ-API-KEY (SigNoz) or a bearer token (Grafana, Prometheus behind a proxy); `obs backends` reports presence and mode, never the content."
+rotate = "docs/runbooks/rotate-obs-key.md"
+
+[provides]
+rules = ["rules/32-obs.md"]
+skills = ["skills/obs"]
+skill_fragments = []
+agents = ["agents/obs-triage.md"]
+guard_rules = ["guard.d/32-obs.sh"]
+permissions = "permissions.toml"
+mcp = ""
+bin = [{ name = "obs", target = "skills/obs/scripts/obs.py" }]
+
+[provides.env]
+OBS_HOSTS_RE = "{{ obs.hosts_re }}"
+OBS_PROD_RE = "{{ obs.prod_re }}"
+OBS_REDACT_EXTRA_RE = "{{ obs.redact_extra_re }}"
+
+[[manual_steps]]
+id = "configure-backends"
+title = "Describe your observability backends in local/harness.toml"
+once_per = "machine"
+needs = []
+minutes = 5
+why = "The obs CLI only talks to backends you list, by URL; the guard asks on raw requests to their hosts."
+how = """
+Add one table per backend to `local/harness.toml` (documentation values shown):
+```
+[obs]
+default = "signoz-dev"
+hosts_re = '^(signoz|grafana)\\.example\\.com$'
+
+[[obs.backends]]
+name = "signoz-dev"
+kind = "signoz"                      # signoz | prometheus | grafana
+url = "https://signoz.example.com"
+auth_file = "~/.config/obs/signoz-dev.key"
+
+[[obs.backends]]
+name = "grafana"
+kind = "grafana"
+url = "https://grafana.example.com"
+auth_file = "~/.config/obs/grafana.key"
+```
+Never put a key in this file. Then run `harness apply` and `obs backends`.
+"""
+[manual_steps.verify]
+cmd = "obs backends --names | grep -q ."
+expect = { exit = 0 }
+unblocks = ["obs-backends", "obs-hosts-re"]
+
+[[manual_steps]]
+id = "obs-api-key"
+title = "Create a read-only API key per backend"
+once_per = "account"
+needs = ["browser"]
+minutes = 5
+why = "The CLI authenticates with a key file you write; a Viewer-role key keeps every agent read inherently read-only on the backend side too."
+how = """
+1. Create the key in each backend's UI with the **Viewer** role:
+   SigNoz *Settings → API Keys*; Grafana *Administration → Service accounts* (Viewer, add a token);
+   Prometheus needs one only behind an authenticating proxy.
+2. Write it without it passing through your shell history:
+   ```
+   install -d -m 700 ~/.config/obs
+   install -m 600 /dev/null ~/.config/obs/signoz-dev.key
+   ${EDITOR:-vi} ~/.config/obs/signoz-dev.key      # paste the key, save
+   ```
+3. `obs backends --probe` shows `auth ok` per backend.
+"""
+[manual_steps.verify]
+cmd = "obs backends --json >/dev/null 2>&1; test $? -ne 2"
+expect = { exit = 0 }
+unblocks = ["obs-keys", "obs-reach"]
+
+[[doctor_checks]]
+id = "obs-cli"
+title = "obs CLI on PATH"
+severity = "fail"
+cmd = "command -v obs >/dev/null && obs --help >/dev/null"
+expect = { exit = 0 }
+offline_skip = false
+fix = "harness apply"
+
+[[doctor_checks]]
+id = "obs-backends"
+title = "at least one observability backend configured"
+severity = "warn"
+cmd = "obs backends --names | grep -q ."
+expect = { exit = 0 }
+offline_skip = false
+fix = "configure-backends"
+
+[[doctor_checks]]
+id = "obs-keys"
+title = "every backend's key file exists"
+severity = "fail"
+cmd = "obs backends --json >/dev/null 2>&1; test $? -ne 2"
+expect = { exit = 0 }
+offline_skip = false
+fix = "obs-api-key"
+
+[[doctor_checks]]
+id = "obs-hosts-re"
+title = "obs.hosts_re is a POSIX ERE covering every configured backend"
+severity = "warn"
+cmd = "! obs backends --json 2>/dev/null | grep -q '\"kind\": \"hosts_re\"'"
+expect = { exit = 0 }
+offline_skip = false
+fix = "configure-backends"
+
+[[doctor_checks]]
+id = "obs-reach"
+title = "every backend reachable and accepts its key"
+severity = "warn"
+cmd = "obs backends --probe --json >/dev/null 2>&1; test $? -ne 2"
+expect = { exit = 0 }
+timeout = 60
+offline_skip = true
+fix = "obs-api-key"
+
+[uninstall]
+keeps = ["~/.config/obs/**"]
+notes = "The key files are yours; uninstall removes only the rendered skill, agent, rule and guard section."
+
+# Component taxonomy (docs/reference/taxonomy.md): bundle defaults, then per-component overrides.
+[taxonomy]
+domain = "operations"
+posture = "read-only"
+function = "client"
+
+[taxonomy.components]
+"agents/obs-triage" = { function = "investigate" }
+
+# Guides steer the agent before it acts; sensors detect at or after the action (principle 6).
+[harness]
+coverage_note = "The CLI's own HTTP calls are not shell commands and are not guarded; the suite's dry-run request log is the read-only proof. Backends reached outside the CLI are not sensed. `obs lint` checks shape, not alert semantics."
+guides = [
+  { kind = "rule", ref = "rules/32-obs.md", note = "read-only, obs backends first, bounded and redacted reads, alert rules and dashboards change as repo files" },
+  { kind = "skill", ref = "skills/obs", note = "the obs CLI: backends, query, logs, traces, services, alerts, dashboards, lint" },
+  { kind = "permission", ref = "permissions.toml", note = "obs and read-only rule tooling allowed, alert-state changes ask, key files denied to Read" },
+  { kind = "agent", ref = "agents/obs-triage.md", note = "read-only signal triage that hands remediations to the human" },
+]
+sensors = [
+  { kind = "guard", ref = "guard.d/32-obs.sh", note = "key files, literal API keys, raw backend requests, amtool/logcli/grafana-cli" },
+  { kind = "doctor", ref = "doctor_checks", note = "the CLI, backends, key files, hosts_re and reachability" },
+  { kind = "test", ref = "guard.d/tests.sh", note = "guard rows incl. bypasses and the operations yield" },
+  { kind = "test", ref = "tests/run.sh", note = "this bundle's rows against core + obs only" },
+  { kind = "test", ref = "skills/obs/scripts/tests/run.sh", note = "the obs CLI against fixture-routed HTTP, incl. the dry-run request allow-list" },
+  { kind = "review-agent", ref = "agents/obs-triage.md", note = "evidence-cited triage of firing alerts, logs and traces" },
+]

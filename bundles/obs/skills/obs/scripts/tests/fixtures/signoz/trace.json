@@ -1,0 +1,85 @@
+[
+  {
+    "method": "POST",
+    "url": "https://signoz(-prod)?\\.example\\.com/api/v5/query_range$",
+    "body": {
+      "status": "success",
+      "data": {
+        "type": "raw",
+        "data": {
+          "results": [
+            {
+              "queryName": "A",
+              "nextCursor": "",
+              "rows": [
+                {
+                  "timestamp": "2026-01-15T10:00:05.000Z",
+                  "data": {
+                    "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+                    "span_id": "00f067aa0ba902b7",
+                    "parent_span_id": "",
+                    "name": "POST /checkout",
+                    "duration_nano": 1840000000,
+                    "has_error": true,
+                    "service.name": "checkout",
+                    "attributes_string": {
+                      "http.route": "/checkout"
+                    }
+                  }
+                },
+                {
+                  "timestamp": "2026-01-15T10:00:05.010Z",
+                  "data": {
+                    "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+                    "span_id": "00f067aa0ba902b8",
+                    "parent_span_id": "00f067aa0ba902b7",
+                    "name": "charge",
+                    "duration_nano": 1700000000,
+                    "has_error": true,
+                    "service.name": "payments",
+                    "attributes_string": {
+                      "db.statement": "select 1",
+                      "db.password": "hunter2"
+                    }
+                  }
+                },
+                {
+                  "timestamp": "2026-01-15T10:00:05.020Z",
+                  "data": {
+                    "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+                    "span_id": "00f067aa0ba902b9",
+                    "parent_span_id": "00f067aa0ba902b8",
+                    "name": "SELECT cards",
+                    "duration_nano": 1500000000,
+                    "has_error": false,
+                    "service.name": "payments",
+                    "attributes_string": {
+                      "http.request.header.authorization": "Bearer test-bearer-0123456789abcdef"
+                    }
+                  }
+                },
+                {
+                  "timestamp": "2026-01-15T10:00:05.030Z",
+                  "data": {
+                    "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+                    "span_id": "00f067aa0ba902ba",
+                    "parent_span_id": "00f067aa0ba902b7",
+                    "name": "reserve stock",
+                    "duration_nano": 40000000,
+                    "has_error": false,
+                    "service.name": "inventory"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "meta": {
+          "rowsScanned": 42,
+          "bytesScanned": 4096,
+          "durationMs": 12
+        }
+      }
+    }
+  }
+]

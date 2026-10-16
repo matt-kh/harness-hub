@@ -1,0 +1,44 @@
+{
+  "groups": [
+    {
+      "name": "api.rules",
+      "rules": [
+        {
+          "alert": "ApiDown",
+          "expr": "up{job=\"api\", instance=\"192.0.2.1:9100\"} == 0",
+          "labels": {},
+          "annotations": {}
+        },
+        {
+          "alert": "ApiSlow",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket[5m]))) > 1",
+          "for": "5m",
+          "labels": {
+            "severity": "warning"
+          },
+          "annotations": {
+            "summary": "p99 above 1s",
+            "runbook_url": "https://runbooks.example.com/api-slow"
+          }
+        }
+      ]
+    },
+    {
+      "name": "dup.rules",
+      "rules": [
+        {
+          "alert": "ApiSlow",
+          "expr": "vector(1)",
+          "for": "5m",
+          "labels": {
+            "severity": "warning"
+          },
+          "annotations": {
+            "summary": "dup",
+            "runbook_url": "https://runbooks.example.com/x"
+          }
+        }
+      ]
+    }
+  ]
+}

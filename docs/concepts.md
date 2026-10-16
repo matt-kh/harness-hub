@@ -97,7 +97,7 @@ way ([taxonomy](reference/taxonomy.md)):
   `core/guard.d/30-git`, `jira/mcp/jira-mcp`; bundles are bare (`k8s`), providers and
   profiles are `providers/<p>` and `profiles/<p>`. Ids are stable; nothing is renamed to fit.
 - **Declared facets**, in the bundle's `[taxonomy]` table only: **domain** (base, scm,
-  tracker, delivery, kubernetes, workspace), **function** (govern, client, workflow,
+  tracker, delivery, kubernetes, workspace, operations), **function** (govern, client, workflow,
   investigate, plan, execute, review, setup) and **posture**, the strongest effect without a
   human prompt (read-only < local < label-gated). The bundle sets defaults; overrides name a
   component by its id without the bundle prefix.

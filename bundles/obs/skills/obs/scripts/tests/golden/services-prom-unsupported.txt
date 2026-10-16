@@ -1,0 +1,6 @@
+# exit=3
+# stderr:
+backend=prom kind=prometheus url=prometheus.example.com
+services (RED per service) is not available on a prometheus backend (prom) — use `obs query` with your RED metrics, e.g. sum by (service) (rate(http_server_requests_total[5m]))
+# stdout:
+# calls:

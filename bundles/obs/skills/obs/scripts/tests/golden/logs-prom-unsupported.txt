@@ -1,0 +1,6 @@
+# exit=3
+# stderr:
+backend=prom kind=prometheus url=prometheus.example.com
+logs is not available on a prometheus backend (prom) — use a grafana backend with a Loki datasource, or `k8s pod NS POD` for container logs
+# stdout:
+# calls:

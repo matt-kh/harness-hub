@@ -1,0 +1,27 @@
+# exit=0
+# stderr:
+backend=grafana kind=grafana url=grafana.example.com
+>> POST https://grafana.example.com/api/ds/query {"from": "EPOCH_MS", "queries": [{"datasource": {"uid": "loki-ds"}, "expr": "{service_name=\"checkout\"} |= \"timeout\"", "maxLines": 200, "queryType": "range", "refId": "A"}], "to": "EPOCH_CUT
+# stdout:
+# obs logs — grafana (grafana)
+
+## Findings (0)
+
+none
+
+## filter
+
+timeout
+
+## limit
+
+200
+
+## lines
+
+| time | service | severity | body |
+|---|---|---|---|
+| TIMESTAMP | checkout | error | token=***REDACTED*** |
+| TIMESTAMP | checkout | error | timeout calling payments |
+# calls:
+POST https://grafana.example.com/api/ds/query auth=yes

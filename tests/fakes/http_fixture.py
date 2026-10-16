@@ -32,7 +32,7 @@ Observability (never header values, never credentials):
            characters, with the values of form or JSON keys that look like credentials
            (token, secret, password, verifier, code) replaced by REDACTED
   --log    one line ``METHOD URL auth=yes|no`` per request, appended to FILE; ``auth``
-           says whether an Authorization header was sent
+           says whether an Authorization header (or an ``*-API-KEY`` header) was sent
 """
 import importlib.util
 import io
@@ -106,7 +106,7 @@ class Router:
             request = urllib.request.Request(request, data=data)
         method = request.get_method()
         url = request.full_url
-        authed = bool(request.get_header("Authorization"))
+        authed = any(k.lower() == "authorization" or "api-key" in k.lower() for k, _v in request.header_items())
         body = _redact_body(request.data)
         print(f">> {method} {url}{' ' + body if body else ''}", file=sys.stderr)
         if self.log:

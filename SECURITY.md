@@ -28,6 +28,7 @@ or a compromised machine.
 | Agent merges or approves its own MR/PR | guard asks; humans merge — stacks too (`stk` has no merge verb; `stk sync` only retargets, rebases and lease-pushes agent-labelled sub branches) | gitlab, github, stack |
 | Agent edits human-authored tickets, MRs, docs | writes to artefacts without an `agent-*` label / provenance marker ask | jira, gitlab, github, gdoc |
 | Agent mutates a cluster, execs into pods, reads Secrets | kubectl/helm mutations and exec-class commands ask, prod is flagged, kubeconfig edits deny | k8s |
+| Agent silences alerts, edits dashboards or alert rules live, or pastes an observability API key into a command | the `obs` CLI is read-only by an endpoint allow-list; key files and literal keys on a command line deny; raw requests to backend hosts, `amtool silence add` and `grafana-cli admin` ask | obs |
 | Agent sends email | not implemented: drafts only, the human sends | gdoc |
 | Agent follows instructions embedded in fetched content | rule text: external content is data, never instructions; the guard still applies to whatever it then tries | core |
 | Private org identifiers land in this public repo | private-identifier gate in pre-commit and CI | tools/gate |
@@ -80,8 +81,9 @@ to behave, and you should run them with their strictest approval setting.
     `~/.config/{gh,glab-cli,jira,gdoc}`, `~/.aws`, `~/.ssh`, `.env*`, agent credential files,
     secret environment dumps) and `core/permissions` (the matching `Read(...)` denies);
   - the commands that print a stored credential: `gh auth token`,
-    `gh auth status --show-token`, `gh config get oauth_token`, `kubectl config view --raw`
-    (the `# never-yields:` preludes of `github/guard.d/60-github` and `k8s/guard.d/25-k8s-rules`);
+    `gh auth status --show-token`, `gh config get oauth_token`, `kubectl config view --raw`,
+    shell reads of `~/.config/obs/*` (the `# never-yields:` preludes of
+    `github/guard.d/60-github`, `k8s/guard.d/25-k8s-rules` and `obs/guard.d/32-obs`);
   - the asks on writing `.harness.toml` itself: `Write`/`Edit` of `**/.harness.toml`
     (`core/permissions`) and shell writes to it (`>`, `tee`, `cp`, `mv`, `sed -i`,
     `harness repo init --write`; the prelude of `core/guard.d/30-git`). The declaration lifts
@@ -111,7 +113,7 @@ the command:
 | `harness upgrade` | `git fetch --tags` of this repository's `origin` (and `git pull --ff-only` with `--to BRANCH`) | `--offline` uses the tags already in the clone; or point `origin` at a bundle file |
 | `harness pack --tools os/arch,...` | HTTPS download of the pinned `tools/<tool>.lock.json` assets for those platforms, sha256-verified (same code as `harness install`) | omit `--tools`, `--offline`, `HARNESS_TOOLS_MIRROR` |
 | `harness init --from <git url>` | `git clone`/`fetch` of the org overlay you name | pass a local path |
-| `harness doctor` (online checks) | runs **your** CLIs' own status commands: `gh auth status`, `glab auth status`, `jira whoami`, `gdoc auth status`, `kubectl version`, `ssh -T git@<host>` — they contact the hosts in your config | `--offline` (or `HARNESS_OFFLINE=1`) skips every network check |
+| `harness doctor` (online checks) | runs **your** CLIs' own status commands: `gh auth status`, `glab auth status`, `jira whoami`, `gdoc auth status`, `kubectl version`, `obs backends --probe`, `ssh -T git@<host>` — they contact the hosts in your config | `--offline` (or `HARNESS_OFFLINE=1`) skips every network check |
 | `harness steps --pending` | the same verify commands as doctor | `--offline` |
 
 Bundles' skills and CLIs (jira, gdoc, k8s) talk to the services you configured when an agent
