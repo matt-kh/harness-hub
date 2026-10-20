@@ -1,6 +1,8 @@
 ## What and why
 
-<!-- One paragraph. Mention the issue as "#N"; never "Closes/Fixes/Resolves #N" (see CONTRIBUTING). -->
+Issue: #
+
+<!-- First line: the GitHub issue this PR builds on, as "Issue: #N" (or "no-issue: <reason>" for a trivial fix; the companion gate checks it). One paragraph after it. Mention the issue as "#N"; never "Closes/Fixes/Resolves #N" (see CONTRIBUTING). -->
 
 ## Principle(s) served
 
@@ -25,6 +27,7 @@
 - [ ] Scripts parse under bash 3.2 and avoid GNU-only tools (see CONTRIBUTING, "bash 3.2 rules")
 - [ ] `CHANGELOG.md` has an entry under `[Unreleased]` (with **Migration** if a config key changed)
 - [ ] Commit subjects carry no ticket keys and no closing keywords
+- [ ] The PR body names its issue as `#N` (or `no-issue: <reason>`), never after a closing keyword
 
 ## Manual verification
 

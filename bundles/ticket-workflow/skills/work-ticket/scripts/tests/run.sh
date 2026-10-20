@@ -37,6 +37,8 @@ tw_repo "$R/gl-bare"   "https://gitlab.example.com/group/repo.git" "$L/bare" noh
 tw_repo "$R/gl-owns"   "https://gitlab.example.com/group/repo.git" "$L/owns"
 tw_repo "$R/gl-skill"  "https://gitlab.example.com/group/repo.git" "$L/skill"
 tw_repo "$R/code"      "ssh://git@code.example.com:2222/group/repo.git" "$L/bare"
+tw_repo "$R/gh-trk"    "$GH_SSH"                                   "$L/tracker-jira"
+tw_repo "$R/gl-trkbad" "https://gitlab.example.com/group/repo.git" "$L/tracker-bad"
 mkdir -p "$R/norepo"
 snap() { local d; for d in "$R"/*/; do printf '== %s\n' "$d"; git -C "$d" for-each-ref --format='%(refname) %(objectname)' 2>/dev/null
          git -C "$d" status --porcelain 2>/dev/null; git -C "$d" config --get-regexp '^remote\.' 2>/dev/null | wc -l; done; }
@@ -72,6 +74,7 @@ t gh-no-issue            0 -                 "$R/gh-cred"   "$G"
 t gh-default-from-api    0 -                 "$R/gh-nohead" "$G" 7 feat-x
 YAML=json t gh-unparseable-workflow 0 -      "$R/gh-bad"    "$G" 7 feat-x
 t gh-protection-errors   0 gh-protection-errors "$R/gh-cred" "$G" 7 feat-x
+t gh-tracker-repo-jira   0 -                 "$R/gh-trk"    "$G" 7 feat-x
 
 # ------------------------------------------------------------------------- gitlab-preflight.sh
 B="$S/gitlab-preflight.sh"
@@ -82,6 +85,9 @@ t gl-api-down            0 gl-api-down       "$R/gl-bare"   "$B" feat-x
 t gl-no-ci-default-from-api 0 -              "$R/gl-bare"   "$B"
 t gl-repo-owns           0 -                 "$R/gl-owns"   "$B"
 t gl-repo-skill          0 -                 "$R/gl-skill"  "$B"
+HARNESS_CONFIG_JSON="$FIXT/config-trackers.json" \
+  t gl-tracker-config    0 -                 "$R/gl-bare"   "$B"
+t gl-tracker-invalid     0 -                 "$R/gl-trkbad" "$B"
 
 # ------------------------------------------------------------------------- issue-facts.sh
 I="$S/issue-facts.sh"
@@ -95,6 +101,8 @@ t if-pull-request        0 if-pull-request   "$R/gh-cred"   "$I" 21
 t if-unauth              0 gh-unauth         "$R/gh-cred"   "$I" 7
 t if-not-a-ref           1 -                 "$R/gh-cred"   "$I" abc
 t if-usage               1 -                 "$R/gh-cred"   "$I"
+HARNESS_CONFIG_JSON="$FIXT/config-trackers.json" \
+  t if-tracker-config    0 -                 "$R/gh-cred"   "$I" 7
 
 # ------------------------------------------------------------------------- jira-facts.sh
 J="$S/jira-facts.sh"
@@ -104,6 +112,7 @@ t jf-no-create           0 jf-no-create      "$R/norepo"    "$J" PROJ-123
 t jf-no-link-types       0 jf-no-link-types  "$R/norepo"    "$J" PROJ-123
 t jf-unreachable         0 jf-unreachable    "$R/norepo"    "$J" PROJ-123
 t jf-usage               1 -                 "$R/norepo"    "$J"
+t jf-tracker-repo        0 -                 "$R/gh-trk"    "$J" PROJ-123
 
 # ------------------------------------------------------------------------- lib/repo-facts.sh
 # rf_host / rf_provider over remote URL shapes (one golden table)
@@ -129,6 +138,39 @@ https-enterprise-host  https://github.example.com/owner/repo.git
 EOF
 } > "$tmp/rf-hosts.txt"
 tw_norm "$tmp/rf-hosts.txt"; record rf-hosts "$tmp/rf-hosts.txt"
+
+# rf_remote_id / rf_tracker over remote URL shapes x declaration sources (one golden table):
+# none (host heuristic), the user's ticket_workflow.trackers, .harness.toml [repo] tracker
+# (valid, invalid). The declaration wins over the config, the config over the host.
+tw_repo "$tmp/rt" "https://example.com/x.git" "$L/bare"
+{
+  while read -r shape url; do
+    git -C "$tmp/rt" remote set-url origin "$url"
+    for src in none config repo-jira repo-invalid; do
+      cfg=/dev/null; rm -f "$tmp/rt/.harness.toml"
+      case "$src" in
+        config)       cfg="$FIXT/config-trackers.json" ;;
+        repo-jira)    cfg="$FIXT/config-trackers.json"; cp "$L/tracker-jira/dot-harness.toml" "$tmp/rt/.harness.toml" ;;
+        repo-invalid) cp "$L/tracker-bad/dot-harness.toml" "$tmp/rt/.harness.toml" ;;
+      esac
+      got=$(cd "$tmp/rt" && HARNESS_CONFIG_JSON=$cfg bash -c '. "$1"; rf_tracker "$(rf_root)"' _ "$rf" 2>&1)
+      printf '%-22s | %-12s | %s\n' "$shape" "$src" "$got"
+    done
+  done <<EOF
+scp-ssh                $GH_SSH
+https-credentialed     $GH_CRED
+ssh-port-443           ssh://git@ssh.github.com:443/owner/repo.git
+https-www-no-suffix    https://www.github.com/owner/repo
+https-mixed-case       https://GitLab.Example.com/group/repo.git
+scp-ssh-subgroup       git@gitlab.example.com:group/sub/repo.git
+ssh-custom-port        ssh://git@code.example.com:2222/group/repo.git
+https-custom-port      https://code.example.com:8443/other/repo.git/
+https-enterprise-host  https://github.example.com/owner/repo.git
+local-path             /srv/git/repo.git
+EOF
+} > "$tmp/rf-tracker.txt"
+rm -f "$tmp/rt/.harness.toml"
+tw_norm "$tmp/rf-tracker.txt"; record rf-tracker "$tmp/rf-tracker.txt"
 
 # repo_owns / repo_skill detection (principle 8), formerly in bundles/ticket-workflow/tests/run.sh
 rp="$tmp/rf-repo"; mkdir -p "$rp/.claude/skills/ship" "$rp/.claude/skills/look" "$rp/sub"

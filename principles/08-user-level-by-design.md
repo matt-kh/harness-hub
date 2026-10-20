@@ -36,8 +36,9 @@ instruction wins.
 ## What it means in this repo
 
 - **A declaration file.** `.harness.toml` at the repository root, provider-neutral,
-  committed: `[owns] domains`, `[owns] components` (taxonomy ids) and `[overrides]`
-  (allow-listed names) — [ARCHITECTURE §11](../ARCHITECTURE.md#11-repository-level-declaration-harnesstoml),
+  committed: `[owns] domains`, `[owns] components` (taxonomy ids), `[overrides]`
+  (allow-listed names) and `[repo] tracker` (the repository's source of truth for tickets,
+  which wins over the developer's `ticket_workflow.trackers` and the host) — [ARCHITECTURE §11](../ARCHITECTURE.md#11-repository-level-declaration-harnesstoml),
   [repository-level harnesses](../docs/repo-level.md).
 - **Every component carries a `yields` facet**, derived from its kind:
   `declaration` (reads `.harness.toml`: skills, guard sections), `name` (the provider

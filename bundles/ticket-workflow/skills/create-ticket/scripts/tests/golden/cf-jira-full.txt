@@ -110,7 +110,13 @@
     "cli"
   ],
   "repo_declaration": null,
-  "repo_owns": false
+  "repo_owns": false,
+  "tracker": {
+    "tracker": null,
+    "tracker_source": null,
+    "project": null,
+    "remote_id": null
+  }
 }
 # calls:
 jira whoami

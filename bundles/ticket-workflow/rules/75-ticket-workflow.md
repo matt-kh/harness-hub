@@ -4,6 +4,10 @@
   CI lacks, MRs/PRs that mention the key and never close it. It yields to a repository-level
   ticket workflow (declared in `.harness.toml` or found at preflight) after its read-only
   preflight (principle 8).
+- The tracker of a repository is declared, never guessed from the host: `.harness.toml [repo]
+  tracker`, else `ticket_workflow.trackers` in the harness config, else the host (github.com →
+  issues, GitLab → Jira); the facts scripts report which. A mismatch between the argument and the
+  declaration stops the skill.
 - The guard asks on branch names and commit subjects that carry a ticket key; a repository whose
   convention puts keys there sets `WORK_TICKET_KEY_IN_BRANCH = "1"` in `.harness.toml`
   `[overrides]` (a provider `env` override of the same name also works).

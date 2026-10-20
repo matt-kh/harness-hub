@@ -1,0 +1,14 @@
+# exit=0
+# stderr:
+# stdout:
+{
+  "tracker": {
+    "tracker": "github-issues",
+    "tracker_source": "host",
+    "project": null,
+    "remote_id": "github.com/owner/repo"
+  },
+  "repo_declaration": null,
+  "repo_owns": false
+}
+# calls:

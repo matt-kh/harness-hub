@@ -84,6 +84,12 @@
   "repo_skill": null,
   "repo_declaration": null,
   "repo_owns": false,
+  "tracker": {
+    "tracker": "github-issues",
+    "tracker_source": "host",
+    "project": null,
+    "remote_id": "github.com/owner/repo"
+  },
   "warnings": [
     "gh auth status failed: gh not installed "
   ]

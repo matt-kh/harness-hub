@@ -21,7 +21,7 @@ loop. Agents: start with [AGENTS.md](AGENTS.md).
   | [3 Platform for everyone](principles/03-platform-for-everyone.md) | private-identifier gate, template key lint |
   | [4 Install as a platform](principles/04-install-as-a-platform.md) | offline bootstrap smoke test |
   | [5 Distributed as a git repo](principles/05-distributed-as-a-git-repo.md) | `tests/smoke/pack.sh` |
-  | [6 Harness engineering](principles/06-harness-engineering.md) | `harness lint` guides/sensors pairing and taxonomy checks, guard test rows, companion-file gate (rows, CHANGELOG entry) |
+  | [6 Harness engineering](principles/06-harness-engineering.md) | `harness lint` guides/sensors pairing and taxonomy checks, guard test rows, companion-file gate (rows, CHANGELOG entry, README, issue reference), `ticket-workflow-trackers` doctor check |
   | [7 Extensible core](principles/07-extensible-core.md) | PR template, CHANGELOG "Principles" entries |
   | [8 User-level by design](principles/08-user-level-by-design.md) | `harness lint` `yields` rule, guard rows for `.harness.toml` yield, `harness repo` unit test |
   | [9 Deterministic by construction](principles/09-deterministic-by-construction.md) | render-determinism smoke, guard build `cmp`, pack unit tests, create-ticket and k8s goldens, `harness lint` `stability`, section-75 guard rows |
@@ -237,6 +237,13 @@ macOS ships bash 3.2 and BSD userland; CI parses every script with `/bin/bash -n
 ## Commits and pull requests
 
 - Work on a branch and open a PR; nothing is pushed to `main` directly.
+- **Issues are the source of truth.** Every change beyond a typo starts from a GitHub Issue on
+  this repository (agents: `/create-ticket` drafts it with `agent-drafted`; a maintainer
+  confirms it and adds `agent-worked` before an agent works it). The branch and PR come from
+  `/work-ticket #N`, and the PR body names the issue on its first line, `Issue: #N` — a
+  mention, never a closing keyword. The companion-file gate (check `issue`) fails a PR body
+  without a reference; a trivial fix writes `no-issue: <reason>` instead. `.harness.toml` at the
+  root declares this (`[repo] tracker = "github-issues"`).
 - **No ticket keys in commit subjects or branch names** (mention them in the body), and
   **no closing keywords anywhere** — write "#12" or "see #12", never "Closes #12",
   "Fixes #12" or "Resolves #12". This project's own guard denies them for agents, and

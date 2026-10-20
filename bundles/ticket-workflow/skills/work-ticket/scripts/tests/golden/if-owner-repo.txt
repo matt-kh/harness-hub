@@ -45,7 +45,13 @@
   },
   "existing_children": [],
   "sub_issues": [],
-  "sub_tickets_available": false
+  "sub_tickets_available": false,
+  "tracker": {
+    "tracker": "github-issues",
+    "tracker_source": "host",
+    "project": null,
+    "remote_id": "github.com/owner/repo"
+  }
 }
 # calls:
 gh auth status --hostname github.com

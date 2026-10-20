@@ -1,0 +1,7 @@
+{"ticket_workflow": {"trackers": [
+  {"match": "^github\\.com/(", "tracker": "github-issues"},
+  {"match": "^github\\.com/owner/", "tracker": "github-issues"},
+  {"match": "^gitlab\\.example\\.com/", "tracker": "jira", "project": "PROJ"},
+  {"match": "^code\\.example\\.com/group/", "tracker": "jira"},
+  {"match": "^github\\.example\\.com/", "tracker": "github-issues", "project": "PROJ"}
+]}}
