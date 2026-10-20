@@ -1,0 +1,56 @@
+[
+  {
+    "method": "POST",
+    "url": "https://grafana\\.example\\.com/api/ds/query$",
+    "body": {
+      "results": {
+        "A": {
+          "status": 200,
+          "frames": [
+            {
+              "schema": {
+                "refId": "A",
+                "fields": [
+                  {
+                    "name": "labels",
+                    "type": "other"
+                  },
+                  {
+                    "name": "Time",
+                    "type": "time"
+                  },
+                  {
+                    "name": "Line",
+                    "type": "string"
+                  }
+                ]
+              },
+              "data": {
+                "values": [
+                  [
+                    {
+                      "service_name": "checkout",
+                      "level": "error"
+                    },
+                    {
+                      "service_name": "checkout",
+                      "level": "error"
+                    }
+                  ],
+                  [
+                    1768471203000,
+                    1768471202000
+                  ],
+                  [
+                    "token=abcd1234efgh5678 rejected by gateway",
+                    "timeout calling payments"
+                  ]
+                ]
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+]

@@ -1,0 +1,8 @@
+# exit=1
+# stderr:
+backend=signoz-dev kind=signoz url=signoz.example.com
+exists.json already exists — nothing fetched or written; pass --force to overwrite it, or export to a new file and diff the two
+# stdout:
+# calls:
+# file:
+keep me

@@ -1,0 +1,168 @@
+[
+  {
+    "method": "GET",
+    "url": "https://prometheus\\.example\\.com/api/v1/status/buildinfo$",
+    "body": {
+      "status": "success",
+      "data": {
+        "version": "3.5.0",
+        "revision": "0000000",
+        "branch": "HEAD",
+        "goVersion": "go1.24.4"
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "url": "https://prometheus\\.example\\.com/api/v1/query_range\\?",
+    "body": {
+      "status": "success",
+      "data": {
+        "resultType": "matrix",
+        "result": [
+          {
+            "metric": {
+              "__name__": "up",
+              "job": "api",
+              "instance": "192.0.2.1:9100"
+            },
+            "values": [
+              [
+                1768471200,
+                "1"
+              ],
+              [
+                1768471260,
+                "1"
+              ],
+              [
+                1768471320,
+                "0"
+              ]
+            ]
+          },
+          {
+            "metric": {
+              "__name__": "up",
+              "job": "db",
+              "instance": "192.0.2.2:9100"
+            },
+            "values": [
+              [
+                1768471200,
+                "1"
+              ],
+              [
+                1768471260,
+                "1"
+              ],
+              [
+                1768471320,
+                "1"
+              ]
+            ]
+          }
+        ]
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "url": "https://prometheus\\.example\\.com/api/v1/query\\?",
+    "body": {
+      "status": "success",
+      "data": {
+        "resultType": "vector",
+        "result": [
+          {
+            "metric": {
+              "__name__": "up",
+              "job": "api",
+              "instance": "192.0.2.1:9100"
+            },
+            "value": [
+              1768471320,
+              "0"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "url": "https://prometheus\\.example\\.com/api/v1/rules$",
+    "body": {
+      "status": "success",
+      "data": {
+        "groups": [
+          {
+            "name": "api.rules",
+            "file": "/etc/prometheus/rules/api.yaml",
+            "interval": 30,
+            "rules": [
+              {
+                "state": "firing",
+                "name": "ApiDown",
+                "query": "up{job=\"api\"} == 0",
+                "duration": 300,
+                "labels": {
+                  "severity": "critical"
+                },
+                "annotations": {
+                  "summary": "api down"
+                },
+                "alerts": [],
+                "health": "ok",
+                "type": "alerting"
+              },
+              {
+                "name": "job:up:sum",
+                "query": "sum by (job) (up)",
+                "health": "ok",
+                "type": "recording"
+              },
+              {
+                "state": "inactive",
+                "name": "ApiSlow",
+                "query": "histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket[5m]))) > 1",
+                "duration": 600,
+                "labels": {
+                  "severity": "warning"
+                },
+                "annotations": {},
+                "alerts": [],
+                "health": "ok",
+                "type": "alerting"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "url": "https://prometheus\\.example\\.com/api/v1/alerts$",
+    "body": {
+      "status": "success",
+      "data": {
+        "alerts": [
+          {
+            "labels": {
+              "alertname": "ApiDown",
+              "severity": "critical",
+              "job": "api"
+            },
+            "annotations": {
+              "summary": "api down"
+            },
+            "state": "firing",
+            "activeAt": "2026-01-15T09:50:00Z",
+            "value": "0e+00"
+          }
+        ]
+      }
+    }
+  }
+]

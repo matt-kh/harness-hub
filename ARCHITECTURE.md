@@ -262,7 +262,7 @@ Rules:
   `core/permissions`; a declaration guard section starts with
   `repo_owns <id> <domain> && return 0` (§5, §11).
 - Numeric prefixes order rule fragments and guard sections across bundles
-  (`10` k8s, `20` credentials, `25` k8s rules, `30` git, `40`/`41` closing keywords
+  (`10` k8s, `20` credentials, `25` k8s rules, `30` git, `32` obs, `40`/`41` closing keywords
   (gitlab/github), `50` gitlab, `60` github, `65` stack, `70` jira, `75` ticket workflow, `80` gdoc,
   `90+` private); a rule and the guard section that enforces it share `NN-<topic>`.
   Bands reserved for planned bundles are listed in [docs/roadmap.md](docs/roadmap.md).
@@ -557,7 +557,7 @@ committed ([principle 8](principles/08-user-level-by-design.md); authors' guide:
   `project` (Jira only: `/create-ticket`'s default project). The ticket-workflow facts scripts
   report the result as `tracker` with its `tracker_source` (`repo`, `config`, `host`).
 - **`[owns] domains`** — taxonomy domain values (`base`, `scm`, `tracker`, `delivery`,
-  `kubernetes`, `workspace`); every component in an owned domain yields there.
+  `kubernetes`, `workspace`, `operations`); every component in an owned domain yields there.
 - **`[owns] components`** — catalog ids (`core/guard.d/30-git`,
   `ticket-workflow/skills/work-ticket`).
 - **`[overrides]`** — allow-listed `WORK_TICKET_*` names with string values: exactly the
@@ -579,8 +579,8 @@ committed ([principle 8](principles/08-user-level-by-design.md); authors' guide:
   `**/.harness.toml` ask (`core/permissions`) and shell writes to it ask (the
   `core/guard.d/30-git` prelude); neither yields.
 - **Credential exemption.** `core/guard.d/20-credentials`, `core/permissions` and the
-  `# never-yields:` preludes (in `github/guard.d/60-github` and `k8s/guard.d/25-k8s-rules`
-  the commands that print a stored credential) never yield; naming them, or the domain
+  `# never-yields:` preludes (in `github/guard.d/60-github`, `k8s/guard.d/25-k8s-rules` and
+  `obs/guard.d/32-obs` the commands that print a stored credential) never yield; naming them, or the domain
   `base`, in `[owns]` has no effect on them.
 - Changing the allow-list or the file's keys is a contract change: schema bump and a
   CHANGELOG Migration paragraph.

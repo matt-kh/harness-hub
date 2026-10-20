@@ -1,0 +1,5 @@
+# exit=2
+# stderr:
+backend signoz-dev: url must not carry credentials; put them in auth_file (a key file under ~/.config/obs, mode 0600) and remove the user:password@ part from the url
+# stdout:
+# calls:

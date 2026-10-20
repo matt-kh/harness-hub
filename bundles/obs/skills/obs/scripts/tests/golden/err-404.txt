@@ -1,0 +1,8 @@
+# exit=2
+# stderr:
+backend=signoz-dev kind=signoz url=signoz.example.com
+>> GET https://signoz.example.com/api/v1/alerts
+signoz-dev answered 404 for GET https://signoz.example.com/api/v1/alerts: not found: endpoint unsupported by this version or resource missing — check the name or id you passed, and `obs backends --probe` for the version
+# stdout:
+# calls:
+GET https://signoz.example.com/api/v1/alerts auth=yes

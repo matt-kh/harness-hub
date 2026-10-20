@@ -1,0 +1,21 @@
+# Claude Code permission rules contributed by bundle `obs` (merged into settings.json
+# `permissions` by the claude provider; other providers translate what they can).
+# The obs CLI and read-only rule/alert tooling allowed, alert-state and Grafana admin changes ask,
+# API key files denied to the Read tool (the guard's 32-obs section is the authoritative check).
+
+[permissions]
+allow = [
+  "Bash(amtool alert query:*)",
+  "Bash(amtool silence query:*)",
+  "Bash(obs:*)",
+  "Bash(promtool check:*)",
+  "Bash(promtool test:*)",
+]
+ask = [
+  "Bash(amtool silence add:*)",
+  "Bash(amtool silence expire:*)",
+  "Bash(grafana-cli admin:*)",
+]
+deny = [
+  "Read(~/.config/obs/**)",
+]

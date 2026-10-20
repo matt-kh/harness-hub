@@ -1,0 +1,5 @@
+# exit=1
+# stderr:
+OBS_REDACT_EXTRA_RE / obs.redact_extra_re is not a valid Python regex (missing ), unterminated subpattern at position 1); fix or unset it (a global flag such as (?i) must come first)
+# stdout:
+# calls:

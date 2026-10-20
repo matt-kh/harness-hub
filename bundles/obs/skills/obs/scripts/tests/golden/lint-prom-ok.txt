@@ -1,0 +1,15 @@
+# exit=0
+# stderr:
+# stdout:
+# obs lint
+
+## Findings (0)
+
+none
+
+## files
+
+| file | kind |
+|---|---|
+| lint/rules-ok.json | prometheus-rules |
+# calls:

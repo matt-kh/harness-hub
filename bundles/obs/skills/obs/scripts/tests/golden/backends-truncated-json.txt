@@ -1,0 +1,46 @@
+# exit=0
+# stderr:
+# stdout:
+{
+  "backend": "",
+  "kind": "",
+  "prod": false,
+  "generated_at": "TIMESTAMP",
+  "command": "backends",
+  "findings": [],
+  "data": {
+    "default": "signoz-dev",
+    "hosts_re": "^(signoz|signoz-prod|grafana|prometheus)\\.example\\.com$",
+    "backends": [
+      {
+        "name": "signoz-dev",
+        "kind": "signoz",
+        "host": "signoz.example.com",
+        "key": "ok",
+        "default": true,
+        "prod": false
+      },
+      {
+        "name": "signoz-prod",
+        "kind": "signoz",
+        "host": "signoz-prod.example.com",
+        "key": "ok",
+        "default": false,
+        "prod": true
+      },
+      {
+        "name": "prom",
+        "kind": "prometheus",
+        "host": "prometheus.example.com",
+        "key": "none",
+        "default": false,
+        "prod": false
+      }
+    ]
+  },
+  "truncated": {
+    "items_dropped": 1,
+    "max_bytes": 900
+  }
+}
+# calls:

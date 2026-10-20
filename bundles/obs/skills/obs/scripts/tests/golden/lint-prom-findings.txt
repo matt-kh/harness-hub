@@ -1,0 +1,22 @@
+# exit=1
+# stderr:
+# stdout:
+# obs lint
+
+## Findings (6)
+
+| sev | kind | name | message |
+|---|---|---|---|
+| warn | description | lint/rules-bad.json:7 | alert ApiDown has no description/summary annotation — say what is wrong and for whom |
+| warn | duplicate | lint/rules-bad.json:30 | alert ApiSlow is also defined at lint/rules-bad.json:13 — give each alert a unique name |
+| warn | for | lint/rules-bad.json:7 | alert ApiDown has no `for:` — add `for: 5m` (or longer) so one bad scrape does not page |
+| warn | hardcoded | lint/rules-bad.json:7 | alert ApiDown pins instance="…" in its expression — aggregate `by (instance)` instead so the rule covers every instance |
+| warn | runbook | lint/rules-bad.json:7 | alert ApiDown has no runbook_url annotation — link the runbook the responder should open |
+| warn | severity | lint/rules-bad.json:7 | alert ApiDown has no severity label — add `labels: {severity: warning\|critical}` so routing works |
+
+## files
+
+| file | kind |
+|---|---|
+| lint/rules-bad.json | prometheus-rules |
+# calls:

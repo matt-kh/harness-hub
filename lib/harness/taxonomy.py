@@ -55,6 +55,7 @@ FACETS: Dict[str, "OrderedDict[str, str]"] = {
         ("delivery", "ticket-to-merge workflow spanning tracker and SCM"),
         ("kubernetes", "clusters, Helm, GitOps, IaC targeting them"),
         ("workspace", "docs, drive, sheets, mail"),
+        ("operations", "running systems: signals, incidents, reliability targets"),
     ]),
     "function": OrderedDict([
         ("govern", "constrains the agent and says what to do instead"),

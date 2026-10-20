@@ -26,7 +26,7 @@
       "properties": {
         "domains": {
           "type": "array", "uniqueItems": true,
-          "items": {"type": "string", "enum": ["base", "scm", "tracker", "delivery", "kubernetes", "workspace"]},
+          "items": {"type": "string", "enum": ["base", "scm", "tracker", "delivery", "kubernetes", "workspace", "operations"]},
           "description": "Taxonomy domains (docs/reference/taxonomy.md). `base` has no effect on the guard: the credential section never yields."
         },
         "components": {

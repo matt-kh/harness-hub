@@ -1,0 +1,13 @@
+[
+  {
+    "url": ".*",
+    "status": 401,
+    "body": {
+      "status": "error",
+      "error": {
+        "code": "unauthenticated",
+        "message": "invalid API key"
+      }
+    }
+  }
+]

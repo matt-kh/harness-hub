@@ -1,0 +1,21 @@
+# exit=1
+# stderr:
+backend=signoz-dev kind=signoz url=signoz.example.com
+>> GET https://signoz.example.com/api/v1/alerts
+# stdout:
+# obs alerts — signoz-dev (signoz)
+
+## Findings (1)
+
+| sev | kind | name | message |
+|---|---|---|---|
+| crit | firing | CheckoutHighErrorRate | CheckoutHighErrorRate firing (critical) — runbook: https://runbooks.example.com/checkout-errors |
+
+## firing
+
+| alert | severity | since | labels | summary |
+|---|---|---|---|---|
+| CheckoutHighErrorRate | critical | TIMESTAMP | ruleId=1111aaaa-1111-4111-8111-1111aaaa1111, service_name=checkout | checkout error rate above 5% |
+| QueueBacklog | info | TIMESTAMP | queue=emails | backlog above 1000 for 10m |
+# calls:
+GET https://signoz.example.com/api/v1/alerts auth=yes

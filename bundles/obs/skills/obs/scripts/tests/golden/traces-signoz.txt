@@ -1,0 +1,23 @@
+# exit=0
+# stderr:
+backend=signoz-dev kind=signoz url=signoz.example.com
+>> POST https://signoz.example.com/api/v5/query_range {"compositeQuery": {"queries": [{"spec": {"filter": {"expression": "service.name = 'checkout' AND parent_span_id = '' AND has_error = true AND duration_nano >= 500000000"}, "limit": 50, "name": "A", "
+# stdout:
+# obs traces — signoz-dev (signoz)
+
+## Findings (0)
+
+none
+
+## filter
+
+service.name = 'checkout' AND parent_span_id = '' AND has_error = true AND duration_nano >= 500000000
+
+## traces
+
+| trace_id | root_span | duration_ms | status | time |
+|---|---|---|---|---|
+| 4bf92f3577b34da6a3ce929d0e0e4736 | POST /checkout | 1840.0 | error | TIMESTAMP |
+| 5cf92f3577b34da6a3ce929d0e0e4737 | POST /checkout | 730.0 | error | TIMESTAMP |
+# calls:
+POST https://signoz.example.com/api/v5/query_range auth=yes

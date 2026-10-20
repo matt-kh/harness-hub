@@ -1,0 +1,14 @@
+{
+  "alert": "CheckoutErrors",
+  "alertType": "TRACES_BASED_ALERT",
+  "evalWindow": "5m0s",
+  "frequency": "1m0s",
+  "condition": {
+    "compositeQuery": {
+      "queryType": "builder"
+    },
+    "op": "1"
+  },
+  "labels": {},
+  "annotations": {}
+}

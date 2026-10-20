@@ -1,0 +1,25 @@
+# exit=1
+# stderr:
+backend=signoz-dev kind=signoz url=signoz.example.com
+>> POST https://signoz.example.com/api/v1/services {"end": "EPOCH_NS", "start": "EPOCH_NS", "tags": []}
+# stdout:
+# obs services — signoz-dev (signoz)
+
+## Findings (1)
+
+| sev | kind | name | message |
+|---|---|---|---|
+| warn | error-rate | checkout | error rate 7.0% over 1h — inspect with `obs traces --service checkout --error` |
+
+## since
+
+1h
+
+## services
+
+| service | calls | rate_per_s | error_pct | p99_ms | avg_ms |
+|---|---|---|---|---|---|
+| checkout | 12000 | 13.33 | 7 | 912 | 154 |
+| payments | 6000 | 6.67 | 0.1 | 210 | 48 |
+# calls:
+POST https://signoz.example.com/api/v1/services auth=yes

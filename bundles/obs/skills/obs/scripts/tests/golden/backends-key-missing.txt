@@ -1,0 +1,28 @@
+# exit=2
+# stderr:
+# stdout:
+# obs backends
+
+## Findings (1)
+
+| sev | kind | name | message |
+|---|---|---|---|
+| crit | key | grafana | key file ~/.config/obs/grafana.key is missing — create it with `install -m 600` (manual step obs-api-key) |
+
+## default
+
+signoz-dev
+
+## hosts_re
+
+^(signoz\|signoz-prod\|grafana\|prometheus)\.example\.com$
+
+## backends
+
+| name | kind | host | key | default | prod |
+|---|---|---|---|---|---|
+| signoz-dev | signoz | signoz.example.com | ok | True | False |
+| signoz-prod | signoz | signoz-prod.example.com | ok | False | True |
+| prom | prometheus | prometheus.example.com | none | False | False |
+| grafana | grafana | grafana.example.com | missing | False | False |
+# calls:

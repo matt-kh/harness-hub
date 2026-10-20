@@ -1,0 +1,51 @@
+[
+  {
+    "method": "POST",
+    "url": "https://signoz(-prod)?\\.example\\.com/api/v5/query_range$",
+    "body": {
+      "status": "success",
+      "data": {
+        "type": "raw",
+        "data": {
+          "results": [
+            {
+              "queryName": "A",
+              "nextCursor": "",
+              "rows": [
+                {
+                  "timestamp": "2026-01-15T10:00:05Z",
+                  "data": {
+                    "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+                    "span_id": "00f067aa0ba902b7",
+                    "parent_span_id": "",
+                    "name": "POST /checkout",
+                    "duration_nano": 1840000000,
+                    "has_error": true,
+                    "service.name": "checkout"
+                  }
+                },
+                {
+                  "timestamp": "2026-01-15T10:00:01Z",
+                  "data": {
+                    "trace_id": "5cf92f3577b34da6a3ce929d0e0e4737",
+                    "span_id": "11f067aa0ba902b8",
+                    "parent_span_id": "",
+                    "name": "POST /checkout",
+                    "duration_nano": 730000000,
+                    "has_error": true,
+                    "service.name": "checkout"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "meta": {
+          "rowsScanned": 42,
+          "bytesScanned": 4096,
+          "durationMs": 12
+        }
+      }
+    }
+  }
+]

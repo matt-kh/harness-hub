@@ -3,7 +3,7 @@
 # Rendered by harness-hub: engine.sh + bundles/*/guard.d/NN-*.sh (sorted by basename) +
 # engine-flush.sh, concatenated into ONE file (see bundles/core/guard/build.sh).
 # Section order (global numeric prefixes): 10 k8s definitions, 20 credentials, 25 k8s rules,
-# 30 git, 40 GitLab/Jira closing keywords, 41 GitHub closing keywords, 50 glab, 60 gh,
+# 30 git, 32 obs, 40 GitLab/Jira closing keywords, 41 GitHub closing keywords, 50 glab, 60 gh,
 # 70 jira, 80 gdoc, 90+ private bundles, then the flush. allow/ask/deny exit immediately,
 # so an earlier section wins; gated rules use defer/pending_allow to let a later deny win.
 #
@@ -100,6 +100,7 @@
 #   HARNESS_GUARD_ENV               path of the env file parsed at start (default <hooks dir>/guard.env)
 #   GUARD_KUBECTL / GUARD_GIT       kubectl / git binaries the hook shells out to (tests: stubs)
 #   K8S_PROD_RE                     regex marking prod contexts/namespaces (same as the k8s CLI)
+#   OBS_HOSTS_RE                    regex of observability backend hosts; raw curl to them asks (empty = off)
 set -uo pipefail
 
 # >>> hn_timeout
@@ -125,7 +126,7 @@ except OSError:
 # file is PARSED, never sourced (no code runs from it). A variable that is already set in the
 # environment WINS over the file, so repo-level `.claude/settings.json` env overrides keep
 # working. Only keys with a known prefix are accepted (WORK_TICKET_ HARNESS_ K8S_ GUARD_ JIRA_
-# GDOC_ CREATE_TICKET_), so the file can never inject BASH_ENV, LD_*, PATH and the like.
+# GDOC_ CREATE_TICKET_ OBS_), so the file can never inject BASH_ENV, LD_*, PATH and the like.
 # HARNESS_GUARD_ENV overrides the path (tests point it at an empty file). Builtins only here:
 # this runs before the jq check, which must still fail closed on a bare PATH.
 _gs="${BASH_SOURCE[0]:-$0}"
@@ -139,7 +140,7 @@ if [ -r "$_ge" ]; then
     _gk=${_gl%%=*}; _gv=${_gl#*=}
     [ "$_gk" != "$_gl" ] || continue
     case "$_gk" in ''|[0-9]*|*[!A-Za-z0-9_]*) continue ;; esac
-    case "$_gk" in WORK_TICKET_*|HARNESS_*|K8S_*|GUARD_*|JIRA_*|GDOC_*|CREATE_TICKET_*) ;; *) continue ;; esac
+    case "$_gk" in WORK_TICKET_*|HARNESS_*|K8S_*|GUARD_*|JIRA_*|GDOC_*|CREATE_TICKET_*|OBS_*) ;; *) continue ;; esac
     [ -z "${!_gk+x}" ] || continue
     case "$_gv" in
       \'*\') _gv=${_gv#\'}; _gv=${_gv%\'}; _gq="'\\''"; _gv=${_gv//"$_gq"/\'} ;;

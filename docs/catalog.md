@@ -17,6 +17,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | [`gitlab`](bundles/gitlab.md#components) | scm | label-gated | govern, setup | stable | GitLab via glab: MR-based workflow, agent-label write gates, stacked-MR rules, Jira closing-keyword deny |
 | [`jira`](bundles/jira.md#components) | tracker | label-gated | govern, client, setup | stable | Jira Server client (jira CLI + skill), read-only jira-mcp server, Jira write governance in the guard |
 | [`k8s`](bundles/k8s.md#components) | kubernetes | read-only | govern, client, investigate, plan, review, setup | stable | Read-only Kubernetes client (k8s CLI + skill), triage / audit / architect agents, kubeconfig and Secret guards |
+| [`obs`](bundles/obs.md#components) | operations | read-only | govern, client, investigate, setup | experimental | Read-only observability client (obs CLI + skill) for SigNoz, Prometheus and Grafana, an obs-triage agent, and API-key and raw-backend guards |
 | [`stack`](bundles/stack.md#components) | scm | label-gated | govern, client, setup | experimental | Stacked MRs/PRs on free tiers: the `stk` CLI (plan, status, check, sync) keeps a chain of dependent parts retargeted, rebased and pushed |
 | [`ticket-workflow`](bundles/ticket-workflow.md#components) | delivery | label-gated | govern, workflow, setup | beta | /work-ticket (ticket → governed MR/PR, stacked delivery) and /create-ticket (one drafted ticket or issue) |
 
@@ -29,6 +30,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | `gdoc/skills/gdoc` | guide | workspace | client | label-gated | execute | declaration | Read, write and search the user's corporate Google Workspace ({{ google.domain }}) — Google Docs, Drive, Sheets and Gmail — with the `gdoc` CLI. |
 | `jira/skills/jira` | guide | tracker | client | label-gated | execute | declaration | Interact with the org's self-hosted Jira Server ({{ jira.url }}) — read/search/update tickets, sprints, versions, transitions, attachments, comments. |
 | `k8s/skills/k8s` | guide | kubernetes | client | read-only | execute | declaration | Read-only Kubernetes operator client for every context in the user's kubeconfig via the `k8s` CLI and explicit-context kubectl. |
+| `obs/skills/obs` | guide | operations | client | read-only | execute | declaration | Read-only observability client for SigNoz, Prometheus and Grafana via the `obs` CLI. |
 | `stack/skills/stk` | guide | scm | client | label-gated | execute | declaration | Stacked MRs/PRs on free tiers with the `stk` CLI over native glab, gh and git: check a repository's readiness, plan a stack (topology, bottom-up merge order, t… |
 | `ticket-workflow/skills/create-ticket` | guide | delivery | workflow | label-gated | execute | declaration | Create ONE Jira ticket (self-hosted Jira Server 8.x) from the user's free-text ask in any project they can create in (discovered, never hardcoded). |
 | `ticket-workflow/skills/work-ticket` | guide | delivery | workflow | label-gated | execute | declaration | Governed Jira-ticket → GitLab-MR workflow for any repo. |
@@ -45,6 +47,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | `k8s/agents/infra-architect` | guide | kubernetes | plan | read-only | plan | name | Use this agent for expert guidance on infrastructure design, platform architecture, or DevOps strategy — advisory/planning only. |
 | `k8s/agents/k8s-auditor` | guide | kubernetes | review | read-only | execute | name | Read-only Kubernetes posture review of a context or namespace — pod security, PSA labels, RBAC, Secret hygiene, certificate expiry, capacity headroom, deprecat… |
 | `k8s/agents/k8s-triage` | guide | kubernetes | investigate | read-only | execute | name | Read-only Kubernetes incident triage. |
+| `obs/agents/obs-triage` | guide + sensor (inferential) | operations | investigate | read-only | execute | name | Read-only signal triage across observability backends (SigNoz, Prometheus, Grafana). |
 
 ## Rules
 
@@ -54,6 +57,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 |---|---|---|---|---|
 | `core/rules/00-conventions` | guide | base | text | Global conventions |
 | `k8s/rules/10-k8s` | guide | kubernetes | text | Kubernetes |
+| `obs/rules/32-obs` | guide | operations | text | Observability |
 | `gitlab/rules/50-gitlab` | guide | scm | text | GitLab ({{ gitlab.host }}) |
 | `github/rules/60-github` | guide | scm | text | GitHub ({{ github.host }}) |
 | `stack/rules/65-stack` | guide | scm | text | Stacked MRs/PRs (stk) |
@@ -71,6 +75,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | [`core/guard.d/20-credentials`](reference/hook-policy.md) | sensor | base | deny 7 | never | denies credential file reads and secret env dumps before they run |
 | [`k8s/guard.d/25-k8s-rules`](reference/hook-policy.md) | sensor | kubernetes | deny 4 · ask 7 | declaration | kubeconfig, Secret data, cluster, release, GitOps and IaC mutations |
 | [`core/guard.d/30-git`](reference/hook-policy.md) | sensor | scm | deny 1 · ask 6 · allow 1 | declaration | denies default-branch pushes; asks on force-push and destructive git |
+| [`obs/guard.d/32-obs`](reference/hook-policy.md) | sensor | operations | deny 2 · ask 4 | declaration | key files, literal API keys, raw backend requests, amtool/logcli/grafana-cli |
 | [`gitlab/guard.d/40-gitlab-closing`](reference/hook-policy.md) | sensor | tracker | deny 1 | declaration | denies closing keywords with a ticket key |
 | [`github/guard.d/41-github-closing`](reference/hook-policy.md) | sensor | tracker | deny 1 | declaration | denies closing keywords that would change issue state |
 | [`gitlab/guard.d/50-gitlab`](reference/hook-policy.md) | sensor | scm | ask 6 · allow 3 | declaration | API writes, merges/approvals, stacked MR targets, label-gated edits; MR creates with --fill or --related-issue, or a -t title not matching gitlab.mr_title_re, ask |
@@ -92,6 +97,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | `gitlab/permissions` | guide | scm | ask 11 · allow 13 | config | read-only glab commands allowed |
 | `jira/permissions` | guide | tracker | allow 12 | config | read commands allowed; writes left to the guard |
 | `k8s/permissions` | guide | kubernetes | deny 12 · ask 45 · allow 42 | config | read-only kubectl/helm allowed |
+| `obs/permissions` | guide | operations | deny 1 · ask 3 · allow 5 | config | obs and read-only rule tooling allowed, alert-state changes ask, key files denied to Read |
 | `stack/permissions` | guide | scm | allow 4 | config | stk plan\|status\|check\|sync allowed; never Bash(stk:*) |
 | `ticket-workflow/permissions` |  | delivery | empty (no rules) | config |  |
 
@@ -112,6 +118,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | `gdoc/bin/gdoc` | workspace | label-gated | `skills/gdoc/scripts/gdoc.py` |
 | `jira/bin/jira` | tracker | label-gated | `skills/jira/scripts/jira.py` |
 | `k8s/bin/k8s` | kubernetes | read-only | `skills/k8s/scripts/k8s.py` |
+| `obs/bin/obs` | operations | read-only | `skills/obs/scripts/obs.py` |
 | `stack/bin/stk` | scm | label-gated | `skills/stk/scripts/stk.py` |
 
 ## Installers
@@ -155,6 +162,11 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | [`k8s/doctor/k8s-cli`](bundles/k8s.md#doctor-checks) | sensor | kubernetes | k8s CLI on PATH |
 | [`k8s/doctor/kube-contexts`](bundles/k8s.md#doctor-checks) | sensor | kubernetes | kubeconfig has at least one context |
 | [`k8s/doctor/kubectl-binary`](bundles/k8s.md#doctor-checks) | sensor | kubernetes | kubectl installed |
+| [`obs/doctor/obs-backends`](bundles/obs.md#doctor-checks) | sensor | operations | at least one observability backend configured |
+| [`obs/doctor/obs-cli`](bundles/obs.md#doctor-checks) | sensor | operations | obs CLI on PATH |
+| [`obs/doctor/obs-hosts-re`](bundles/obs.md#doctor-checks) | sensor | operations | obs.hosts_re is a POSIX ERE covering every configured backend |
+| [`obs/doctor/obs-keys`](bundles/obs.md#doctor-checks) | sensor | operations | every backend's key file exists |
+| [`obs/doctor/obs-reach`](bundles/obs.md#doctor-checks) | sensor | operations | every backend reachable and accepts its key |
 | [`stack/doctor/stk-cli`](bundles/stack.md#doctor-checks) | sensor | scm | stk CLI on PATH |
 | [`stack/doctor/stk-git-update-refs`](bundles/stack.md#doctor-checks) | sensor | scm | git supports rebase --update-refs (2.38+) |
 | [`stack/doctor/stk-scm-cli`](bundles/stack.md#doctor-checks) | sensor | scm | An SCM CLI is on PATH (glab or gh) |
@@ -193,6 +205,8 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | [`k8s/steps/gitops-checkout`](bundles/k8s.md#gitops-checkout) | kubernetes | Clone your GitOps repo and set k8s.gitops_root (optional) |
 | [`k8s/steps/install-kubectl`](bundles/k8s.md#install-kubectl) | kubernetes | Install kubectl (and helm) |
 | [`k8s/steps/kubeconfig-contexts`](bundles/k8s.md#kubeconfig-contexts) | kubernetes | Merge your clusters' kubeconfig contexts (human-managed) |
+| [`obs/steps/configure-backends`](bundles/obs.md#configure-backends) | operations | Describe your observability backends in local/harness.toml |
+| [`obs/steps/obs-api-key`](bundles/obs.md#obs-api-key) | operations | Create a read-only API key per backend |
 | [`stack/steps/stack-github-repo-settings`](bundles/stack.md#stack-github-repo-settings) | scm | GitHub: repository settings for stacked PRs |
 | [`stack/steps/stack-gitlab-project-settings`](bundles/stack.md#stack-gitlab-project-settings) | scm | GitLab: project settings for stacked MRs |
 | [`stack/steps/stack-read-the-flow`](bundles/stack.md#stack-read-the-flow) | scm | Read how a stack is merged (you merge it) |
@@ -235,6 +249,7 @@ Skills, agents, CLIs and MCP servers by domain and posture (the strongest effect
 | delivery | — | — | `ticket-workflow/skills/create-ticket`, `ticket-workflow/skills/work-ticket` |
 | kubernetes | `k8s/agents/infra-architect`, `k8s/agents/k8s-auditor`, `k8s/agents/k8s-triage`, `k8s/bin/k8s`, `k8s/skills/k8s` | — | — |
 | workspace | — | — | `gdoc/bin/gdoc`, `gdoc/skills/gdoc` |
+| operations | `obs/agents/obs-triage`, `obs/bin/obs`, `obs/skills/obs` | — | — |
 <!-- generated:end -->
 
 Posture says what a component does without a prompt; which writes stay with a human whatever

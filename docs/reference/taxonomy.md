@@ -142,25 +142,26 @@ A value exists only while a component uses it. To add one:
 | `delivery` | ticket-to-merge workflow spanning tracker and SCM | 10 (ticket-workflow) |
 | `kubernetes` | clusters, Helm, GitOps, IaC targeting them | 18 (k8s) |
 | `workspace` | docs, drive, sheets, mail | 15 (gdoc) |
+| `operations` | running systems: signals, incidents, reliability targets | 13 (obs) |
 
 ### function
 
 | value | meaning | components using it |
 |---|---|---|
-| `govern` | constrains the agent and says what to do instead | 28 (core, gdoc, github, gitlab, jira, k8s, stack, ticket-workflow) |
-| `client` | thin interface to one system | 9 (gdoc, jira, k8s, stack) |
+| `govern` | constrains the agent and says what to do instead | 31 (core, gdoc, github, gitlab, jira, k8s, obs, stack, ticket-workflow) |
+| `client` | thin interface to one system | 11 (gdoc, jira, k8s, obs, stack) |
 | `workflow` | multi-step governed procedure | 2 (ticket-workflow) |
-| `investigate` | diagnoses to a root cause, never applies the fix | 1 (k8s) |
+| `investigate` | diagnoses to a root cause, never applies the fix | 2 (k8s, obs) |
 | `plan` | designs; read-only | 2 (core, k8s) |
 | `execute` | implements autonomously | 1 (core) |
 | `review` | assesses and reports | 2 (core, k8s) |
-| `setup` | installs, verifies or configures once | 63 (core, gdoc, github, gitlab, jira, k8s, stack, ticket-workflow) |
+| `setup` | installs, verifies or configures once | 70 (core, gdoc, github, gitlab, jira, k8s, obs, stack, ticket-workflow) |
 
 ### posture
 
 | value | meaning | components using it |
 |---|---|---|
-| `read-only` | reads only | 42 (core, gdoc, github, gitlab, jira, k8s, stack, ticket-workflow) |
+| `read-only` | reads only | 50 (core, gdoc, github, gitlab, jira, k8s, obs, stack, ticket-workflow) |
 | `local` | edits the checkout and its own branches; other remote writes pass the guard | 1 (core) |
 | `label-gated` | writes promptlessly only to agent-* artefacts; human ones ask | 8 (gdoc, jira, stack, ticket-workflow) |
 
@@ -168,12 +169,12 @@ A value exists only while a component uses it. To add one:
 
 | value | meaning | components using it |
 |---|---|---|
-| `declaration` | returns early when the repository's .harness.toml owns its id or domain | 16 (core, gdoc, github, gitlab, jira, k8s, stack, ticket-workflow) |
-| `name` | the provider shadows it with a repository component of the same name | 6 (core, k8s) |
-| `text` | concatenated with the repository's instructions, which come last and win | 8 (core, gdoc, github, gitlab, jira, k8s, stack, ticket-workflow) |
-| `config` | merged by the provider's permission system; a repository can add rules, never lift a deny | 7 (gdoc, github, gitlab, jira, k8s, stack, ticket-workflow) |
+| `declaration` | returns early when the repository's .harness.toml owns its id or domain | 18 (core, gdoc, github, gitlab, jira, k8s, obs, stack, ticket-workflow) |
+| `name` | the provider shadows it with a repository component of the same name | 7 (core, k8s, obs) |
+| `text` | concatenated with the repository's instructions, which come last and win | 9 (core, gdoc, github, gitlab, jira, k8s, obs, stack, ticket-workflow) |
+| `config` | merged by the provider's permission system; a repository can add rules, never lift a deny | 8 (gdoc, github, gitlab, jira, k8s, obs, stack, ticket-workflow) |
 | `never` | the developer's own credentials: no repository setting lifts it | 2 (core) |
-| `n/a` | no repository-level equivalent | 69 (core, gdoc, github, gitlab, jira, k8s, stack, ticket-workflow) |
+| `n/a` | no repository-level equivalent | 77 (core, gdoc, github, gitlab, jira, k8s, obs, stack, ticket-workflow) |
 
 ### Facets by kind
 

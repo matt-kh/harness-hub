@@ -1,0 +1,80 @@
+# exit=0
+# stderr:
+probe: backend=signoz-dev kind=signoz url=signoz.example.com
+>> GET https://signoz.example.com/api/v1/version
+>> GET https://signoz.example.com/api/v1/rules
+probe: backend=signoz-prod kind=signoz url=signoz-prod.example.com [PROD]
+>> GET https://signoz-prod.example.com/api/v1/version
+>> GET https://signoz-prod.example.com/api/v1/rules
+probe: backend=prom kind=prometheus url=prometheus.example.com
+>> GET https://prometheus.example.com/api/v1/status/buildinfo
+probe: backend=grafana kind=grafana url=grafana.example.com
+>> GET https://grafana.example.com/api/health
+>> GET https://grafana.example.com/api/search?limit=1
+# stdout:
+{
+  "backend": "",
+  "kind": "",
+  "prod": false,
+  "generated_at": "TIMESTAMP",
+  "command": "backends",
+  "findings": [],
+  "data": {
+    "default": "signoz-dev",
+    "hosts_re": "^(signoz|signoz-prod|grafana|prometheus)\\.example\\.com$",
+    "backends": [
+      {
+        "name": "signoz-dev",
+        "kind": "signoz",
+        "host": "signoz.example.com",
+        "key": "ok",
+        "default": true,
+        "prod": false,
+        "reachable": true,
+        "version": "v0.121.1",
+        "auth": "ok"
+      },
+      {
+        "name": "signoz-prod",
+        "kind": "signoz",
+        "host": "signoz-prod.example.com",
+        "key": "ok",
+        "default": false,
+        "prod": true,
+        "reachable": true,
+        "version": "v0.121.1",
+        "auth": "ok"
+      },
+      {
+        "name": "prom",
+        "kind": "prometheus",
+        "host": "prometheus.example.com",
+        "key": "none",
+        "default": false,
+        "prod": false,
+        "reachable": true,
+        "version": "3.5.0",
+        "auth": "ok"
+      },
+      {
+        "name": "grafana",
+        "kind": "grafana",
+        "host": "grafana.example.com",
+        "key": "ok",
+        "default": false,
+        "prod": false,
+        "reachable": true,
+        "version": "12.1.0",
+        "auth": "ok"
+      }
+    ]
+  }
+}
+# calls:
+GET https://signoz.example.com/api/v1/version auth=yes
+GET https://signoz.example.com/api/v1/rules auth=yes
+GET https://signoz-prod.example.com/api/v1/version auth=yes
+GET https://signoz-prod.example.com/api/v1/rules auth=yes
+GET https://prometheus.example.com/api/v1/status/buildinfo auth=no
+GET https://grafana.example.com/api/health auth=yes
+GET https://grafana.example.com/api/search?limit=1 auth=yes
