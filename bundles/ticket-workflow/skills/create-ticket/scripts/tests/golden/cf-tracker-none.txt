@@ -1,0 +1,14 @@
+# exit=0
+# stderr:
+# stdout:
+{
+  "tracker": {
+    "tracker": null,
+    "tracker_source": null,
+    "project": null,
+    "remote_id": null
+  },
+  "repo_declaration": null,
+  "repo_owns": false
+}
+# calls:

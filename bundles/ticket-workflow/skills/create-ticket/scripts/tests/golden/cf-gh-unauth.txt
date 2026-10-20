@@ -16,6 +16,12 @@
   ],
   "repo_declaration": null,
   "repo_owns": false,
+  "tracker": {
+    "tracker": "github-issues",
+    "tracker_source": "host",
+    "project": null,
+    "remote_id": "github.com/owner/repo"
+  },
   "error": "gh not authenticated to github.com (user runs: gh auth login --hostname github.com --git-protocol ssh --web)"
 }
 # calls:

@@ -1,0 +1,7 @@
+# .harness.toml - repository-level harness declaration (harness-hub, principle 8).
+# harness-hub develops from GitHub Issues: every change beyond a typo starts from an issue on
+# this repository, and the pull request names it as #N (AGENTS.md "Issues are the source of truth").
+# Subset: one statement per line, whole-line comments only - `harness repo` validates it.
+[repo]
+name = "harness-hub"
+tracker = "github-issues"

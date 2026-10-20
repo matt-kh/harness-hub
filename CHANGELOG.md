@@ -67,6 +67,30 @@ prints every one between your applied version and the new one.
   All nine public bundles declare `checks` on every guide and add the `permissions-vs-guard`
   lint sensor where they ship a permission list, `agent-tools` where they ship agents (core,
   k8s, obs).
+- Declared tracker per repository. `.harness.toml` `[repo]` gains `tracker`
+  (`github-issues` | `jira`) and `project` (Jira only; `schema/repo.schema.json`, shown by
+  `harness repo`, offered by `harness repo init`). New config key `ticket_workflow.trackers`
+  (`ticket-workflow` bundle, default `[]`): `[[ticket_workflow.trackers]]` entries with
+  `match` (an ERE on `<host>/<path>` of `origin`), `tracker` and optional `project`; first match
+  wins. Precedence: repository declaration → config → host (github.com → GitHub Issues, GitLab
+  → Jira).
+- `ticket-workflow`: every facts script (`github-preflight.sh`, `gitlab-preflight.sh`,
+  `issue-facts.sh`, `jira-facts.sh`, `create-facts.sh`) reports a `tracker` object —
+  `tracker`, `tracker_source` (`repo` | `config` | `host` | null), `project`, `remote_id` —
+  from `lib/repo-facts.sh` `rf_remote_id` / `rf_tracker` (inlined into `create-facts.sh`, the
+  create-ticket suite checks the copies match). `create-facts.sh --repo` prints only the cwd's
+  tracker and declaration. Goldens: the `rf-tracker` table (remote shapes × declaration
+  sources) and tracker cases in both suites.
+- `ticket-workflow`: doctor check `ticket-workflow-trackers` (offline): every `match` compiles
+  under `grep -E`, every `tracker` is known, `project` only with `jira`; a failure names the
+  entry index and the fix.
+- `tools/gate/companions.sh` check `issue` (`--only issue`): with `--markers-file` (the PR body
+  in CI) the body must name its GitHub issue as `#N`, `owner/repo#N` or an issues URL outside
+  code and comments, and never after a closing keyword; `no-issue: <reason>` waives it; without a
+  body it is skipped. Self-tests in `tools/gate/tests/companions-selftest.sh`.
+- harness-hub develops from GitHub Issues: its own `.harness.toml` declares
+  `[repo] tracker = "github-issues"`; AGENTS.md ("Issues are the source of truth"),
+  CONTRIBUTING.md and the PR template (`Issue: #N` first) say so.
 - `obs` bundle (experimental; domain `operations`, read-only): the stdlib `obs` CLI
   (`backends [--probe]`, `query`, `logs`, `traces`, `trace`, `services`, `alerts`,
   `dashboards [--export]`, `lint`, `redact`) with SigNoz (verified against the v0.121.x
@@ -318,6 +342,15 @@ prints every one between your applied version and the new one.
 
 ### Changed
 
+- `/work-ticket` and `/create-ticket` read the declared tracker at preflight instead of
+  guessing it from the host or the argument form: the argument must agree with it (`KEY` with
+  `jira`; `#N`, `owner/repo#N` or an issue URL with `github-issues`, a bare `N` only then), a
+  mismatch or an invalid declaration stops the skill with one sentence naming the source, and a
+  declared Jira `project` is create-ticket's default project. A GitHub repository can declare
+  Jira as its tracker (Jira tickets, GitHub PRs).
+- `create-facts.sh` matches the cwd's clone by remote id (`<github host>/<owner/repo>`)
+  instead of a literal `github\.com` pattern, so GitHub Enterprise clones report their issue
+  templates too.
 - `core`: the redactor is one shared block, `bundles/core/lib/redact.py` (`# >>> redact` …
   `# <<< redact`: `KEY_BODY`, `SECRET_KEY_RE`, `REDACTED`, `redact_obj(obj, extra_re=None)`,
   `redact_text(text, extra_re=None)`), registered in `sync_inline.py` and inlined into the
@@ -417,6 +450,11 @@ prints every one between your applied version and the new one.
 
 ### Migration
 
+- Declared tracker: nothing to edit. `ticket_workflow.trackers` defaults to `[]` and a
+  repository without `[repo] tracker` keeps today's host rule (github.com → GitHub Issues,
+  GitLab → Jira). To pin a repository's tracker, add `[repo] tracker = "jira"` (and
+  `project = "KEY"`) or `"github-issues"` to its `.harness.toml`, or list
+  `[[ticket_workflow.trackers]]` entries in `local/harness.toml`; then `harness doctor`.
 - MR/PR title conventions: two new optional config keys. `gitlab.mr_title_re` (default
   `"^[A-Z][A-Z0-9_]*-[0-9]+ "`, a ticket key and a space first; env
   `HARNESS_GITLAB_MR_TITLE_RE`) is the ERE a `glab mr create -t` title must match;

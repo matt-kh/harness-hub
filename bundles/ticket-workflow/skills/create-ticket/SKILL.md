@@ -9,7 +9,7 @@ description: >-
   (that is /work-ticket). Use when the user says create/open/file/raise/log a ticket|CR|defect|
   bug|task|epic for…, "make a Jira for this", or runs /create-ticket <free text>. NOT for editing
   existing tickets (use the `jira` skill) and NOT for sub-tickets of a worked ticket. Also drafts
-  ONE GitHub issue (github.com repo, via `gh`) when given `owner/repo` or run in a github.com clone.
+  ONE GitHub issue (via `gh`) when given `owner/repo` or run in a repository whose tracker is GitHub Issues.
 argument-hint: <free text describing the ticket> [--project KEY|owner/repo] [--type TYPE]
 model: {{ core.model_policy.execute }}
 ---
@@ -62,8 +62,17 @@ the repository's harness to fit this skill. `harness repo` explains everything t
 repository declares and any `.claude/skills|agents` name collisions.
 (`create-facts.sh` reports the same as `repo_owns`.)
 
-**Provider**: argument `owner/repo` (or a github.com issue URL), or the cwd's remote host is
-`github.com` → **github**; otherwise **jira**. GitHub replaces the Jira lines below with:
+**Provider** = the cwd repository's declared tracker, never guessed: an argument `owner/repo`
+(or an issue URL) forces **github**; otherwise run `create-facts.sh --repo` and read `tracker`
+(`tracker_source`: repo = `.harness.toml [repo] tracker`, config = `ticket_workflow.trackers`,
+host = github.com → issues, GitLab → Jira). `github-issues` → **github** (project = the path of
+`tracker.remote_id`); `jira` or null → **jira**, with `tracker.project` as the default project;
+`tracker.error` → stop and quote it. A `--project KEY` against a `github-issues` declaration (or
+`owner/repo` against `jira`) stops with one sentence naming the source.
+```bash
+bash ~/.claude/skills/create-ticket/scripts/create-facts.sh --repo         # tracker, repo_declaration, repo_owns (no tracker calls)
+```
+GitHub replaces the Jira lines below with:
 ```bash
 gh auth status --hostname github.com >/dev/null                            # fail → stop: user runs `! gh auth login --git-protocol ssh --web`
 bash ~/.claude/skills/create-ticket/scripts/create-facts.sh <owner/repo>   # provider:"github", labels, milestones, templates
@@ -76,7 +85,7 @@ jira whoami                                                      # exit 2 → st
 jira search 'reporter = currentUser() ORDER BY created DESC' 30 | awk '{print $1}' | sed 's/-[0-9]*$//' | sort | uniq -c | sort -rn   # project share
 bash ~/.claude/skills/create-ticket/scripts/create-facts.sh <PROJECT>   # ≤ 2 candidates
 ```
-Project per `type-rules.md` (explicit key/name → history ≥ 60% → **P1**). No creatable candidate
+Project per `type-rules.md` (explicit key/name → declared `tracker.project` → history ≥ 60% → **P1**). No creatable candidate
 → stop and list what the token can create in. A repository-level skill that itself *creates*
 tickets → announce and hand over completely (Step 0: the repository's behaviour replaces this
 skill; nothing below runs). A repository-level skill that only *works* tickets (a

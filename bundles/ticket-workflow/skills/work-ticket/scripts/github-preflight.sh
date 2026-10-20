@@ -380,6 +380,7 @@ PY
 fi
 ci_cost=$(json_or "$ci_cost" '{"heuristic":"failed"}')
 
+tracker=$(rf_tracker "$root"); [ -n "$tracker" ] || tracker=null
 warn_json=$(printf '%s\n' "${warnings[@]+"${warnings[@]}"}" | jq -R 'select(length>0)' | jq -sc .)
 jq -n --arg root "$root" --arg host "$host" --arg def "$def" --arg tmpl "$tmpl" --arg skill "$repo_skill" \
       --arg rdecl "$repo_decl" --argjson rowns "$repo_owns" \
@@ -390,7 +391,8 @@ jq -n --arg root "$root" --arg host "$host" --arg def "$def" --arg tmpl "$tmpl" 
       --argjson canlabel "$can_label" --argjson fork "$fork_flow" --argjson draft "$draft" \
       --argjson prmulti "$pr_multi" --argjson itmpl "$issue_tmpls" --argjson labels "$labels" \
       --argjson ms "$milestones" --argjson prs "$prs" --argjson checks "$ci_checks" --argjson cost "$ci_cost" \
-      --argjson precommit "$precommit" --argjson dirty "$dirty" --argjson warn "$warn_json" '
+      --argjson precommit "$precommit" --argjson dirty "$dirty" --argjson warn "$warn_json" \
+      --argjson tracker "$tracker" '
 def nn: if . == "" then null else . end;
 {provider:"github", repo_root:$root, remote_host:$host, default_branch:($def|nn), dirty_files:$dirty,
  gh_installed:$gh, auth_ok:$auth, me:($me|nn), plan:($plan|nn),
@@ -414,5 +416,5 @@ def nn: if . == "" then null else . end;
  issue:(if $inum == "" then null else {ref:$iref, repo:(($irepo|nn) // ($base|nn)), number:($inum|tonumber)} end),
  existing_prs:$prs, stack_detected:([$prs[].headRefName | select(test("-sub-"))] | length > 0),
  ci:({checks:$checks, precommit:$precommit} + $cost),
- repo_skill:($skill|nn), repo_declaration:($rdecl|nn), repo_owns:$rowns,
+ repo_skill:($skill|nn), repo_declaration:($rdecl|nn), repo_owns:$rowns, tracker:$tracker,
  warnings:$warn}'

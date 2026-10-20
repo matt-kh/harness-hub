@@ -557,8 +557,11 @@ committed ([principle 8](principles/08-user-level-by-design.md); authors' guide:
 - **Location.** The repository root: the git root of the hook's `cwd` for the guard, of the
   working directory for skill preflights (the directory holding `.git`, a directory or a
   worktree file).
-- **`[repo]`** — `name`, `harness` (where the repository's own harness is described);
-  informational.
+- **`[repo]`** — `name`, `harness` (where the repository's own harness is described;
+  informational), `tracker` (`github-issues` | `jira`: the repository's source of truth for
+  tickets; wins over the user's `ticket_workflow.trackers`, which wins over the host) and
+  `project` (Jira only: `/create-ticket`'s default project). The ticket-workflow facts scripts
+  report the result as `tracker` with its `tracker_source` (`repo`, `config`, `host`).
 - **`[owns] domains`** — taxonomy domain values (`base`, `scm`, `tracker`, `delivery`,
   `kubernetes`, `workspace`, `operations`); every component in an owned domain yields there.
 - **`[owns] components`** — catalog ids (`core/guard.d/30-git`,

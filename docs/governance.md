@@ -52,6 +52,8 @@ agent's comments on that ticket stop prompting.
 - A repository whose own workflow transitions tickets can opt in per repository
   with `WORK_TICKET_ALLOW_TRANSITION = "1"` in its `.harness.toml` (or provider `env`): the
   deny becomes an ask.
+- Which tracker holds a repository's tickets (GitHub Issues or Jira) is declared per repository,
+  never guessed: [repository-level harnesses](repo-level.md#declaring-ownership-harnesstoml).
 
 ## 4. Closing keywords are denied
 

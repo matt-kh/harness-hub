@@ -110,7 +110,13 @@
     "cli"
   ],
   "repo_declaration": "SANDBOX/repos/owns/.harness.toml",
-  "repo_owns": true
+  "repo_owns": true,
+  "tracker": {
+    "tracker": "github-issues",
+    "tracker_source": "host",
+    "project": null,
+    "remote_id": "github.com/owner/repo"
+  }
 }
 # calls:
 jira whoami
