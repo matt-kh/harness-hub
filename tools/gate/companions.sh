@@ -12,21 +12,26 @@
 #              PRINCIPLES.md, principles/, a bundle.toml or provider.toml, an added or deleted
 #              bundles/<b>/ or providers/<p>/, the getting-started, distribution, governance and
 #              repo-level pages, docs/runbooks/, SECURITY.md, LICENSE) needs README.md in the diff.
+#   issue      the pull-request body (--markers-file) names the issue it builds on as #N,
+#              owner/repo#N or an issues URL, outside code, and never after a closing keyword
+#              (close/fix/resolve forms: issue state is human-only). Without --markers-file
+#              (a local run) it is skipped.
 #
-# Usage: companions.sh [--ci] --range A..B [--markers-file F] [--only rows|changelog|readme]
+# Usage: companions.sh [--ci] --range A..B [--markers-file F] [--only rows|changelog|readme|issue]
 #   --range A..B        compare the merge base of A and B with B (B defaults to HEAD)
 #   --markers-file F    extra text searched for markers (CI passes the pull-request body)
 #   --only CHECK        run one check
 #   --ci                also print each hit as a GitHub Actions `::error::` annotation
 # Markers (reason required), in any commit body of the range or in the markers file:
 #   no-rows: <reason>        no-changelog: <reason>        no-readme: <reason>
+#   no-issue: <reason>
 # Exit: 0 clean (or no usable base: skipped), 1 hits, 2 usage error.
 #
 # Portability: bash 3.2, git, POSIX grep -E / sed / awk (no assoc arrays, no grep -P).
 set -o pipefail
 
 ci=false; range=""; markers_file=""; only=""
-usage() { sed -n '2,25p' "$0" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '2,30p' "$0" | sed 's/^# \{0,1\}//'; }
 while [ $# -gt 0 ]; do
   case "$1" in
     --ci) ci=true ;;
@@ -42,7 +47,7 @@ while [ $# -gt 0 ]; do
   esac
   shift
 done
-case "$only" in ''|rows|changelog|readme) ;; *) echo "companions: --only takes rows, changelog or readme" >&2; exit 2 ;; esac
+case "$only" in ''|rows|changelog|readme|issue) ;; *) echo "companions: --only takes rows, changelog, readme or issue" >&2; exit 2 ;; esac
 [ -n "$range" ] || { echo "companions: --range A..B is required (see --help)" >&2; exit 2; }
 case "$range" in *..*) ;; *) echo "companions: --range needs A..B, got: $range" >&2; exit 2 ;; esac
 if [ -n "$markers_file" ] && [ ! -r "$markers_file" ]; then
@@ -185,6 +190,36 @@ check_readme() {
   hit "readme: README.md: $n changed path(s) can change what it states ($list) — README.md is the product page; update the section that states this, run \`bin/harness docs generate\`, or add 'no-readme: <reason>' in a commit body"
 }
 
+# ---- check 4: issue reference in the PR body ---------------------------------------------
+# GitHub links #N, owner/repo#N and issues URLs; code (fenced or inline) and HTML comments never.
+REF='([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+#[0-9]+|https?://[^/[:space:]]+/[^/[:space:]]+/[^/[:space:]]+/issues/[0-9]+|#[0-9]+)'
+CLOSING='(^|[^A-Za-z0-9_])(close[sd]?|fix(e[sd])?|resolve[sd]?)[[:space:]]*:?[[:space:]]+'
+prose() {  # $1 file → its text without fenced code, inline code spans and HTML comments
+  tr -d '\r' <"$1" | awk '
+    /^[[:space:]]*(```|~~~)/ { fence = !fence; next }
+    fence { next }
+    { line = $0
+      while (1) {
+        if (incom) { i = index(line, "-->"); if (!i) { line = ""; break }; line = substr(line, i + 3); incom = 0 }
+        i = index(line, "<!--"); if (!i) break
+        rest = substr(line, i + 4); j = index(rest, "-->")
+        if (j) line = substr(line, 1, i - 1) " " substr(rest, j + 3)
+        else { line = substr(line, 1, i - 1); incom = 1; break }
+      }
+      gsub(/`[^`]*`/, " ", line); print line }'
+}
+check_issue() {
+  local bad
+  prose "$markers_file" >"$TMP/body"
+  bad=$(grep -iE "$CLOSING$REF" "$TMP/body" | head -1)
+  if [ -n "$bad" ]; then
+    hit "issue: pull-request body: a closing keyword precedes an issue reference ($(printf '%s' "$bad" | cut -c1-80)) — mention the issue as #N instead; issue state is human-only (no Closes/Fixes/Resolves before #N)"
+  fi
+  if ! grep -qE "(^|[^A-Za-z0-9_&/])$REF([^0-9]|$)" "$TMP/body"; then
+    hit "issue: pull-request body names no issue — start from a GitHub Issue and mention it as #N (owner/repo#N or an issues URL also count; not inside code), or write 'no-issue: <reason>' for a trivial fix"
+  fi
+}
+
 ran=""
 if [ -z "$only" ] || [ "$only" = rows ]; then
   if marker no-rows; then echo "companions: rows check waived by a 'no-rows:' marker" >&2
@@ -200,6 +235,13 @@ if [ -z "$only" ] || [ "$only" = readme ]; then
   if marker no-readme; then echo "companions: readme check waived by a 'no-readme:' marker" >&2
   else check_readme; fi
   ran="${ran:+$ran, }readme"
+fi
+
+if [ -z "$only" ] || [ "$only" = issue ]; then
+  if [ -z "$markers_file" ]; then echo "companions: issue: skipped (no PR body)" >&2
+  elif marker no-issue; then echo "companions: issue check waived by a 'no-issue:' marker" >&2
+  else check_issue; fi
+  ran="${ran:+$ran, }issue"
 fi
 
 # ---- report ---------------------------------------------------------------------------

@@ -64,7 +64,13 @@
   "existing_children": [
     "PROJ-124"
   ],
-  "sub_tickets_available": true
+  "sub_tickets_available": true,
+  "tracker": {
+    "tracker": null,
+    "tracker_source": null,
+    "project": null,
+    "remote_id": null
+  }
 }
 # calls:
 jira whoami

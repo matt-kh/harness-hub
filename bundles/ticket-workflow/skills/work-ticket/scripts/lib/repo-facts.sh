@@ -9,6 +9,14 @@
 #                         $HARNESS_GITLAB_HOSTS_RE, else the literal host $HARNESS_GITLAB_HOST,
 #                         else gitlab.host from the harness config,
 #                         plus any host containing "gitlab"
+#   rf_remote_id ROOT  -> prints <host>/<path> of origin (no scheme, credentials, port or .git;
+#                         host lower-case, ssh./www.github.com read as github.com); empty
+#                         without an origin
+#   rf_tracker ROOT    -> prints one JSON object: the repository's tracker (github-issues | jira),
+#                         tracker_source = repo (.harness.toml [repo] tracker) | config
+#                         (ticket_workflow.trackers, first `match` ERE that hits the remote id) |
+#                         host (github.com -> github-issues, GitLab -> jira) | null, plus project
+#                         (jira only) and remote_id. Declared, never guessed past an invalid value.
 #   rf_skill_desc FILE -> prints a SKILL.md front matter description on one line (plain, quoted
 #                         or folded `>-` / `|` scalars)
 #   rf_workflow_desc   -> rc 0 when the description on stdin covers a ticket/issue -> MR/PR
@@ -21,6 +29,8 @@
 # when <root>/.harness.toml owns ticket-workflow/skills/work-ticket or the domain delivery;
 # repo_skill is the first <root>/.claude/skills/*/SKILL.md whose description covers a ticket ->
 # MR/PR workflow (any name). Either one means: hand over after the read-only preflight.
+# The tracker is declared per repository too: [repo] tracker in the same file wins over the
+# user's ticket_workflow.trackers, which wins over the host heuristic (rf_tracker).
 
 # >>> hcfg
 hcfg() {  # KEY [DEFAULT]
@@ -113,6 +123,9 @@ hrepo_owns() {  # ID DOMAIN [DIR] -> rc 0 when the repository declares the compo
 
 rf_root() { git rev-parse --show-toplevel 2>/dev/null; }
 
+# >>> rf_tracker
+# Canonical copy: work-ticket/scripts/lib/repo-facts.sh. create-ticket/scripts/create-facts.sh
+# carries an identical copy between these markers (its suite fails when they drift).
 rf_host() {
   git -C "$1" remote get-url origin 2>/dev/null | sed -E 's#^[a-z]+://([^@/]*@)?##; s#^[^@]*@##; s#[:/].*$##'
 }
@@ -135,6 +148,79 @@ rf_provider() {
     *)        echo "" ;;
   esac
 }
+
+rf_remote_id() {  # ROOT -> <host>/<path> of origin: no scheme, credentials, port or .git; host lower-case,
+                  # ssh.github.com / www.github.com read as github.com
+  local u h p
+  u=$(git -C "${1:-}" remote get-url origin 2>/dev/null) || return 0
+  case "$u" in
+    [A-Za-z]*://*) u=$(printf '%s\n' "$u" | sed -E 's#^[A-Za-z][A-Za-z0-9+.-]*://([^@/]*@)?##; s#^([^/:]*):[0-9]*#\1#') ;;
+    *)             u=$(printf '%s\n' "$u" | sed -E 's#^[^@/:]*@##; s#^([^/:]+):/*#\1/#') ;;
+  esac
+  while :; do case "$u" in */) u=${u%/} ;; *) break ;; esac; done
+  u=${u%.git}
+  h=${u%%/*}; p=${u#"$h"}; h=${h##*@}
+  [ -n "$h$p" ] || return 0
+  h=$(printf '%s' "$h" | LC_ALL=C tr '[:upper:]' '[:lower:]')
+  case "$h" in ssh.github.com|www.github.com) h=github.com ;; esac   # aliases of github.com
+  printf '%s%s\n' "$h" "$p"
+}
+
+rf_tracker() {  # ROOT -> {tracker, tracker_source: repo|config|host|null, project, remote_id[, error][, warnings]}
+  local root="${1:-}" id f t="" p="" src="" err="" warns="" cfg n i m rc ge nl='
+'
+  id=$(rf_remote_id "$root")
+  # 1. the repository's declaration: .harness.toml [repo] tracker / project
+  if f=$(hrepo_file "$root") && t=$(hrepo_get "$f" repo tracker); then
+    src=repo
+    p=$(hrepo_get "$f" repo project) || p=""
+    case "$t" in
+      github-issues|jira) ;;
+      *) err="invalid tracker '$t' in .harness.toml [repo]; use github-issues or jira"; t=""; p="" ;;
+    esac
+  fi
+  # 2. the user's config: ticket_workflow.trackers, first entry whose match (ERE) hits the remote id
+  if [ -z "$src" ] && [ -n "$id" ]; then
+    cfg=$(hcfg ticket_workflow.trackers)
+    n=$(jq -r 'if type == "array" then length else 0 end' <<<"${cfg:-[]}" 2>/dev/null) || n=0
+    i=0
+    while [ "$i" -lt "${n:-0}" ]; do
+      m=$(jq -r --argjson i "$i" '.[$i].match // "" | strings' <<<"$cfg" 2>/dev/null)
+      # an invalid ERE: grep exits 2 (GNU, BSD) or 1 with a message (busybox)
+      if [ -z "$m" ]; then rc=2; else ge=$(grep -iqE -- "$m" <<<"$id" 2>&1 >/dev/null); rc=$?
+        [ "$rc" != 1 ] || [ -z "$ge" ] || rc=2; fi
+      case "$rc" in
+        0) src=config
+           t=$(jq -r --argjson i "$i" '.[$i].tracker // "" | strings' <<<"$cfg" 2>/dev/null)
+           p=$(jq -r --argjson i "$i" '.[$i].project // "" | strings' <<<"$cfg" 2>/dev/null)
+           case "$t" in
+             github-issues|jira) ;;
+             *) err="invalid tracker '$t' in ticket_workflow.trackers[$i]; use github-issues or jira"; t=""; p="" ;;
+           esac
+           break ;;
+        1) ;;
+        *) warns="${warns}ticket_workflow.trackers[$i].match is not a valid ERE and was skipped (harness doctor names the fix)$nl" ;;
+      esac
+      i=$((i + 1))
+    done
+  fi
+  # 3. the host: github.com -> GitHub Issues, a GitLab host -> Jira, anything else -> unknown
+  if [ -z "$src" ] && [ -n "${id%%/*}" ]; then
+    case "$(rf_provider "${id%%/*}")" in
+      github) t=github-issues; src=host ;;
+      gitlab) t=jira; src=host ;;
+    esac
+  fi
+  if [ -n "$p" ] && [ "$t" != jira ]; then
+    warns="${warns}project '$p' is used only with tracker = jira; ignored$nl"; p=""
+  fi
+  jq -cn --arg t "$t" --arg s "$src" --arg p "$p" --arg id "$id" --arg e "$err" --arg w "$warns" '
+    def nn: if . == "" then null else . end;
+    {tracker:($t|nn), tracker_source:($s|nn), project:($p|nn), remote_id:($id|nn)}
+    + (if $e == "" then {} else {error:$e} end)
+    + (if $w == "" then {} else {warnings:($w | split("\n") | map(select(length > 0)))} end)'
+}
+# <<< rf_tracker
 
 rf_skill_desc() {
   awk 'NR == 1 && $0 !~ /^---[[:space:]]*$/ { exit }

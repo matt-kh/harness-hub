@@ -2,6 +2,7 @@
 # create-ticket facts for one project: READ-ONLY, prints one JSON object. Never writes.
 # Usage: create-facts.sh <PROJECT-KEY>      (Jira)
 #        create-facts.sh <owner/repo>       (GitHub Issues via gh; any argument containing "/")
+#        create-facts.sh --repo             (no tracker calls: the cwd's tracker and declaration only)
 # Config (env wins, then the harness config build/config.json):
 #   HARNESS_JIRA_FIELDS_PROBLEM_DESCRIPTION_ID  [jira.fields.<PROJECT>.problem_description, then
 #                                               jira.fields.problem_description] -> has_problem_description
@@ -9,6 +10,8 @@
 #   HARNESS_GITHUB_HOST                         [github.host] (default github.com)
 # Principle 8: repo_declaration / repo_owns say whether the current repository's .harness.toml owns
 # ticket-workflow/skills/create-ticket (or the domain delivery) -> the skill hands over.
+# Every output carries `tracker` (rf_tracker): the cwd repository's declared tracker
+# (.harness.toml [repo] tracker > ticket_workflow.trackers > host) and its default Jira project.
 set -uo pipefail
 # >>> hn_timeout
 hn_timeout() {  # SECS CMD [ARGS...]
@@ -114,10 +117,117 @@ hrepo_owns() {  # ID DOMAIN [DIR] -> rc 0 when the repository declares the compo
   return 1
 }
 # <<< hrepo
+# >>> rf_tracker
+# Canonical copy: work-ticket/scripts/lib/repo-facts.sh. create-ticket/scripts/create-facts.sh
+# carries an identical copy between these markers (its suite fails when they drift).
+rf_host() {
+  git -C "$1" remote get-url origin 2>/dev/null | sed -E 's#^[a-z]+://([^@/]*@)?##; s#^[^@]*@##; s#[:/].*$##'
+}
+
+rf_provider() {
+  local h re gl
+  h=$(printf '%s' "$1" | LC_ALL=C tr '[:upper:]' '[:lower:]')
+  re="${HARNESS_GITLAB_HOSTS_RE:-}"
+  if [ -z "$re" ]; then
+    gl="${HARNESS_GITLAB_HOST:-}"
+    [ -n "$gl" ] || gl=$(hcfg gitlab.host)
+    [ -z "$gl" ] || re="^$(printf '%s' "$gl" | sed 's/[.]/\\./g')\$"
+  fi
+  case "$h" in
+    github.com|ssh.github.com|www.github.com) echo github; return 0 ;;
+  esac
+  if [ -n "$re" ] && printf '%s' "$h" | grep -qiE -- "$re"; then echo gitlab; return 0; fi
+  case "$h" in
+    *gitlab*) echo gitlab ;;
+    *)        echo "" ;;
+  esac
+}
+
+rf_remote_id() {  # ROOT -> <host>/<path> of origin: no scheme, credentials, port or .git; host lower-case,
+                  # ssh.github.com / www.github.com read as github.com
+  local u h p
+  u=$(git -C "${1:-}" remote get-url origin 2>/dev/null) || return 0
+  case "$u" in
+    [A-Za-z]*://*) u=$(printf '%s\n' "$u" | sed -E 's#^[A-Za-z][A-Za-z0-9+.-]*://([^@/]*@)?##; s#^([^/:]*):[0-9]*#\1#') ;;
+    *)             u=$(printf '%s\n' "$u" | sed -E 's#^[^@/:]*@##; s#^([^/:]+):/*#\1/#') ;;
+  esac
+  while :; do case "$u" in */) u=${u%/} ;; *) break ;; esac; done
+  u=${u%.git}
+  h=${u%%/*}; p=${u#"$h"}; h=${h##*@}
+  [ -n "$h$p" ] || return 0
+  h=$(printf '%s' "$h" | LC_ALL=C tr '[:upper:]' '[:lower:]')
+  case "$h" in ssh.github.com|www.github.com) h=github.com ;; esac   # aliases of github.com
+  printf '%s%s\n' "$h" "$p"
+}
+
+rf_tracker() {  # ROOT -> {tracker, tracker_source: repo|config|host|null, project, remote_id[, error][, warnings]}
+  local root="${1:-}" id f t="" p="" src="" err="" warns="" cfg n i m rc ge nl='
+'
+  id=$(rf_remote_id "$root")
+  # 1. the repository's declaration: .harness.toml [repo] tracker / project
+  if f=$(hrepo_file "$root") && t=$(hrepo_get "$f" repo tracker); then
+    src=repo
+    p=$(hrepo_get "$f" repo project) || p=""
+    case "$t" in
+      github-issues|jira) ;;
+      *) err="invalid tracker '$t' in .harness.toml [repo]; use github-issues or jira"; t=""; p="" ;;
+    esac
+  fi
+  # 2. the user's config: ticket_workflow.trackers, first entry whose match (ERE) hits the remote id
+  if [ -z "$src" ] && [ -n "$id" ]; then
+    cfg=$(hcfg ticket_workflow.trackers)
+    n=$(jq -r 'if type == "array" then length else 0 end' <<<"${cfg:-[]}" 2>/dev/null) || n=0
+    i=0
+    while [ "$i" -lt "${n:-0}" ]; do
+      m=$(jq -r --argjson i "$i" '.[$i].match // "" | strings' <<<"$cfg" 2>/dev/null)
+      # an invalid ERE: grep exits 2 (GNU, BSD) or 1 with a message (busybox)
+      if [ -z "$m" ]; then rc=2; else ge=$(grep -iqE -- "$m" <<<"$id" 2>&1 >/dev/null); rc=$?
+        [ "$rc" != 1 ] || [ -z "$ge" ] || rc=2; fi
+      case "$rc" in
+        0) src=config
+           t=$(jq -r --argjson i "$i" '.[$i].tracker // "" | strings' <<<"$cfg" 2>/dev/null)
+           p=$(jq -r --argjson i "$i" '.[$i].project // "" | strings' <<<"$cfg" 2>/dev/null)
+           case "$t" in
+             github-issues|jira) ;;
+             *) err="invalid tracker '$t' in ticket_workflow.trackers[$i]; use github-issues or jira"; t=""; p="" ;;
+           esac
+           break ;;
+        1) ;;
+        *) warns="${warns}ticket_workflow.trackers[$i].match is not a valid ERE and was skipped (harness doctor names the fix)$nl" ;;
+      esac
+      i=$((i + 1))
+    done
+  fi
+  # 3. the host: github.com -> GitHub Issues, a GitLab host -> Jira, anything else -> unknown
+  if [ -z "$src" ] && [ -n "${id%%/*}" ]; then
+    case "$(rf_provider "${id%%/*}")" in
+      github) t=github-issues; src=host ;;
+      gitlab) t=jira; src=host ;;
+    esac
+  fi
+  if [ -n "$p" ] && [ "$t" != jira ]; then
+    warns="${warns}project '$p' is used only with tracker = jira; ignored$nl"; p=""
+  fi
+  jq -cn --arg t "$t" --arg s "$src" --arg p "$p" --arg id "$id" --arg e "$err" --arg w "$warns" '
+    def nn: if . == "" then null else . end;
+    {tracker:($t|nn), tracker_source:($s|nn), project:($p|nn), remote_id:($id|nn)}
+    + (if $e == "" then {} else {error:$e} end)
+    + (if $w == "" then {} else {warnings:($w | split("\n") | map(select(length > 0)))} end)'
+}
+# <<< rf_tracker
 repo_decl=$(hrepo_file "$PWD") || repo_decl=""
 repo_owns=false
 if hrepo_owns ticket-workflow/skills/create-ticket delivery "$PWD"; then repo_owns=true; fi
-P="${1:-}"; [ -n "$P" ] || { echo '{"error":"usage: create-facts.sh PROJECT|owner/repo"}'; exit 1; }
+top=$(git rev-parse --show-toplevel 2>/dev/null) || top=""
+tracker=$(rf_tracker "$top"); [ -n "$tracker" ] || tracker=null
+P="${1:-}"; [ -n "$P" ] || { echo '{"error":"usage: create-facts.sh PROJECT|owner/repo|--repo"}'; exit 1; }
+
+# ---------------------------------------------------------------- --repo: the cwd's declaration only
+if [ "$P" = --repo ]; then
+  jq -n --argjson tracker "$tracker" --arg rdecl "$repo_decl" --argjson rowns "$repo_owns" '
+  {tracker:$tracker, repo_declaration:(if $rdecl == "" then null else $rdecl end), repo_owns:$rowns}'
+  exit 0
+fi
 
 # ---------------------------------------------------------------- GitHub (read-only)
 if [[ "$P" == */* ]]; then
@@ -136,22 +246,23 @@ if [[ "$P" == */* ]]; then
   [ -n "$labels" ] || labels='[]'
   milestones=$(ghq api "repos/$P/milestones?per_page=100" --jq '[.[]|select(.state=="open")|.title]') || milestones=""
   [ -n "$milestones" ] || milestones='[]'
-  # issue templates only when the cwd is a clone of this repo (remote path match; URLs never printed)
+  # issue templates only when the cwd is a clone of this repo on $ghhost (remote id match; URLs never printed)
   templates='[]'
-  top=$(git rev-parse --show-toplevel 2>/dev/null) || top=""
-  if [ -n "$top" ] && git -C "$top" remote -v 2>/dev/null | grep -qiE "github\.com[:/]${P//./\\.}(\.git)?[[:space:]]"; then
+  rid=$(rf_remote_id "$top" | LC_ALL=C tr '[:upper:]' '[:lower:]')
+  want=$(printf '%s/%s' "$ghhost" "$P" | LC_ALL=C tr '[:upper:]' '[:lower:]')
+  if [ -n "$top" ] && [ -n "$rid" ] && [ "$rid" = "$want" ]; then
     templates=$(cd "$top" && find .github/ISSUE_TEMPLATE -maxdepth 1 -type f 2>/dev/null | sort | jq -Rsc 'split("\n")|map(select(length>0))')
     [ -n "$templates" ] || templates='[]'
   fi
   jq -n --arg me "$me" --arg p "$P" --arg err "$err" --argjson repo "$repo" \
         --argjson labels "$labels" --argjson milestones "$milestones" --argjson templates "$templates" \
-        --arg rdecl "$repo_decl" --argjson rowns "$repo_owns" '
+        --arg rdecl "$repo_decl" --argjson rowns "$repo_owns" --argjson tracker "$tracker" '
   {provider:"github", me:$me, project:($repo.nameWithOwner // $p),
    creatable:($repo.hasIssuesEnabled == true),
    can_assign:(($repo.viewerPermission // "") | IN("WRITE","MAINTAIN","ADMIN")),
    viewer_permission:($repo.viewerPermission // null),
    labels:$labels, milestones:$milestones, templates:$templates,
-   repo_declaration:(if $rdecl == "" then null else $rdecl end), repo_owns:$rowns}
+   repo_declaration:(if $rdecl == "" then null else $rdecl end), repo_owns:$rowns, tracker:$tracker}
   + (if $err != "" then {error:$err} else {} end)'
   exit 0
 fi
@@ -198,7 +309,8 @@ labels=$(jira api "/rest/api/2/search?jql=project%3D$P%20AND%20labels%20is%20not
 jq -n --arg me "$me" --arg p "$P" --argjson creatable "$creatable" --argjson can_assign "$can_assign" --argjson can_attach "$can_attach" \
       --argjson types "$types" --argjson versions "$versions" --argjson components "$components" \
       --argjson priorities "$priorities" --argjson labels "$labels" \
-      --arg rdecl "$repo_decl" --argjson rowns "$repo_owns" '
+      --arg rdecl "$repo_decl" --argjson rowns "$repo_owns" --argjson tracker "$tracker" '
 {me:$me, project:$p, creatable:$creatable, can_assign:$can_assign, can_attach:$can_attach,
  types:$types, versions_unreleased:$versions, components:$components, priorities:$priorities,
- labels_in_use:$labels, repo_declaration:(if $rdecl == "" then null else $rdecl end), repo_owns:$rowns}'
+ labels_in_use:$labels, repo_declaration:(if $rdecl == "" then null else $rdecl end), repo_owns:$rowns,
+ tracker:$tracker}'

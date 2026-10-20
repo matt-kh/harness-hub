@@ -173,6 +173,26 @@ Things to try, to see the harness working:
   ticket → branch → MR/PR flow; it labels what it touches `agent-worked`, mentions the ticket
   and never closes it.
 
+**Which tracker a repository uses.** Which tracker a repository uses is declared, not guessed. A repository states it in its
+committed `.harness.toml` (`[repo] tracker = "github-issues"` or `"jira"`); for repositories
+that do not, list your own mapping in the harness config, matched against `<host>/<path>` of
+the `origin` remote (first match wins):
+
+```toml
+[[ticket_workflow.trackers]]
+match = "^github\\.com/owner/"          # ERE on "<host>/<path>" of origin, lower-case host, no .git, no credentials
+tracker = "github-issues"
+[[ticket_workflow.trackers]]
+match = "^gitlab\\.example\\.com/group/"
+tracker = "jira"
+project = "PROJ"                       # optional, jira only: default project for create-ticket
+```
+
+Without either, the host decides (github.com → GitHub Issues, a GitLab host → Jira).
+`/work-ticket` and `/create-ticket` report the result and its source at preflight and stop when
+the argument does not fit it; `harness doctor` checks every entry (the ERE compiles, the tracker
+is known, `project` only with Jira).
+
 The hub is a user-level baseline: when a repository ships its own harness (`CLAUDE.md` /
 `AGENTS.md`, `.claude/`, hooks, skills, a `.harness.toml`), the hub's components yield to it
 for every concern it covers ([principle 8](../principles/08-user-level-by-design.md)). Inside

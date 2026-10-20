@@ -1,14 +1,18 @@
 # Type, project and version rules
 
-## Project inference (Step 0) — never a repo ↔ project mapping
+## Project inference (Step 0) — declared defaults only, never a guessed repo ↔ project mapping
 1. `--project KEY`, or an explicit key/prefix in the input (`PROJ-…`, `[PROJ]`, "in OPS").
-2. Case-insensitive match of a creatable project's key or name against words in the input
+2. `create-facts.sh --repo` → `tracker.project` (declared by the repository's `.harness.toml
+   [repo] project` or the user's `ticket_workflow.trackers`) and creatable → the default:
+   marked `(default)` in the preview and offered first in **P1** when P1 fires; the user can
+   still change it.
+3. Case-insensitive match of a creatable project's key or name against words in the input
    (e.g. "shop", "ops platform"). Candidate list = projects where
    `create-facts.sh` reports `creatable: true`; start from the projects in
    `jira search 'reporter = currentUser() ORDER BY created DESC' 30` (cheap, personal).
-3. Otherwise: most frequent creatable project in that search. Share ≥ 60% → default silently
+4. Otherwise: most frequent creatable project in that search. Share ≥ 60% → default silently
    (marked `(default)` in preview); else → **P1**.
-4. No creatable candidate → stop and list projects the token can create in.
+5. No creatable candidate → stop and list projects the token can create in.
 
 Which projects the token can create in is org knowledge (see the org notes, if any) — always
 re-check via facts; permissions change.
@@ -63,7 +67,8 @@ override the generic preference order above.
 - Provenance: `labels` always starts with `{{ core.agent_labels.drafted }}`; footer line is fixed.
 
 ## GitHub Issues (provider = github; `create-facts.sh owner/repo`)
-Project = `owner/repo` (argument, else the cwd's github.com remote). No types, versions,
+Project = `owner/repo` (argument, else the path of `tracker.remote_id` when the cwd's declared
+tracker is `github-issues`). No types, versions,
 components or priorities — only labels, assignee, milestone. Render with `--provider github`.
 | class | label (only if present in facts `labels`) | body |
 |---|---|---|

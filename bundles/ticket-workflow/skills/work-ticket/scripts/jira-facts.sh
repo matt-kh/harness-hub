@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
 # work-ticket Jira facts for sub-ticket creation: READ-ONLY, prints one JSON object.
 # Usage: jira-facts.sh <PARENT-KEY>
+# `tracker`: the repository's declared tracker and its source (lib/repo-facts.sh rf_tracker).
 set -uo pipefail
+# shellcheck source=lib/repo-facts.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/repo-facts.sh"
 key="${1:-}"; [ -n "$key" ] || { echo '{"error":"usage: jira-facts.sh KEY"}'; exit 1; }
 proj="${key%%-*}"
+tracker=$(rf_tracker "$(rf_root)"); [ -n "$tracker" ] || tracker=null
 
 me=$(jira whoami 2>/dev/null | jq -r '.name // empty')
 perms=$(jira api "/rest/api/2/mypermissions?projectKey=$proj" 2>/dev/null | jq -c '
@@ -29,10 +33,11 @@ children=$(jq -c '[.links[]? | select(.direction == "split to") | .key]' <<<"$pa
 
 jq -n --arg me "$me" --arg proj "$proj" --arg lt "$link_type" \
       --argjson perms "$perms" --argjson types "$types" --argjson link_types "$link_types" \
-      --argjson parent "$parent" --argjson children "$children" '
+      --argjson parent "$parent" --argjson children "$children" --argjson tracker "$tracker" '
 {me:$me, project:$proj, perms:$perms,
  sub_ticket_types:$types, preferred_type:(if ($parent.type // "") as $t | ($types | index($t)) then $parent.type
                                           elif ($types | index("Task")) then "Task" else ($types[0] // null) end),
  link_types:$link_types, link_type:(if $lt=="" then null else $lt end),
  parent:$parent, existing_children:$children,
- sub_tickets_available:($perms.create and $perms.link and ($types|length>0) and $lt!="")}'
+ sub_tickets_available:($perms.create and $perms.link and ($types|length>0) and $lt!=""),
+ tracker:$tracker}'

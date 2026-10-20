@@ -75,7 +75,7 @@ Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md
 
 - `ticket-workflow/permissions` — function: govern · decisions: empty (no rules) · yields: config
 
-**Doctor checks** (function: setup · posture: read-only; table below): `ticket-workflow/doctor/ticket-workflow-scm`, `ticket-workflow/doctor/ticket-workflow-skills`, `ticket-workflow/doctor/ticket-workflow-tracker`
+**Doctor checks** (function: setup · posture: read-only; table below): `ticket-workflow/doctor/ticket-workflow-scm`, `ticket-workflow/doctor/ticket-workflow-skills`, `ticket-workflow/doctor/ticket-workflow-tracker`, `ticket-workflow/doctor/ticket-workflow-trackers`
 
 **Manual steps** (function: setup; table below): `ticket-workflow/steps/repo-overrides`
 
@@ -91,7 +91,9 @@ Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md
 
 ### Configuration
 
-_none_
+| key | type | required | default | description |
+|---|---|---|---|---|
+| `ticket_workflow.trackers` | array | no | `[]` | Which tracker each repository uses, by origin remote: [[ticket_workflow.trackers]] match (ERE on <host>/<path>, case-insensitive), tracker (github-issues or jira), project (jira only: create-ticket's default project). First match wins; a repository's .harness.toml [repo] tracker wins over it; no match = the host decides (github.com -> github-issues, GitLab -> jira). |
 
 ### Secrets (never in harness.toml)
 
@@ -132,6 +134,7 @@ Full list and the credential exemption: docs/repo-level.md.
 | `ticket-workflow-tracker` | fail | runs | `Activate the jira or github bundle (hub.bundles) and run harness apply` |
 | `ticket-workflow-scm` | fail | runs | `Activate the gitlab or github bundle (hub.bundles) and run harness apply` |
 | `ticket-workflow-skills` | fail | runs | `harness apply --provider claude` |
+| `ticket-workflow-trackers` | fail | runs | `Edit [[ticket_workflow.trackers]] in harness.toml at the index named above: match is an ERE on <host>/<path> (escape dots), tracker is github-issues or jira, project only with jira; then harness doctor` |
 
 ## Guides and sensors
 
@@ -139,15 +142,16 @@ Guides steer the agent before it acts; sensors detect at or after the action. Pa
 
 | side | kind | ref | note |
 |---|---|---|---|
-| guide | rule | `rules/75-ticket-workflow.md` | ticket to MR/PR flow, label gate, key-free branches, stacked delivery |
+| guide | rule | `rules/75-ticket-workflow.md` | ticket to MR/PR flow, label gate, key-free branches, stacked delivery; the tracker is declared per repository (sensed by the work-ticket golden suite and the ticket-workflow-trackers doctor check) |
 | guide | skill | `skills/work-ticket` | the governed ticket workflow and its preflight scripts |
 | guide | skill | `skills/create-ticket` | one drafted ticket or issue, rendered deterministically |
 | sensor | guard | `guard.d/75-ticket-workflow.sh` | key-free branches and subjects, sub worktree paths, squash delivery |
 | sensor | doctor | `doctor_checks` | a tracker CLI and an SCM CLI on PATH, both skills rendered |
-| sensor | test | `tests/run.sh` | this bundle's guard rows against core + ticket-workflow only, then every skill suite |
+| sensor | doctor | `ticket-workflow-trackers` | every ticket_workflow.trackers match compiles, tracker is known, project only with jira |
+| sensor | test | `tests/run.sh` | this bundle's guard rows against core + ticket-workflow only, then every skill suite, then the ticket-workflow-trackers doctor script (lib/check-trackers.sh) per input |
 | sensor | test | `guard.d/tests.sh` | rows for section 75 incl. bypasses |
-| sensor | test | `skills/work-ticket/scripts/tests/run.sh` | preflight dispatch, GitHub and GitLab preflights, issue and Jira facts, repo-facts: one JSON object per run, goldens per fixture repository with and without PyYAML, read-only stub-log invariants |
-| sensor | test | `skills/create-ticket/scripts/tests/run.sh` | golden renders of every ticket class; create-facts goldens for Jira and GitHub (config, unreachable, unauthenticated, not installed) |
+| sensor | test | `skills/work-ticket/scripts/tests/run.sh` | preflight dispatch, GitHub and GitLab preflights, issue and Jira facts, repo-facts incl. the rf-tracker table (repo > config > host): one JSON object per run, goldens per fixture repository with and without PyYAML, read-only stub-log invariants |
+| sensor | test | `skills/create-ticket/scripts/tests/run.sh` | golden renders of every ticket class; create-facts goldens for Jira and GitHub (config, unreachable, unauthenticated, not installed, GitHub Enterprise templates, --repo tracker); the inlined rf_tracker block matches work-ticket's |
 
 **Not covered:** The size rubric, Q-checklist and MR body content are judgement calls (inferential: code-reviewer); SCM verb conventions are sensed by the gitlab/github guard sections; the preflight and facts scripts are sensed by golden suites against stubbed gh, glab and jira.
 
