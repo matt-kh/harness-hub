@@ -332,6 +332,11 @@ prints every one between your applied version and the new one.
 
 ### Changed
 
+- `harness lint` rule `stability` now checks `beta` bundles as well as `stable` ones: a skill
+  or CLI without a `tests/run.sh`, or a `coverage_note` admitting a missing suite, warns with
+  the level to move to (`beta` → `experimental`, `stable` → `beta`). CONTRIBUTING "Stability
+  levels" already required the suites at `beta`; `ticket-workflow` and `gdoc` pass. Principle 9
+  lists the check as shipped (principle 9).
 - `/work-ticket` and `/create-ticket` read the declared tracker at preflight instead of
   guessing it from the host or the argument form: the argument must agree with it (`KEY` with
   `jira`; `#N`, `owner/repo#N` or an issue URL with `github-issues`, a bare `N` only then), a
