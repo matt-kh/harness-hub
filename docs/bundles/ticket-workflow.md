@@ -138,20 +138,20 @@ Full list and the credential exemption: docs/repo-level.md.
 
 ## Guides and sensors
 
-Guides steer the agent before it acts; sensors detect at or after the action. Pairing: **paired**.
+Guides steer the agent before it acts; sensors detect at or after the action. Pairing: **paired**; guides with a declared check: 3 of 3.
 
-| side | kind | ref | note |
-|---|---|---|---|
-| guide | rule | `rules/75-ticket-workflow.md` | ticket to MR/PR flow, label gate, key-free branches, stacked delivery; the tracker is declared per repository (sensed by the work-ticket golden suite and the ticket-workflow-trackers doctor check) |
-| guide | skill | `skills/work-ticket` | the governed ticket workflow and its preflight scripts |
-| guide | skill | `skills/create-ticket` | one drafted ticket or issue, rendered deterministically |
-| sensor | guard | `guard.d/75-ticket-workflow.sh` | key-free branches and subjects, sub worktree paths, squash delivery |
-| sensor | doctor | `doctor_checks` | a tracker CLI and an SCM CLI on PATH, both skills rendered |
-| sensor | doctor | `ticket-workflow-trackers` | every ticket_workflow.trackers match compiles, tracker is known, project only with jira |
-| sensor | test | `tests/run.sh` | this bundle's guard rows against core + ticket-workflow only, then every skill suite, then the ticket-workflow-trackers doctor script (lib/check-trackers.sh) per input |
-| sensor | test | `guard.d/tests.sh` | rows for section 75 incl. bypasses |
-| sensor | test | `skills/work-ticket/scripts/tests/run.sh` | preflight dispatch, GitHub and GitLab preflights, issue and Jira facts, repo-facts incl. the rf-tracker table (repo > config > host): one JSON object per run, goldens per fixture repository with and without PyYAML, read-only stub-log invariants |
-| sensor | test | `skills/create-ticket/scripts/tests/run.sh` | golden renders of every ticket class; create-facts goldens for Jira and GitHub (config, unreachable, unauthenticated, not installed, GitHub Enterprise templates, --repo tracker); the inlined rf_tracker block matches work-ticket's |
+| side | kind | ref | note | pairs with |
+|---|---|---|---|---|
+| guide | rule | `rules/75-ticket-workflow.md` | ticket to MR/PR flow, label gate, key-free branches, stacked delivery; the tracker is declared per repository (sensed by the work-ticket golden suite and the ticket-workflow-trackers doctor check) | `guard.d/75-ticket-workflow.sh`, `doctor_checks`, `skills/work-ticket/scripts/tests/run.sh` |
+| guide | skill | `skills/work-ticket` | the governed ticket workflow and its preflight scripts | `guard.d/75-ticket-workflow.sh`, `skills/work-ticket/scripts/tests/run.sh` |
+| guide | skill | `skills/create-ticket` | one drafted ticket or issue, rendered deterministically | `skills/create-ticket/scripts/tests/run.sh` |
+| sensor | guard | `guard.d/75-ticket-workflow.sh` | key-free branches and subjects, sub worktree paths, squash delivery | `rules/75-ticket-workflow.md`, `skills/work-ticket` |
+| sensor | doctor | `doctor_checks` | a tracker CLI and an SCM CLI on PATH, both skills rendered | `rules/75-ticket-workflow.md` |
+| sensor | doctor | `ticket-workflow-trackers` | every ticket_workflow.trackers match compiles, tracker is known, project only with jira | — |
+| sensor | test | `tests/run.sh` | this bundle's guard rows against core + ticket-workflow only, then every skill suite, then the ticket-workflow-trackers doctor script (lib/check-trackers.sh) per input | — |
+| sensor | test | `guard.d/tests.sh` | rows for section 75 incl. bypasses | — |
+| sensor | test | `skills/work-ticket/scripts/tests/run.sh` | preflight dispatch, GitHub and GitLab preflights, issue and Jira facts, repo-facts incl. the rf-tracker table (repo > config > host): one JSON object per run, goldens per fixture repository with and without PyYAML, read-only stub-log invariants | `rules/75-ticket-workflow.md`, `skills/work-ticket` |
+| sensor | test | `skills/create-ticket/scripts/tests/run.sh` | golden renders of every ticket class; create-facts goldens for Jira and GitHub (config, unreachable, unauthenticated, not installed, GitHub Enterprise templates, --repo tracker); the inlined rf_tracker block matches work-ticket's | `skills/create-ticket` |
 
 **Not covered:** The size rubric, Q-checklist and MR body content are judgement calls (inferential: code-reviewer); SCM verb conventions are sensed by the gitlab/github guard sections; the preflight and facts scripts are sensed by golden suites against stubbed gh, glab and jira.
 

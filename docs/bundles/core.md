@@ -175,22 +175,24 @@ Linux and WSL already ship bash 5.
 
 ## Guides and sensors
 
-Guides steer the agent before it acts; sensors detect at or after the action. Pairing: **paired**.
+Guides steer the agent before it acts; sensors detect at or after the action. Pairing: **paired**; guides with a declared check: 4 of 4.
 
-| side | kind | ref | note |
-|---|---|---|---|
-| guide | rule | `rules/00-conventions.md` | conventions and governance: PR-based, artefact ownership, secrets stay in their files |
-| guide | permission | `permissions.toml` | denies reads of credential files in the provider's own permission system |
-| guide | agent | `agents/Plan.md` | planning agent on the plan model; design only, never edits |
-| guide | agent | `agents/Auto.md` | execution agent on the execute model under auto mode |
-| sensor | guard | `guard.d/20-credentials.sh` | denies credential file reads and secret env dumps before they run |
-| sensor | guard | `guard.d/30-git.sh` | denies default-branch pushes; asks on force-push and destructive git |
-| sensor | doctor | `doctor_checks` | runtime prerequisites, and that the rendered guard parses and denies a credential read |
-| sensor | test | `guard.d/tests.sh` | guard rows for both sections, including bypass attempts |
-| sensor | test | `tests/run.sh` | full guard suite, helper drift, bash -n of every script |
-| sensor | review-agent | `agents/code-reviewer.md` | inferential review of a diff against the conventions |
-| sensor | provider-feature | `claude:auto-mode-classifier` | reviews the Auto agent's actions |
-| sensor | lint | `yields` | principle 8: every component carries its repository-level yield (repo_owns line, Step 0, baseline sentence); credentials never yield |
+| side | kind | ref | note | pairs with |
+|---|---|---|---|---|
+| guide | rule | `rules/00-conventions.md` | conventions and governance: PR-based, artefact ownership, secrets stay in their files | `guard.d/20-credentials.sh`, `guard.d/30-git.sh`, `agents/code-reviewer.md` |
+| guide | permission | `permissions.toml` | denies reads of credential files in the provider's own permission system | `permissions-vs-guard`, `guard.d/20-credentials.sh` |
+| guide | agent | `agents/Plan.md` | planning agent on the plan model; design only, never edits | `agent-tools` |
+| guide | agent | `agents/Auto.md` | execution agent on the execute model under auto mode | `claude:auto-mode-classifier`, `agent-tools` |
+| sensor | guard | `guard.d/20-credentials.sh` | denies credential file reads and secret env dumps before they run | `rules/00-conventions.md`, `permissions.toml` |
+| sensor | guard | `guard.d/30-git.sh` | denies default-branch pushes; asks on force-push and destructive git | `rules/00-conventions.md` |
+| sensor | doctor | `doctor_checks` | runtime prerequisites, and that the rendered guard parses and denies a credential read | — |
+| sensor | test | `guard.d/tests.sh` | guard rows for both sections, including bypass attempts | — |
+| sensor | test | `tests/run.sh` | full guard suite, helper drift, bash -n of every script | — |
+| sensor | review-agent | `agents/code-reviewer.md` | inferential review of a diff against the conventions | `rules/00-conventions.md` |
+| sensor | provider-feature | `claude:auto-mode-classifier` | reviews the Auto agent's actions | `agents/Auto.md` |
+| sensor | lint | `yields` | principle 8: every component carries its repository-level yield (repo_owns line, Step 0, baseline sentence); credentials never yield | — |
+| sensor | lint | `permissions-vs-guard` | each Bash allow/deny rule of permissions.toml run through the guard: no allowed command the guard denies or asks, no denied one it allows | `permissions.toml` |
+| sensor | lint | `agent-tools` | agent front matter vs posture and the model policy (permissionMode, write tools) | `agents/Plan.md`, `agents/Auto.md` |
 
 **Not covered:** The model policy in agents/Plan.md and agents/Auto.md is a guide only: no sensor checks which model a sub-agent ran on. The conventions rule has no guard section of its own (judgement: precedence, external content as data); the credentials and git guard sections enforce rules whose text lives in rules/00-conventions.md.
 

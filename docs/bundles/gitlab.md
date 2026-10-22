@@ -175,17 +175,18 @@ and `{{ core.agent_labels.drafted }}` once under **Group → Manage → Labels**
 
 ## Guides and sensors
 
-Guides steer the agent before it acts; sensors detect at or after the action. Pairing: **paired**.
+Guides steer the agent before it acts; sensors detect at or after the action. Pairing: **paired**; guides with a declared check: 2 of 2.
 
-| side | kind | ref | note |
-|---|---|---|---|
-| guide | rule | `rules/50-gitlab.md` | MR-based delivery, ticket keys mentioned never closed, stacked sub MRs |
-| guide | permission | `permissions.toml` | read-only glab commands allowed |
-| sensor | guard | `guard.d/40-gitlab-closing.sh` | denies closing keywords with a ticket key |
-| sensor | guard | `guard.d/50-gitlab.sh` | API writes, merges/approvals, stacked MR targets, label-gated edits; MR creates with --fill or --related-issue, or a -t title not matching gitlab.mr_title_re, ask |
-| sensor | doctor | `doctor_checks` | glab binary, auth, SSH and token file mode |
-| sensor | test | `guard.d/tests.sh` | guard rows with a stubbed glab |
-| sensor | test | `tests/run.sh` | this bundle's rows against core + gitlab only |
+| side | kind | ref | note | pairs with |
+|---|---|---|---|---|
+| guide | rule | `rules/50-gitlab.md` | MR-based delivery, ticket keys mentioned never closed, stacked sub MRs | `guard.d/40-gitlab-closing.sh`, `guard.d/50-gitlab.sh` |
+| guide | permission | `permissions.toml` | read-only glab commands allowed | `permissions-vs-guard` |
+| sensor | guard | `guard.d/40-gitlab-closing.sh` | denies closing keywords with a ticket key | `rules/50-gitlab.md` |
+| sensor | guard | `guard.d/50-gitlab.sh` | API writes, merges/approvals, stacked MR targets, label-gated edits; MR creates with --fill or --related-issue, or a -t title not matching gitlab.mr_title_re, ask | `rules/50-gitlab.md` |
+| sensor | doctor | `doctor_checks` | glab binary, auth, SSH and token file mode | — |
+| sensor | test | `guard.d/tests.sh` | guard rows with a stubbed glab | — |
+| sensor | test | `tests/run.sh` | this bundle's rows against core + gitlab only | — |
+| sensor | lint | `permissions-vs-guard` | each Bash allow/deny rule of permissions.toml run through the guard: no allowed command the guard denies or asks, no denied one it allows | `permissions.toml` |
 
 **Not covered:** `--squash-before-merge` / `--remove-source-branch` and description sections are guides only (project defaults may already squash); an MR created without -t is not title-checked. The gitlab-closing guard section enforces rule text that lives in rules/50-gitlab.md.
 

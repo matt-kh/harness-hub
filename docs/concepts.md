@@ -87,7 +87,7 @@ agent is a model plus a harness, and the harness has two kinds of control
 | When | before the agent acts | at or after the action |
 | Purpose | raise the chance it is right the first time | detect and correct when it is not |
 | In a bundle | `rules/`, `skills/`, `permissions.toml`, `agents/`, templates | `guard.d/`, doctor checks, `guard.d/tests.sh` and `tests/`, lint rules, review agents, provider features |
-| Declared as | `[harness] guides = [{kind, ref, note}]` | `[harness] sensors = [{kind, ref, note}]` |
+| Declared as | `[harness] guides = [{kind, ref, checks, note}]` | `[harness] sensors = [{kind, ref, note}]` |
 
 - **Computational** sensors are deterministic and cheap: the guard, `harness lint`, test rows,
   `harness doctor`. They run on every change or every command.
@@ -100,8 +100,9 @@ agent is a model plus a harness, and the harness has two kinds of control
   decides `allow | ask | deny | pass`, and its reason says what to do instead, so the message
   also steers the next attempt.
 - **Pairing.** Each bundle declares both lists and a `coverage_note` for what the pairing does
-  not cover. `harness lint` warns on guides without sensors, sensors without guides, and guard
-  reasons or runtime guard messages without an alternative. Each bundle page and the
+  not cover, and each guide names the sensors that check it in `checks`. `harness lint` warns
+  on guides without sensors, a guide without `checks` that `coverage_note` does not name, and
+  guard reasons or runtime guard messages without an alternative. Each bundle page and the
   [harness coverage](reference/harness-coverage.md) reference render the tables.
 - **The steering loop.** When an agent repeats a mistake, improve a guide or a sensor so it
   does not recur; contributions to this repo are that loop

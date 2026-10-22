@@ -213,8 +213,8 @@ domain = "scm"; posture = "label-gated"; function = "govern"
 
 [harness]                 # guides (feedforward) and sensors (feedback), principle 6
 coverage_note = "what the pairing does not cover"
-guides  = [ { kind = "rule", ref = "rules/60-github.md", note = "…" },
-            { kind = "permission", ref = "permissions.toml" } ]
+guides  = [ { kind = "rule", ref = "rules/60-github.md", checks = ["guard.d/60-github.sh"], note = "…" },
+            { kind = "permission", ref = "permissions.toml", checks = ["guard.d/60-github.sh"] } ]
 sensors = [ { kind = "guard", ref = "guard.d/60-github.sh" }, { kind = "doctor", ref = "doctor_checks" },
             { kind = "test", ref = "guard.d/tests.sh" } ]
 ```
@@ -232,12 +232,18 @@ Rules:
   `lint` a lint rule name (`manifest`, `templates`, `guard-syntax`, `guard-reasons`,
   `guard-messages`, `guides-sensors`, `dependencies`, `private-ids`, `taxonomy`, `env-provides`,
   `rule-guard-pairing`, `permissions-vs-guard`, `agent-tools`, `skill-description`,
-  `fragments-target`, `profile-sane`, `stability`, `yields`), for `provider-feature` `<provider>:<feature>`
+  `fragments-target`, `profile-sane`, `stability`, `yields`, `provider-honesty`, `shim-fixtures`,
+  `guide-checks`), for `provider-feature` `<provider>:<feature>`
   naming an entry of that provider's `features` (§4) — an inferential sensor that lives in the
   product, such as `claude:auto-mode-classifier`. A ref that resolves to nothing is a lint error; a bundle with guides but no
   sensors, sensors but no guides, or (public bundles) no `[harness]` at all is a lint warning.
+  A guide's optional `checks` lists the sensors that check it, as `ref` values of the same
+  bundle's `sensors`; lint (`guide-checks`) errors on a ref no sensor declares and warns on a
+  public guide without `checks` unless `coverage_note` names its topic (basename without
+  extension and `NN-`). `Bundle.pairing()` stays per bundle; `unpaired_guides()` is per guide.
   `coverage_note` states what is deliberately not sensed. Rendered as "Guides and sensors" in
-  `docs/bundles/<b>.md` and summarised in `docs/reference/harness-coverage.md`.
+  `docs/bundles/<b>.md` (with a **pairs with** column) and summarised in
+  `docs/reference/harness-coverage.md` (with an **unpaired guides** column).
 - Every `deny`/`ask` `# rule:` reason in `guard.d/` states the alternative action; lint warns
   (`guard-reasons`) when the reason contains none of *use, instead, ask, run, mention, see,
   pass, pipe, check, drop, hand*. The runtime `deny "…"` / `ask "…"` / `defer "…"` strings the
@@ -366,7 +372,7 @@ with stubs from `bundles/core/guard/tests/stubs/` on `PATH`.
 
 `pack`, `verify`, `bootstrap --from`, `upgrade` and `release` are the distribution commands (§10). `lint` adds
 principle and consistency checks to the manifest checks: `guides-sensors`, `guard-reasons`, `guard-messages`,
-`taxonomy` (§3), `yields` (§11) and `rule-guard-pairing` (§3); `env-provides` (`[provides.env]` keys the guard would
+`taxonomy` (§3), `yields` (§11), `rule-guard-pairing` and `guide-checks` (§3); `env-provides` (`[provides.env]` keys the guard would
 drop); `permissions-vs-guard` (each `Bash(<prefix>:*)` allow/deny rule run through the guard
 built from core + the bundle); `agent-tools` (read-only agents with write tools or a
 permissionMode, hard-coded models); `skill-description` (length, trigger phrase, workflow

@@ -177,6 +177,8 @@
       "properties": {
         "kind": {"type": "string", "enum": ["rule", "skill", "permission", "agent", "template"]},
         "ref": {"type": "string", "minLength": 1, "description": "Bundle-relative path (rules/10-x.md, skills/x, permissions.toml, agents/x.md)."},
+        "checks": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1},
+                   "description": "The sensors that check this guide: `ref` values of this bundle's `sensors`. `harness lint` (guide-checks) errors on a ref no sensor declares and warns on a public guide without `checks` unless `coverage_note` names its topic."},
         "note": {"type": "string"}
       }
     },

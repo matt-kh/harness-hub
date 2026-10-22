@@ -343,11 +343,19 @@ def harness_body(b: M.Bundle) -> str:
     if status == "undeclared":
         out.append("_This bundle declares no `[harness]` section._\n")
         return "\n".join(out)
+    checked = len(b.guides) - len(b.unpaired_guides())
     out.append("Guides steer the agent before it acts; sensors detect at or after the action. "
-               "Pairing: **%s**.\n" % status)
-    rows = [["guide", e.get("kind", ""), code(e.get("ref", "")), e.get("note", "")] for e in b.guides]
-    rows += [["sensor", e.get("kind", ""), code(e.get("ref", "")), e.get("note", "")] for e in b.sensors]
-    out.append(table(["side", "kind", "ref", "note"], rows))
+               "Pairing: **%s**; guides with a declared check: %d of %d.\n" % (status, checked, len(b.guides)))
+
+    def refs(items: Sequence[str]) -> str:
+        return ", ".join(code(r) for r in items) or "—"
+
+    rows = [["guide", e.get("kind", ""), code(e.get("ref", "")), e.get("note", ""), refs(e.get("checks") or [])]
+            for e in b.guides]
+    rows += [["sensor", e.get("kind", ""), code(e.get("ref", "")), e.get("note", ""),
+              refs([str(g.get("ref", "")) for g in b.guides if e.get("ref") in (g.get("checks") or [])])]
+             for e in b.sensors]
+    out.append(table(["side", "kind", "ref", "note", "pairs with"], rows))
     if b.harness.get("coverage_note"):
         out.append("**Not covered:** %s\n" % " ".join(str(b.harness["coverage_note"]).split()))
     return "\n".join(out)
@@ -360,8 +368,10 @@ def coverage_body(bundles: Sequence[M.Bundle]) -> str:
         sk = sorted(set(e.get("kind", "") for e in b.sensors), key=lambda k: SENSOR_KINDS.index(k) if k in SENSOR_KINDS else 99)
         rows.append(["[%s](../bundles/%s.md#guides-and-sensors)" % (b.name, b.name), len(b.guides), ", ".join(gk),
                      len(b.sensors), ", ".join(sk), b.pairing(),
+                     ", ".join(code(g.get("ref", "")) for g in b.unpaired_guides()) or "none",
                      " ".join(str(b.harness.get("coverage_note", "")).split())])
-    return table(["bundle", "guides", "guide kinds", "sensors", "sensor kinds", "pairing", "not covered"], rows)
+    return table(["bundle", "guides", "guide kinds", "sensors", "sensor kinds", "pairing", "unpaired guides",
+                  "not covered"], rows)
 
 
 def provider_body(p: M.Provider) -> str:
