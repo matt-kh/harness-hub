@@ -1,0 +1,7 @@
+# exit=0
+# stderr:
+>> GET https://jira.example.com/rest/api/2/issue/PROJ-200?fields=issuelinks
+# stdout:
+(no links)
+# calls:
+GET https://jira.example.com/rest/api/2/issue/PROJ-200?fields=issuelinks auth=yes

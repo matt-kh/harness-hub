@@ -1,0 +1,6 @@
+# exit=0
+# stderr:
+DRY-RUN POST /rest/api/2/issue/PROJ-123/comment {"body": "h3. Update\n* parser fixed\n{noformat}ok{noformat}"}
+# stdout:
+OK: comment 0 added to PROJ-123
+# calls:

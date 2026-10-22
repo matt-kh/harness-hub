@@ -1,0 +1,8 @@
+# exit=0
+# stderr:
+>> GET https://jira.example.com/rest/api/2/issue/PROJ-123/transitions
+# stdout:
+21     | In Review  -> In Review
+31     | Done  -> Done
+# calls:
+GET https://jira.example.com/rest/api/2/issue/PROJ-123/transitions auth=yes

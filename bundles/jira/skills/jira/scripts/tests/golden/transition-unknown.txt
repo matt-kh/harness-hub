@@ -1,0 +1,7 @@
+# exit=1
+# stderr:
+>> GET https://jira.example.com/rest/api/2/issue/PROJ-123/transitions
+No transition named 'Closed'. Available: In Review, Done
+# stdout:
+# calls:
+GET https://jira.example.com/rest/api/2/issue/PROJ-123/transitions auth=yes

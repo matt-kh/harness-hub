@@ -291,6 +291,16 @@ prints every one between your applied version and the new one.
   under `GDOC_DRY_RUN=1`, each case in a throw-away `HOME` with fake credential files.
   Invariants: no token, client secret or `Bearer` in any output; dry-run writes send only
   GET; every Drive files request carries `supportsAllDrives=true`; no Gmail send endpoint.
+- `jira` CLI golden suite (`bundles/jira/skills/jira/scripts/tests/run.sh`, after the
+  existing configuration checks): every read command (`whoami`, `get` with configured
+  friendly fields and a parsed sprint, `links`, `search`, `fields` for a project and an issue,
+  `api`, `versions`, `transitions`, `attachments`, `download`, `sprints`), HTTP error mapping
+  (401, 403, 404, 500, unreachable, missing token) and every governance write under
+  `JIRA_DRY_RUN=1` (label add/remove, transition, labelled create, create with a link, link,
+  comment, `set` by friendly name), plus `upload`, which bypasses the dry run. Runs through
+  `tests/fakes/http_fixture.py` with an empty `HOME`. Invariants: the token and `Bearer` never
+  in output, every request authenticated and aimed at the configured base URL, dry-run writes
+  send only GET requests.
 - `tests/fakes/http_fixture.py`: a stdlib, CLI-agnostic HTTP driver for python CLIs. It
   loads the CLI by path, routes `urllib.request.urlopen` through a JSON routes file
   (method, URL regex, status, body, once, error), logs `METHOD URL auth=yes|no` and never

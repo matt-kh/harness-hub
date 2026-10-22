@@ -1,0 +1,6 @@
+# exit=0
+# stderr:
+DRY-RUN PUT /rest/api/2/issue/PROJ-123 {"update": {"labels": [{"add": "agent-worked"}]}}
+# stdout:
+OK: add label 'agent-worked' on PROJ-123
+# calls:

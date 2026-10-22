@@ -1,0 +1,7 @@
+# exit=2
+# stderr:
+>> GET https://jira.example.com/rest/api/2/myself
+Cannot reach https://jira.example.com: <urlopen error [Errno 111] Connection refused>. Fall back to the browser.
+# stdout:
+# calls:
+GET https://jira.example.com/rest/api/2/myself auth=yes

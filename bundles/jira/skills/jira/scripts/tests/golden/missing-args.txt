@@ -1,0 +1,5 @@
+# exit=1
+# stderr:
+'get' needs 1 argument(s). See the header for usage.
+# stdout:
+# calls:

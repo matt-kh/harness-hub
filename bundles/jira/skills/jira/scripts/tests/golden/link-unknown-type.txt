@@ -1,0 +1,7 @@
+# exit=1
+# stderr:
+>> GET https://jira.example.com/rest/api/2/issueLinkType
+Unknown link type 'Duplicates'. Available: Blocks, Issue split, Relates
+# stdout:
+# calls:
+GET https://jira.example.com/rest/api/2/issueLinkType auth=yes

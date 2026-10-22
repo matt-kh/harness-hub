@@ -1,0 +1,12 @@
+# exit=0
+# stderr:
+>> GET https://jira.example.com/rest/api/2/issue/PROJ-123?fields=attachment
+>> GET https://jira.example.com/secure/attachment/20001/build.log
+>> GET https://jira.example.com/secure/attachment/20002/screen.png
+# stdout:
+saved dl/build.log
+saved dl/screen.png
+# calls:
+GET https://jira.example.com/rest/api/2/issue/PROJ-123?fields=attachment auth=yes
+GET https://jira.example.com/secure/attachment/20001/build.log auth=yes
+GET https://jira.example.com/secure/attachment/20002/screen.png auth=yes

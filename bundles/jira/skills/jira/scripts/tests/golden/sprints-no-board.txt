@@ -1,0 +1,7 @@
+# exit=1
+# stderr:
+>> GET https://jira.example.com/rest/agile/1.0/board?projectKeyOrId=OTHER
+No agile board for project OTHER.
+# stdout:
+# calls:
+GET https://jira.example.com/rest/agile/1.0/board?projectKeyOrId=OTHER auth=yes

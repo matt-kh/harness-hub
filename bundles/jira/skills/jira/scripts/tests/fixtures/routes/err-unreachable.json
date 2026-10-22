@@ -1,0 +1,6 @@
+[
+  {
+    "url": "https://jira\\.example\\.com",
+    "error": "[Errno 111] Connection refused"
+  }
+]

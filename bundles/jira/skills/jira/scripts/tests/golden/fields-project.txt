@@ -1,0 +1,10 @@
+# exit=0
+# stderr:
+>> GET https://jira.example.com/rest/api/2/issue/createmeta?projectKeys=PROJ&expand=projects.issuetypes.fields
+# stdout:
+labels                 | Labels
+customfield_20002      | Story Points
+summary                | Summary
+customfield_20103      | Type of Problem
+# calls:
+GET https://jira.example.com/rest/api/2/issue/createmeta?projectKeys=PROJ&expand=projects.issuetypes.fields auth=yes

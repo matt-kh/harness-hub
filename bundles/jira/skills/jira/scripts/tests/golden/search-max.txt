@@ -1,0 +1,9 @@
+# exit=0
+# stderr:
+>> GET https://jira.example.com/rest/api/2/search?jql=assignee+%3D+currentUser%28%29&maxResults=2&fields=key%2Cstatus%2Csummary%2Cassignee%2Cissuetype
+# stdout:
+PROJ-123     | In Progress        | Dev Example          | Fix the config parser
+PROJ-124     | Open               | -                    | Document the parser
+(2 of 7 shown)
+# calls:
+GET https://jira.example.com/rest/api/2/search?jql=assignee+%3D+currentUser%28%29&maxResults=2&fields=key%2Cstatus%2Csummary%2Cassignee%2Cissuetype auth=yes

@@ -1,0 +1,6 @@
+# exit=0
+# stderr:
+DRY-RUN PUT /rest/api/2/issue/PROJ-123 {"fields": {"customfield_20002": 5}}
+# stdout:
+OK: set customfield_20002 on PROJ-123
+# calls:

@@ -1,0 +1,14 @@
+# exit=0
+# stderr:
+>> POST https://jira.example.com/rest/api/2/issue/PROJ-123/attachments ------jirapyboundaryBOUNDARY
+Content-Disposition: form-data; name="file"; filename="build.txt"
+Content-Type: text/plain
+
+Build log excerpt
+step 3 failed
+
+------jirapybound
+# stdout:
+OK: attached build.txt to PROJ-123 (id 20003)
+# calls:
+POST https://jira.example.com/rest/api/2/issue/PROJ-123/attachments auth=yes

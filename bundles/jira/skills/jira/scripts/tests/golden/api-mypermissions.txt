@@ -1,0 +1,18 @@
+# exit=0
+# stderr:
+>> GET https://jira.example.com/rest/api/2/mypermissions?projectKey=PROJ
+# stdout:
+{
+  "permissions": {
+    "BROWSE_PROJECTS": {
+      "key": "BROWSE_PROJECTS",
+      "havePermission": true
+    },
+    "TRANSITION_ISSUES": {
+      "key": "TRANSITION_ISSUES",
+      "havePermission": false
+    }
+  }
+}
+# calls:
+GET https://jira.example.com/rest/api/2/mypermissions?projectKey=PROJ auth=yes

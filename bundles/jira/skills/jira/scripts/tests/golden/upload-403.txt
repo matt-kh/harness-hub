@@ -1,0 +1,14 @@
+# exit=2
+# stderr:
+>> POST https://jira.example.com/rest/api/2/issue/PROJ-123/attachments ------jirapyboundaryBOUNDARY
+Content-Disposition: form-data; name="file"; filename="build.txt"
+Content-Type: text/plain
+
+Build log excerpt
+step 3 failed
+
+------jirapybound
+Auth/XSRF failed (403). {"errorMessages": ["You do not have the permission to see the specified issue."], "errors": {}}
+# stdout:
+# calls:
+POST https://jira.example.com/rest/api/2/issue/PROJ-123/attachments auth=yes

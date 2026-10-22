@@ -1,0 +1,8 @@
+# exit=0
+# stderr:
+>> GET https://jira.example.com/rest/api/2/issue/PROJ-123?fields=issuelinks
+# stdout:
+10501    | Relates        | relates to     | PROJ-7       | Done               | Parser rewrite
+10502    | Issue split    | split from     | PROJ-100     | In Progress        | Parser epic
+# calls:
+GET https://jira.example.com/rest/api/2/issue/PROJ-123?fields=issuelinks auth=yes

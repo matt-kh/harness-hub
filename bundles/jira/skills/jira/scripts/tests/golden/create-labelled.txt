@@ -1,0 +1,7 @@
+# exit=0
+# stderr:
+DRY-RUN POST /rest/api/2/issue {"fields": {"project": {"key": "PROJ"}, "issuetype": {"name": "Task"}, "summary": "Fix the config parser", "description": "h3. Problem\nThe parser drops *quoted* keys.\n{code}key = \"a b\"{code}", "labels": ["agent-drafted"], "customfield_20002": 3, "customfield_20006": "PROJ-100"}}
+# stdout:
+OK: created DRY-0
+https://jira.example.com/browse/DRY-0
+# calls:

@@ -1,0 +1,5 @@
+# exit=1
+# stderr:
+create needs <PROJECT> <TYPE> <SUMMARY>. See the header for usage.
+# stdout:
+# calls:
