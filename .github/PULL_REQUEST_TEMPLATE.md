@@ -1,6 +1,8 @@
 ## What and why
 
-<!-- One paragraph. Mention the issue as "#N"; never "Closes/Fixes/Resolves #N" (see CONTRIBUTING). -->
+Issue: #
+
+<!-- First line: the GitHub issue this PR builds on, as "Issue: #N" (or "no-issue: <reason>" for a trivial fix; the companion gate checks it). One paragraph after it. Mention the issue as "#N"; never "Closes/Fixes/Resolves #N" (see CONTRIBUTING). -->
 
 ## Principle(s) served
 
@@ -19,12 +21,13 @@
 - [ ] `make docs` passes (`harness docs check`); regenerated regions are committed
 - [ ] README.md still states the truth (generated regions regenerated; prose updated or `no-readme: <reason>`)
 - [ ] New or changed guard rules have test rows; golden updates (`UPDATE=1`) were reviewed as a diff
-- [ ] Guide/sensor pairing checked: new guides have a sensor and new sensors a guide, declared in the bundle's `[harness]` section; every new deny/ask reason states the alternative
+- [ ] Guide/sensor pairing checked: new guides name the sensors that check them (`checks`) and new sensors a guide, declared in the bundle's `[harness]` section; every new deny/ask reason states the alternative
 - [ ] No new dependency outside python stdlib, bash, jq, git, curl (or it is a bundle's declared, optional `requires.binaries`)
 - [ ] Principle changes (if any) bump `principles_version` and add a CHANGELOG "Principles" entry
 - [ ] Scripts parse under bash 3.2 and avoid GNU-only tools (see CONTRIBUTING, "bash 3.2 rules")
 - [ ] `CHANGELOG.md` has an entry under `[Unreleased]` (with **Migration** if a config key changed)
 - [ ] Commit subjects carry no ticket keys and no closing keywords
+- [ ] The PR body names its issue as `#N` (or `no-issue: <reason>`), never after a closing keyword
 
 ## Manual verification
 

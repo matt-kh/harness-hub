@@ -194,9 +194,9 @@ function = "client"
 [harness]
 coverage_note = "`stk sync`'s label gate is enforced inside the CLI (sensed by its golden suite), not by the guard; the guard only asks when the gate is lifted. Lease pushes of -sub- branches typed by hand are core section 30's."
 guides = [
-  { kind = "rule", ref = "rules/65-stack.md", note = "humans merge bottom-up; stk sync after each merge; agent-labelled parts only" },
-  { kind = "skill", ref = "skills/stk", note = "the stk CLI: check, plan, status, sync and the merge-order hand-off" },
-  { kind = "permission", ref = "permissions.toml", note = "stk plan|status|check|sync allowed; never Bash(stk:*)" },
+  { kind = "rule", ref = "rules/65-stack.md", checks = ["guard.d/65-stack.sh"], note = "humans merge bottom-up; stk sync after each merge; agent-labelled parts only" },
+  { kind = "skill", ref = "skills/stk", checks = ["skills/stk/scripts/tests/run.sh", "doctor_checks"], note = "the stk CLI: check, plan, status, sync and the merge-order hand-off" },
+  { kind = "permission", ref = "permissions.toml", checks = ["permissions-vs-guard", "guard.d/65-stack.sh"], note = "stk plan|status|check|sync allowed; never Bash(stk:*)" },
 ]
 sensors = [
   { kind = "guard", ref = "guard.d/65-stack.sh", note = "stk sync --include-human asks; a sole stk sync allows" },
@@ -204,4 +204,5 @@ sensors = [
   { kind = "test", ref = "tests/run.sh", note = "this bundle's rows against core + stack only, then the stk suite" },
   { kind = "test", ref = "guard.d/tests.sh", note = "rows for section 65 incl. bypasses and repository ownership" },
   { kind = "test", ref = "skills/stk/scripts/tests/run.sh", note = "golden scenarios for every verb against stubbed glab and gh and a real-git sandbox, plus invariants (lease pushes of sub branches only, worktrees untouched on conflict, one leaf refresh per run)" },
+  { kind = "lint", ref = "permissions-vs-guard", note = "each Bash allow/deny rule of permissions.toml run through the guard: no allowed command the guard denies or asks, no denied one it allows" },
 ]

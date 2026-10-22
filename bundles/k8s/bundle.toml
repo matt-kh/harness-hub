@@ -233,12 +233,12 @@ function = "client"
 [harness]
 coverage_note = "The agents' read-only stance is enforced for shell commands by the guard; MCP or API access outside the shell is not sensed. The k8s-rules guard section enforces rule text that lives in rules/10-k8s.md."
 guides = [
-  { kind = "rule", ref = "rules/10-k8s.md", note = "read-only by default, explicit --context, Secret keys only, prod remediations are suggestions" },
-  { kind = "skill", ref = "skills/k8s", note = "the k8s CLI: contexts, triage views, secret-keys, redact" },
-  { kind = "permission", ref = "permissions.toml", note = "read-only kubectl/helm allowed" },
-  { kind = "agent", ref = "agents/k8s-triage.md", note = "read-only incident triage that hands remediations to the human" },
-  { kind = "agent", ref = "agents/k8s-auditor.md", note = "read-only posture review" },
-  { kind = "agent", ref = "agents/infra-architect.md", note = "design-only infrastructure advice" },
+  { kind = "rule", ref = "rules/10-k8s.md", checks = ["guard.d/25-k8s-rules.sh"], note = "read-only by default, explicit --context, Secret keys only, prod remediations are suggestions" },
+  { kind = "skill", ref = "skills/k8s", checks = ["skills/k8s/scripts/tests/run.sh", "doctor_checks"], note = "the k8s CLI: contexts, triage views, secret-keys, redact" },
+  { kind = "permission", ref = "permissions.toml", checks = ["permissions-vs-guard", "guard.d/25-k8s-rules.sh"], note = "read-only kubectl/helm allowed" },
+  { kind = "agent", ref = "agents/k8s-triage.md", checks = ["guard.d/25-k8s-rules.sh", "agent-tools"], note = "read-only incident triage that hands remediations to the human" },
+  { kind = "agent", ref = "agents/k8s-auditor.md", checks = ["guard.d/25-k8s-rules.sh", "agent-tools"], note = "read-only posture review" },
+  { kind = "agent", ref = "agents/infra-architect.md", checks = ["guard.d/25-k8s-rules.sh", "agent-tools"], note = "design-only infrastructure advice" },
 ]
 sensors = [
   { kind = "guard", ref = "guard.d/10-k8s.sh", note = "kubectl/helm clause parsing shared by the rules section" },
@@ -247,4 +247,6 @@ sensors = [
   { kind = "test", ref = "guard.d/tests.sh", note = "guard rows with stubbed kubectl and helm" },
   { kind = "test", ref = "tests/run.sh", note = "this bundle's rows against core + k8s only" },
   { kind = "test", ref = "skills/k8s/scripts/tests/run.sh", note = "the k8s CLI against stubbed kubectl and helm" },
+  { kind = "lint", ref = "permissions-vs-guard", note = "each Bash allow/deny rule of permissions.toml run through the guard: no allowed command the guard denies or asks, no denied one it allows" },
+  { kind = "lint", ref = "agent-tools", note = "read-only agents set no permissionMode and list no write tools" },
 ]

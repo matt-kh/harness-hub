@@ -1,0 +1,14 @@
+# exit=0
+# stderr:
+# stdout:
+{
+  "tracker": {
+    "tracker": "jira",
+    "tracker_source": "repo",
+    "project": "PROJ",
+    "remote_id": "gitlab.example.com/group/repo"
+  },
+  "repo_declaration": "SANDBOX/repos/trk/.harness.toml",
+  "repo_owns": false
+}
+# calls:

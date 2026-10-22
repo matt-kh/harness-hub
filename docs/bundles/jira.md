@@ -183,18 +183,19 @@ then `harness apply`. Org admins can ship the table in the org overlay (`harness
 
 ## Guides and sensors
 
-Guides steer the agent before it acts; sensors detect at or after the action. Pairing: **paired**.
+Guides steer the agent before it acts; sensors detect at or after the action. Pairing: **paired**; guides with a declared check: 3 of 3.
 
-| side | kind | ref | note |
-|---|---|---|---|
-| guide | rule | `rules/70-jira.md` | reads free, writes gated by agent-* labels, transitions human-only |
-| guide | skill | `skills/jira` | the jira CLI for Jira Server: search, fields, comments, labels |
-| guide | permission | `permissions.toml` | read commands allowed; writes left to the guard |
-| sensor | guard | `guard.d/70-jira.sh` | label-gated writes, provenance label on create, transitions denied on human tickets |
-| sensor | doctor | `doctor_checks` | CLI, token file mode, auth and uvx for the MCP server |
-| sensor | test | `guard.d/tests.sh` | guard rows with a stubbed jira |
-| sensor | test | `tests/run.sh` | this bundle's rows against core + jira only |
-| sensor | test | `skills/jira/scripts/tests/run.sh` | offline goldens for the jira CLI over fixture-routed HTTP: config resolution, reads, error mapping, dry-run governance writes (GET-only, label verb, transition id, link side), upload (no token in output) |
+| side | kind | ref | note | pairs with |
+|---|---|---|---|---|
+| guide | rule | `rules/70-jira.md` | reads free, writes gated by agent-* labels, transitions human-only | `guard.d/70-jira.sh` |
+| guide | skill | `skills/jira` | the jira CLI for Jira Server: search, fields, comments, labels | `skills/jira/scripts/tests/run.sh`, `guard.d/70-jira.sh` |
+| guide | permission | `permissions.toml` | read commands allowed; writes left to the guard | `permissions-vs-guard` |
+| sensor | guard | `guard.d/70-jira.sh` | label-gated writes, provenance label on create, transitions denied on human tickets | `rules/70-jira.md`, `skills/jira` |
+| sensor | doctor | `doctor_checks` | CLI, token file mode, auth and uvx for the MCP server | — |
+| sensor | test | `guard.d/tests.sh` | guard rows with a stubbed jira | — |
+| sensor | test | `tests/run.sh` | this bundle's rows against core + jira only | — |
+| sensor | test | `skills/jira/scripts/tests/run.sh` | offline goldens for the jira CLI over fixture-routed HTTP: config resolution, reads, error mapping, dry-run governance writes (GET-only, label verb, transition id, link side), upload (no token in output) | `skills/jira` |
+| sensor | lint | `permissions-vs-guard` | each Bash allow/deny rule of permissions.toml run through the guard: no allowed command the guard denies or asks, no denied one it allows | `permissions.toml` |
 
 **Not covered:** The optional MCP server runs with READ_ONLY_MODE=true; no sensor inspects MCP calls. The CLI's request shapes, error mapping and output are golden-tested offline.
 

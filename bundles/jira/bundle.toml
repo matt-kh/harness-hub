@@ -206,9 +206,9 @@ function = "client"
 [harness]
 coverage_note = "The optional MCP server runs with READ_ONLY_MODE=true; no sensor inspects MCP calls. The CLI's request shapes, error mapping and output are golden-tested offline."
 guides = [
-  { kind = "rule", ref = "rules/70-jira.md", note = "reads free, writes gated by agent-* labels, transitions human-only" },
-  { kind = "skill", ref = "skills/jira", note = "the jira CLI for Jira Server: search, fields, comments, labels" },
-  { kind = "permission", ref = "permissions.toml", note = "read commands allowed; writes left to the guard" },
+  { kind = "rule", ref = "rules/70-jira.md", checks = ["guard.d/70-jira.sh"], note = "reads free, writes gated by agent-* labels, transitions human-only" },
+  { kind = "skill", ref = "skills/jira", checks = ["skills/jira/scripts/tests/run.sh", "guard.d/70-jira.sh"], note = "the jira CLI for Jira Server: search, fields, comments, labels" },
+  { kind = "permission", ref = "permissions.toml", checks = ["permissions-vs-guard"], note = "read commands allowed; writes left to the guard" },
 ]
 sensors = [
   { kind = "guard", ref = "guard.d/70-jira.sh", note = "label-gated writes, provenance label on create, transitions denied on human tickets" },
@@ -216,4 +216,5 @@ sensors = [
   { kind = "test", ref = "guard.d/tests.sh", note = "guard rows with a stubbed jira" },
   { kind = "test", ref = "tests/run.sh", note = "this bundle's rows against core + jira only" },
   { kind = "test", ref = "skills/jira/scripts/tests/run.sh", note = "offline goldens for the jira CLI over fixture-routed HTTP: config resolution, reads, error mapping, dry-run governance writes (GET-only, label verb, transition id, link side), upload (no token in output)" },
+  { kind = "lint", ref = "permissions-vs-guard", note = "each Bash allow/deny rule of permissions.toml run through the guard: no allowed command the guard denies or asks, no denied one it allows" },
 ]

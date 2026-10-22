@@ -73,6 +73,21 @@ class FixtureBundlesTest(HubTestCase):
         self.assertEqual(alpha.agents(), [])     # no agents/ dir
         self.assertEqual(alpha.skills(), [])
 
+    def test_harness_accessors(self):
+        alpha = self.hub().bundle("alpha")
+        self.assertEqual((alpha.sensor_refs(), alpha.unpaired_guides()), ([], []))   # no [harness] section
+        path = os.path.join(self.bundles, "alpha", "bundle.toml")
+        self.write(path, self.read(path) + "\n".join([
+            "", "[harness]", "guides = [",
+            '  { kind = "rule", ref = "rules/40-alpha.md", checks = ["guard.d/40-alpha.sh"] },',
+            '  { kind = "permission", ref = "permissions.toml" },', "]", "sensors = [",
+            '  { kind = "guard", ref = "guard.d/40-alpha.sh" },',
+            '  { kind = "doctor", ref = "alpha-auth" },', "]", ""]))
+        alpha = M.load_bundle(os.path.join(self.bundles, "alpha"))
+        self.assertEqual(alpha.sensor_refs(), ["guard.d/40-alpha.sh", "alpha-auth"])
+        self.assertEqual([g["ref"] for g in alpha.unpaired_guides()], ["permissions.toml"])
+        self.assertEqual(alpha.pairing(), "paired")
+
     def test_duplicate_bundle_names(self):
         extra = os.path.join(self.tmp, "extra")
         os.makedirs(os.path.join(extra, "core"))

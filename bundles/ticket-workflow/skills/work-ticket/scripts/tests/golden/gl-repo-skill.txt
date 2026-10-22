@@ -61,7 +61,13 @@
   },
   "repo_skill": "SANDBOX/repos/gl-skill/.claude/skills/ship/SKILL.md",
   "repo_declaration": null,
-  "repo_owns": false
+  "repo_owns": false,
+  "tracker": {
+    "tracker": "jira",
+    "tracker_source": "host",
+    "project": null,
+    "remote_id": "gitlab.example.com/group/repo"
+  }
 }
 # calls:
 glab api projects/:id

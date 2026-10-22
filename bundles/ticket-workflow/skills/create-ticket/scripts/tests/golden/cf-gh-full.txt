@@ -21,7 +21,13 @@
     ".github/ISSUE_TEMPLATE/feature.md"
   ],
   "repo_declaration": null,
-  "repo_owns": false
+  "repo_owns": false,
+  "tracker": {
+    "tracker": "github-issues",
+    "tracker_source": "host",
+    "project": null,
+    "remote_id": "github.com/owner/repo"
+  }
 }
 # calls:
 gh auth status --hostname github.com

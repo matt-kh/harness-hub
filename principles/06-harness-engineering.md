@@ -35,11 +35,15 @@ bundle ships: rules, skills, permissions, agents, guard sections, doctor checks,
 ## What it means in this repo
 
 - **Every bundle declares its guides and sensors** in `bundle.toml`:
-  `[harness] guides = [{kind, ref, note}]`, `sensors = [{kind, ref, note}]` and a
+  `[harness] guides = [{kind, ref, checks, note}]`, `sensors = [{kind, ref, note}]` and a
   `coverage_note`. Guide kinds: `rule`, `skill`, `permission`, `agent`, `template`.
   Sensor kinds: `guard`, `doctor`, `test`, `lint`, `review-agent`, `provider-feature`.
+- **Pairing is per guide.** Each guide's `checks` names the sensors that check it (refs of the
+  same bundle's `sensors`), so a bundle cannot read as paired while one of its guides has no
+  sensor; a guide that is deliberately guide-only is named in `coverage_note` instead.
 - **The docs render a "Guides and sensors" table** for each bundle in its generated region
-  (`harness docs generate`).
+  (`harness docs generate`), with a **pairs with** column (guide to its checks, sensor to the
+  guides naming it); the coverage reference lists each bundle's unpaired guides.
 - **Pairing.** A rule in `rules/NN-*.md` that a guard section can check has that section; a
   guard section has rule text that explains it to the agent before it acts.
 - **Sensor messages are written for the agent.** Every guard deny or ask reason states the
@@ -72,6 +76,8 @@ bundle ships: rules, skills, permissions, agents, guard sections, doctor checks,
 | Check | Kind | Where |
 |---|---|---|
 | Bundle has guides but no sensors, or sensors but no guides | lint warning | `harness lint` (rule `guides-sensors`) |
+| A guide's `checks` names a ref that no sensor of the bundle declares | lint error | `harness lint` (rule `guide-checks`) |
+| A public guide declares no `checks` and `coverage_note` does not name its topic | lint warning | `harness lint` (rule `guide-checks`) |
 | A `deny`/`ask` `# rule:` reason in `guard.d` has no alternative (none of *use, instead, ask, run, mention, see, pass, pipe, check, drop, hand*) | lint warning | `harness lint` (rule `guard-reasons`) |
 | A runtime `deny`/`ask`/`defer` message in `guard.d` has no alternative (same word list, shell expansions removed) | lint warning | `harness lint` (rule `guard-messages`) |
 | A component is unclassified, or its [taxonomy](../docs/reference/taxonomy.md) facets contradict its kind | lint warning / error | `harness lint` (rule `taxonomy`) |
@@ -83,6 +89,8 @@ bundle ships: rules, skills, permissions, agents, guard sections, doctor checks,
 | Generated "Guides and sensors" tables are current | docs | `harness docs check` |
 | README generated regions (bundle table, provider matrix, principle list and count, core requirements) are current | docs | `harness docs check` |
 | A change to what README prose states (manifest, CLI, principle, install or governance page) touches `README.md` | gate | `tools/gate/companions.sh` check `readme` (pre-push, CI `gate`) |
+| A pull request names the GitHub issue it builds on as `#N` (never after a closing keyword), or waives with `no-issue: <reason>` | gate | `tools/gate/companions.sh` check `issue` (CI `gate`, on the PR body) |
+| `ticket_workflow.trackers` entries are valid (the `match` ERE compiles, the tracker is known, `project` only with Jira) | doctor | `harness doctor` (check `ticket-workflow-trackers`) |
 | PR states the pairing was checked | review | [PR template](../.github/PULL_REQUEST_TEMPLATE.md) |
 
 ## Tensions and how they are resolved

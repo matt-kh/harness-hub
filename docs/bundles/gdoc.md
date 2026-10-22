@@ -221,18 +221,19 @@ A Workspace admin: **admin.google.com → Security → Access and data control �
 
 ## Guides and sensors
 
-Guides steer the agent before it acts; sensors detect at or after the action. Pairing: **paired**.
+Guides steer the agent before it acts; sensors detect at or after the action. Pairing: **paired**; guides with a declared check: 3 of 3.
 
-| side | kind | ref | note |
-|---|---|---|---|
-| guide | rule | `rules/80-gdoc.md` | provenance-gated writes, drafts only for mail, no sharing |
-| guide | skill | `skills/gdoc` | the gdoc CLI and its round-trip editing workflow |
-| guide | permission | `permissions.toml` | read commands allowed, writes left to the guard |
-| sensor | guard | `guard.d/80-gdoc.sh` | GET-only api, provenance check before writes, ask on mark and mail send |
-| sensor | doctor | `doctor_checks` | CLI, OAuth client, auth and token file modes |
-| sensor | test | `guard.d/tests.sh` | guard rows with a stubbed gdoc |
-| sensor | test | `tests/run.sh` | this bundle's rows against core + gdoc only |
-| sensor | test | `skills/gdoc/scripts/tests/run.sh` | offline goldens for the gdoc CLI over fixture-routed HTTP: dispatch, auth, id parsing, reads, host allow-list, dry-run writes (GET-only, no send, no credential in output) |
+| side | kind | ref | note | pairs with |
+|---|---|---|---|---|
+| guide | rule | `rules/80-gdoc.md` | provenance-gated writes, drafts only for mail, no sharing | `guard.d/80-gdoc.sh` |
+| guide | skill | `skills/gdoc` | the gdoc CLI and its round-trip editing workflow | `guard.d/80-gdoc.sh`, `doctor_checks`, `skills/gdoc/scripts/tests/run.sh` |
+| guide | permission | `permissions.toml` | read commands allowed, writes left to the guard | `permissions-vs-guard` |
+| sensor | guard | `guard.d/80-gdoc.sh` | GET-only api, provenance check before writes, ask on mark and mail send | `rules/80-gdoc.md`, `skills/gdoc` |
+| sensor | doctor | `doctor_checks` | CLI, OAuth client, auth and token file modes | `skills/gdoc` |
+| sensor | test | `guard.d/tests.sh` | guard rows with a stubbed gdoc | — |
+| sensor | test | `tests/run.sh` | this bundle's rows against core + gdoc only | — |
+| sensor | test | `skills/gdoc/scripts/tests/run.sh` | offline goldens for the gdoc CLI over fixture-routed HTTP: dispatch, auth, id parsing, reads, host allow-list, dry-run writes (GET-only, no send, no credential in output) | `skills/gdoc` |
+| sensor | lint | `permissions-vs-guard` | each Bash allow/deny rule of permissions.toml run through the guard: no allowed command the guard denies or asks, no denied one it allows | `permissions.toml` |
 
 **Not covered:** Whether a human file should be adopted (`mark`) and what a draft says stay judgement; the CLI's request shapes, auth handling and output are golden-tested offline.
 

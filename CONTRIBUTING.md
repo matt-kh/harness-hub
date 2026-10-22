@@ -21,7 +21,7 @@ loop. Agents: start with [AGENTS.md](AGENTS.md).
   | [3 Platform for everyone](principles/03-platform-for-everyone.md) | private-identifier gate, template key lint |
   | [4 Install as a platform](principles/04-install-as-a-platform.md) | offline bootstrap smoke test |
   | [5 Distributed as a git repo](principles/05-distributed-as-a-git-repo.md) | `tests/smoke/pack.sh` |
-  | [6 Harness engineering](principles/06-harness-engineering.md) | `harness lint` guides/sensors pairing and taxonomy checks, guard test rows, companion-file gate (rows, CHANGELOG entry) |
+  | [6 Harness engineering](principles/06-harness-engineering.md) | `harness lint` guides/sensors pairing and taxonomy checks, guard test rows, companion-file gate (rows, CHANGELOG entry, README, issue reference), `ticket-workflow-trackers` doctor check |
   | [7 Extensible core](principles/07-extensible-core.md) | PR template, CHANGELOG "Principles" entries |
   | [8 User-level by design](principles/08-user-level-by-design.md) | `harness lint` `yields` rule, guard rows for `.harness.toml` yield, `harness repo` unit test |
   | [9 Deterministic by construction](principles/09-deterministic-by-construction.md) | render-determinism smoke, guard build `cmp`, pack unit tests, create-ticket and k8s goldens, `harness lint` `stability`, section-75 guard rows |
@@ -95,8 +95,10 @@ Read [ARCHITECTURE §3](ARCHITECTURE.md#3-bundles-bundlesname) first. Checklist:
       `template`) and **sensors** (`guard`, `doctor`, `test`, `lint`, `review-agent`,
       `provider-feature`) as `{kind, ref, note}`, each `ref` naming a real path or id in the
       bundle (a `provider-feature` ref is `<provider>:<feature>` from that provider's
-      `features`), plus a `coverage_note` saying what the pairing does not cover. `harness lint`
-      shows no unpaired-guide, unpaired-sensor or `rule-guard-pairing` warning.
+      `features`), plus a `coverage_note` saying what the pairing does not cover. Each guide
+      names the sensors that check it: `checks = ["guard.d/NN-x.sh", ...]` (sensor refs of the
+      same bundle), or its topic is named in `coverage_note` as guide-only. `harness lint`
+      shows no unpaired-guide, unpaired-sensor, `guide-checks` or `rule-guard-pairing` warning.
 - [ ] Every guard `# rule:` reason states the alternative (what to run, use or ask instead),
       and so does the runtime `deny`/`ask`/`defer` message (`harness lint` rule `guard-messages`).
 - [ ] `[taxonomy]` classifies the bundle: `domain` and `posture`, a `function` default if its
@@ -172,7 +174,7 @@ Org-specific content (your hosts, your cluster list, your ticket types) belongs 
 
 `[bundle].stability` says how far a bundle can be trusted. Each level includes the one
 before it; `harness lint` (rule `stability`) checks what it can and warns when a `stable`
-bundle falls short.
+or `beta` bundle falls short.
 
 | Level | Criteria |
 |---|---|
@@ -182,8 +184,9 @@ bundle falls short.
 | `deprecated` | A CHANGELOG entry announces it and its `summary` names the successor bundle. |
 
 Moving a bundle between levels is a CHANGELOG `### Stability` entry. Lint enforces the
-test-suite part of `stable` (a skill or CLI without `tests/run.sh`, or a `coverage_note` that
-admits "no … suite", warns); the other criteria are checked in review.
+test-suite part of both `beta` and `stable` (a skill or CLI without `tests/run.sh`, or a
+`coverage_note` that admits "no … suite", warns and names the level to move to); the other
+criteria are checked in review.
 
 ## Adding a provider
 
@@ -236,6 +239,13 @@ macOS ships bash 3.2 and BSD userland; CI parses every script with `/bin/bash -n
 ## Commits and pull requests
 
 - Work on a branch and open a PR; nothing is pushed to `main` directly.
+- **Issues are the source of truth.** Every change beyond a typo starts from a GitHub Issue on
+  this repository (agents: `/create-ticket` drafts it with `agent-drafted`; a maintainer
+  confirms it and adds `agent-worked` before an agent works it). The branch and PR come from
+  `/work-ticket #N`, and the PR body names the issue on its first line, `Issue: #N` — a
+  mention, never a closing keyword. The companion-file gate (check `issue`) fails a PR body
+  without a reference; a trivial fix writes `no-issue: <reason>` instead. `.harness.toml` at the
+  root declares this (`[repo] tracker = "github-issues"`).
 - **No ticket keys in commit subjects or branch names** (mention them in the body), and
   **no closing keywords anywhere** — write "#12" or "see #12", never "Closes #12",
   "Fixes #12" or "Resolves #12". This project's own guard denies them for agents, and

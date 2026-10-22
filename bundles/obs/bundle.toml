@@ -225,10 +225,10 @@ function = "client"
 [harness]
 coverage_note = "The CLI's own HTTP calls are not shell commands and are not guarded; the suite's dry-run request log is the read-only proof. Backends reached outside the CLI are not sensed. `obs lint` checks shape, not alert semantics."
 guides = [
-  { kind = "rule", ref = "rules/32-obs.md", note = "read-only, obs backends first, bounded and redacted reads, alert rules and dashboards change as repo files" },
-  { kind = "skill", ref = "skills/obs", note = "the obs CLI: backends, query, logs, traces, services, alerts, dashboards, lint" },
-  { kind = "permission", ref = "permissions.toml", note = "obs and read-only rule tooling allowed, alert-state changes ask, key files denied to Read" },
-  { kind = "agent", ref = "agents/obs-triage.md", note = "read-only signal triage that hands remediations to the human" },
+  { kind = "rule", ref = "rules/32-obs.md", checks = ["guard.d/32-obs.sh"], note = "read-only, obs backends first, bounded and redacted reads, alert rules and dashboards change as repo files" },
+  { kind = "skill", ref = "skills/obs", checks = ["skills/obs/scripts/tests/run.sh", "doctor_checks"], note = "the obs CLI: backends, query, logs, traces, services, alerts, dashboards, lint" },
+  { kind = "permission", ref = "permissions.toml", checks = ["permissions-vs-guard", "guard.d/32-obs.sh"], note = "obs and read-only rule tooling allowed, alert-state changes ask, key files denied to Read" },
+  { kind = "agent", ref = "agents/obs-triage.md", checks = ["guard.d/32-obs.sh", "agent-tools"], note = "read-only signal triage that hands remediations to the human" },
 ]
 sensors = [
   { kind = "guard", ref = "guard.d/32-obs.sh", note = "key files, literal API keys, raw backend requests, amtool/logcli/grafana-cli" },
@@ -237,4 +237,6 @@ sensors = [
   { kind = "test", ref = "tests/run.sh", note = "this bundle's rows against core + obs only" },
   { kind = "test", ref = "skills/obs/scripts/tests/run.sh", note = "the obs CLI against fixture-routed HTTP, incl. the dry-run request allow-list" },
   { kind = "review-agent", ref = "agents/obs-triage.md", note = "evidence-cited triage of firing alerts, logs and traces" },
+  { kind = "lint", ref = "permissions-vs-guard", note = "each Bash allow/deny rule of permissions.toml run through the guard: no allowed command the guard denies or asks, no denied one it allows" },
+  { kind = "lint", ref = "agent-tools", note = "the read-only triage agent sets no permissionMode and lists no write tools" },
 ]

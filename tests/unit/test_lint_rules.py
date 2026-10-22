@@ -274,8 +274,20 @@ class StabilityTest(LintRuleCase):
         self.assertEqual(len(warns), 1, warns)
         self.assertIn("coverage_note admits a missing suite ('no unit suite')", warns[0])
 
-    def test_beta_is_exempt(self):
+    def test_beta_warns_too(self):
         self.edit("core/bundle.toml", 'stability = "stable"', 'stability = "beta"')
+        self.write(os.path.join(self.core, "tests", "run.sh"), "#!/usr/bin/env bash\n")  # the CLI has a suite
+        self.write(os.path.join(self.core, "bundle.toml"), self.read(os.path.join(self.core, "bundle.toml"))
+                   + '\n[harness]\ncoverage_note = "The demo skill has no test suite yet."\n')
+        warns = self.run_rule(L.lint_stability, self.bundle()).warnings
+        self.assertEqual(len(warns), 2, warns)
+        self.assertIn("core: stability: [harness].coverage_note admits a missing suite ('no test suite'); beta "
+                      "requires a test suite per skill/CLI; move to experimental or add the suite", warns[0])
+        self.assertIn("core: stability: skill skills/demo has no scripts/tests/run.sh; beta requires a test suite "
+                      "per skill/CLI; move to experimental or add the suite", warns[1])
+
+    def test_experimental_is_exempt(self):
+        self.edit("core/bundle.toml", 'stability = "stable"', 'stability = "experimental"')
         self.assertEqual(self.run_rule(L.lint_stability, self.bundle()).warnings, [])
 
 
@@ -432,6 +444,7 @@ class RepoBundlesTest(LintRuleCase):
             L.lint_harness(b, rep, hub.providers)
             L.lint_env_provides(b, prefixes, rep)
             L.lint_rule_guard_pairing(b, rep)
+            L.lint_guide_checks(b, rep)
             L.lint_guard_messages(b, rep)
             L.lint_agent_tools(b, rep)
             L.lint_skill_description(b, tpl, rep)
@@ -446,7 +459,7 @@ class RepoBundlesTest(LintRuleCase):
         self.assertEqual((rep.errors, rep.warnings), ([], []))
 
     def test_rules_are_known_and_skippable(self):
-        for rule in ("env-provides", "rule-guard-pairing", "guard-messages", "permissions-vs-guard", "agent-tools", "skill-description",
+        for rule in ("env-provides", "rule-guard-pairing", "guide-checks", "guard-messages", "permissions-vs-guard", "agent-tools", "skill-description",
                      "fragments-target", "profile-sane", "stability"):
             self.assertIn(rule, L.LINT_RULES)
             self.assertIn(rule, L.SKIPPABLE_RULES)

@@ -199,18 +199,19 @@ per run with `gh pr update-branch`. Then run `stk check --stack <BR>` in a check
 
 ## Guides and sensors
 
-Guides steer the agent before it acts; sensors detect at or after the action. Pairing: **paired**.
+Guides steer the agent before it acts; sensors detect at or after the action. Pairing: **paired**; guides with a declared check: 3 of 3.
 
-| side | kind | ref | note |
-|---|---|---|---|
-| guide | rule | `rules/65-stack.md` | humans merge bottom-up; stk sync after each merge; agent-labelled parts only |
-| guide | skill | `skills/stk` | the stk CLI: check, plan, status, sync and the merge-order hand-off |
-| guide | permission | `permissions.toml` | stk plan\|status\|check\|sync allowed; never Bash(stk:*) |
-| sensor | guard | `guard.d/65-stack.sh` | stk sync --include-human asks; a sole stk sync allows |
-| sensor | doctor | `doctor_checks` | the stk CLI, an SCM CLI and git --update-refs |
-| sensor | test | `tests/run.sh` | this bundle's rows against core + stack only, then the stk suite |
-| sensor | test | `guard.d/tests.sh` | rows for section 65 incl. bypasses and repository ownership |
-| sensor | test | `skills/stk/scripts/tests/run.sh` | golden scenarios for every verb against stubbed glab and gh and a real-git sandbox, plus invariants (lease pushes of sub branches only, worktrees untouched on conflict, one leaf refresh per run) |
+| side | kind | ref | note | pairs with |
+|---|---|---|---|---|
+| guide | rule | `rules/65-stack.md` | humans merge bottom-up; stk sync after each merge; agent-labelled parts only | `guard.d/65-stack.sh` |
+| guide | skill | `skills/stk` | the stk CLI: check, plan, status, sync and the merge-order hand-off | `skills/stk/scripts/tests/run.sh`, `doctor_checks` |
+| guide | permission | `permissions.toml` | stk plan\|status\|check\|sync allowed; never Bash(stk:*) | `permissions-vs-guard`, `guard.d/65-stack.sh` |
+| sensor | guard | `guard.d/65-stack.sh` | stk sync --include-human asks; a sole stk sync allows | `rules/65-stack.md`, `permissions.toml` |
+| sensor | doctor | `doctor_checks` | the stk CLI, an SCM CLI and git --update-refs | `skills/stk` |
+| sensor | test | `tests/run.sh` | this bundle's rows against core + stack only, then the stk suite | — |
+| sensor | test | `guard.d/tests.sh` | rows for section 65 incl. bypasses and repository ownership | — |
+| sensor | test | `skills/stk/scripts/tests/run.sh` | golden scenarios for every verb against stubbed glab and gh and a real-git sandbox, plus invariants (lease pushes of sub branches only, worktrees untouched on conflict, one leaf refresh per run) | `skills/stk` |
+| sensor | lint | `permissions-vs-guard` | each Bash allow/deny rule of permissions.toml run through the guard: no allowed command the guard denies or asks, no denied one it allows | `permissions.toml` |
 
 **Not covered:** `stk sync`'s label gate is enforced inside the CLI (sensed by its golden suite), not by the guard; the guard only asks when the gate is lifted. Lease pushes of -sub- branches typed by hand are core section 30's.
 
