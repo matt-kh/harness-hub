@@ -334,5 +334,133 @@ class RenderHubTest(HubTestCase):
         self.assertEqual(perms["ask"], ["Bash(demo write:*)"])  # ask beats allow
 
 
+class EventHooksTest(HubTestCase):
+    """Neutral hook events beyond the guard: [[provides.hooks]] x [targets.hooks.events]."""
+
+    def enable(self, extra=""):
+        self.write(self.cfg, self.read(self.cfg) + "\n[core]\ndemo_hook = true\n" + extra)
+
+    def render(self, providers=None):
+        hub = self.hub()
+        r = R.Renderer(hub)
+        targets = {t.path: t for t in r.render(hub.filter_providers(providers) if providers else hub.active_providers)}
+        return targets, r.notes
+
+    def edit_hook(self, old, new):
+        path = os.path.join(self.bundles, "core", "bundle.toml")
+        text = self.read(path)
+        self.assertIn(old, text)
+        self.write(path, text.replace(old, new, 1))
+
+    def test_claude_settings_registration(self):
+        self.enable()
+        targets, _notes = self.render(["claude"])
+        hooks = self.h(".claude", "hooks")
+        doc = json.loads(R.pure_content(targets[self.h(".claude", "settings.json")]))
+        stop = doc["hooks"]["Stop"]
+        self.assertEqual(stop, [{"hooks": [{"type": "command", "command": "bash %s/demo-stop.sh" % hooks, "timeout": 5}]}])
+        self.assertNotIn("matcher", stop[0])  # Stop ignores matchers: the empty one is dropped
+        self.assertEqual(doc["hooks"]["PreToolUse"][0]["matcher"], "Bash")  # the guard is unchanged
+        script = targets[os.path.join(hooks, "demo-stop.sh")]
+        self.assertTrue(script.executable)
+        self.assertEqual(script.content, self.read(os.path.join(self.bundles, "core", "hooks", "demo-stop.sh")).encode())
+        self.assertNotIn("UserPromptSubmit", doc["hooks"])
+
+    def test_gemini_shim_command_and_milliseconds(self):
+        self.enable()
+        self.edit_hook('when = "core.demo_hook"', 'when = "core.demo_hook"\ntimeout = 7')
+        targets, _notes = self.render(["gemini"])
+        hooks = self.h(".gemini", "hooks")
+        doc = json.loads(R.pure_content(targets[self.h(".gemini", "settings.json")]))
+        entry = doc["hooks"]["AfterAgent"][0]
+        self.assertEqual(entry["hooks"][0], {
+            "type": "command", "name": "harness-demo-stop", "timeout": 7000,
+            "command": "HARNESS_HOOK=%s/demo-stop.sh bash %s/shim-stop.sh" % (hooks, hooks)})
+        self.assertNotIn("matcher", entry)
+        shim = targets[os.path.join(hooks, "shim-stop.sh")]
+        self.assertTrue(shim.executable)
+        self.assertEqual(shim.content, self.read(os.path.join(REPO, "providers", "gemini", "shim-stop.sh")).encode())
+        self.assertNotIn(os.path.join(hooks, "shim-prompt.sh"), targets)  # only the shims of used events
+        self.assertEqual(doc["hooks"]["BeforeTool"][0]["hooks"][0]["timeout"], 20000)
+
+    def test_copilot_register_file_holds_guard_and_events(self):
+        self.enable()
+        targets, _notes = self.render(["copilot"])
+        t = targets[self.h(".copilot", "hooks", "harness.json")]
+        self.assertEqual(t.mode, "file")
+        doc = json.loads(t.content)
+        hooks = self.h(".copilot", "hooks")
+        self.assertEqual(doc["version"], 1)
+        self.assertEqual(set(doc["hooks"]), {"preToolUse", "sessionEnd"})
+        self.assertEqual(doc["hooks"]["preToolUse"], [{
+            "type": "command", "bash": "HARNESS_ASK_AS=deny bash %s/shim.sh" % hooks, "timeoutSec": 10}])
+        self.assertEqual(doc["hooks"]["sessionEnd"], [{
+            "type": "command", "timeoutSec": 5,
+            "bash": "HARNESS_HOOK=%s/demo-stop.sh bash %s/shim-stop.sh" % (hooks, hooks)}])
+        self.assertIn("core", t.bundles)
+
+    def test_copilot_guard_only_output_is_unchanged(self):
+        """Without event hooks the register file is the guard template's document, as before."""
+        targets, _notes = self.render(["copilot"])
+        hooks = self.h(".copilot", "hooks")
+        want = {"version": 1, "hooks": {"preToolUse": [{
+            "type": "command", "bash": "HARNESS_ASK_AS=deny bash %s/shim.sh" % hooks, "timeoutSec": 10}]}}
+        from harness.util import dump_json
+        self.assertEqual(targets[os.path.join(hooks, "harness.json")].content, dump_json(want, sort_keys=True))
+
+    def test_when_false_renders_nothing(self):
+        targets, notes = self.render()
+        self.assertFalse([p for p in targets if p.endswith("demo-stop.sh") or "shim-stop" in p or "shim-prompt" in p])
+        doc = json.loads(R.pure_content(targets[self.h(".claude", "settings.json")]))
+        self.assertEqual(set(doc["hooks"]), {"PreToolUse"})
+        self.assertFalse([n for n in notes if "demo-stop" in n])
+
+    def test_when_list_needs_every_key(self):
+        hub = self.hub()
+        r = R.Renderer(hub)
+        self.assertTrue(r._when(None))
+        self.assertTrue(r._when("alpha.host"))
+        self.assertFalse(r._when("core.demo_hook"))
+        self.assertFalse(r._when(["alpha.host", "core.demo_hook"]))
+        self.assertTrue(r._when(["alpha.host", "identity.email"]))
+        self.assertFalse(r._when("core.no_such_key"))
+
+    def test_unknown_neutral_event_is_a_render_error(self):
+        self.edit_hook('event = "stop"', 'event = "after-tool"')
+        hub = self.hub()
+        with self.assertRaises(R.RenderError) as cm:
+            R.Renderer(hub).render(hub.filter_providers(["claude"]))
+        self.assertIn("core: [[provides.hooks]] hooks/demo-stop.sh names event 'after-tool', which is not a neutral "
+                      "hook event; use one of prompt, stop, session-start, session-end", str(cm.exception))
+
+    def test_provider_without_the_event_gets_a_note(self):
+        self.enable()
+        pdir = os.path.join(self.tmp, "providers", "fixture")
+        self.write(os.path.join(pdir, "provider.toml"), "\n".join([
+            '[provider]', 'name = "fixture"', 'home = "~/.fixture"', '',
+            '[targets]', 'settings = { path = "~/.fixture/settings.json", mode = "json-merge", owner_keys = ["hooks"] }', '',
+            '[targets.hooks]', 'path = "~/.fixture/hooks"', 'mode = "dir"', 'event = "PreToolUse"', 'register = "settings"',
+            "entry = '{\"hooks\": [{\"type\": \"command\", \"command\": \"{command}\"}]}'", '',
+            '[targets.hooks.events.prompt]', 'name = "Prompt"',
+            "entry = '{\"hooks\": [{\"type\": \"command\", \"command\": \"{command}\"}]}'", '',
+            '[capabilities]', 'hook_enforced = true', '']))
+        os.environ["HARNESS_PROVIDER_PATH"] = os.path.join(self.tmp, "providers")
+        targets, notes = self.render(["fixture", "codex"])
+        self.assertIn("fixture: provider fixture declares no stop hook event; core/hooks/demo-stop.sh not registered", notes)
+        self.assertIn("codex: provider codex declares no stop hook event; core/hooks/demo-stop.sh not registered", notes)
+        doc = json.loads(R.pure_content(targets[self.h(".fixture", "settings.json")]))
+        self.assertEqual(set(doc["hooks"]), {"PreToolUse"})
+        self.assertNotIn(self.h(".fixture", "hooks", "demo-stop.sh"), targets)
+
+    def test_register_base_without_a_guard(self):
+        p = self.hub().providers["copilot"]
+        self.assertEqual(R.Renderer(self.hub())._register_base(p, p.target("hooks")), {"version": 1})
+
+    def test_fill_entry_is_one_pass(self):
+        out = R.fill_entry('{"c": "{command}", "e": "{event}", "t": {timeout}}',
+                           {"command": 'say "{event}"', "event": "Stop", "timeout": "5", "matcher": "", "hook": "x"})
+        self.assertEqual(json.loads(out), {"c": 'say "{event}"', "e": "Stop", "t": 5})
+
+
 if __name__ == "__main__":
     unittest.main()

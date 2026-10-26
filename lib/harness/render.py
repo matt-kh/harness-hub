@@ -31,7 +31,7 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
 from . import toml_compat
 from .config import get_path
-from .manifest import Bundle, Provider
+from .manifest import NEUTRAL_EVENTS, Bundle, Provider
 from .util import HarnessError, canonical_json, dump_json, expand, list_files, read_bytes, tilde
 
 TEMPLATE_RE = re.compile(r"(?<![$\\])\{\{ ([a-z][a-z0-9_]*(?:\.[A-Za-z0-9_]+)+) \}\}")
@@ -466,17 +466,67 @@ class Renderer:
                 self._copy(p.name, b, b.rel(rel), "%s/%s" % (b.name, rel), dest, tpl)
 
     def _hooks(self, p: Provider, bundles: Sequence[Bundle]) -> None:
+        """The guard hook, then the bundles' neutral event hooks (``[[provides.hooks]]``).
+
+        ``register = settings`` merges every entry into the settings target at ``hooks.<event>``;
+        ``register = file`` writes one register document holding the guard entry (the provider's
+        ``entry`` template is that whole document) and the event entries under ``hooks.<event>``.
+        """
         t = p.target("hooks")
         if not t:
+            for b, h in self._active_hooks(bundles):
+                self.notes.append("%s: provider %s declares no %s hook event; %s/%s not registered"
+                                  % (p.name, p.name, h["event"], b.name, h["script"]))
             return
+        hooks_dir = expand(t["path"])
+        register = t.get("register", "settings")
+        doc: Optional[Dict[str, Any]] = None       # register = file: the register document
+        doc_bundles: List[str] = []
         engine = find_guard_engine(bundles)
         if engine is None:
             if any(b.guard_rules() for b in bundles):
                 raise RenderError("guard sections are active but no active bundle ships guard/engine.sh "
                                   "and guard/engine-flush.sh (normally bundles/core)")
             self.notes.append("%s: no guard engine among active bundles; hook not rendered" % p.name)
+        else:
+            entry = self._guard_hook(p, t, bundles, engine, hooks_dir)
+            if register == "settings":
+                st = self._hook_settings(p)
+                self.targets.add_json(expand(st["path"]), p.name, engine.name, ("hooks", t["event"]), [entry])
+            else:
+                doc = entry
+                doc_bundles.append(engine.name)
+        events = self._event_hooks(p, t, bundles, hooks_dir)
+        if register == "settings":
+            for name, entry, bname in events:
+                st = self._hook_settings(p)
+                self.targets.add_json(expand(st["path"]), p.name, bname, ("hooks", name), [entry])
             return
-        hooks_dir = expand(t["path"])
+        if doc is None and not events:
+            return
+        if doc is None:
+            doc = self._register_base(p, t)
+        for name, entry, bname in events:
+            hooks = doc.setdefault("hooks", {})
+            if not isinstance(hooks, dict):
+                raise RenderError("provider %s: targets.hooks.entry must hold a \"hooks\" object for "
+                                  "register = file" % p.name)
+            hooks.setdefault(name, []).append(entry)
+            if bname not in doc_bundles:
+                doc_bundles.append(bname)
+        f = self.targets.add_file(expand(t["register_path"]), p.name, doc_bundles[0], dump_json(doc, sort_keys=True))
+        f.bundles.update(doc_bundles)
+
+    def _hook_settings(self, p: Provider) -> Dict[str, Any]:
+        st = p.target("settings")
+        if not st:
+            raise RenderError("provider %s: hooks.register = settings but no settings target" % p.name)
+        self._settings_target(p, st)
+        return st
+
+    def _guard_hook(self, p: Provider, t: Dict[str, Any], bundles: Sequence[Bundle], engine: Bundle,
+                    hooks_dir: str) -> Any:
+        """Render guard-bash.sh, guard.env and the guard shim; return the parsed hook entry."""
         guard_path = os.path.join(hooks_dir, "guard-bash.sh")
         g = self.targets.add_file(guard_path, p.name, engine.name, build_guard(engine, bundles), executable=True)
         g.bundles.update(b.name for b in bundles if b.guard_rules())
@@ -506,19 +556,102 @@ class Renderer:
                       .replace("{matcher}", _json_str(t.get("matcher", "")))
                       .replace("{event}", _json_str(t.get("event", ""))))
         try:
-            entry = json.loads(entry_text)
+            return json.loads(entry_text)
         except ValueError as exc:
             raise RenderError("provider %s: targets.hooks.entry is not valid JSON after substitution: %s" % (p.name, exc))
-        register = t.get("register", "settings")
-        if register == "settings":
-            st = p.target("settings")
-            if not st:
-                raise RenderError("provider %s: hooks.register = settings but no settings target" % p.name)
-            self._settings_target(p, st)
-            self.targets.add_json(expand(st["path"]), p.name, engine.name, ("hooks", t["event"]), [entry])
-        else:
-            path = expand(t["register_path"])
-            self.targets.add_file(path, p.name, engine.name, dump_json(entry, sort_keys=True))
+
+    def _register_base(self, p: Provider, t: Dict[str, Any]) -> Dict[str, Any]:
+        """The register document without the guard entry (no guard engine active): the outer object of
+        the provider's ``entry`` template with its ``hooks`` emptied (``{"version": 1}`` for copilot)."""
+        empty = {"command": "", "matcher": "", "event": "", "hook": "", "timeout": "0"}
+        try:
+            doc = json.loads(fill_entry(t.get("entry") or "{}", empty))
+        except ValueError as exc:
+            raise RenderError("provider %s: targets.hooks.entry is not valid JSON after substitution: %s"
+                              % (p.name, exc))
+        if not isinstance(doc, dict):
+            raise RenderError("provider %s: targets.hooks.entry must be a JSON object for register = file" % p.name)
+        doc.pop("hooks", None)
+        return doc
+
+    def _when(self, when: Any) -> bool:
+        """A ``when`` gate: absent passes; a dotted config key, or a list of them, must all be truthy."""
+        if when is None:
+            return True
+        if isinstance(when, str):
+            when = [when]
+        if isinstance(when, (list, tuple)):
+            return all(bool(self.hub.config.get(k)) for k in when)
+        return bool(when)
+
+    def _active_hooks(self, bundles: Sequence[Bundle]) -> List[Tuple[Bundle, Dict[str, Any]]]:
+        """``(bundle, hook)`` for every bundle hook whose ``when`` passes: bundle order, then script.
+
+        A hook naming an event outside :data:`NEUTRAL_EVENTS` is a :class:`RenderError` whatever
+        its ``when`` says (the manifest is wrong, not the config).
+        """
+        out = []
+        for b in bundles:
+            for h in b.hooks():
+                if h.get("event") not in NEUTRAL_EVENTS:
+                    raise RenderError("%s: [[provides.hooks]] %s names event %r, which is not a neutral hook event; "
+                                      "use one of %s" % (b.name, h.get("script", "?"), h.get("event"),
+                                                         ", ".join(NEUTRAL_EVENTS)))
+                if self._when(h.get("when")):
+                    out.append((b, h))
+        return out
+
+    def _event_hooks(self, p: Provider, t: Dict[str, Any], bundles: Sequence[Bundle],
+                     hooks_dir: str) -> List[Tuple[str, Any, str]]:
+        """Copy each active bundle hook (and its event's shim) into ``hooks_dir``; return
+        ``(provider event name, entry, bundle)`` rows in registration order."""
+        events = t.get("events") or {}
+        out: List[Tuple[str, Any, str]] = []
+        copied: Dict[str, str] = {}   # destination -> source
+        for b, h in self._active_hooks(bundles):
+            neutral, rel = h["event"], h["script"]
+            ev = events.get(neutral)
+            if not ev:
+                self.notes.append("%s: provider %s declares no %s hook event; %s/%s not registered"
+                                  % (p.name, p.name, neutral, b.name, rel))
+                continue
+            src = b.rel(rel)
+            data = read_bytes(src)
+            if data is None:
+                raise RenderError("%s: provides hook %s which does not exist" % (b.name, rel))
+            dest = os.path.join(hooks_dir, os.path.basename(rel))
+            if copied.get(dest) != src:
+                self.targets.add_file(dest, p.name, b.name, data, executable=True, source=src)
+                copied[dest] = src
+            command = "bash %s" % dest
+            shim = ev.get("shim") or ""
+            if shim:
+                shim_src = os.path.join(p.path, shim)
+                shim_dest = os.path.join(hooks_dir, os.path.basename(shim))
+                if copied.get(shim_dest) != shim_src:
+                    sdata = read_bytes(shim_src)
+                    if sdata is None:
+                        raise RenderError("provider %s: events.%s.shim %s does not exist" % (p.name, neutral, shim))
+                    self.targets.add_file(shim_dest, p.name, b.name, sdata, executable=True, source=shim_src)
+                    copied[shim_dest] = shim_src
+                else:
+                    self.targets.by_path[shim_dest].bundles.add(b.name)
+                command = "HARNESS_HOOK=%s bash %s" % (dest, shim_dest)
+            timeout = int(h.get("timeout", 5))
+            if ev.get("timeout_unit", "s") == "ms":
+                timeout *= 1000
+            stem = os.path.basename(rel)[:-3] if rel.endswith(".sh") else os.path.basename(rel)
+            text = fill_entry(ev["entry"], {"command": command, "matcher": ev.get("matcher", ""),
+                                            "event": ev["name"], "hook": stem, "timeout": str(timeout)})
+            try:
+                entry = json.loads(text)
+            except ValueError as exc:
+                raise RenderError("provider %s: targets.hooks.events.%s.entry is not valid JSON after substitution: %s"
+                                  % (p.name, neutral, exc))
+            if "matcher" not in ev and isinstance(entry, dict) and entry.get("matcher") == "":
+                del entry["matcher"]
+            out.append((ev["name"], entry, b.name))
+        return out
 
     def _settings_target(self, p: Provider, st: Dict[str, Any]) -> Target:
         path = expand(st["path"])
@@ -638,11 +771,8 @@ class Renderer:
                 continue
             data = _load_toml(b.rel(rel), b, rel)
             for name, spec in sorted((data.get("servers") or {}).items()):
-                when = spec.get("when")
-                if when is not None:
-                    flag = self.hub.config.get(when) if isinstance(when, str) else when
-                    if not flag:
-                        continue
+                if not self._when(spec.get("when")):
+                    continue
                 if name in servers:
                     raise RenderError("MCP server %r is defined by %s and %s" % (name, servers[name][0], b.name))
                 servers[name] = (b.name, tpl.expand_obj(spec, "%s/%s [servers.%s]" % (b.name, rel, name)))
@@ -682,6 +812,19 @@ class Renderer:
 
 def _json_str(s: str) -> str:
     return json.dumps(s)[1:-1]
+
+
+ENTRY_PLACEHOLDER_RE = re.compile(r"\{(command|matcher|event|hook|timeout)\}")
+
+
+def fill_entry(template: str, values: Dict[str, str]) -> str:
+    """One pass over a hook entry template: ``{timeout}`` verbatim (a bare integer), every other
+    placeholder as JSON string contents, so a value that contains ``{event}`` is never re-expanded."""
+    def sub(m: "re.Match[str]") -> str:
+        key = m.group(1)
+        return values[key] if key == "timeout" else _json_str(values[key])
+
+    return ENTRY_PLACEHOLDER_RE.sub(sub, template)
 
 
 def _read_required(path: str, b: Bundle, rel: str) -> str:

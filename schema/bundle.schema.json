@@ -56,7 +56,9 @@
           {"type": "object", "additionalProperties": false, "required": ["name", "target"],
            "properties": {"name": {"type": "string", "pattern": "^[A-Za-z0-9._-]+$"}, "target": {"type": "string"}}}
         ]}},
-        "env": {"type": "object", "propertyNames": {"pattern": "^[A-Z_][A-Z0-9_]*$"}, "additionalProperties": {"type": ["string", "integer", "boolean"]}}
+        "env": {"type": "object", "propertyNames": {"pattern": "^[A-Z_][A-Z0-9_]*$"}, "additionalProperties": {"type": ["string", "integer", "boolean"]}},
+        "hooks": {"type": "array", "items": {"$ref": "#/$defs/hook"},
+                  "description": "Hook scripts for neutral hook events beyond the guard ([[provides.hooks]]). Each is copied verbatim into the hooks directory of every provider that declares the event in [targets.hooks.events] and registered there; other providers get a plan note."}
       }
     },
     "manual_steps": {"type": "array", "items": {"$ref": "#/$defs/manual_step"}},
@@ -74,7 +76,7 @@
         "function": {"$ref": "#/$defs/function"},
         "components": {
           "type": "object",
-          "propertyNames": {"pattern": "^((rules|skills|agents|guard\\.d|mcp|bin|install|doctor|steps)/[A-Za-z0-9._-]+|permissions)$"},
+          "propertyNames": {"pattern": "^((rules|skills|agents|guard\\.d|hooks|mcp|bin|install|doctor|steps)/[A-Za-z0-9._-]+|permissions)$"},
           "additionalProperties": {"$ref": "#/$defs/component_class"}
         }
       }
@@ -187,6 +189,22 @@
       "properties": {
         "kind": {"type": "string", "enum": ["guard", "doctor", "test", "lint", "review-agent", "provider-feature"]},
         "ref": {"type": "string", "minLength": 1, "description": "Bundle-relative path (guard.d/NN-x.sh, tests/run.sh, agents/x.md), a doctor_checks id, `doctor_checks` for all of them, a lint rule name, or for provider-feature `<provider>:<feature>` naming an entry of that provider's `features`."},
+        "note": {"type": "string"}
+      }
+    },
+    "hook": {
+      "type": "object", "additionalProperties": false, "required": ["event", "script"],
+      "properties": {
+        "event": {"type": "string", "enum": ["prompt", "stop", "session-start", "session-end"],
+                  "description": "Neutral hook event (lib/harness/manifest.py NEUTRAL_EVENTS): prompt (a prompt was submitted), stop (the agent finished its turn); session-start and session-end are reserved."},
+        "script": {"type": "string", "pattern": "^hooks/[A-Za-z0-9._-]+\\.sh$",
+                   "description": "Bundle-relative script, copied verbatim. It reads the neutral envelope (Claude Code payload shape) on stdin and prints nothing or one JSON object (systemMessage, hookSpecificOutput.additionalContext); it never blocks."},
+        "when": {"anyOf": [
+          {"type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[A-Za-z0-9_]+)+$"},
+          {"type": "array", "minItems": 1, "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[A-Za-z0-9_]+)+$"}}
+        ], "description": "Dotted config key, or a list of them, that must all be truthy for the hook to be rendered."},
+        "timeout": {"type": "integer", "minimum": 1, "maximum": 60, "default": 5,
+                    "description": "Seconds; converted to the provider's unit (timeout_unit)."},
         "note": {"type": "string"}
       }
     },

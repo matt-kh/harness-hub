@@ -1,4 +1,6 @@
 # GitHub Copilot CLI. Written to the published hooks/skills spec; verify on install.
+# The extra hook events (userPromptSubmitted, sessionEnd) and their payload keys are written to
+# the published spec too and verified on install, like the guard shim.
 # Product features a bundle may declare as `provider-feature` sensors ([harness] sensors,
 # ref "copilot:<feature>"); harness lint checks refs against this list.
 features = []
@@ -31,6 +33,20 @@ shim = "shim.sh"
 register = "file"
 register_path = "~/.copilot/hooks/harness.json"
 entry = '{"version": 1, "hooks": {"preToolUse": [{"type": "command", "bash": "{command}", "timeoutSec": 10}]}}'
+
+# Neutral hook events beyond the guard (bundle [[provides.hooks]]; ARCHITECTURE §5). Entries are
+# added to the register file next to preToolUse. Copilot documents no message channel for these
+# events: the shims pass the neutral envelope to the hook and drop its output. Timeouts are seconds.
+[targets.hooks.events.prompt]
+name = "userPromptSubmitted"
+shim = "shim-prompt.sh"
+entry = '{"type": "command", "bash": "{command}", "timeoutSec": {timeout}}'
+
+[targets.hooks.events.stop]
+name = "sessionEnd"
+shim = "shim-stop.sh"
+note = "no message channel: a hook's systemMessage is dropped"
+entry = '{"type": "command", "bash": "{command}", "timeoutSec": {timeout}}'
 
 [capabilities]
 hook_enforced = true

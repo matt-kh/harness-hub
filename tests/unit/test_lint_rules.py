@@ -1,6 +1,6 @@
 """The lint rules env-provides, rule-guard-pairing, permissions-vs-guard, agent-tools,
-skill-description, fragments-target, profile-sane, stability, provider-honesty, shim-fixtures and
-the provider-feature sensor kind:
+skill-description, fragments-target, profile-sane, stability, provider-honesty, shim-fixtures,
+hooks-events and the provider-feature sensor kind:
 one passing and one failing fixture bundle each, plus the hub's own bundles staying clean."""
 from __future__ import annotations
 
@@ -431,6 +431,148 @@ class ShimFixturesTest(LintRuleCase):
         self.assertIn("no fixture for case(s) malformed;", rep.errors[0])
 
 
+class HooksEventsTest(LintRuleCase):
+    """hooks-events: bundle [[provides.hooks]] and provider [targets.hooks.events]."""
+
+    ENTRY = '{"hooks": [{"type": "command", "command": "{command}", "timeout": {timeout}}]}'
+
+    def lint_bundle(self, name="core"):
+        hub = self.hub()
+        return self.run_rule(L.lint_hooks_events, self.bundle(name), hub.providers, hub.schema)
+
+    def set_hook(self, block):
+        self.edit("core/bundle.toml", '[[provides.hooks]]\nevent = "stop"\nscript = "hooks/demo-stop.sh"\n'
+                  'when = "core.demo_hook"\n', block)
+
+    def event_provider(self, events, fixtures=("prompt",), run_sh=True):
+        path = os.path.join(self.tmp, "providers", "x")
+        os.makedirs(os.path.join(path, "tests"))
+        if run_sh:
+            self.write(os.path.join(path, "tests", "run.sh"), "#!/usr/bin/env bash\n")
+        self.write(os.path.join(path, "shim-prompt.sh"), "#!/usr/bin/env bash\nexit 0\n")
+        for ev in fixtures:
+            self.write(os.path.join(path, "tests", ev, "silent.in.json"), "{}\n")
+            self.write(os.path.join(path, "tests", ev, "silent.out.json"), "")
+        hooks = {"path": "~/.x/hooks", "mode": "dir", "event": "PreToolUse", "events": events}
+        return M.Provider(path, {"provider": {"name": "x"}, "targets": {"hooks": hooks},
+                                 "capabilities": {"hook_enforced": True}})
+
+    # ---- bundle side
+    def test_fixture_bundle_passes_and_reports_its_when_key(self):
+        rep = L.Report()
+        hub = self.hub()
+        used = L.lint_hooks_events(self.bundle(), hub.providers, hub.schema, rep)
+        self.assertEqual((rep.errors, rep.warnings), ([], []))
+        self.assertEqual(used, {"core.demo_hook"})
+
+    def test_missing_script(self):
+        self.set_hook('[[provides.hooks]]\nevent = "stop"\nscript = "hooks/nope.sh"\n')
+        rep = self.lint_bundle()
+        self.assertEqual(rep.errors, ["core: hooks-events: hooks/nope.sh does not exist; add the script or drop its "
+                                      "[[provides.hooks]] entry"])
+
+    def test_script_that_does_not_parse(self):
+        self.write(os.path.join(self.core, "hooks", "demo-stop.sh"), "#!/usr/bin/env bash\nif then\n")
+        rep = self.lint_bundle()
+        self.assertEqual(len(rep.errors), 1, rep.errors)
+        self.assertTrue(rep.errors[0].startswith("core: hooks-events: bash -n hooks/demo-stop.sh:"), rep.errors[0])
+
+    def test_unknown_when_key(self):
+        self.set_hook('[[provides.hooks]]\nevent = "stop"\nscript = "hooks/demo-stop.sh"\n'
+                      'when = ["core.demo_hook", "core.no_such_key"]\n')
+        rep = self.lint_bundle()
+        self.assertEqual(rep.errors, ["core: hooks-events: hooks/demo-stop.sh: when names core.no_such_key, which no "
+                                      "schema key defines; declare it in [requires.config] or fix the key"])
+
+    def test_unknown_event_and_reserved_name(self):
+        self.write(os.path.join(self.core, "hooks", "shim-x.sh"), "#!/usr/bin/env bash\n")
+        self.set_hook('[[provides.hooks]]\nevent = "after-tool"\nscript = "hooks/shim-x.sh"\n')
+        rep = self.lint_bundle()
+        self.assertEqual(len(rep.errors), 2, rep.errors)
+        self.assertIn("names event 'after-tool'; use one of prompt, stop, session-start, session-end", rep.errors[0])
+        self.assertIn("hooks/shim-x.sh is named like a guard file or a provider shim", rep.errors[1])
+
+    def test_event_no_provider_declares_warns(self):
+        self.set_hook('[[provides.hooks]]\nevent = "session-start"\nscript = "hooks/demo-stop.sh"\n')
+        rep = self.lint_bundle()
+        self.assertEqual(rep.errors, [])
+        self.assertEqual(rep.warnings, ["core: hooks-events: hooks/demo-stop.sh: no provider declares the session-start "
+                                        "event, so the hook is never registered; add [targets.hooks.events.session-start] "
+                                        "to a provider adapter or use another event"])
+
+    def test_duplicate_basename_across_bundles(self):
+        self.write(os.path.join(self.bundles, "alpha", "hooks", "demo-stop.sh"), "#!/usr/bin/env bash\n")
+        self.edit("alpha/bundle.toml", "[provides]\n",
+                  '[provides]\nhooks = [{ event = "stop", script = "hooks/demo-stop.sh" }]\n')
+        hub = self.hub(require_config=False, select=False)
+        rep = self.run_rule(L.lint_hook_script_names, hub.bundles)
+        self.assertEqual(rep.errors, ["hooks-events: hook script demo-stop.sh is provided by alpha and core; they land "
+                                      "in the same provider hooks directory, rename one"])
+
+    def test_schema_rejects_bad_hooks(self):
+        self.set_hook('[[provides.hooks]]\nevent = "stop"\nscript = "scripts/x.py"\ntimeout = 90\n')
+        res = M.validate_bundle(self.bundle(), M.load_schema("bundle.schema.json", REPO))
+        joined = "\n".join(res.errors)
+        self.assertIn("provides.hooks[0].script", joined)
+        self.assertIn("provides.hooks[0].timeout", joined)
+
+    # ---- provider side
+    def test_repo_providers_pass(self):
+        rep = L.Report()
+        for p in self.hub().providers.values():
+            L.lint_provider_hook_events(p, rep)
+            L.lint_shim_fixtures(p, rep)
+        self.assertEqual((rep.errors, rep.warnings), ([], []))
+
+    def test_passing_provider(self):
+        p = self.event_provider({"prompt": {"name": "Prompt", "shim": "shim-prompt.sh", "entry": self.ENTRY}})
+        rep = self.run_rule(L.lint_provider_hook_events, p)
+        self.assertEqual((rep.errors, rep.warnings), ([], []))
+
+    def test_provider_findings(self):
+        p = self.event_provider({
+            "prompt": {"name": "Prompt", "shim": "shim-prompt.sh", "entry": '{"command": {command}}'},
+            "stop": {"name": "Prompt", "shim": "shim-stop.sh", "entry": '[{"command": "{command}"}]',
+                     "timeout_unit": "min"}})
+        rep = self.run_rule(L.lint_provider_hook_events, p)
+        self.assertEqual(len(rep.errors), 6, rep.errors)
+        self.assertIn("events.prompt.entry is not valid JSON after substitution", rep.errors[0])
+        self.assertIn("events.stop.timeout_unit = 'min'; use \"s\" or \"ms\"", rep.errors[1])
+        self.assertIn("events.stop.shim shim-stop.sh does not exist", rep.errors[2])
+        self.assertIn("events.stop.shim has no fixtures; add tests/stop/<case>.in.json", rep.errors[3])
+        self.assertIn("events.stop.entry must be a JSON object", rep.errors[4])
+        self.assertIn("events prompt, stop all map to provider event 'Prompt'", rep.errors[5])
+
+    def test_fixture_without_out(self):
+        p = self.event_provider({"prompt": {"name": "Prompt", "shim": "shim-prompt.sh", "entry": self.ENTRY}})
+        os.remove(os.path.join(p.path, "tests", "prompt", "silent.out.json"))
+        rep = self.run_rule(L.lint_provider_hook_events, p)
+        self.assertEqual(rep.errors, ["providers/x: hooks-events: tests/prompt/silent.in.json has no .out.json; add the "
+                                      "expected output (empty file = no output)"])
+
+    def test_event_shim_needs_run_sh(self):
+        p = self.event_provider({"prompt": {"name": "Prompt", "shim": "shim-prompt.sh", "entry": self.ENTRY}},
+                                run_sh=False)
+        rep = self.run_rule(L.lint_shim_fixtures, p)
+        self.assertEqual(len(rep.errors), 1, rep.errors)
+        self.assertIn("providers/x: shim-fixtures: tests/run.sh is missing", rep.errors[0])
+
+    def test_schema_rejects_unknown_event_keys(self):
+        schema = M.load_schema("provider.schema.json", REPO)
+
+        def errors(events):
+            p = self.event_provider(events, fixtures=())
+            p.data["provider"]["home"] = "~/.x"
+            shutil.rmtree(p.path)
+            return "\n".join(SL.validate(schema, p.data).errors)
+
+        self.assertEqual(errors({"stop": {"name": "Stop", "entry": "{}", "timeout_unit": "ms"}}), "")
+        self.assertIn("targets.hooks.events.after-tool: unknown key", errors({"after-tool": {"name": "X", "entry": "{}"}}))
+        self.assertIn("timeout_unit", errors({"stop": {"name": "Stop", "entry": "{}", "timeout_unit": "h"}}))
+        self.assertIn("extra", errors({"stop": {"name": "Stop", "entry": "{}", "extra": 1}}))
+        self.assertIn("entry", errors({"stop": {"name": "Stop"}}))
+
+
 class RepoBundlesTest(LintRuleCase):
     """The hub's own bundles and profiles pass every new rule without a warning."""
 
@@ -451,9 +593,13 @@ class RepoBundlesTest(LintRuleCase):
             L.lint_fragments_target(b, hub.bundles, rep)
             L.lint_stability(b, rep)
         L.lint_profiles(hub, rep)
+        for b in hub.bundles.values():
+            L.lint_hooks_events(b, hub.providers, hub.schema, rep)
+        L.lint_hook_script_names(hub.bundles, rep)
         for p in hub.providers.values():
             L.lint_provider_honesty(p, REPO, rep)
             L.lint_shim_fixtures(p, rep)
+            L.lint_provider_hook_events(p, rep)
         if HAVE_JQ:
             L.lint_permissions_vs_guard(hub, rep)
         self.assertEqual((rep.errors, rep.warnings), ([], []))
@@ -464,7 +610,7 @@ class RepoBundlesTest(LintRuleCase):
             self.assertIn(rule, L.LINT_RULES)
             self.assertIn(rule, L.SKIPPABLE_RULES)
         self.assertTrue(set(L.SKIPPABLE_RULES) <= L.LINT_RULES)
-        for rule in ("provider-honesty", "shim-fixtures"):
+        for rule in ("provider-honesty", "shim-fixtures", "hooks-events"):
             self.assertIn(rule, L.LINT_RULES)
             self.assertNotIn(rule, L.SKIPPABLE_RULES)
 

@@ -87,9 +87,10 @@ class ClassifyTest(HubTestCase):
                           '"guard.d/20-core" = { domain = "scm" }\n')
         c = self.comps()
         kinds = {x.kind for x in c.values()}
-        self.assertEqual(kinds, {"rule", "skill", "agent", "guard", "permission", "mcp", "bin", "installer", "doctor", "step"})
+        self.assertEqual(kinds, {"rule", "skill", "agent", "guard", "hook", "permission", "mcp", "bin", "installer",
+                                 "doctor", "step"})
         self.assertEqual(sorted(c), sorted([
-            "rules/10-core", "skills/demo", "agents/planner", "guard.d/20-core", "permissions", "mcp/demo-mcp",
+            "rules/10-core", "skills/demo", "agents/planner", "guard.d/20-core", "hooks/demo-stop", "permissions", "mcp/demo-mcp",
             "bin/demo", "bin/core-tool", "install/demo", "doctor/core-ok", "doctor/core-online", "steps/demo-login"]))
         self.assertEqual(c["agents/planner"].id, "core/agents/planner")
         # inherited bundle defaults
@@ -104,6 +105,13 @@ class ClassifyTest(HubTestCase):
         self.assertEqual((c["doctor/core-ok"].function, c["doctor/core-ok"].posture), ("setup", "read-only"))
         self.assertEqual((c["install/demo"].function, c["steps/demo-login"].function), ("setup", "setup"))
         self.assertEqual(c["mcp/demo-mcp"].summary, "runs `uvx demo`")
+        # hook scripts: id from the path, fixed function, no posture, summary from [[provides.hooks]]
+        hook = c["hooks/demo-stop"]
+        self.assertEqual((hook.id, hook.kind, hook.ref), ("core/hooks/demo-stop", "hook", "hooks/demo-stop.sh"))
+        self.assertEqual((hook.function, hook.posture, hook.domain), ("govern", None, "base"))
+        self.assertEqual(hook.summary, "on `stop` when `core.demo_hook`")
+        self.assertEqual(T.component_id("hooks/demo-stop.sh"), "hooks/demo-stop")
+        self.assertEqual(T.kind_of_key("hooks/demo-stop"), "hook")
         # derived
         self.assertEqual(c["guard.d/20-core"].decisions, "deny 1 · ask 1 · allow 1")
         self.assertEqual(c["permissions"].decisions, "deny 1 · ask 1 · allow 2")
@@ -201,6 +209,13 @@ class ClassifyTest(HubTestCase):
         self.assertIn("components.'guard.d/20-core' sets posture; remove it (its decisions are derived from its "
                       "# rule: comments)", errs[0])
         self.assertIn("a human performs the step", errs[1])
+
+    def test_posture_on_hook_is_an_error(self):
+        self.set_taxonomy('[taxonomy]\ndomain = "base"\nposture = "local"\nfunction = "client"\n'
+                          '[taxonomy.components]\n"hooks/demo-stop" = { posture = "local" }\n')
+        errs = self.lint().errors
+        self.assertEqual(len(errs), 1, errs)
+        self.assertIn("components.'hooks/demo-stop' sets posture; remove it (a hook script runs on a provider event", errs[0])
 
     def test_posture_on_doctor_check_is_an_error(self):
         self.set_taxonomy('[taxonomy]\ndomain = "base"\nposture = "local"\nfunction = "client"\n'
@@ -379,6 +394,7 @@ class YieldsTest(HubTestCase):
         self.assertEqual(got["guard.d/20-core"], "declaration")
         self.assertEqual(got["permissions"], "never")   # the fixture bundle is named core: core/permissions
         self.assertEqual(got["bin/demo"], "n/a")
+        self.assertEqual(got["hooks/demo-stop"], "n/a")
         self.assertEqual(got["doctor/core-ok"], "n/a")
         self.assertEqual(set(T.KIND_YIELDS), set(T.KIND_DIR))
         self.assertEqual(set(T.KIND_YIELDS.values()) | {"never"}, set(T.FACETS["yields"]))

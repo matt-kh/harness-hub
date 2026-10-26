@@ -1,7 +1,7 @@
 """Component taxonomy: stable ids and a small controlled vocabulary (docs/reference/taxonomy.md).
 
-Every component a bundle ships (rule, skill, agent, guard section, permission list, MCP
-server, CLI, installer, doctor check, manual step), every bundle, provider and profile is
+Every component a bundle ships (rule, skill, agent, guard section, hook script, permission
+list, MCP server, CLI, installer, doctor check, manual step), every bundle, provider and profile is
 classified the same way:
 
 * **id** — derived from the path, never declared: ``<bundle>/<kind-dir>/<name>`` with the
@@ -29,19 +29,20 @@ from typing import Any, Dict, List, Optional
 from .util import HarnessError, read_text
 
 # catalog order
-KINDS = ("bundle", "skill", "agent", "rule", "guard", "permission", "mcp", "bin", "installer",
+KINDS = ("bundle", "skill", "agent", "rule", "guard", "hook", "permission", "mcp", "bin", "installer",
          "doctor", "step", "provider", "profile")
 
 KIND_TITLES = OrderedDict([
     ("bundle", "Bundles"), ("skill", "Skills"), ("agent", "Agents"), ("rule", "Rules"),
-    ("guard", "Guard sections"), ("permission", "Permission lists"), ("mcp", "MCP servers"),
+    ("guard", "Guard sections"), ("hook", "Hook scripts"), ("permission", "Permission lists"),
+    ("mcp", "MCP servers"),
     ("bin", "CLIs"), ("installer", "Installers"), ("doctor", "Doctor checks"),
     ("step", "Manual steps"), ("provider", "Providers"), ("profile", "Profiles"),
 ])
 
 # kind -> directory segment of its id (bundle components only)
 KIND_DIR = OrderedDict([
-    ("rule", "rules"), ("skill", "skills"), ("agent", "agents"), ("guard", "guard.d"),
+    ("rule", "rules"), ("skill", "skills"), ("agent", "agents"), ("guard", "guard.d"), ("hook", "hooks"),
     ("permission", "permissions"), ("mcp", "mcp"), ("bin", "bin"), ("installer", "install"),
     ("doctor", "doctor"), ("step", "steps"),
 ])
@@ -87,7 +88,7 @@ POSTURE_ORDER = tuple(FACETS["posture"])
 
 # kinds whose function is fixed (never declared differently)
 KIND_FUNCTION = {
-    "rule": "govern", "guard": "govern", "permission": "govern",
+    "rule": "govern", "guard": "govern", "hook": "govern", "permission": "govern",
     "bin": "client", "mcp": "client",
     "installer": "setup", "doctor": "setup", "step": "setup",
 }
@@ -101,6 +102,7 @@ KIND_POSTURE = {"doctor": "read-only"}
 NO_POSTURE_REASON = {
     "rule": "a rule is text; its decisions are made by the guard sections that enforce it",
     "guard": "its decisions are derived from its # rule: comments",
+    "hook": "a hook script runs on a provider event and never blocks; it reads its payload and may print a message",
     "permission": "its decisions are derived from the allow/ask/deny lists in permissions.toml",
     "installer": "it has no write behaviour beyond installing its tool",
     "step": "a human performs the step",
@@ -113,7 +115,7 @@ RESERVED_BUNDLE_NAMES = ("providers", "profiles")
 
 # ---- principle 8: how each kind yields to a repository-level harness (derived facet)
 KIND_YIELDS = {"skill": "declaration", "guard": "declaration", "agent": "name", "rule": "text",
-               "permission": "config", "mcp": "n/a", "bin": "n/a", "installer": "n/a", "doctor": "n/a",
+               "hook": "n/a", "permission": "config", "mcp": "n/a", "bin": "n/a", "installer": "n/a", "doctor": "n/a",
                "step": "n/a"}
 YIELDS_KINDS = ("skill", "agent", "rule", "guard", "permission")
 # the only components that never yield: they protect the developer's own credentials (plus the
@@ -142,6 +144,8 @@ REACH_ROW = {"rule": "instructions", "skill": "skills", "agent": "agents", "guar
 REACH_TEXT = {
     "bundle": "selected in `[hub].bundles` or through a profile; rendered into every active provider.",
     "bin": "provider-independent: linked into `~/.local/bin`, callable by every provider and by you.",
+    "hook": "registered on every provider that declares its neutral event (`harness status --matrix`, row "
+            "\"extra hook events\"); a plan note names the providers that do not.",
     "installer": "provider-independent: run by `harness install <tool>`.",
     "doctor": "provider-independent: run by `harness doctor`.",
     "step": "provider-independent: done once by a human; `harness steps --pending` lists the open ones.",
@@ -318,6 +322,19 @@ def _mcp_summary(b: Any, server: str) -> str:
     return "runs `%s`" % cmd if cmd else ""
 
 
+def _hook_summary(b: Any, script: str) -> str:
+    """``on `stop` when `core.x``` (plus the note) for one ``[[provides.hooks]]`` script."""
+    rows = [h for h in b.hooks() if h.get("script") == script]
+    if not rows:
+        return ""
+    events = ", ".join(sorted(set("`%s`" % h.get("event", "") for h in rows)))
+    when = rows[0].get("when")
+    keys = [when] if isinstance(when, str) else list(when or [])
+    out = "on %s" % events + (" when %s" % ", ".join("`%s`" % k for k in keys) if keys else "")
+    note = next((h.get("note") for h in rows if h.get("note")), "")
+    return out + ("; %s" % note if note else "")
+
+
 def _controls(b: Any) -> Dict[str, str]:
     """component key -> control facet, from ``[harness]``."""
     out: Dict[str, List[str]] = {}
@@ -366,6 +383,12 @@ def raw_components(b: Any) -> List[Component]:
         add("agent", component_id(rel), rel)
     for rel in b.guard_rules():
         add("guard", component_id(rel), rel)
+    seen_hooks = set()
+    for h in b.hooks():
+        rel = str(h.get("script", ""))
+        if rel and rel not in seen_hooks:
+            seen_hooks.add(rel)
+            add("hook", component_id(rel), rel)
     perm = b.permissions_file()
     if perm:
         add("permission", "permissions", perm)
@@ -423,6 +446,8 @@ def components(b: Any) -> List[Component]:
                     break
         elif c.kind == "guard":
             c.decisions = guard_decisions(read_text(b.rel(c.ref)) or "")
+        elif c.kind == "hook":
+            c.summary = _hook_summary(b, c.ref)
         elif c.kind == "permission":
             c.decisions = permission_decisions(b.rel(c.ref))
         elif c.kind == "mcp":

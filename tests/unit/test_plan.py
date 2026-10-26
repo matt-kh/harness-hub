@@ -27,6 +27,30 @@ class PlanApplyTest(HubTestCase):
         self.assertTrue(os.access(self.h(".claude", "hooks", "guard-bash.sh"), os.X_OK))
         self.assertTrue(os.path.islink(self.h(".local", "bin", "demo")))
 
+    def test_event_hooks_apply_then_zero_changes(self):
+        """A neutral event hook (core.demo_hook) is idempotent like the guard, on every register mode."""
+        self.write(self.cfg, self.read(self.cfg) + "\n[core]\ndemo_hook = true\n")
+        plan = self.apply()
+        self.assertEqual(plan.counts()["conflict"], 0)
+        _hub, again = self.plan()
+        self.assertEqual(again.changes, 0, [(i.path, i.action, i.reason) for i in again.items if i.write])
+        claude = json.loads(self.read(self.h(".claude", "settings.json")))
+        self.assertEqual(sorted(claude["hooks"]), ["PreToolUse", "Stop"])
+        gemini = json.loads(self.read(self.h(".gemini", "settings.json")))
+        self.assertEqual(sorted(gemini["hooks"]), ["AfterAgent", "BeforeTool"])
+        copilot = json.loads(self.read(self.h(".copilot", "hooks", "harness.json")))
+        self.assertEqual(sorted(copilot["hooks"]), ["preToolUse", "sessionEnd"])
+        for home in (".claude", ".gemini", ".copilot"):
+            self.assertTrue(os.access(self.h(home, "hooks", "demo-stop.sh"), os.X_OK))
+        # switching the hook off removes its entries and scripts, and leaves the guard
+        self.write(self.cfg, self.read(self.cfg).replace("demo_hook = true", "demo_hook = false"))
+        self.apply()
+        self.assertFalse(os.path.exists(self.h(".claude", "hooks", "demo-stop.sh")))
+        self.assertEqual(sorted(json.loads(self.read(self.h(".claude", "settings.json")))["hooks"]), ["PreToolUse"])
+        self.assertEqual(sorted(json.loads(self.read(self.h(".copilot", "hooks", "harness.json")))["hooks"]), ["preToolUse"])
+        _hub, again = self.plan()
+        self.assertEqual(again.changes, 0, [(i.path, i.action, i.reason) for i in again.items if i.write])
+
     def test_state_round_trip(self):
         self.apply(providers=["claude"])
         st = S.load("claude", "~/.claude")

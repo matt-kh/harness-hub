@@ -232,6 +232,9 @@ def catalog_body(bundles: Sequence[M.Bundle], providers: Sequence[M.Provider], h
             out.append(table(["id", "control", "domain", "decisions", "yields", "note"], [
                 [i, c.control or "", c.domain or "", c.decisions or "", c.yields or "", c.blurb]
                 for i, c in zip(ids, group)]))
+        elif kind == "hook":
+            out.append(table(["id", "domain", "yields", "summary"], [
+                [code(c.id), c.domain or "", c.yields or "", c.blurb] for c in group]))
         elif kind == "mcp":
             out.append(table(["id", "domain", "posture", "note"], [
                 [code(c.id), c.domain or "", c.posture or "", c.blurb] for c in group]))
@@ -396,6 +399,20 @@ def provider_body(p: M.Provider) -> str:
         rows.append([name, code(t.get("path", "")), t.get("mode", ""), "; ".join(detail)])
     out.append("### Targets\n")
     out.append(table(["artifact", "path", "mode", "details"], rows))
+    events = ((p.target("hooks") or {}).get("events") or {})
+    if events:
+        out.append("### Hook events\n")
+        out.append("Neutral hook events beyond the guard this adapter registers for bundle `[[provides.hooks]]` "
+                   "([ARCHITECTURE §5](../../ARCHITECTURE.md#5-guard)).\n")
+        erows = []
+        for neutral in M.NEUTRAL_EVENTS:
+            ev = events.get(neutral)
+            if not ev:
+                continue
+            shim = code(ev["shim"]) if ev.get("shim") else "native envelope"
+            unit = {"ms": "milliseconds"}.get(ev.get("timeout_unit", "s"), "seconds")
+            erows.append([code(neutral), code(ev.get("name", "")), shim, unit, ev.get("note", "")])
+        out.append(table(["neutral event", "provider event", "shim", "timeout unit", "note"], erows))
     out.append("### Capabilities\n")
     caps = p.capabilities
     out.append(table(["capability", "value"], [[k, json.dumps(caps[k]) if isinstance(caps[k], bool) else caps[k]]

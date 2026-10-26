@@ -46,6 +46,18 @@ shim = ""                      # Claude speaks the guard's neutral envelope nati
 register = "settings"
 entry = '{"matcher": "{matcher}", "hooks": [{"type": "command", "command": "{command}"}]}'
 
+# Neutral hook events beyond the guard (bundle [[provides.hooks]]; ARCHITECTURE §5). Claude's own
+# payloads are the neutral envelope, so no shim. UserPromptSubmit and Stop ignore matchers;
+# timeouts are seconds. Plain stdout of a UserPromptSubmit hook is added to the model's context:
+# event hooks print nothing or one JSON object (systemMessage, hookSpecificOutput).
+[targets.hooks.events.prompt]
+name = "UserPromptSubmit"
+entry = '{"hooks": [{"type": "command", "command": "{command}", "timeout": {timeout}}]}'
+
+[targets.hooks.events.stop]
+name = "Stop"
+entry = '{"hooks": [{"type": "command", "command": "{command}", "timeout": {timeout}}]}'
+
 [capabilities]
 hook_enforced = true
 permissions = "native"
