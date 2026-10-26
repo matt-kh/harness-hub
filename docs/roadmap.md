@@ -379,6 +379,13 @@ Cross-tranche items that make the hub easier to maintain and to extend.
   inactive, which leaves dangling references.
 - Provider hooks beyond `PreToolUse` (needed by the session banner): `events` list and
   optional extra hook scripts per bundle, registered only on providers that declare the event.
+  **Shipped**: neutral events `prompt` and `stop` (`session-start`, `session-end` reserved),
+  bundle `[[provides.hooks]]`, provider `[targets.hooks.events]` for claude, gemini (shims)
+  and copilot (shims, verify on install), lint rule `hooks-events` (ARCHITECTURE §3–§5).
+- Codex hooks (documented behind `features.hooks`, TOML register): map `prompt` and `stop`
+  (and, if it fits, the guard's pre-tool event) through a `[[hooks.<Event>]]` managed TOML
+  block in `config.toml`, with shims and fixtures like gemini's; until then Codex stays
+  advisory and bundle hooks get a plan note there.
 - Config keys this roadmap introduces, all with defaults and documentation-value examples:
   `gitlab.mr_title_re`, `github.pr_title_forbid_re`, `core.max_staged_kb`,
   `core.secret_shapes_extra_re`, `core.sudo_decision`, `core.review.standards_files`,

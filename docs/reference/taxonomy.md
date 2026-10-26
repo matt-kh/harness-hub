@@ -185,6 +185,7 @@ A value exists only while a component uses it. To add one:
 | agent | `<bundle>/agents/<name>` | derived: `[harness]` | inherited, overridable | declared (required) | declared (required) | derived: front matter | — | derived: `name` |
 | rule | `<bundle>/rules/<name>` | derived: `[harness]` | inherited, overridable | fixed: govern | not allowed | — | — | derived: `text` |
 | guard | `<bundle>/guard.d/<name>` | derived: `[harness]` | inherited, overridable | fixed: govern | not allowed | — | derived: `# rule:` comments | derived: `declaration` (`n/a` without `# rule:` comments; `never` for `core/guard.d/20-credentials`) |
+| hook | `<bundle>/hooks/<name>` | — | inherited, overridable | fixed: govern | not allowed | — | — | derived: `n/a` |
 | permission | `<bundle>/permissions` | derived: `[harness]` | inherited, overridable | fixed: govern | not allowed | — | derived: allow/ask/deny lists | derived: `config` (`never` for `core/permissions`) |
 | mcp | `<bundle>/mcp/<name>` | — | inherited, overridable | fixed: client | declared (required) | — | — | derived: `n/a` |
 | bin | `<bundle>/bin/<name>` | — | inherited, overridable | fixed: client | declared (required) | — | — | derived: `n/a` |
@@ -203,6 +204,7 @@ A value exists only while a component uses it. To add one:
 | agent | native on claude, copilot; inlined on codex, gemini, opencode. |
 | rule | native on claude, codex, copilot, gemini, opencode. |
 | guard | enforced on claude; partial on copilot, gemini; advisory on codex, opencode. |
+| hook | registered on every provider that declares its neutral event (`harness status --matrix`, row "extra hook events"); a plan note names the providers that do not. |
 | permission | native on claude; advisory on codex, copilot, gemini; none on opencode. |
 | mcp | native on claude, codex, copilot, gemini; none on opencode. |
 | bin | provider-independent: linked into `~/.local/bin`, callable by every provider and by you. |

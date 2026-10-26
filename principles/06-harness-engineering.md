@@ -83,6 +83,7 @@ bundle ships: rules, skills, permissions, agents, guard sections, doctor checks,
 | A component is unclassified, or its [taxonomy](../docs/reference/taxonomy.md) facets contradict its kind | lint warning / error | `harness lint` (rule `taxonomy`) |
 | A provider's `[capabilities]` contradict its `[targets]` (hooks, ask, skills, agents, mcp, instructions, permissions), or its doc's tier line disagrees | lint error / warning | `harness lint` (rule `provider-honesty`) |
 | A provider shim lacks `tests/run.sh`, an `.out.json`, or a fixture for allow, deny, ask, unknown tool or malformed | lint error | `harness lint` (rule `shim-fixtures`) |
+| A bundle hook script is missing, does not parse, reads an unknown `when` key or shares its name with another bundle's; a provider event's shim lacks fixtures or its entry template is not a JSON object; no provider declares a hook's event | lint error / warning | `harness lint` (rule `hooks-events`) |
 | Every guard decision has test rows, including bypass attempts | tests | `bundles/*/guard.d/tests.sh` |
 | A guard code change comes with row changes; a net-new `-> D` rule with a `D` (or `tr`) row | gate | `tools/gate/companions.sh` (pre-push, CI `gate`) |
 | A bundle, engine, provider, schema or profile change has a CHANGELOG `[Unreleased]` entry | gate | `tools/gate/companions.sh` (pre-push, CI `gate`) |

@@ -12,6 +12,8 @@ Copilot can deny but not ask, so ask decisions follow `[providers.copilot].ask_a
 | Skills | `~/.copilot/skills/<name>/` |
 | Sub-agents | `~/.copilot/agents/` |
 | Hooks | `~/.copilot/hooks/harness.json` → `providers/copilot/shim.sh` → guard |
+| Event `prompt` | `userPromptSubmitted` in `harness.json`, behind `providers/copilot/shim-prompt.sh` (output discarded), timeout in seconds |
+| Event `stop` | `sessionEnd` in `harness.json`, behind `providers/copilot/shim-stop.sh` (output discarded), timeout in seconds |
 | MCP | `~/.copilot/mcp-config.json` |
 
 ## How the guard is wired
@@ -22,6 +24,16 @@ Copilot can deny but not ask, so ask decisions follow `[providers.copilot].ask_a
   `{"permissionDecision":"deny","permissionDecisionReason":…}`; `ask` → per `ask_as`;
   pass-through (unknown tool, no opinion) prints nothing.
 - Unknown tool → pass through; malformed JSON (outer or inner) → deny.
+
+## Extra hook events
+
+Bundle hook scripts for the neutral events `prompt` and `stop` (`[[provides.hooks]]`,
+[ARCHITECTURE §5](../../ARCHITECTURE.md#5-guard)) are added to `harness.json` next to the
+`preToolUse` entry, as `userPromptSubmitted` and `sessionEnd`. The shims read the prompt as
+`.prompt // .userPrompt // .message` and the session as `.session_id // .sessionId`, pass the
+neutral envelope to the hook and discard its output: Copilot documents no message channel for
+these events, so a nudge a hook prints is dropped. Event names and payload keys are written
+to the published spec; verify them on install, as for the guard shim.
 
 ## Quirks
 
@@ -59,6 +71,15 @@ Copilot can deny but not ask, so ask decisions follow `[providers.copilot].ask_a
 | permissions |  | unsupported | use copilot --allow-tool/--deny-tool flags; the guard hook enforces shell rules |
 | trust |  | unsupported |  |
 | mcp | `~/.copilot/mcp-config.json` | json-merge | key=mcpServers |
+
+### Hook events
+
+Neutral hook events beyond the guard this adapter registers for bundle `[[provides.hooks]]` ([ARCHITECTURE §5](../../ARCHITECTURE.md#5-guard)).
+
+| neutral event | provider event | shim | timeout unit | note |
+|---|---|---|---|---|
+| `prompt` | `userPromptSubmitted` | `shim-prompt.sh` | seconds |  |
+| `stop` | `sessionEnd` | `shim-stop.sh` | seconds | no message channel: a hook's systemMessage is dropped |
 
 ### Capabilities
 

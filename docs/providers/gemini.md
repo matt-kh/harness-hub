@@ -14,6 +14,8 @@ yourself).
 | Sub-agents | not a native concept: agent bodies are inlined as instruction sections |
 | Settings | `~/.gemini/settings.json`, json-merge of `hooks` and `mcpServers` |
 | Guard | `~/.gemini/hooks/guard-bash.sh` behind `providers/gemini/shim.sh`, event `BeforeTool`, matcher `run_shell_command` |
+| Event `prompt` | `BeforeAgent` in `settings.json`, behind `providers/gemini/shim-prompt.sh`, timeout in milliseconds |
+| Event `stop` | `AfterAgent` in `settings.json`, behind `providers/gemini/shim-stop.sh` (runs after every turn), timeout in milliseconds |
 | MCP | `~/.gemini/settings.json` → `mcpServers` |
 
 ## How the guard is wired
@@ -24,6 +26,22 @@ The shim translates the envelopes ([ARCHITECTURE §5](../../ARCHITECTURE.md#5-gu
 - `allow` → `{"decision":"allow"}`, `deny` → `{"decision":"deny","reason":…}`
 - `ask` → per `ask_as`: `deny` (default, reason says "run it yourself") or `allow`
 - unknown tool → pass through; malformed JSON → deny (fail closed)
+
+## Extra hook events
+
+Bundle hook scripts for the neutral events `prompt` and `stop` (`[[provides.hooks]]`,
+[ARCHITECTURE §5](../../ARCHITECTURE.md#5-guard)) run behind `shim-prompt.sh` (`BeforeAgent`)
+and `shim-stop.sh` (`AfterAgent`):
+
+- stdin → the neutral envelope (`session_id`, `cwd`, and `prompt` or `stop_hook_active`);
+  `transcript_path`, `prompt_response` and the timestamp are not passed on.
+- Gemini parses hook stdout as exactly one JSON object and shows any other text as a message,
+  so the shim prints the hook's `systemMessage` and `additionalContext` (as
+  `hookSpecificOutput` with `hookEventName`) in one object, or nothing; garbage or several
+  objects from the hook are dropped.
+- The shims never emit `decision`, `continue` or `reason`: these hooks cannot block a turn.
+- `AfterAgent` runs after every turn, not once per session; a hook that should speak once
+  keeps its own marker.
 
 ## Quirks
 
@@ -64,6 +82,15 @@ The shim translates the envelopes ([ARCHITECTURE §5](../../ARCHITECTURE.md#5-gu
 | permissions |  | unsupported | permission lists are not translated; the guard hook enforces shell rules |
 | trust |  | unsupported |  |
 | mcp | `~/.gemini/settings.json` | json-merge | key=mcpServers |
+
+### Hook events
+
+Neutral hook events beyond the guard this adapter registers for bundle `[[provides.hooks]]` ([ARCHITECTURE §5](../../ARCHITECTURE.md#5-guard)).
+
+| neutral event | provider event | shim | timeout unit | note |
+|---|---|---|---|---|
+| `prompt` | `BeforeAgent` | `shim-prompt.sh` | milliseconds |  |
+| `stop` | `AfterAgent` | `shim-stop.sh` | milliseconds | runs after every turn, not once per session |
 
 ### Capabilities
 

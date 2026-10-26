@@ -19,4 +19,5 @@ What the tiers mean for security: [SECURITY.md](../../SECURITY.md#what-the-guard
 | skills | native | native | native | native | native |
 | agents | native | inlined | native | inlined | inlined |
 | mcp | native | native | native | native | none |
+| extra hook events (prompt, stop) | prompt, stop | - | prompt, stop | prompt, stop | - |
 <!-- generated:end -->

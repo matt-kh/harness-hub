@@ -203,6 +203,17 @@ Read [ARCHITECTURE §4](ARCHITECTURE.md#4-providers-providersname) and
       (pass through) and malformed JSON (deny: fail closed), plus `tests/run.sh`. The base
       name starts with the case word (`allow`, `deny`, `ask`, `unknown-tool`, `malformed`),
       variants follow after `-` (`ask-as-allow`); `harness lint` rule `shim-fixtures` checks it.
+- [ ] Neutral hook events the product supports (`prompt`, `stop`): one
+      `[targets.hooks.events.<event>]` table each, with the provider's event `name`, the
+      `entry` template, `timeout_unit` and, when the payload is not the Claude shape, a
+      `shim-<event>.sh` that builds the neutral envelope, runs `HARNESS_HOOK` and translates
+      its output (never a blocking decision; exit 0 always) — ARCHITECTURE §4 and §5. Leave an
+      event out when the product has none; bundles then get a plan note.
+- [ ] Event shim fixtures under `tests/<event>/` (`NAME.in.json`, `NAME.out.json` and
+      `NAME.envelope.json` for the envelope the hook must receive), run from `tests/run.sh`
+      through `providers/_shared/run-shim-tests.sh` (its stub hook answers `message`,
+      `context`, `both`, `twice` and `garbage`); `harness lint` rule `hooks-events` checks
+      that each event shim exists, parses and has fixtures.
 - [ ] `README.md` with a "verified against <version> on <date>" line (the weekly
       provider-drift workflow parses it) and the provider's quirks.
 - [ ] `docs/providers/<name>.md` and the README capability matrix (both generated:
