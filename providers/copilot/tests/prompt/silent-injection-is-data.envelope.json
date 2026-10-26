@@ -1,0 +1,1 @@
+{"session_id":"s3","cwd":"/tmp","prompt":"inject $(touch pwned) `touch pwned2` done","hook_event_name":"UserPromptSubmit"}

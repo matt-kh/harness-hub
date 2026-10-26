@@ -1,0 +1,1 @@
+{"sessionId":"s5","cwd":"/tmp/inject $(touch pwned) `touch pwned2` done","reason":"complete"}

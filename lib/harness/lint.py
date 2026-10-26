@@ -39,10 +39,12 @@ Errors (exit 1):
   the guard cases allow, deny, ask, unknown tool, malformed (base name starts with the case word)
 * ``hooks-events`` (principle 6): a ``[[provides.hooks]]`` script that is missing or fails
   ``bash -n``, a ``when`` key no schema defines, an event outside the neutral list, one script
-  basename provided by two bundles (or named like a guard file or shim); a provider event whose
-  shim is missing, fails ``bash -n`` or has no ``tests/<event>/`` fixtures, whose ``entry`` is
-  not a JSON object after substitution, whose ``timeout_unit`` is not ``s``/``ms``, or whose
-  provider event name another neutral event already uses. Warning: a bundle hook whose event no
+  basename provided by two bundles (or named like a guard file or any provider's shim); a
+  provider event whose shim is missing, fails ``bash -n``, has no ``tests/<event>/`` fixtures,
+  lacks a fixture for one of the cases malformed, garbage, silent, decide, or is not run by
+  ``tests/run.sh`` (``<event>:<shim>``), whose ``entry`` is not a JSON object after
+  substitution, whose ``timeout_unit`` is not ``s``/``ms``, or whose provider event name is the
+  guard's event or one another neutral event already uses. Warning: a bundle hook whose event no
   provider declares (it is never registered)
 * ``taxonomy`` (principle 6, variety reduction): a ``[taxonomy.components]`` key that names no
   component; a posture on a kind that takes none (rule, guard, permission, installer, step,
@@ -1117,8 +1119,21 @@ def lint_shim_fixtures(p: M.Provider, rep: Report) -> None:
 # placeholder values an event entry template is checked with (lint never renders a real path)
 HOOK_ENTRY_PLACEHOLDERS = {"command": "bash ~/.example/hooks/example.sh", "matcher": "", "event": "Event",
                            "hook": "example", "timeout": "5"}
-# basenames a bundle hook script may not take: they are the guard's files or provider shims
-RESERVED_HOOK_NAMES_RE = re.compile(r"^(guard-bash\.sh|guard\.env|shim.*\.sh)$")
+# basenames a bundle hook script may not take besides the providers' shims: the guard's own files
+GUARD_HOOK_FILES = ("guard-bash.sh", "guard.env")
+# hooks-events: case words every tests/<event>/ fixture set needs (base name starts with the word)
+EVENT_SHIM_CASES = ("malformed", "garbage", "silent", "decide")
+
+
+def reserved_hook_names(providers: Optional[Dict[str, M.Provider]]) -> Set[str]:
+    """Basenames that land in a provider hooks directory besides bundle hook scripts."""
+    out = set(GUARD_HOOK_FILES)
+    for p in (providers or {}).values():
+        hooks = p.target("hooks") or {}
+        if hooks.get("shim"):
+            out.add(os.path.basename(str(hooks["shim"])))
+        out.update(os.path.basename(shim) for _n, shim in event_shims(p))
+    return out
 
 
 def hook_when_keys(h: Dict[str, Any]) -> List[str]:
@@ -1137,6 +1152,7 @@ def lint_hooks_events(b: M.Bundle, providers: Optional[Dict[str, M.Provider]], s
     declared = set()
     for p in (providers or {}).values():
         declared.update(((p.target("hooks") or {}).get("events") or {}).keys())
+    reserved = reserved_hook_names(providers)
     for h in b.hooks():
         rel, ev = str(h.get("script", "")), h.get("event")
         if ev not in M.NEUTRAL_EVENTS:
@@ -1149,7 +1165,7 @@ def lint_hooks_events(b: M.Bundle, providers: Optional[Dict[str, M.Provider]], s
             rc, _o, err = run_argv(["bash", "-n", full], timeout=20)
             if rc != 0:
                 rep.err("%s bash -n %s: %s" % (where, rel, err.strip().splitlines()[0] if err.strip() else rc))
-        if RESERVED_HOOK_NAMES_RE.match(os.path.basename(rel)):
+        if os.path.basename(rel) in reserved:
             rep.err("%s %s is named like a guard file or a provider shim, which share the hooks directory; "
                     "rename the script" % (where, rel))
         for key in hook_when_keys(h):
@@ -1177,10 +1193,12 @@ def lint_hook_script_names(bundles: Dict[str, M.Bundle], rep: Report) -> None:
 
 def lint_provider_hook_events(p: M.Provider, rep: Report) -> None:
     """Provider side of ``hooks-events``: ``[targets.hooks.events]`` shims, fixtures, templates, units."""
-    events = (p.target("hooks") or {}).get("events") or {}
+    hooks = p.target("hooks") or {}
+    events = hooks.get("events") or {}
     if not events:
         return
     where = "providers/%s: hooks-events:" % p.name
+    run_sh = read_text(os.path.join(p.path, "tests", "run.sh")) or ""
     by_name: Dict[str, List[str]] = {}
     for neutral in sorted(events):
         ev = events[neutral] if isinstance(events[neutral], dict) else {}
@@ -1188,6 +1206,9 @@ def lint_provider_hook_events(p: M.Provider, rep: Report) -> None:
             rep.err("%s events.%s is not a neutral hook event; use one of %s"
                     % (where, neutral, ", ".join(M.NEUTRAL_EVENTS)))
         by_name.setdefault(str(ev.get("name", "")), []).append(neutral)
+        if ev.get("name") and ev.get("name") == hooks.get("event"):
+            rep.err("%s events.%s.name %r is the guard's event; the guard owns it, map the neutral event to "
+                    "another provider event" % (where, neutral, ev["name"]))
         unit = ev.get("timeout_unit", "s")
         if unit not in ("s", "ms"):
             rep.err("%s events.%s.timeout_unit = %r; use \"s\" or \"ms\"" % (where, neutral, unit))
@@ -1209,6 +1230,14 @@ def lint_provider_hook_events(p: M.Provider, rep: Report) -> None:
                 if not os.path.isfile(os.path.join(fdir, fn[:-len(".in.json")] + ".out.json")):
                     rep.err("%s tests/%s/%s has no .out.json; add the expected output (empty file = no output)"
                             % (where, neutral, fn))
+            missing = [c for c in EVENT_SHIM_CASES if ins and not any(fn.startswith(c) for fn in ins)]
+            if missing:
+                rep.err("%s tests/%s/ has no fixture for case(s) %s; add tests/%s/<case>[-variant].in.json + "
+                        ".out.json for each" % (where, neutral, ", ".join(missing), neutral))
+            spec = "%s:%s" % (neutral, shim)
+            if spec not in run_sh:
+                rep.err("%s tests/run.sh does not run tests/%s/; pass %s to providers/_shared/run-provider-tests.sh"
+                        % (where, neutral, spec))
         values = dict(HOOK_ENTRY_PLACEHOLDERS, event=str(ev.get("name", "")))
         try:
             obj = json.loads(R.fill_entry(str(ev.get("entry", "")), values))

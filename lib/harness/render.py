@@ -487,7 +487,7 @@ class Renderer:
             if any(b.guard_rules() for b in bundles):
                 raise RenderError("guard sections are active but no active bundle ships guard/engine.sh "
                                   "and guard/engine-flush.sh (normally bundles/core)")
-            self.notes.append("%s: no guard engine among active bundles; hook not rendered" % p.name)
+            self.notes.append("%s: no guard engine among active bundles; guard hook not rendered" % p.name)
         else:
             entry = self._guard_hook(p, t, bundles, engine, hooks_dir)
             if register == "settings":
@@ -548,9 +548,9 @@ class Renderer:
                 raise RenderError("provider %s: shim %s does not exist" % (p.name, shim))
             script = os.path.join(hooks_dir, os.path.basename(shim))
             self.targets.add_file(script, p.name, engine.name, data, executable=True, source=src)
-        command = "bash %s" % script
+        command = "bash %s" % shlex.quote(script)
         if ask_as is not None:
-            command = "HARNESS_ASK_AS=%s %s" % (ask_as, command)
+            command = "HARNESS_ASK_AS=%s %s" % (shlex.quote(ask_as), command)
         entry_tpl = t.get("entry") or '{"matcher":"{matcher}","hooks":[{"type":"command","command":"{command}"}]}'
         entry_text = (entry_tpl.replace("{command}", _json_str(command))
                       .replace("{matcher}", _json_str(t.get("matcher", "")))
@@ -623,7 +623,7 @@ class Renderer:
             if copied.get(dest) != src:
                 self.targets.add_file(dest, p.name, b.name, data, executable=True, source=src)
                 copied[dest] = src
-            command = "bash %s" % dest
+            command = "bash %s" % shlex.quote(dest)
             shim = ev.get("shim") or ""
             if shim:
                 shim_src = os.path.join(p.path, shim)
@@ -636,7 +636,8 @@ class Renderer:
                     copied[shim_dest] = shim_src
                 else:
                     self.targets.by_path[shim_dest].bundles.add(b.name)
-                command = "HARNESS_HOOK=%s bash %s" % (dest, shim_dest)
+                command = "HARNESS_HOOK=%s bash %s" % (shlex.quote(dest), shlex.quote(shim_dest))
+            command = "HARNESS_PROVIDER=%s %s" % (shlex.quote(p.name), command)
             timeout = int(h.get("timeout", 5))
             if ev.get("timeout_unit", "s") == "ms":
                 timeout *= 1000

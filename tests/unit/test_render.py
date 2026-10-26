@@ -358,12 +358,16 @@ class EventHooksTest(HubTestCase):
         hooks = self.h(".claude", "hooks")
         doc = json.loads(R.pure_content(targets[self.h(".claude", "settings.json")]))
         stop = doc["hooks"]["Stop"]
-        self.assertEqual(stop, [{"hooks": [{"type": "command", "command": "bash %s/demo-stop.sh" % hooks, "timeout": 5}]}])
+        self.assertEqual(stop, [{"hooks": [{"type": "command", "timeout": 5, "command":
+                                            "HARNESS_PROVIDER=claude HARNESS_HOOK=%s/demo-stop.sh bash %s/shim-event.sh"
+                                            % (hooks, hooks)}]}])
         self.assertNotIn("matcher", stop[0])  # Stop ignores matchers: the empty one is dropped
         self.assertEqual(doc["hooks"]["PreToolUse"][0]["matcher"], "Bash")  # the guard is unchanged
         script = targets[os.path.join(hooks, "demo-stop.sh")]
         self.assertTrue(script.executable)
         self.assertEqual(script.content, self.read(os.path.join(self.bundles, "core", "hooks", "demo-stop.sh")).encode())
+        self.assertEqual(targets[os.path.join(hooks, "shim-event.sh")].content,
+                         self.read(os.path.join(REPO, "providers", "claude", "shim-event.sh")).encode())
         self.assertNotIn("UserPromptSubmit", doc["hooks"])
 
     def test_gemini_shim_command_and_milliseconds(self):
@@ -375,7 +379,7 @@ class EventHooksTest(HubTestCase):
         entry = doc["hooks"]["AfterAgent"][0]
         self.assertEqual(entry["hooks"][0], {
             "type": "command", "name": "harness-demo-stop", "timeout": 7000,
-            "command": "HARNESS_HOOK=%s/demo-stop.sh bash %s/shim-stop.sh" % (hooks, hooks)})
+            "command": "HARNESS_PROVIDER=gemini HARNESS_HOOK=%s/demo-stop.sh bash %s/shim-stop.sh" % (hooks, hooks)})
         self.assertNotIn("matcher", entry)
         shim = targets[os.path.join(hooks, "shim-stop.sh")]
         self.assertTrue(shim.executable)
@@ -396,7 +400,7 @@ class EventHooksTest(HubTestCase):
             "type": "command", "bash": "HARNESS_ASK_AS=deny bash %s/shim.sh" % hooks, "timeoutSec": 10}])
         self.assertEqual(doc["hooks"]["sessionEnd"], [{
             "type": "command", "timeoutSec": 5,
-            "bash": "HARNESS_HOOK=%s/demo-stop.sh bash %s/shim-stop.sh" % (hooks, hooks)}])
+            "bash": "HARNESS_PROVIDER=copilot HARNESS_HOOK=%s/demo-stop.sh bash %s/shim-stop.sh" % (hooks, hooks)}])
         self.assertIn("core", t.bundles)
 
     def test_copilot_guard_only_output_is_unchanged(self):
@@ -455,6 +459,110 @@ class EventHooksTest(HubTestCase):
     def test_register_base_without_a_guard(self):
         p = self.hub().providers["copilot"]
         self.assertEqual(R.Renderer(self.hub())._register_base(p, p.target("hooks")), {"version": 1})
+
+    def add_hook(self, event, script, body, when="core.demo_hook"):
+        path = os.path.join(self.bundles, "core", "bundle.toml")
+        text = self.read(path)
+        anchor = '[[provides.hooks]]\nevent = "stop"'
+        self.write(path, text.replace(anchor, '[[provides.hooks]]\nevent = "%s"\nscript = "%s"\nwhen = "%s"\n\n%s'
+                                      % (event, script, when, anchor), 1))
+        full = os.path.join(self.bundles, "core", script)
+        self.write(full, body)
+        os.chmod(full, 0o755)
+
+    def run_command(self, command, payload):
+        p = subprocess.run(["bash", "-c", command], input=json.dumps(payload).encode(), stdout=subprocess.PIPE,
+                           stderr=subprocess.PIPE)
+        self.assertEqual(p.returncode, 0, p.stderr.decode())
+        return p.stdout.decode()
+
+    def apply_targets(self, targets):
+        for t in targets.values():
+            if t.mode == "file":
+                os.makedirs(os.path.dirname(t.path), exist_ok=True)
+                with open(t.path, "wb") as fh:
+                    fh.write(t.content)
+                if t.executable:
+                    os.chmod(t.path, 0o755)
+
+    def test_prompt_event_end_to_end(self):
+        """Render a prompt hook, run the registered commands with a provider payload, check the filtered answer."""
+        if not shutil.which("jq"):
+            self.skipTest("jq not installed")
+        self.enable()
+        self.add_hook("prompt", "hooks/demo-prompt.sh",
+                      '#!/usr/bin/env bash\nin=$(cat)\nprintf \'{"systemMessage":"%s on %s","decision":"block"}\' '
+                      '"$(printf \'%s\' "$in" | jq -r .prompt)" "$HARNESS_PROVIDER"\n')
+        targets, _notes = self.render(["claude", "gemini", "copilot"])
+        self.apply_targets(targets)
+        claude = json.loads(R.pure_content(targets[self.h(".claude", "settings.json")]))
+        cmd = claude["hooks"]["UserPromptSubmit"][0]["hooks"][0]["command"]
+        out = self.run_command(cmd, {"session_id": "s1", "transcript_path": "/x", "cwd": "/tmp",
+                                     "hook_event_name": "UserPromptSubmit", "prompt": "hi"})
+        self.assertEqual(json.loads(out), {"systemMessage": "hi on claude"})  # decision filtered out
+        gemini = json.loads(R.pure_content(targets[self.h(".gemini", "settings.json")]))
+        entry = gemini["hooks"]["BeforeAgent"][0]["hooks"][0]
+        self.assertEqual((entry["name"], entry["timeout"]), ("harness-demo-prompt", 5000))
+        out = self.run_command(entry["command"], {"session_id": "s1", "cwd": "/tmp", "prompt": "yo",
+                                                  "hook_event_name": "BeforeAgent"})
+        self.assertEqual(json.loads(out), {"systemMessage": "yo on gemini"})
+        cop = json.loads(targets[self.h(".copilot", "hooks", "harness.json")].content)
+        out = self.run_command(cop["hooks"]["userPromptSubmitted"][0]["bash"], {"sessionId": "s", "prompt": "x"})
+        self.assertEqual(out, "")  # no message channel
+
+    def test_two_hooks_on_one_event_keep_script_order(self):
+        self.enable()
+        self.add_hook("stop", "hooks/a-first.sh", "#!/usr/bin/env bash\nexit 0\n")
+        targets, _notes = self.render(["claude", "copilot"])
+        claude = json.loads(R.pure_content(targets[self.h(".claude", "settings.json")]))
+        cmds = [e["hooks"][0]["command"] for e in claude["hooks"]["Stop"]]
+        self.assertEqual(len(cmds), 2)
+        self.assertIn("a-first.sh", cmds[0])
+        self.assertIn("demo-stop.sh", cmds[1])
+        cop = json.loads(targets[self.h(".copilot", "hooks", "harness.json")].content)
+        self.assertEqual(["a-first.sh" in e["bash"] for e in cop["hooks"]["sessionEnd"]], [True, False])
+        self.assertEqual(targets[self.h(".claude", "hooks", "shim-event.sh")].bundles, {"core"})
+
+    def test_register_file_without_a_guard_engine(self):
+        from unittest import mock
+
+        from harness import manifest as M
+        self.enable()
+        with mock.patch.object(R, "find_guard_engine", lambda bundles: None), \
+                mock.patch.object(M.Bundle, "guard_rules", lambda self: []):
+            targets, notes = self.render(["copilot"])
+        self.assertIn("copilot: no guard engine among active bundles; guard hook not rendered", notes)
+        doc = json.loads(targets[self.h(".copilot", "hooks", "harness.json")].content)
+        self.assertEqual(doc["version"], 1)
+        self.assertEqual(set(doc["hooks"]), {"sessionEnd"})
+        self.assertNotIn(self.h(".copilot", "hooks", "guard-bash.sh"), targets)
+
+    def test_render_twice_is_identical(self):
+        self.enable()
+        first, _n = self.render()
+        second, _n = self.render()
+        self.assertEqual(sorted(first), sorted(second))
+        for path, t in first.items():
+            self.assertEqual((t.content, t.fragment, t.executable), (second[path].content, second[path].fragment,
+                                                                    second[path].executable), path)
+
+    def test_paths_with_spaces_are_quoted(self):
+        home = os.path.join(self.tmp, "my home")
+        os.makedirs(home)
+        os.environ["HOME"] = home
+        self.enable()
+        targets, _notes = self.render(["claude", "gemini"])
+        hooks = os.path.join(home, ".claude", "hooks")
+        doc = json.loads(R.pure_content(targets[os.path.join(home, ".claude", "settings.json")]))
+        self.assertEqual(doc["hooks"]["PreToolUse"][0]["hooks"][0]["command"], "bash '%s/guard-bash.sh'" % hooks)
+        stop = doc["hooks"]["Stop"][0]["hooks"][0]["command"]
+        self.assertEqual(stop, "HARNESS_PROVIDER=claude HARNESS_HOOK='%s/demo-stop.sh' bash '%s/shim-event.sh'"
+                         % (hooks, hooks))
+        import shlex
+        self.assertEqual(shlex.split(stop)[-1], os.path.join(hooks, "shim-event.sh"))
+        gem = json.loads(R.pure_content(targets[os.path.join(home, ".gemini", "settings.json")]))
+        self.assertEqual(gem["hooks"]["BeforeTool"][0]["hooks"][0]["command"],
+                         "HARNESS_ASK_AS=deny bash '%s/shim.sh'" % os.path.join(home, ".gemini", "hooks"))
 
     def test_fill_entry_is_one_pass(self):
         out = R.fill_entry('{"c": "{command}", "e": "{event}", "t": {timeout}}',

@@ -42,20 +42,24 @@ path = "~/.claude/hooks"
 mode = "dir"
 event = "PreToolUse"
 matcher = "Bash"
-shim = ""                      # Claude speaks the guard's neutral envelope natively
+shim = ""                      # Claude speaks the guard's neutral envelope natively (guard only)
 register = "settings"
 entry = '{"matcher": "{matcher}", "hooks": [{"type": "command", "command": "{command}"}]}'
 
-# Neutral hook events beyond the guard (bundle [[provides.hooks]]; ARCHITECTURE §5). Claude's own
-# payloads are the neutral envelope, so no shim. UserPromptSubmit and Stop ignore matchers;
-# timeouts are seconds. Plain stdout of a UserPromptSubmit hook is added to the model's context:
-# event hooks print nothing or one JSON object (systemMessage, hookSpecificOutput).
+# Neutral hook events beyond the guard (bundle [[provides.hooks]]; ARCHITECTURE §5). Claude's
+# payloads are the neutral envelope; shim-event.sh only drops transcript_path and
+# last_assistant_message on the way in and allow-lists the output (systemMessage, and
+# additionalContext on UserPromptSubmit), because Claude adds plain UserPromptSubmit stdout to the
+# model's context and honours decision/continue/reason. Matchers are ignored; timeouts in seconds.
 [targets.hooks.events.prompt]
 name = "UserPromptSubmit"
+shim = "shim-event.sh"
 entry = '{"hooks": [{"type": "command", "command": "{command}", "timeout": {timeout}}]}'
 
 [targets.hooks.events.stop]
 name = "Stop"
+shim = "shim-event.sh"
+note = "systemMessage only; does not run when you interrupt the agent"
 entry = '{"hooks": [{"type": "command", "command": "{command}", "timeout": {timeout}}]}'
 
 [capabilities]

@@ -16,8 +16,9 @@ hook=${HARNESS_HOOK:-}
 command -v jq >/dev/null 2>&1 || exit 0
 [ -n "$hook" ] && [ -r "$hook" ] || exit 0
 input=$(cat)
-printf '%s' "$input" | jq -e 'type == "object"' >/dev/null 2>&1 || exit 0
-neutral=$(printf '%s' "$input" | jq -c '{session_id: (.session_id // .sessionId // "" | tostring),
+# exactly one JSON object on stdin, else do nothing
+printf '%s' "$input" | jq -se 'length == 1 and (.[0] | type) == "object"' >/dev/null 2>&1 || exit 0
+neutral=$(printf '%s' "$input" | jq -sc '.[0] | {session_id: (.session_id // .sessionId // "" | tostring),
   cwd: (.cwd // "" | tostring), stop_hook_active: (.stop_hook_active == true),
   hook_event_name: "Stop"}' 2>/dev/null) || exit 0
 printf '%s' "$neutral" | bash "$hook" >/dev/null 2>&1

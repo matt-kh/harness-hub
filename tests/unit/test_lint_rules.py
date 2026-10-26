@@ -444,15 +444,19 @@ class HooksEventsTest(LintRuleCase):
         self.edit("core/bundle.toml", '[[provides.hooks]]\nevent = "stop"\nscript = "hooks/demo-stop.sh"\n'
                   'when = "core.demo_hook"\n', block)
 
-    def event_provider(self, events, fixtures=("prompt",), run_sh=True):
+    CASES = ("malformed", "garbage-output", "silent", "decide-filtered")
+
+    def event_provider(self, events, fixtures=("prompt",), run_sh=True, cases=CASES):
         path = os.path.join(self.tmp, "providers", "x")
         os.makedirs(os.path.join(path, "tests"))
         if run_sh:
-            self.write(os.path.join(path, "tests", "run.sh"), "#!/usr/bin/env bash\n")
+            self.write(os.path.join(path, "tests", "run.sh"),
+                       '#!/usr/bin/env bash\nexec bash run-provider-tests.sh "$here" prompt:shim-prompt.sh\n')
         self.write(os.path.join(path, "shim-prompt.sh"), "#!/usr/bin/env bash\nexit 0\n")
         for ev in fixtures:
-            self.write(os.path.join(path, "tests", ev, "silent.in.json"), "{}\n")
-            self.write(os.path.join(path, "tests", ev, "silent.out.json"), "")
+            for c in cases:
+                self.write(os.path.join(path, "tests", ev, c + ".in.json"), "{}\n")
+                self.write(os.path.join(path, "tests", ev, c + ".out.json"), "")
         hooks = {"path": "~/.x/hooks", "mode": "dir", "event": "PreToolUse", "events": events}
         return M.Provider(path, {"provider": {"name": "x"}, "targets": {"hooks": hooks},
                                  "capabilities": {"hook_enforced": True}})
@@ -485,12 +489,16 @@ class HooksEventsTest(LintRuleCase):
                                       "schema key defines; declare it in [requires.config] or fix the key"])
 
     def test_unknown_event_and_reserved_name(self):
-        self.write(os.path.join(self.core, "hooks", "shim-x.sh"), "#!/usr/bin/env bash\n")
-        self.set_hook('[[provides.hooks]]\nevent = "after-tool"\nscript = "hooks/shim-x.sh"\n')
+        self.write(os.path.join(self.core, "hooks", "shim-event.sh"), "#!/usr/bin/env bash\n")
+        self.set_hook('[[provides.hooks]]\nevent = "after-tool"\nscript = "hooks/shim-event.sh"\n')
         rep = self.lint_bundle()
         self.assertEqual(len(rep.errors), 2, rep.errors)
         self.assertIn("names event 'after-tool'; use one of prompt, stop, session-start, session-end", rep.errors[0])
-        self.assertIn("hooks/shim-x.sh is named like a guard file or a provider shim", rep.errors[1])
+        self.assertIn("hooks/shim-event.sh is named like a guard file or a provider shim", rep.errors[1])
+        # the reserved set comes from the providers' declared shims, not a name pattern
+        self.assertIn("shim-event.sh", L.reserved_hook_names(self.hub().providers))
+        self.assertIn("guard.env", L.reserved_hook_names({}))
+        self.assertNotIn("shim-x.sh", L.reserved_hook_names(self.hub().providers))
 
     def test_event_no_provider_declares_warns(self):
         self.set_hook('[[provides.hooks]]\nevent = "session-start"\nscript = "hooks/demo-stop.sh"\n')
@@ -535,17 +543,39 @@ class HooksEventsTest(LintRuleCase):
             "stop": {"name": "Prompt", "shim": "shim-stop.sh", "entry": '[{"command": "{command}"}]',
                      "timeout_unit": "min"}})
         rep = self.run_rule(L.lint_provider_hook_events, p)
-        self.assertEqual(len(rep.errors), 6, rep.errors)
-        self.assertIn("events.prompt.entry is not valid JSON after substitution", rep.errors[0])
-        self.assertIn("events.stop.timeout_unit = 'min'; use \"s\" or \"ms\"", rep.errors[1])
-        self.assertIn("events.stop.shim shim-stop.sh does not exist", rep.errors[2])
-        self.assertIn("events.stop.shim has no fixtures; add tests/stop/<case>.in.json", rep.errors[3])
-        self.assertIn("events.stop.entry must be a JSON object", rep.errors[4])
-        self.assertIn("events prompt, stop all map to provider event 'Prompt'", rep.errors[5])
+        want = ["events.prompt.entry is not valid JSON after substitution",
+                "events.stop.timeout_unit = 'min'; use \"s\" or \"ms\"",
+                "events.stop.shim shim-stop.sh does not exist",
+                "events.stop.shim has no fixtures; add tests/stop/<case>.in.json",
+                "tests/run.sh does not run tests/stop/; pass stop:shim-stop.sh to providers/_shared/run-provider-tests.sh",
+                "events.stop.entry must be a JSON object",
+                "events prompt, stop all map to provider event 'Prompt'"]
+        self.assertEqual(len(rep.errors), len(want), rep.errors)
+        for w, e in zip(want, rep.errors):
+            self.assertIn(w, e)
+
+    def test_missing_cases_and_run_sh_reference(self):
+        p = self.event_provider({"prompt": {"name": "Prompt", "shim": "shim-prompt.sh", "entry": self.ENTRY}},
+                                cases=("silent", "garbage", "malformed-x"))
+        self.write(os.path.join(p.path, "tests", "run.sh"), "#!/usr/bin/env bash\n")
+        rep = self.run_rule(L.lint_provider_hook_events, p)
+        self.assertEqual(rep.errors, [
+            "providers/x: hooks-events: tests/prompt/ has no fixture for case(s) decide; add "
+            "tests/prompt/<case>[-variant].in.json + .out.json for each",
+            "providers/x: hooks-events: tests/run.sh does not run tests/prompt/; pass prompt:shim-prompt.sh to "
+            "providers/_shared/run-provider-tests.sh"])
+
+    def test_event_name_equal_to_the_guard_event(self):
+        p = self.event_provider({"prompt": {"name": "PreToolUse", "shim": "shim-prompt.sh", "entry": self.ENTRY}})
+        rep = self.run_rule(L.lint_provider_hook_events, p)
+        self.assertEqual(rep.errors, ["providers/x: hooks-events: events.prompt.name 'PreToolUse' is the guard's event; "
+                                      "the guard owns it, map the neutral event to another provider event"])
 
     def test_fixture_without_out(self):
         p = self.event_provider({"prompt": {"name": "Prompt", "shim": "shim-prompt.sh", "entry": self.ENTRY}})
         os.remove(os.path.join(p.path, "tests", "prompt", "silent.out.json"))
+        self.write(os.path.join(p.path, "tests", "prompt", "silent-extra.in.json"), "{}\n")
+        self.write(os.path.join(p.path, "tests", "prompt", "silent-extra.out.json"), "")
         rep = self.run_rule(L.lint_provider_hook_events, p)
         self.assertEqual(rep.errors, ["providers/x: hooks-events: tests/prompt/silent.in.json has no .out.json; add the "
                                       "expected output (empty file = no output)"])
