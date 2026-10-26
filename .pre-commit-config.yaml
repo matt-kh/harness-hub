@@ -9,6 +9,8 @@ repos:
     rev: v5.0.0
     hooks:
       - id: check-json
+        # shim fixtures are malformed or empty on purpose (malformed input, "no output" cases)
+        exclude: ^providers/[^/]+/tests/
       - id: check-yaml
       - id: end-of-file-fixer
         exclude: (^|/)tests/(golden|goldens)/
