@@ -65,23 +65,33 @@ prints every one between your applied version and the new one.
   `timeout_unit` `s`|`ms`, `note`). The neutral envelope is the Claude Code payload
   (`session_id`, `cwd`, `prompt` / `stop_hook_active`), the neutral output nothing or one JSON
   object with `systemMessage` and/or `hookSpecificOutput.additionalContext`; these hooks never
-  block. claude registers `UserPromptSubmit` and `Stop` natively; gemini `BeforeAgent` and
-  `AfterAgent` behind `shim-prompt.sh` / `shim-stop.sh` (one JSON object or nothing on stdout,
-  timeouts in ms); copilot `userPromptSubmitted` and `sessionEnd` in `harness.json` behind its
-  own shims (output discarded: no message channel; verify on install). Providers without the
+  block. Every event runs behind a shim that builds the envelope and allow-lists the output
+  (`systemMessage`, `additionalContext` where supported; exactly one JSON object or nothing;
+  never `decision`, `continue` or `reason`): claude registers `UserPromptSubmit` and `Stop`
+  behind `shim-event.sh`; gemini `BeforeAgent` and `AfterAgent` behind `shim-prompt.sh` /
+  `shim-stop.sh` (timeouts in ms; `AfterAgent` passes `systemMessage` only); copilot
+  `userPromptSubmitted` and `sessionEnd` in `harness.json` behind its own shims (output
+  discarded: no message channel; verify on install). Event commands are
+  `HARNESS_PROVIDER=<p> HARNESS_HOOK=<script> bash <shim>`; every rendered hook path,
+  the guard's included, is shell-quoted (unchanged for paths without special characters). Providers without the
   event get a plan note; an unknown event is a render error. With no event hook active every
   rendered file is byte-identical to before (the copilot register file included).
   `harness status --matrix` and the README matrix gain the row "extra hook events (prompt,
   stop)"; provider pages list their events. No bundle ships a hook yet.
-- Shim fixtures for the event shims under `providers/<p>/tests/{prompt,stop}/`, with
-  `NAME.envelope.json` asserting the envelope the hook receives;
-  `providers/_shared/run-shim-tests.sh` gains a stub `HARNESS_HOOK`.
+- Shim fixtures for the event shims under `providers/<p>/tests/{prompt,stop}/` (claude, gemini,
+  copilot), with `NAME.envelope.json` asserting the envelope the hook receives and cases for a
+  blocking `decision` (filtered), command substitution in the prompt (data, never run), a
+  missing hook and a failing hook. `providers/_shared/run-shim-tests.sh` gains a stub
+  `HARNESS_HOOK` and per-case work directories; `providers/_shared/run-provider-tests.sh`
+  runs every fixture set of a provider (`guard:<shim>`, `<event>:<shim>`) and each
+  `tests/run.sh` execs it.
 - `harness lint` rule `hooks-events` (principle 6, not skippable): a hook script missing or
   failing `bash -n`, a `when` key no schema defines, one script name in two bundles or named
-  like a guard file or shim, an event no provider declares (warning); provider events whose
-  shim is missing, fails `bash -n` or has no `tests/<event>/` fixtures, whose `entry` is not a
-  JSON object after substitution, with a bad `timeout_unit` or a provider event name used
-  twice. `shim-fixtures` now also requires `tests/run.sh` for a provider with only event shims.
+  like a guard file or any provider's shim, an event no provider declares (warning); provider
+  events whose shim is missing, fails `bash -n`, has no `tests/<event>/` fixtures or none for
+  the cases malformed, garbage, silent, decide, or is not run by `tests/run.sh`, whose
+  `entry` is not a JSON object after substitution, with a bad `timeout_unit`, or whose
+  provider event name is the guard's or is used twice. `shim-fixtures` now also requires `tests/run.sh` for a provider with only event shims.
 - Per-guide pairing (principle 6): `[harness]` guides take an optional `checks` list naming the
   sensors that check them (`ref` values of the same bundle's `sensors`; schema only, no
   `schema_version` bump). Lint rule `guide-checks` (skippable) errors on a ref no sensor

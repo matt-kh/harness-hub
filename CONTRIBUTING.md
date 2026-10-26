@@ -205,15 +205,19 @@ Read [ARCHITECTURE §4](ARCHITECTURE.md#4-providers-providersname) and
       variants follow after `-` (`ask-as-allow`); `harness lint` rule `shim-fixtures` checks it.
 - [ ] Neutral hook events the product supports (`prompt`, `stop`): one
       `[targets.hooks.events.<event>]` table each, with the provider's event `name`, the
-      `entry` template, `timeout_unit` and, when the payload is not the Claude shape, a
-      `shim-<event>.sh` that builds the neutral envelope, runs `HARNESS_HOOK` and translates
-      its output (never a blocking decision; exit 0 always) — ARCHITECTURE §4 and §5. Leave an
+      `entry` template, `timeout_unit` and a `shim-<event>.sh` that builds the neutral
+      envelope, runs `HARNESS_HOOK` and allow-lists its output (`systemMessage`,
+      `additionalContext` where the event supports it; never a blocking decision; exit 0
+      always) — ARCHITECTURE §4 and §5. Claude needs one too (`shim-event.sh`). Leave an
       event out when the product has none; bundles then get a plan note.
 - [ ] Event shim fixtures under `tests/<event>/` (`NAME.in.json`, `NAME.out.json` and
-      `NAME.envelope.json` for the envelope the hook must receive), run from `tests/run.sh`
-      through `providers/_shared/run-shim-tests.sh` (its stub hook answers `message`,
-      `context`, `both`, `twice` and `garbage`); `harness lint` rule `hooks-events` checks
-      that each event shim exists, parses and has fixtures.
+      `NAME.envelope.json` for the envelope the hook must receive, `NAME.env` for extra
+      variables such as `HARNESS_HOOK=/nonexistent`). `tests/run.sh` execs
+      `providers/_shared/run-provider-tests.sh "$here" guard:shim.sh <event>:<shim> …`; the stub
+      hook answers `message`, `context`, `both`, `decide`, `fail`, `twice` and `garbage`, and
+      a case fails when it leaves a file in its work directory. `harness lint` rule
+      `hooks-events` checks that each event shim exists and parses, that its fixtures cover
+      `malformed`, `garbage`, `silent` and `decide`, and that `tests/run.sh` runs them.
 - [ ] `README.md` with a "verified against <version> on <date>" line (the weekly
       provider-drift workflow parses it) and the provider's quirks.
 - [ ] `docs/providers/<name>.md` and the README capability matrix (both generated:

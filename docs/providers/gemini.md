@@ -36,9 +36,10 @@ and `shim-stop.sh` (`AfterAgent`):
 - stdin → the neutral envelope (`session_id`, `cwd`, and `prompt` or `stop_hook_active`);
   `transcript_path`, `prompt_response` and the timestamp are not passed on.
 - Gemini parses hook stdout as exactly one JSON object and shows any other text as a message,
-  so the shim prints the hook's `systemMessage` and `additionalContext` (as
-  `hookSpecificOutput` with `hookEventName`) in one object, or nothing; garbage or several
-  objects from the hook are dropped.
+  so the shim prints the hook's `systemMessage` and, on `BeforeAgent` only, `additionalContext`
+  (as `hookSpecificOutput` with `hookEventName`) in one object, or nothing; garbage, several
+  objects or the output of a failing hook are dropped. `AfterAgent` passes `systemMessage`
+  only (`additionalContext` is not verified there).
 - The shims never emit `decision`, `continue` or `reason`: these hooks cannot block a turn.
 - `AfterAgent` runs after every turn, not once per session; a hook that should speak once
   keeps its own marker.

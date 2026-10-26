@@ -12,8 +12,8 @@ PreToolUse format, every capability is native, and "ask" decisions become real p
 | Sub-agents | `~/.claude/agents/<name>.md` (front-matter `model:` rendered from `core.model_policy`) |
 | Settings | `~/.claude/settings.json`, json-merge of `hooks`, `permissions`, `env`, `autoMode` |
 | Guard | `~/.claude/hooks/guard-bash.sh`, PreToolUse hook with matcher `Bash` |
-| Event `prompt` | `UserPromptSubmit` in `settings.json`, the bundle script run directly (native envelope), timeout in seconds |
-| Event `stop` | `Stop` in `settings.json`, the bundle script run directly (native envelope), timeout in seconds |
+| Event `prompt` | `UserPromptSubmit` in `settings.json`, behind `providers/claude/shim-event.sh` (output filter), timeout in seconds |
+| Event `stop` | `Stop` in `settings.json`, behind `providers/claude/shim-event.sh` (output filter), timeout in seconds |
 | MCP | `~/.claude.json` → `mcpServers` (user scope) |
 
 ## How the guard is wired
@@ -33,10 +33,16 @@ other way (personal shadows project; use `skillOverrides`), sub-agents the expec
 
 Bundle hook scripts for the neutral events `prompt` and `stop` (`[[provides.hooks]]`,
 [ARCHITECTURE §5](../../ARCHITECTURE.md#5-guard)) are registered as `UserPromptSubmit` and
-`Stop` entries without a matcher; Claude's payloads are the neutral envelope, so no shim runs.
-Plain stdout of a `UserPromptSubmit` hook is added to the model's context, which is why hub
-hooks print nothing or one JSON object (`systemMessage`, `hookSpecificOutput`). `Stop` does
-not run when you interrupt the agent.
+`Stop` entries without a matcher. Claude's payloads are the neutral envelope, but unlike the
+guard the events run behind `shim-event.sh`, which filters both ways:
+
+- stdin: the payload without `transcript_path` and `last_assistant_message`.
+- stdout: Claude adds plain `UserPromptSubmit` stdout to the model's context and honours
+  `decision`, `continue` and `reason`, so the shim passes on only `systemMessage` and, on
+  `UserPromptSubmit`, `hookSpecificOutput.additionalContext` (with `hookEventName`), as
+  exactly one JSON object or nothing. A hook that fails or prints anything else says nothing.
+
+`Stop` does not run when you interrupt the agent.
 
 ## Quirks
 
@@ -88,8 +94,8 @@ Neutral hook events beyond the guard this adapter registers for bundle `[[provid
 
 | neutral event | provider event | shim | timeout unit | note |
 |---|---|---|---|---|
-| `prompt` | `UserPromptSubmit` | native envelope | seconds |  |
-| `stop` | `Stop` | native envelope | seconds |  |
+| `prompt` | `UserPromptSubmit` | `shim-event.sh` | seconds |  |
+| `stop` | `Stop` | `shim-event.sh` | seconds | systemMessage only; does not run when you interrupt the agent |
 
 ### Capabilities
 

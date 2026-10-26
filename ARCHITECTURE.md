@@ -293,7 +293,7 @@ Rules:
 ```
 provider.toml             where each artifact goes and how it is written
 shim.sh                   hook envelope translation (only if the provider has command hooks)
-shim-<event>.sh           neutral event translation, one per declared event that needs one (§5)
+shim-<event>.sh           neutral event translation and output filter, one per declared event (§5)
 README.md                 verified-against version and date, quirks
 tests/*.in.json,*.out.json  shim fixtures: NAME starts with the case word (allow, deny, ask,
                           unknown-tool, malformed), variants after `-` (lint `shim-fixtures`)
@@ -389,7 +389,9 @@ Provider shims translate envelopes:
 **Neutral hook events.** Hook scripts beyond the guard (`[[provides.hooks]]`, §3) use the
 same convention: the neutral envelope of each event is the Claude Code payload of the
 matching event, minus the fields the hub never reads (`transcript_path`, the last assistant
-message). Shims (`shim-<event>.sh`) translate the provider's payload in and the output back:
+message). Unlike the guard, every event has a shim, Claude included: it builds the envelope and
+allow-lists the hook's output, so a hook can never block or inject text. The command is
+`HARNESS_PROVIDER=<provider> HARNESS_HOOK=<script> bash <shim>`, every path shell-quoted:
 
 ```
 prompt  stdin : {"session_id":"…","cwd":"…","prompt":"…","hook_event_name":"UserPromptSubmit"}
@@ -400,17 +402,22 @@ stop    stdin : {"session_id":"…","cwd":"…","stop_hook_active":false,"hook_e
 exit    : 0 always; these hooks never block, never print a decision
 ```
 
-Claude Code adds plain stdout of a `UserPromptSubmit` hook to the model's context, so a hook
-prints nothing or JSON only.
+Claude Code adds plain stdout of a `UserPromptSubmit` hook to the model's context and honours
+`decision`, `continue` and `reason`; "Claude speaks the envelope natively" holds for the guard
+only, and the event shim lets none of that through.
 
 | provider | `prompt` | `stop` | translation |
 |---|---|---|---|
-| claude | `UserPromptSubmit` | `Stop` | native; timeouts in seconds |
-| gemini | `BeforeAgent` | `AfterAgent` (every turn) | `shim-prompt.sh` / `shim-stop.sh`: Gemini parses stdout as one JSON object, so the shim prints `systemMessage` and `hookSpecificOutput {hookEventName, additionalContext}` as that object, or nothing (non-JSON hook output is dropped); never `decision`, `continue` or `reason`; timeouts in ms |
+| claude | `UserPromptSubmit` | `Stop` | `shim-event.sh` for both: the payload minus `transcript_path` and `last_assistant_message`; output allow-listed to `systemMessage` (and `hookSpecificOutput {hookEventName, additionalContext}` on `UserPromptSubmit`), exactly one object or nothing; timeouts in seconds |
+| gemini | `BeforeAgent` | `AfterAgent` (every turn) | `shim-prompt.sh` / `shim-stop.sh`: Gemini parses stdout as one JSON object, so the shim prints `systemMessage` (and, on `BeforeAgent` only, `hookSpecificOutput {hookEventName, additionalContext}`) as that object, or nothing (non-JSON hook output is dropped); never `decision`, `continue` or `reason`; timeouts in ms |
 | copilot | `userPromptSubmitted` | `sessionEnd` | `shim-prompt.sh` / `shim-stop.sh`: prompt from `.prompt // .userPrompt // .message`, session from `.session_id // .sessionId`; no message channel, so the hook's output is discarded; written to the published spec, verify on install |
 | codex, opencode | – | – | no hook contract; the scripts are not rendered (plan note) |
 
-Every event shim requires `jq`, prints nothing without it or on malformed input, and exits 0.
+Every event shim requires `jq`; it prints nothing without it, when stdin is not exactly one JSON
+object, when `HARNESS_HOOK` is unreadable or when the hook exits non-zero, and it exits 0. The
+payload is data: it reaches the hook through jq on stdin, never through the command line.
+Fixtures pin this per event (`tests/<event>/`, lint `hooks-events`): at least the cases
+`malformed`, `garbage`, `silent` and `decide`, run from `tests/run.sh` as `<event>:<shim>`.
 
 Test rows live in `bundles/<b>/guard.d/tests.sh` and use the shared helpers from
 `bundles/core/guard/tests/lib.sh` (`t EXPECTED 'cmd'`, `tc EXPECTED cwd 'cmd'`,
