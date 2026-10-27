@@ -103,6 +103,54 @@ type = "string"
 default = "(frustrat|annoy|unacceptable|stop (doing|that)|why (did|do|are) you|don'?t (do|ever)|you keep|this is (wrong|bad|useless))"
 description = "POSIX ERE, applied case-insensitively (grep -Eiq) to a prompt, that classifies it as dissatisfaction when lessons.prompt_signals is on. Only the class name is recorded, never the prompt (HARNESS_LESSONS_DISSATISFACTION_RE)."
 
+[requires.config."lessons.dir"]
+type = "string"
+default = ""
+description = "Directory of the private lessons library that `harness lessons` reads and writes (one <domain>-NNN.md record per lesson plus INDEX.md). Empty = ~/.local/state/harness/lessons (under $XDG_STATE_HOME when set). The CLI refuses a directory under the hub checkout or inside any git checkout: lessons stay on the workstation and never enter a repository."
+example = "~/.local/state/harness/lessons"
+
+[requires.config."lessons.promote_after"]
+type = "integer"
+default = 3
+minimum = 1
+description = "Objective recurrences (`harness lessons note --recurred` with a journal: evidence ref) after which a candidate lesson becomes recurring, which `harness lessons propose` accepts like a confirmed one."
+
+[requires.config."lessons.max_age_days"]
+type = "integer"
+default = 90
+minimum = 1
+description = "Days without an update after which a lesson is shown stale in INDEX.md and `harness lessons list --stale`; `harness lessons index --prune` retires stale candidates."
+
+[requires.config."lessons.index_max"]
+type = "integer"
+default = 40
+minimum = 1
+description = "Most lessons INDEX.md lists overall (confirmed, recurring and proposed first); the rest are counted, never listed."
+
+[requires.config."lessons.index_max_candidates"]
+type = "integer"
+default = 5
+minimum = 0
+description = "Most unconfirmed candidate lessons INDEX.md lists per domain (newest update first); the rest appear as \"N more candidates\", so a run of bad retros cannot flood the index."
+
+[requires.config."lessons.review.corrections"]
+type = "integer"
+default = 2
+minimum = 0
+description = "`harness lessons review` is due when one session has at least this many correction journal lines. 0 disables this criterion."
+
+[requires.config."lessons.review.dissatisfaction"]
+type = "integer"
+default = 1
+minimum = 0
+description = "`harness lessons review` is due when one session has at least this many dissatisfaction journal lines. 0 disables this criterion."
+
+[requires.config."lessons.review.denies"]
+type = "integer"
+default = 3
+minimum = 0
+description = "`harness lessons review` is due when one session has at least this many guard-deny journal lines. 0 disables this criterion."
+
 [provides]
 rules = ["rules/00-conventions.md"]
 skills = []
