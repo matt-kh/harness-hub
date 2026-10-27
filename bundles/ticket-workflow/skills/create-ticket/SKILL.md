@@ -145,3 +145,15 @@ One batched Bash call: `jira upload NEW <path>` per file (hook: allow — agent-
 ### Step 8 — Report and stop
 Key + URL, type, one-line summary, what was defaulted. Then exactly:
 "Not starting work on it — run `/work-ticket NEW` if you want me to." (GitHub: `NEW` = `#N`)
+
+### Step 9 — Retro (gated)
+After the stop sentence above, which stays the last line before any retro output. Only when
+the `lessons` bundle is installed (the `retro` skill exists) and `harness` is found
+(`${HARNESS_HOME:-$HOME/harness-hub}/bin/harness`, else on PATH); otherwise skip silently.
+```bash
+harness lessons review   # no --session: reads <state>/retro/current
+```
+rc 0 → invoke the `retro` skill once with `--workflow create-ticket --arg NEW`; rc 1 → print
+exactly one line `Retro: not due (<counts from the review output>)`; rc 3, 4 or any other →
+nothing. The ticket is never touched again; this step never writes a lesson itself and never
+runs `harness lessons confirm|retire|propose`.

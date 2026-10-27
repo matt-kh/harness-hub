@@ -152,6 +152,11 @@ prints every one between your applied version and the new one.
   `enable-journal`, `read-the-loop`. Suites `bundles/lessons/tests/run.sh` (section 15 rows
   against core + lessons, hooks against `hooks/tests/prompts.tsv`, the regex contract, plus the
   doctor script) and the retro facts goldens.
+- `work-ticket` and `create-ticket` end with a review-gated retro step (Step 8 and Step 9):
+  with the `lessons` bundle installed, `harness lessons review` rc 0 invokes `/retro` once with
+  `--workflow work-ticket|create-ticket --arg KEY`, rc 1 prints one `Retro: not due (<counts>)`
+  line, any other exit status stays silent; never after a Handover. `ticket-workflow`
+  recommends `lessons`.
 - `harness lint` rule `hooks-events` (principle 6, not skippable): a hook script missing or
   failing `bash -n`, a `when` key no schema defines, one script name in two bundles or named
   like a guard file or any provider's shim, an event no provider declares (warning); provider

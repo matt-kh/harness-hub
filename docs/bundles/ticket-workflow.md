@@ -17,6 +17,11 @@ Needs **one tracker** (`jira` or `github`) and **one SCM** (`gitlab` or `github`
 refuses to resolve otherwise (`any_of`). Provider-specific commands come in as skill
 fragments from those bundles.
 
+With the `lessons` bundle installed, both skills end with a gated retro step: when
+`harness lessons review` says a retro is due they run `/retro` once for the ticket, when it is
+not due they print one `Retro: not due` line, and otherwise they say nothing
+([lessons](lessons.md)).
+
 If a repository owns the ticket workflow (`.harness.toml` or its own skill), `work-ticket`
 runs only its read-only preflight and hands over completely
 ([repository-level harnesses](../repo-level.md)).
@@ -48,7 +53,7 @@ check the CLI they need at preflight and name the missing bundle instead of impr
 Org-specific issue-type rules and field ids come from jira.issue_types / jira.fields.
 
 - **Depends on:** `core`
-- **Recommends:** `jira`, `gitlab`, `github`, `stack`
+- **Recommends:** `jira`, `gitlab`, `github`, `stack`, `lessons`
 - **Needs one of:** `jira`, `github`
 - **Needs one of:** `gitlab`, `github`
 - **Stability:** beta
@@ -143,8 +148,8 @@ Guides steer the agent before it acts; sensors detect at or after the action. Pa
 | side | kind | ref | note | pairs with |
 |---|---|---|---|---|
 | guide | rule | `rules/75-ticket-workflow.md` | ticket to MR/PR flow, label gate, key-free branches, stacked delivery; the tracker is declared per repository (sensed by the work-ticket golden suite and the ticket-workflow-trackers doctor check) | `guard.d/75-ticket-workflow.sh`, `doctor_checks`, `skills/work-ticket/scripts/tests/run.sh` |
-| guide | skill | `skills/work-ticket` | the governed ticket workflow and its preflight scripts | `guard.d/75-ticket-workflow.sh`, `skills/work-ticket/scripts/tests/run.sh` |
-| guide | skill | `skills/create-ticket` | one drafted ticket or issue, rendered deterministically | `skills/create-ticket/scripts/tests/run.sh` |
+| guide | skill | `skills/work-ticket` | the governed ticket workflow and its preflight scripts; Step 8 runs the retro skill only when harness lessons review is due (lessons bundle) | `guard.d/75-ticket-workflow.sh`, `skills/work-ticket/scripts/tests/run.sh` |
+| guide | skill | `skills/create-ticket` | one drafted ticket or issue, rendered deterministically; Step 9 runs the retro skill only when harness lessons review is due (lessons bundle) | `skills/create-ticket/scripts/tests/run.sh` |
 | sensor | guard | `guard.d/75-ticket-workflow.sh` | key-free branches and subjects, sub worktree paths, squash delivery | `rules/75-ticket-workflow.md`, `skills/work-ticket` |
 | sensor | doctor | `doctor_checks` | a tracker CLI and an SCM CLI on PATH, both skills rendered | `rules/75-ticket-workflow.md` |
 | sensor | doctor | `ticket-workflow-trackers` | every ticket_workflow.trackers match compiles, tracker is known, project only with jira | — |
