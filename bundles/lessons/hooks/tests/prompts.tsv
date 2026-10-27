@@ -1,7 +1,8 @@
 # prompts.tsv: the contract for the default lessons.correction_re and lessons.dissatisfaction_re
 # (bundles/core/defaults.toml). One case per line: EXPECTED<TAB>PROMPT, EXPECTED one of
 # correction, dissatisfaction, both, none. run.sh adds the empty, 600- and 601-character cases.
-# A false positive is kept as a documented row (marked "documented false positive" in the docs).
+# ^ and $ apply to each line of a multi-line prompt (grep): a correction on any line counts
+# (run.sh has that case). Curly apostrophes (U+2019) count like ASCII ones.
 correction	no, that is wrong, I asked for the other file
 correction	No. Use the staging branch.
 correction	nope
@@ -29,7 +30,6 @@ correction	try again with the stub
 correction	again!
 correction	still failing on CI
 correction	still wrong
-correction	undo the last migration
 dissatisfaction	this is frustrating
 dissatisfaction	I'm annoyed that the hook prompts twice
 dissatisfaction	that is unacceptable
@@ -57,3 +57,15 @@ none	don't do the rebase yet
 none	/retro --no-record
 none	/work-ticket PROJ-123
 none	/undo
+correction	that’s not what I asked
+correction	you didn’t run the linter
+correction	undo!
+correction	redo that please
+dissatisfaction	don’t ever print the token again
+none	undo the last migration
+none	Wrong-way merge detection needs a test
+none	Redo the layout of the settings page
+none	incorrectly rendered dates in the report
+none	wrongly named variable in the parser
+none	why do you think the test fails?
+none	undoing a merge needs care

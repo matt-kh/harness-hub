@@ -13,28 +13,46 @@
 # missing; stdin is malformed; the session id is missing or not [A-Za-z0-9._-]{1,64}; the
 # session was already nudged (<retro dir>/sessions/<sid> exists); the retro directory is empty
 # or relative; `harness lessons review --session <sid>` exits anything but 0 (1 not due, 3 no
-# signals, 4 error, anything else) or does not finish within 3 seconds; the marker cannot be
+# signals, 4 error, anything else) or does not finish within 3 seconds (the CLI and everything it
+# started are killed: GNU timeout signals its process group, the python fallback a new session); the marker cannot be
 # written (so a per-turn event such as Gemini's AfterAgent never repeats the nudge).
 #
+# The review runs with --config <_harness.config> from ${HARNESS_CONFIG_JSON:-$HARNESS_HOME/build/config.json}
+# when that file names one, else with the CLI's default config.
 # Config comes from guard.env next to this script, PARSED like the engine does (never sourced),
 # HARNESS_* keys only; a variable already set in the environment wins.
 set -u
-# >>> hn_timeout
-hn_timeout() {  # SECS CMD [ARGS...]
+# >>> hcfg
+hcfg() {  # KEY [DEFAULT]
+  local f="${HARNESS_CONFIG_JSON:-${HARNESS_HOME:-$HOME/harness-hub}/build/config.json}" v=""
+  if [ -r "$f" ] && command -v jq >/dev/null 2>&1; then
+    v=$(jq -r --arg k "$1" 'try (getpath($k | split(".")) // empty | if type == "string" then . else tojson end) catch empty' "$f" 2>/dev/null) || v=""
+  fi
+  if [ -n "$v" ]; then printf '%s\n' "$v"; elif [ $# -ge 2 ]; then printf '%s\n' "$2"; fi
+  return 0
+}
+# <<< hcfg
+capped() {  # SECS CMD [ARGS...]: run CMD, killed with everything it started after SECS (rc 124)
   local s=$1; shift
-  if command -v timeout >/dev/null 2>&1; then timeout "$s" "$@"
+  if command -v timeout >/dev/null 2>&1; then timeout "$s" "$@"   # signals its own process group
   elif command -v gtimeout >/dev/null 2>&1; then gtimeout "$s" "$@"
   else
-    python3 -c 'import subprocess, sys
+    python3 -c 'import os, signal, subprocess, sys
 try:
-    sys.exit(subprocess.call(sys.argv[2:], timeout=float(sys.argv[1])))
-except subprocess.TimeoutExpired:
-    sys.exit(124)
+    p = subprocess.Popen(sys.argv[2:], start_new_session=True)
 except OSError:
-    sys.exit(127)' "$s" "$@"
+    sys.exit(127)
+try:
+    sys.exit(p.wait(timeout=float(sys.argv[1])))
+except subprocess.TimeoutExpired:
+    try:
+        os.killpg(p.pid, signal.SIGKILL)
+    except OSError:
+        pass
+    p.wait()
+    sys.exit(124)' "$s" "$@"
   fi
 }
-# <<< hn_timeout
 _gs="${BASH_SOURCE[0]:-$0}"
 case "$_gs" in */*) _gd=${_gs%/*} ;; *) _gd=. ;; esac
 _ge="$_gd/guard.env"
@@ -75,9 +93,11 @@ case "$rdir" in /*) ;; *) exit 0 ;; esac
 marker="$rdir/sessions/$sid"
 [ ! -e "$marker" ] || exit 0
 
-hb="${HARNESS_HOME:-${HOME:-}/harness-hub}/bin/harness"
+HARNESS_HOME="${HARNESS_HOME:-${HOME:-}/harness-hub}"
+hb="$HARNESS_HOME/bin/harness"
 [ -f "$hb" ] || exit 0
-res=$(hn_timeout 3 bash "$hb" lessons review --session "$sid" --json </dev/null 2>/dev/null)
+cfg=$(hcfg _harness.config "")   # the config the hub was rendered with (build/config.json), if any
+res=$(capped 3 bash "$hb" lessons review --session "$sid" --json ${cfg:+--config "$cfg"} </dev/null 2>/dev/null)
 [ $? -eq 0 ] || exit 0
 counts=$(printf '%s' "$res" | jq -r '.counts | "correction \(.correction // 0), dissatisfaction \(.dissatisfaction // 0), guard-deny \(."guard-deny" // 0), guard-ask \(."guard-ask" // 0)"' 2>/dev/null) || counts=""
 [ -n "$counts" ] || counts="counts unavailable"

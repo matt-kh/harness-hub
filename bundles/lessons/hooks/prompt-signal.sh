@@ -19,6 +19,7 @@
 # Config comes from guard.env next to this script, PARSED like the engine does (never sourced),
 # HARNESS_* keys only; a variable already set in the environment wins.
 set -u
+exec 2>/dev/null   # nothing on stderr either: every failure is silent
 _gs="${BASH_SOURCE[0]:-$0}"
 case "$_gs" in */*) _gd=${_gs%/*} ;; *) _gd=. ;; esac
 _ge="$_gd/guard.env"
@@ -40,16 +41,21 @@ fi
 command -v jq >/dev/null 2>&1 || exit 0
 
 input=$(cat 2>/dev/null) || exit 0
-# One jq call: line 1 = session_id, line 2 = cwd (newlines made invalid), the rest = the prompt.
-_out=$(printf '%s' "$input" | jq -r '(.session_id // "" | tostring | split("\n") | join("!")),
-  (.cwd // "" | tostring | split("\n") | join("!")), (.prompt // "" | tostring)' 2>/dev/null) || exit 0
+# One jq call: line 1 = "s" + session_id, line 2 = "c" + cwd (newlines made invalid), the rest =
+# "p" + the prompt. The sentinels keep every field in place when one is empty (command
+# substitution strips trailing newlines, so an empty prompt would otherwise shift the split).
+_out=$(printf '%s' "$input" | jq -r 'if type != "object" then error("not an object") else
+  ("s" + (.session_id // "" | tostring | split("\n") | join("!"))),
+  ("c" + (.cwd // "" | tostring | split("\n") | join("!"))), ("p" + (.prompt // "" | tostring)) end' 2>/dev/null) || exit 0
 unset input
 _nl='
 '
-session=${_out%%"$_nl"*}; _out=${_out#*"$_nl"}
-cwd=${_out%%"$_nl"*}; prompt=${_out#*"$_nl"}
+case "$_out" in s*"$_nl"c*"$_nl"p*) ;; *) exit 0 ;; esac
+session=${_out%%"$_nl"*}; session=${session#s}; _out=${_out#*"$_nl"}
+cwd=${_out%%"$_nl"*}; cwd=${cwd#c}; prompt=${_out#*"$_nl"}; prompt=${prompt#p}
 unset _out
 case "$prompt" in ''|/*) exit 0 ;; esac
+case "$prompt" in *[![:space:]]*) ;; *) exit 0 ;; esac   # whitespace only
 [ "${#prompt}" -le 600 ] || exit 0
 
 kinds=""

@@ -53,7 +53,7 @@ check() {  # EXPECTED TEXT
   case "$1" in correction) want=correction ;; dissatisfaction) want=dissatisfaction ;;
     both) want="correction dissatisfaction" ;; none) want="" ;; esac
   got=$(kinds)
-  [ "$got" = "$want" ] && [ ! -s "$tmp/out" ] && [ "$(cat "$tmp/rc")" = 0 ] && no_words "$2" \
+  [ "$got" = "$want" ] && [ ! -s "$tmp/out" ] && [ ! -s "$tmp/err" ] && [ "$(cat "$tmp/rc")" = 0 ] && no_words "$2" \
     && { [ -z "$want" ] || [ -z "$(cat "$J"/*.log | awk -F'\t' 'NF != 7')" ]; }
   ok $? "prompt '${2:0:50}' -> ${1}${got:+ (got $got)}"
 }
@@ -67,7 +67,17 @@ prompt "$long600"; check correction "$long600"
 long601="no, wrong $(printf '%591s' '' | tr ' ' x)"
 prompt "$long601"; check none "$long601"
 prompt ""; check none ""
+# ^ and $ are per line: a correction on any line of a multi-line prompt counts (documented)
 prompt "$(printf 'here is the log:\nno, wrong path again')"; check correction "here is the log: no wrong path again"
+prompt "$(printf '\n\n\n')"; check none "newline-only prompt"
+prompt "   	  "; check none "whitespace-only prompt"
+# empty cwd and empty prompt: no field may stand in for the empty prompt
+for in in '{"session_id":"nope1","cwd":"","prompt":""}' '{"session_id":"nope1","cwd":"no, wrong","prompt":""}' \
+          '{"session_id":"no","cwd":"","prompt":"\n"}' '{"session_id":"","cwd":"","prompt":""}' '{"prompt":"   "}'; do
+  n=$((n + 1)); J="$tmp/j$n"
+  printf '%s' "$in" | HARNESS_JOURNAL_DIR="$J" HARNESS_RETRO_DIR="$tmp/r$n" bash "$P" > "$tmp/out" 2> "$tmp/err"
+  [ $? = 0 ] && [ ! -e "$J" ] && [ ! -s "$tmp/out" ] && [ ! -s "$tmp/err" ]; ok $? "nothing recorded for $in"
+done
 
 prompt "you ignored the test" s1
 line=$(cat "$J"/*.log)
@@ -120,7 +130,8 @@ RD="$tmp/retro"; LOG="$tmp/stub.log"
 nudge() {  # STDIN-JSON [env...]: run the nudge hook against the stub hub
   local in=$1; shift
   : > "$LOG"
-  printf '%s' "$in" | env HARNESS_HOME="$here/stub-hub" HARNESS_RETRO_DIR="$RD" STUB_LOG="$LOG" "$@" bash "$S" > "$tmp/nout" 2>"$tmp/nerr"
+  printf '%s' "$in" | env HARNESS_HOME="$here/stub-hub" HARNESS_RETRO_DIR="$RD" HARNESS_CONFIG_JSON=/nonexistent \
+    STUB_LOG="$LOG" "$@" bash "$S" > "$tmp/nout" 2>"$tmp/nerr"
   echo $? > "$tmp/nrc"
 }
 silent() { [ "$(cat "$tmp/nrc")" = 0 ] && [ ! -s "$tmp/nout" ]; }
@@ -142,6 +153,28 @@ ok $? "nudge: due -> exactly one {systemMessage} object, marker written"
 grep -q '"decision"' "$tmp/nout"; [ $? = 1 ]; ok $? "nudge: no decision key is ever emitted"
 nudge "$IN"
 silent && ! called; ok $? "nudge: second call in the same session -> silent, review not run"
+printf '{"_harness": {"config": "/home/u/harness.toml", "bundles": ["core", "lessons"]}}\n' > "$tmp/config.json"
+nudge '{"session_id":"c1","stop_hook_active":false}' HARNESS_CONFIG_JSON="$tmp/config.json"
+[ "$(cat "$LOG")" = "lessons review --session c1 --json --config /home/u/harness.toml" ] && [ -s "$tmp/nout" ]
+ok $? "nudge: the review gets --config <_harness.config> from build/config.json"
+mkdir -p "$tmp/cfghub/bin" "$tmp/cfghub/build"; cp "$here/stub-hub/bin/harness" "$tmp/cfghub/bin/"
+cp "$tmp/config.json" "$tmp/cfghub/build/config.json"
+nudge '{"session_id":"c2","stop_hook_active":false}' HARNESS_HOME="$tmp/cfghub" HARNESS_CONFIG_JSON=
+[ "$(cat "$LOG")" = "lessons review --session c2 --json --config /home/u/harness.toml" ]
+ok $? "nudge: without HARNESS_CONFIG_JSON it reads <HARNESS_HOME>/build/config.json"
+# the 3-second cap kills the CLI and what it started, with and without timeout(1) on PATH
+mkdir -p "$tmp/notimeout"
+for b in bash jq python3 sleep mkdir cat; do ln -s "$(command -v "$b")" "$tmp/notimeout/$b"; done
+for mode in path notimeout; do
+  t0=$(python3 -c 'import time; print(time.time())')
+  if [ "$mode" = path ]; then nudge "{\"session_id\":\"slow-$mode\",\"stop_hook_active\":false}" STUB_SLEEP=5
+  else nudge "{\"session_id\":\"slow-$mode\",\"stop_hook_active\":false}" STUB_SLEEP=5 PATH="$tmp/notimeout"; fi
+  t1=$(python3 -c 'import time; print(time.time())')
+  silent && called && [ ! -e "$RD/sessions/slow-$mode" ] \
+    && python3 -c 'import sys; sys.exit(0 if float(sys.argv[2]) - float(sys.argv[1]) < 4.0 else 1)' "$t0" "$t1"
+  ok $? "nudge: a review slower than 3 s is cut off, silent, under 4 s ($mode)"
+done
+[ ! -e "$tmp/notimeout/timeout" ] && ! PATH="$tmp/notimeout" command -v timeout >/dev/null 2>&1; ok $? "the notimeout PATH really lacks timeout(1)"
 nudge '{"session_id":"s2","stop_hook_active":true}'
 silent && ! called; ok $? "nudge: stop_hook_active -> silent"
 for bad in 'not json' '' '[]' '"s1"' '{"session_id":'; do
@@ -151,8 +184,8 @@ for sid in '../x' '..' 'a/b' ''; do
   nudge "$(jq -cn --arg s "$sid" '{session_id: $s, stop_hook_active: false}')"
   silent && ! called; ok $? "nudge: session '$sid' -> silent, no marker"
 done
-others=""; for m in "$RD"/sessions/*; do [ "${m##*/}" = s1 ] || others="$others ${m##*/}"; done
-[ -z "$others" ] && [ ! -e "$tmp/x" ]; ok $? "nudge: only the s1 marker exists${others:+ —$others}"
+others=""; for m in "$RD"/sessions/*; do case "${m##*/}" in s1|c1|c2) ;; *) others="$others ${m##*/}" ;; esac; done
+[ -z "$others" ] && [ ! -e "$tmp/x" ]; ok $? "nudge: only the markers of nudged sessions exist${others:+ —$others}"
 nudge '{"session_id":"s3","stop_hook_active":false}' HARNESS_RETRO_DIR=relative
 silent && ! called; ok $? "nudge: relative retro dir -> silent"
 nudge '{"session_id":"s4","stop_hook_active":false}' HARNESS_HOME="$tmp/nohub"
@@ -169,8 +202,17 @@ for f in "$bdir/prompt-signal.sh" "$bdir/stop-retro-nudge.sh"; do
   bash -n "$f"; ok $? "bash -n $(basename "$f")"
   [ "$(grep -c transcript_path "$f")" = 0 ]; ok $? "$(basename "$f") never names transcript_path"
 done
-stray=$(grep -nE '(^|[;&|({ ])(echo|printf|cat)( |$)' "$bdir/prompt-signal.sh" | grep -v '^[0-9]*:#' \
-  | grep -vE 'printf -v|>|\|' || true)
+# every echo/printf/cat in prompt-signal.sh must be one of these known lines (none reaches stdout)
+stray=$(grep -nE '(^|[;&|({ ])(echo|printf|cat)( |$)' "$bdir/prompt-signal.sh" | sed 's/^[0-9]*://' | grep -v '^[[:space:]]*#' \
+  | grep -vxF -e '    printf -v "$_gk" '"'"'%s'"'"' "$_gv"' \
+      -e 'input=$(cat 2>/dev/null) || exit 0' \
+      -e '_out=$(printf '"'"'%s'"'"' "$input" | jq -r '"'"'if type != "object" then error("not an object") else' \
+      -e '   && { printf '"'"'%s\n'"'"' "$prompt"; } 2>/dev/null | grep -Eiq -- "$HARNESS_LESSONS_CORRECTION_RE" 2>/dev/null; then' \
+      -e '   && { printf '"'"'%s\n'"'"' "$prompt"; } 2>/dev/null | grep -Eiq -- "$HARNESS_LESSONS_DISSATISFACTION_RE" 2>/dev/null; then' \
+      -e '  printf -v "$1" '"'"'%s'"'"' "${_jv:0:64}"' \
+      -e '  [ -n "${!1}" ] || printf -v "$1" '"'"'%s'"'"' -' \
+      -e '    printf '"'"'%s\t%s\t%s\t%s\t%s\t%s\t%s\n'"'"' "$ts" "$prov" "$session" "$k" - "$gid" "$repo" >> "$jdir/${ts%%T*}.log" || exit 0' \
+      -e '  mkdir -p "$rdir" && printf '"'"'%s\n'"'"' "$session" > "$rdir/current"' || true)
 [ -z "$stray" ]; ok $? "prompt-signal.sh has no echo/printf/cat to stdout${stray:+ — $stray}"
 timed() {  # LABEL STDIN SCRIPT [env...]: the hook finishes in under one second
   local label=$1 in=$2 script=$3; shift 3
