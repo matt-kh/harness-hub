@@ -348,9 +348,9 @@ class ReviewTest(LessonsCase):
             "counts: guard-ask 1, guard-deny 1, correction 1, dissatisfaction 0",
             "fired: none (thresholds: lessons.review.corrections 2, lessons.review.dissatisfaction 1, "
             "lessons.review.denies 3; 0 = off)",
-            "  2026-10-26T09:00:00Z  guard-deny  guard_section_core_20_core:8",
-            "  2026-10-26T09:01:00Z  correction  -",
-            "  2026-10-26T09:03:00Z  guard-ask  guard_section_core_20_core:8", ""]))
+            "  2026-10-26T09:00:00Z claude s1 guard-deny guard_section_core_20_core:8 g shop",
+            "  2026-10-26T09:01:00Z claude s1 correction - g shop",
+            "  2026-10-26T09:03:00Z claude s1 guard-ask guard_section_core_20_core:8 g shop", ""]))
         self.journal([jl("2026-10-26T09:04:00Z", "s1", "correction", "-", "g")])
         os.makedirs(os.environ["HARNESS_RETRO_DIR"])
         with open(os.path.join(os.environ["HARNESS_RETRO_DIR"], "current"), "w") as fh:
@@ -547,6 +547,17 @@ class JournalTest(LessonsCase):
              'fixture-deny*) deny "denied by core (ticket ${FIX_TICKET:-unset})" ;;'),
             ("guard-deny", "guard_section_core_20_core:8", "stale", 1, 1, ""),
             ("correction", "-", "-", 1, 1, "")])
+        self.assertEqual([g["example"] for g in data["groups"]][:2], [
+            "2026-10-26T09:04:00Z claude s1 guard-ask guard_section_core_20_core:9 %s shop" % gid,
+            "2026-10-26T09:01:00Z claude s2 guard-deny guard_section_core_20_core:8 %s shop" % gid])
+        # either source pastes straight into --evidence journal:<line>
+        lid = self.new()
+        self.ok("note", lid, "--recurred", "--evidence", "journal:" + data["groups"][1]["example"])
+        explained = json.loads(self.run_cli("review", "--session", "s1", "--explain", "--json")[1])["lines"]
+        self.ok("note", lid, "--recurred", "--evidence", "journal:" + explained[0]["line"])
+        rc, out, _e = self.run_cli("review", "--session", "s1", "--explain")
+        self.ok("note", lid, "--recurred", "--evidence", "journal:" + out.splitlines()[-1].strip())
+        self.assertEqual(self.record(lid).fm["recurred_objective"], 3)
         self.assertIn("(older guard; line not attributed)", self.ok("journal"))
         rdir = os.environ["HARNESS_RETRO_DIR"]
         os.makedirs(os.path.join(rdir, "sessions"))

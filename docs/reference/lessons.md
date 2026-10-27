@@ -130,7 +130,9 @@ the session in `retro/current`). It is due when, within that session:
 A threshold of `0` disables its criterion. Exit status: **0** due, **1** not due, **3** no
 journal files, no session known, or no line for the session (the output says which). It prints
 `due: yes|no`, the session, the counts and the criterion that fired; `--explain` adds each line
-as time, kind and site, never anything else; `--json` prints
+in its citable form (the seven journal fields with single spaces; no command, prompt or path ever
+reaches the journal), ready to paste as `--evidence journal:<line>`, and `--json --explain` gives
+each as `lines[].line`; `--json` prints
 `{"due", "session", "counts", "fired"}` (plus `reason` for rc 3). **4** is an error (an
 unreadable config, a bad threshold value): rc 1 only ever means "not due", so a caller can treat
 4 like 3 and stay silent.
@@ -152,7 +154,7 @@ Every subcommand takes the global flags (`--config`, `--json`, ...); full help i
 | `validate [ID] [--quick] [--full] [--now TS]` | `git archive HEAD` of the hub into a temp dir, `git apply` the candidate edit, then `harness lint`, `test guard`, `test <touched bundle>` (skipped with `--quick`; `--full` runs every suite) and `render --out`, isolated from your config and home; records pass or fail, the time and the rendered guard's id. Without a candidate edit: `validation none`, rc 1 |
 | `propose ID --out DIR [--repo OWNER/REPO] [--keep-repos] [--mark] [--date D]` | writes `body.md`, `preview.md` and `create.sh` (a `gh issue create -R OWNER/REPO ... -l agent-drafted` line for a GitHub Issues tracker, a `/create-ticket` line for Jira; the tracker comes from the hub's `.harness.toml`, `--repo` overrides). Accepts `confirmed`, or `recurring` with `recurred_objective >= lessons.promote_after`; refuses closing keywords (`Fixes #1`, `Fixes:#1`, `**Fixes** #1`, `owner/repo#N`, issue URLs, Jira keys) anywhere and `#N` in the title (the body may mention `#N`); replaces repository names from journal evidence by `<repo>` unless `--keep-repos`; runs `tools/gate/private-ids.sh` over the three files and removes them on a hit. `--out` may not be inside a git checkout. `--mark` sets `proposed` after the issue exists |
 | `index [--prune] [--now TS]` | rewrites `INDEX.md`: grouped by domain, settled lessons first, at most `lessons.index_max_candidates` (5) candidates per domain and `lessons.index_max` (40) lines overall, `ready` or `stale` (no update in `lessons.max_age_days`, 90); `--prune` retires stale candidates |
-| `journal [--all] [--since TS] [--ack]` | journal lines since `retro/last`, grouped by kind and site; a current-guard site shows its source line, other guard ids show as stale; `--ack` marks what it showed as seen: `retro/last` holds the newest timestamp shown and how many lines carry it (`TS<TAB>N`), so a line written in the same second is shown next time and none is shown twice; it also prunes `retro/sessions/*` older than 7 days |
+| `journal [--all] [--since TS] [--ack]` | journal lines since `retro/last`, grouped by kind and site; a current-guard site shows its source line, other guard ids show as stale; with `--json` each group carries `example`, its newest line (the later one on a tie) in the citable form `note --recurred --evidence journal:<example>` accepts; `--ack` marks what it showed as seen: `retro/last` holds the newest timestamp shown and how many lines carry it (`TS<TAB>N`), so a line written in the same second is shown next time and none is shown twice; it also prunes `retro/sessions/*` older than 7 days |
 
 ## Privacy
 

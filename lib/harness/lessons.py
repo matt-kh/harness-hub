@@ -912,6 +912,11 @@ class JLine:
         (self.ts, self.provider, self.session, self.kind, self.site, self.guard_id, self.repo) = fields
 
     @property
+    def citable(self) -> str:
+        """The line as `note --evidence journal:<this>` accepts it: the seven fields, single spaces."""
+        return " ".join((self.ts, self.provider, self.session, self.kind, self.site, self.guard_id, self.repo))
+
+    @property
     def date(self) -> str:
         return self.ts[:10]
 
@@ -1503,7 +1508,8 @@ def _review(ctx: Any, ns: Any, hub: Any) -> int:
         if reason:
             out["reason"] = reason
         if ns.explain:
-            out["lines"] = [OrderedDict([("ts", ln.ts), ("kind", ln.kind), ("site", ln.site)]) for ln in state["lines"]]
+            out["lines"] = [OrderedDict([("ts", ln.ts), ("kind", ln.kind), ("site", ln.site), ("line", ln.citable)])
+                            for ln in state["lines"]]
         print(json.dumps(out, indent=2))
         return 3 if reason else (0 if state["due"] else 1)
     if reason:
@@ -1520,7 +1526,7 @@ def _review(ctx: Any, ns: Any, hub: Any) -> int:
             "%s %d" % (key, thresholds[key]) for _n, _k, key in CRITERIA))
     if ns.explain:
         for ln in state["lines"]:
-            print("  %s  %s  %s" % (ln.ts, ln.kind, ln.site))
+            print("  %s" % ln.citable)   # citable as --evidence journal:<line>
     return 0 if state["due"] else 1
 
 
@@ -1689,10 +1695,13 @@ def cmd_journal(ctx: Any, ns: Any, hub: Any) -> int:
         g = groups.get(key)
         if g is None:
             g = groups[key] = {"kind": ln.kind, "site": ln.site, "status": key[2], "count": 0,
-                               "sessions": set(), "first": ln.ts, "last": ln.ts, "text": gmap.text(ln)}
+                               "sessions": set(), "first": ln.ts, "last": ln.ts, "text": gmap.text(ln),
+                               "example": ln.citable}
         g["count"] += 1
         g["sessions"].add(ln.session)
         g["first"] = min(g["first"], ln.ts)
+        if ln.ts >= g["last"]:   # the newest line; on a tie the later one in file order
+            g["example"] = ln.citable
         g["last"] = max(g["last"], ln.ts)
     ordered = sorted(groups.values(), key=lambda g: (JOURNAL_KINDS.index(g["kind"]), g["site"], g["status"]))
     if ctx.json:
@@ -1700,7 +1709,8 @@ def cmd_journal(ctx: Any, ns: Any, hub: Any) -> int:
             ("since", since), ("from", origin), ("guard_id", gmap.guard_id), ("lines", len(lines)),
             ("groups", [OrderedDict([("kind", g["kind"]), ("site", g["site"]), ("status", g["status"]),
                                      ("count", g["count"]), ("sessions", len(g["sessions"])),
-                                     ("first", g["first"]), ("last", g["last"]), ("text", g["text"])])
+                                     ("first", g["first"]), ("last", g["last"]), ("text", g["text"]),
+                                     ("example", g["example"])])
                         for g in ordered])]), indent=2))
     else:
         print("journal: %d line(s) since %s (%s); current guard %s" % (
