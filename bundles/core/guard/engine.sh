@@ -101,6 +101,22 @@
 #   GUARD_KUBECTL / GUARD_GIT       kubectl / git binaries the hook shells out to (tests: stubs)
 #   K8S_PROD_RE                     regex marking prod contexts/namespaces (same as the k8s CLI)
 #   OBS_HOSTS_RE                    regex of observability backend hosts; raw curl to them asks (empty = off)
+#   HARNESS_LESSONS_JOURNAL         exactly `true`: every ask and deny appends one journal line
+#                                   (lessons.journal; anything else = off, the default)
+#   HARNESS_JOURNAL_DIR             journal directory (default ${XDG_STATE_HOME:-~/.local/state}/harness/journal)
+#   HARNESS_RETRO_DIR               directory of the `current` session pointer (default <state>/harness/retro)
+#   HARNESS_GUARD_ID                12 hex chars identifying this rendered guard (sha256 of guard-bash.sh)
+#   HARNESS_PROVIDER                provider the guard was rendered for (journal field 2)
+# The journal names above carry HARNESS_, so .harness.toml [overrides] can never set them.
+#
+# ---- Journal (opt-in: HARNESS_LESSONS_JOURNAL=true) ---------------------------------
+# One line per ask or deny in <journal dir>/<YYYY-MM-DD>.log (UTC), seven tab-separated fields:
+#   ts provider session kind site guard_id repo
+# kind = guard-ask | guard-deny; site = <guard_section_*>:<line in that section's file> of the
+# deciding call (a flushed deferred ask is credited to the rule that deferred it); session = the
+# hook input's session_id when it matches [A-Za-z0-9._-]{1,64}, else -; repo = basename of the
+# repository root, else -. Never written: the command, its words, paths, reasons. The session id
+# also goes to <retro dir>/current. Every journal error is swallowed; the decision never changes.
 set -uo pipefail
 
 # >>> hn_timeout
@@ -157,10 +173,18 @@ unset _ge _gl _gk _gv _gq _gs _genv_keys
 input=$(cat)
 if command -v jq >/dev/null 2>&1; then
   # Fail closed on malformed input: valid JSON without a command passes, unparsable JSON denies.
-  if ! cmd=$(printf '%s' "$input" | jq -r '.tool_input.command // empty' 2>/dev/null); then
+  # One jq call: line 1 = session_id (newlines made invalid), the rest = the command.
+  if ! _gin=$(printf '%s' "$input" | jq -r '(.session_id // "" | tostring | split("\n") | join("!")), (.tool_input.command // empty)' 2>/dev/null); then
     printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"guard-bash(user): malformed hook input (not JSON) — denied (fail closed)"}}'
     exit 0
   fi
+  _gnl='
+'
+  session=${_gin%%"$_gnl"*}
+  case "$_gin" in *"$_gnl"*) cmd=${_gin#*"$_gnl"} ;; *) cmd="" ;; esac
+  unset _gin _gnl
+  case "$session" in ''|*[!A-Za-z0-9._-]*) session=- ;; esac
+  [ "${#session}" -le 64 ] || session=-
 else
   printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"guard-bash(user): jq not installed — install jq; every Bash command is denied until then"}}'
   exit 0
@@ -342,19 +366,74 @@ repo_owns() {  # ID DOMAIN -> rc 0 when the repository declares the component or
 }
 repo_load_decl
 
+# ---- Journal (see the header). Builtins only until HARNESS_LESSONS_JOURNAL=true is seen. --
+_jsite=""; deferred_site=""
+journal_site() {  # -> _jsite = <guard_section_*>:<line in the section file> of the call deciding now, or -
+  local i=1 n=${#FUNCNAME[@]} fn line def
+  _jsite=-
+  while [ "$i" -lt "$n" ]; do
+    fn=${FUNCNAME[i]}
+    case "$fn" in
+      guard_section_*)
+        line=${BASH_LINENO[i-1]}
+        # `fn() {` line of the wrapper in this file (the section file's line 1 is the next one).
+        # Not `declare -F` under extdebug: it reports the last nested function's line instead.
+        def=$(grep -n -e "^$fn() {\$" "$GUARD_SELF" 2>/dev/null); def=${def%%:*}
+        case "$def" in ''|*[!0-9]*) ;; *) line=$((line - def)) ;; esac
+        _jsite="$fn:$line"
+        return 0 ;;
+    esac
+    i=$((i+1))
+  done
+  return 0
+}
+journal_field() {  # VAR VALUE -> VAR = VALUE with every character outside [A-Za-z0-9._-] as _, at most 64, or -
+  local _jv="${2:-}"
+  _jv=${_jv//[!A-Za-z0-9._-]/_}
+  printf -v "$1" '%s' "${_jv:0:64}"
+  [ -n "${!1}" ] || printf -v "$1" '%s' -
+}
+journal_write() {  # KIND (guard-ask | guard-deny) -> one journal line; always returns 0
+  [ "${HARNESS_LESSONS_JOURNAL:-}" = true ] || return 0
+  local site prov gid repo state jdir rdir
+  if [ -n "$_jsite" ]; then site=$_jsite
+  else journal_site; site=$_jsite; [ "$site" != - ] || site=${deferred_site:--}; fi
+  journal_field prov "${HARNESS_PROVIDER:-}"
+  journal_field gid "${HARNESS_GUARD_ID:-}"
+  journal_field repo "${REPO_ROOT##*/}"
+  state="${XDG_STATE_HOME:-$HOME/.local/state}/harness"
+  jdir="${HARNESS_JOURNAL_DIR:-$state/journal}"
+  rdir="${HARNESS_RETRO_DIR:-$state/retro}"
+  (
+    umask 077
+    ts=$(date -u +%Y-%m-%dT%H:%M:%SZ) || exit 0
+    mkdir -p "$jdir" || exit 0
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$ts" "$prov" "$session" "$1" "$site" "$gid" "$repo" >> "$jdir/${ts%%T*}.log" || exit 0
+    [ "$session" != - ] || exit 0
+    mkdir -p "$rdir" && printf '%s\n' "$session" > "$rdir/current"
+  ) </dev/null >/dev/null 2>&1 || true
+  return 0
+}
+
 decide() {  # $1 = allow|ask|deny, $2 = reason
+  case "$1" in ask|deny) journal_write "guard-$1" ;; esac
   jq -cn --arg d "$1" --arg reason "guard-bash(user): $2" \
     '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:$d,permissionDecisionReason:$reason}}'
   exit 0
 }
 ask()   { decide ask   "$1 — requires explicit user confirmation"; }
-allow() { [ -z "${deferred:-}" ] || ask "$deferred"; decide allow "$1"; }   # never allow over a deferred ask
+allow() { [ -z "${deferred:-}" ] || { _jsite=${deferred_site:-}; ask "$deferred"; }; decide allow "$1"; }   # never allow over a deferred ask
 deny()  { decide deny  "$1"; }
 # Deferred decisions: gated rules record the first ask reason instead of exiting, so a later deny
 # in the same command still wins; allow() refuses to allow over it and the script end flushes it.
 # Creates / clean write gates record pending_allow, emitted at the very end (after every section).
 deferred=""; pending_allow=""
-defer() { [ -n "$deferred" ] || deferred="$1"; }
+defer() {  # the first deferred reason wins; its rule site is kept for the journal
+  [ -z "$deferred" ] || return 0
+  deferred="$1"
+  if [ "${HARNESS_LESSONS_JOURNAL:-}" = true ]; then journal_site; deferred_site=$_jsite; _jsite=""; fi
+  return 0
+}
 
 # ---- Shared governance config -----------------------------------------------------
 GOV_LABEL="${WORK_TICKET_LABEL:-agent-worked}"                 # Jira: grants promptless writes
