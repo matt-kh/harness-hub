@@ -139,7 +139,7 @@ if [ -f "${HARNESS_HOME:-${HOME:-}/harness-hub}/bin/harness" ]; then hb="${HARNE
 else  # the CLI on PATH (the hub links bin/harness into ~/.local/bin)
   _ifs=$IFS; IFS=:
   for _d in ${PATH:-}; do
-    if [ -n "$_d" ] && [ -f "$_d/harness" ] && [ -x "$_d/harness" ]; then hb="$_d/harness"; break; fi
+    if [ -n "$_d" ] && [ -f "$_d/harness" ]; then hb="$_d/harness"; break; fi
   done
   IFS=$_ifs
 fi
@@ -148,7 +148,7 @@ cfg=$(hcfg _harness.config "")
 # cli SUBCOMMAND...: harness lessons SUBCOMMAND --json, stdout only; returns the CLI's rc
 cli() {
   local out rc
-  out=$(hn_timeout 30 "$hb" lessons "$@" --json ${cfg:+--config "$cfg"} </dev/null 2>/dev/null)
+  out=$(hn_timeout 30 bash "$hb" lessons "$@" --json ${cfg:+--config "$cfg"} </dev/null 2>/dev/null)
   rc=$?
   printf '%s' "$out"
   return $rc
