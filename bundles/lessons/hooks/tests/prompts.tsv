@@ -1,0 +1,59 @@
+# prompts.tsv: the contract for the default lessons.correction_re and lessons.dissatisfaction_re
+# (bundles/core/defaults.toml). One case per line: EXPECTED<TAB>PROMPT, EXPECTED one of
+# correction, dissatisfaction, both, none. run.sh adds the empty, 600- and 601-character cases.
+# A false positive is kept as a documented row (marked "documented false positive" in the docs).
+correction	no, that is wrong, I asked for the other file
+correction	No. Use the staging branch.
+correction	nope
+correction	no
+correction	no it should be the other repository
+correction	wrong file
+correction	Incorrect, the key is PROJ-123
+correction	that's not what the ticket says
+correction	thats not the right directory
+correction	not what I meant
+correction	I said use jq, not python
+correction	I asked for a single PR
+correction	I meant the parser in lib/
+correction	you didn't run the tests
+correction	you did not update the changelog
+correction	you ignored the test again
+correction	you missed the second file
+correction	you forgot the migration paragraph
+correction	you broke the build
+correction	you changed the wrong function
+correction	undo that
+correction	revert that change
+correction	redo it with the fixture
+correction	try again with the stub
+correction	again!
+correction	still failing on CI
+correction	still wrong
+correction	undo the last migration
+dissatisfaction	this is frustrating
+dissatisfaction	I'm annoyed that the hook prompts twice
+dissatisfaction	that is unacceptable
+dissatisfaction	please stop doing that
+dissatisfaction	why did you delete the file
+dissatisfaction	honestly, you keep pushing to main
+dissatisfaction	don't ever print the token
+dissatisfaction	ok but this is useless
+both	no, why did you skip the tests
+both	wrong again, this is useless
+both	you ignored it again, stop doing that
+none	fix the parser bug
+none	no changes needed in the docs
+none	add a test for the review command
+none	now run make test
+none	notes: keep the changelog short
+none	nothing to change here, ship it
+none	can you redo the layout of the table
+none	please try again later if the API is down
+none	document the wrong-path case in troubleshooting
+none	Again, thanks for the review
+none	why do we need jq here
+none	Stop the dev server
+none	don't do the rebase yet
+none	/retro --no-record
+none	/work-ticket PROJ-123
+none	/undo
