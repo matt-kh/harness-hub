@@ -17,9 +17,9 @@ Needs **one tracker** (`jira` or `github`) and **one SCM** (`gitlab` or `github`
 refuses to resolve otherwise (`any_of`). Provider-specific commands come in as skill
 fragments from those bundles.
 
-With the `lessons` bundle installed, both skills end with a gated retro step: when
-`harness lessons review` says a retro is due they run `/retro` once for the ticket, when it is
-not due they print one `Retro: not due` line, and otherwise they say nothing
+With the `lessons` bundle installed and the harness CLI found, both skills end with a gated
+retro step: when `harness lessons review` says a retro is due they run `/retro` once for the
+ticket, when it is not due they print one `Retro: not due` line, and otherwise they say nothing
 ([lessons](lessons.md)).
 
 If a repository owns the ticket workflow (`.harness.toml` or its own skill), `work-ticket`

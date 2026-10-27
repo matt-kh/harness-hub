@@ -119,7 +119,9 @@ current guard.
 ## Review criteria
 
 `harness lessons review` decides whether a retro is due for one session (`--session S`, else
-the session in `retro/current`). It is due when, within that session:
+the session in `retro/current`, which names the last session that produced a signal: with two
+concurrent sessions the gate may judge the other one, and `--session` overrides). It is due
+when, within that session:
 
 | Criterion | Journal kind | Key (default) |
 |---|---|---|
