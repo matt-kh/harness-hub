@@ -724,11 +724,12 @@ positional arguments:
     confirm      human: confirm a candidate or recurring lesson
     retire       human: retire a lesson
     review       is a retro due for this session? rc 0 due, 1 not due, 3 no journal / no session /
-                 no lines
+                 no lines, 4 error
     stats        asks, denies and corrections per session before and after each lesson (one table)
     validate     apply a lesson's candidate edit to a copy of the hub's HEAD and run lint, tests
                  and render
-    propose      render body.md, preview.md and create.sh for an issue (never runs create.sh)
+    propose      render body.md, preview.md and create.sh for an issue (never runs create.sh; no
+                 #N in the title)
     index        rewrite INDEX.md (grouped by domain, candidates capped)
     journal      group guard-journal lines since the last retro by kind and rule site
 
@@ -851,7 +852,8 @@ options:
   --dry-run          show what would happen, write nothing
   --used             the lesson was consulted
   --helped           it helped (subjective; never promotes)
-  --recurred         the situation recurred (objective with a journal: --evidence)
+  --recurred         the situation recurred; objective only with a new journal: --evidence that is
+                     a line of the journal
   --evidence REF     KIND:TEXT evidence ref (repeatable)
   --note TEXT        free text for the History line (<= 200 chars)
   --date YYYY-MM-DD  date for created/updated and History (default: today, UTC)
@@ -910,7 +912,8 @@ options:
 usage: harness lessons review [-h] [--config PATH] [--home DIR] [--json] [--offline] [--yes]
                               [--dry-run] [--session S] [--explain]
 
-is a retro due for this session? rc 0 due, 1 not due, 3 no journal / no session / no lines
+is a retro due for this session? rc 0 due, 1 not due, 3 no journal / no session / no lines, 4
+error
 
 options:
   -h, --help     show this help message and exit
@@ -980,7 +983,7 @@ usage: harness lessons propose [-h] [--config PATH] [--home DIR] [--json] [--off
                                [--date YYYY-MM-DD]
                                ID
 
-render body.md, preview.md and create.sh for an issue (never runs create.sh)
+render body.md, preview.md and create.sh for an issue (never runs create.sh; no #N in the title)
 
 positional arguments:
   ID
@@ -993,7 +996,7 @@ options:
   --offline          skip network checks (HARNESS_OFFLINE=1)
   --yes, -y          assume yes; never prompt
   --dry-run          show what would happen, write nothing
-  --out DIR          where body.md, preview.md and create.sh go
+  --out DIR          where body.md, preview.md and create.sh go (never inside a git checkout)
   --repo OWNER/REPO  GitHub repository for the issue (default: from the hub checkout)
   --keep-repos       keep repository names from evidence (default: <repo>)
   --mark             set status proposed (after the issue exists)
@@ -1038,7 +1041,8 @@ options:
   --dry-run      show what would happen, write nothing
   --all          every line, not only those since <retro dir>/last
   --since TS     lines after TS (date or ISO UTC)
-  --ack          write <retro dir>/last = now and prune old retro/sessions markers
+  --ack          mark the lines shown as seen in <retro dir>/last and prune old retro/sessions
+                 markers
 ```
 
 ### harness steps

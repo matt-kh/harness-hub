@@ -99,6 +99,13 @@ class LessonsCase(unittest.TestCase):
             for r in rows:
                 fh.write("\t".join(r) + "\n")
 
+    def jref(self, n: int, session: str = "", kind: str = "guard-deny") -> str:
+        """Write one journal line and return it as a journal: evidence ref (tabs as spaces)."""
+        row = jl("2026-10-%02dT00:00:00Z" % n, session or "s%d" % n, kind, "guard_section_core_20_core:8",
+                 "3f9c1a7e" + "02bd")
+        self.journal([row], name="2026-10-%02d.log" % n)
+        return "journal:" + " ".join(row)
+
     def guard_id(self) -> str:
         from harness.hub import Hub
 
@@ -256,12 +263,11 @@ class CountersTest(LessonsCase):
         r = self.record(lid)
         self.assertEqual((r.fm["uses"], r.fm["helped"], r.fm["recurred"], r.fm["recurred_objective"]), (1, 1, 1, 0))
         self.assertEqual(r.status, "candidate")
-        for day in ("04", "05"):
-            self.ok("note", lid, "--recurred", "--evidence", "journal:2026-10-%sT00:00:00Z claude s%s guard-deny "
-                    "guard_section_core_20_core:8 3f9c1a7e02bd shop" % (day, day), "--date", "2026-10-%s" % day)
+        for day in (4, 5):
+            self.ok("note", lid, "--recurred", "--evidence", self.jref(day), "--date", "2026-10-%02d" % day)
         r = self.record(lid)
         self.assertEqual((r.fm["recurred"], r.fm["recurred_objective"], r.status), (3, 2, "candidate"))
-        out = self.ok("note", lid, "--recurred", "--evidence", "journal:2026-10-06 s6", "--note", "third time",
+        out = self.ok("note", lid, "--recurred", "--evidence", self.jref(6), "--note", "third time",
                       "--date", "2026-10-06")
         self.assertIn("now recurring", out)
         r = self.record(lid)
@@ -274,7 +280,7 @@ class CountersTest(LessonsCase):
     def test_promote_after_from_config(self):
         self.write_config("[lessons]\npromote_after = 1\n")
         lid = self.new()
-        self.ok("note", lid, "--recurred", "--evidence", "journal:x")
+        self.ok("note", lid, "--recurred", "--evidence", self.jref(9))
         self.assertEqual(self.record(lid).status, "recurring")
 
     def test_note_refusals_and_transitions(self):
@@ -396,7 +402,7 @@ class StatsIndexTest(LessonsCase):
         ids = [self.new(situation="lesson %d" % i, date="2026-10-%02d" % (i + 1)) for i in range(11)]
         self.ok("confirm", ids[0], "--date", "2026-10-20")
         self.write_config("[lessons]\npromote_after = 1\n")
-        self.ok("note", ids[1], "--recurred", "--evidence", "journal:x", "--date", "2026-10-21")
+        self.ok("note", ids[1], "--recurred", "--evidence", self.jref(9), "--date", "2026-10-21")
         self.write_config("[lessons]\npromote_after = 3\n")
         self.ok("confirm", ids[2], "--date", "2026-10-21")
         self.ok("propose", ids[2], "--out", os.path.join(self.tmp, "p"), "--repo", "octocat/hub", "--mark",
@@ -410,10 +416,21 @@ class StatsIndexTest(LessonsCase):
         self.ok("index", "--now", "2026-10-26T00:00:00Z")
         with open(os.path.join(self.ldir, "INDEX.md"), encoding="utf-8") as fh:
             self.golden("INDEX.md", fh.read())
-        self.write_config("[lessons]\nindex_max = 4\nindex_max_candidates = 2\n")
+        # the overall cap empties scm, whose hidden candidate counts in the trailer too:
+        # base 1 candidate + scm 1 listed-candidate + scm 1 "more" = 3
+        self.new(domain="scm", scope="domain", situation="newer scm thing", date="2026-10-20")
+        self.write_config("[lessons]\nindex_max = 3\nindex_max_candidates = 1\n")
         self.ok("index", "--now", "2026-10-26T00:00:00Z")
         with open(os.path.join(self.ldir, "INDEX.md"), encoding="utf-8") as fh:
-            self.golden("INDEX-capped.md", fh.read())
+            text = fh.read()
+        self.golden("INDEX-capped.md", text)
+        self.assertIn("3 more lesson(s) not listed (lessons.index_max = 3)", text)
+        self.assertNotIn("### scm", text)
+        self.write_config("[lessons]\nindex_max_candidates = 0\n")   # candidate cap alone keeps the heading
+        self.ok("index", "--now", "2026-10-26T00:00:00Z")
+        with open(os.path.join(self.ldir, "INDEX.md"), encoding="utf-8") as fh:
+            text = fh.read()
+        self.assertIn("### scm\n\n- 2 more candidate(s)", text)
 
     def test_index_prune(self):
         self.make_library()
@@ -463,7 +480,7 @@ class ProposeTest(LessonsCase):
         self.assertIn("is a candidate", err)
         self.assertFalse(os.path.exists(out_dir))
         self.write_config("[lessons]\npromote_after = 1\n")
-        self.ok("note", lid, "--recurred", "--evidence", "journal:x")
+        self.ok("note", lid, "--recurred", "--evidence", self.jref(9))
         self.ok("propose", lid, "--out", out_dir, "--repo", "octocat/hub")   # recurring, objective >= 1
         self.write_config("[lessons]\npromote_after = 3\n")
         rc, _o, err = self.run_cli("propose", lid, "--out", out_dir, "--repo", "octocat/hub")
@@ -541,7 +558,7 @@ class JournalTest(LessonsCase):
         os.utime(old, (past, past))
         self.assertIn("acknowledged", self.ok("journal", "--ack"))
         with open(os.path.join(rdir, "last")) as fh:
-            self.assertRegex(fh.read(), r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z\n$")
+            self.assertEqual(fh.read(), "2026-10-26T09:04:00Z\t1\n")   # the newest line shown, and how many
         self.assertEqual((os.path.exists(old), os.path.exists(fresh)), (False, True))
         data = json.loads(self.ok("journal", "--json"))
         self.assertEqual((data["from"], data["lines"]), ("retro/last", 0))
@@ -578,6 +595,263 @@ class ValidateTest(LessonsCase):
         self.assertRegex(r.fm["validated_guard_id"], r"^[0-9a-f]{12}$")
         self.assertRegex(r.sections["Validation"][0], r"^- 2026-10-26T00:00:00Z pass: apply ok, lint ok, "
                          r"test guard ok, render ok; guard [0-9a-f]{12}$")
+
+
+# ======================================================================= review fixes
+
+
+def entropic() -> str:
+    """A 40-character high-entropy word, built at runtime so no literal looks like a secret."""
+    import string
+
+    alphabet = string.ascii_letters + string.digits
+    return "".join(alphabet[(i * 7 + i * i) % len(alphabet)] for i in range(40))
+
+
+def hex40() -> str:
+    return "0123456789abcdef" * 2 + "01234567"
+
+
+class ReviewFixesTest(LessonsCase):
+    def refused_new(self, *extra: str) -> str:
+        argv = ["new", "--domain", "base", "--scope", "invariant", "--situation", "s",
+                "--guide-ref", "core/rules/10-core", "--sensor-ref", "core/guard.d/20-core"] + list(extra)
+        rc, out, err = self.run_cli(*argv)
+        self.assertEqual(rc, 1, out + err)
+        return err
+
+    def diff_file(self, text: str) -> str:
+        path = os.path.join(self.tmp, "x%d.diff" % len(os.listdir(self.tmp)))
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(text)
+        return path
+
+    # 1 -- tokens in a URL's user part, in text and in diffs
+    def test_url_userinfo_tokens(self):
+        for url in ("https://" + fake_token() + "@git.example.com/o/r", "https://" + hex40() + "@git.example.com/o/r",
+                    "https://user@example.com/x"):
+            self.assertIn("URL userinfo", self.refused_new("--evidence", "user:cloned " + url))
+            self.assertIsNotNone(L.secret_reason("see " + url))
+        self.assertIsNotNone(L.secret_reason("x=" + entropic()))   # value part of key=value
+        self.assertIsNotNone(L.secret_reason("path/" + entropic()))   # inside a path
+        self.assertIsNone(L.secret_reason("x=" + "ab" * 20))
+        diff = ("--- a/bundles/core/rules/00-conventions.md\n+++ b/bundles/core/rules/00-conventions.md\n"
+                "@@ -1 +1,2 @@\n # Conventions\n+clone https://%s@git.example.com/o/r\n" % hex40())
+        self.assertIn("URL userinfo", self.refused_new("--evidence", "user:x", "--edit", self.diff_file(diff)))
+
+    # 2 -- objective recurrences need fresh, real journal lines
+    def test_repeated_journal_ref_never_promotes(self):
+        lid = self.new()
+        ref = self.jref(4)
+        for _ in range(3):
+            self.ok("note", lid, "--recurred", "--evidence", ref)
+        r = self.record(lid)
+        self.assertEqual((r.status, r.fm["recurred"], r.fm["recurred_objective"]), ("candidate", 3, 1))
+
+    def test_journal_ref_must_exist(self):
+        lid = self.new()
+        rc, _o, err = self.run_cli("note", lid, "--recurred", "--evidence", "journal:2026-10-26")
+        self.assertEqual(rc, 1)
+        self.assertIn("is not a journal line", err)
+        fake = "journal:2026-10-07T00:00:00Z claude s7 guard-deny guard_section_core_20_core:8 aaaaaaaaaaaa shop"
+        rc, _o, err = self.run_cli("note", lid, "--recurred", "--evidence", fake)
+        self.assertEqual(rc, 1)
+        self.assertIn("no .log files", err)
+        self.jref(4)
+        rc, _o, err = self.run_cli("note", lid, "--recurred", "--evidence", fake)
+        self.assertEqual(rc, 1)
+        self.assertIn("names no line of the journal", err)
+        self.assertEqual(self.record(lid).fm["recurred"], 0)
+        self.ok("note", lid, "--evidence", fake)   # without --recurred it is plain evidence
+
+    # 3 -- deletions, renames and copies cannot leave bundles/
+    def test_diff_headers_checked(self):
+        deletion = ("diff --git a/tools/gate/private-ids.sh b/tools/gate/private-ids.sh\ndeleted file mode 100755\n"
+                    "--- a/tools/gate/private-ids.sh\n+++ /dev/null\n@@ -1,2 +0,0 @@\n-#!/bin/sh\n-exit 0\n")
+        rename = ("diff --git a/bundles/core/guard.d/20-core.sh b/tests/20-core.sh\nsimilarity index 100%\n"
+                  "rename from bundles/core/guard.d/20-core.sh\nrename to tests/20-core.sh\n")
+        copy = ("diff --git a/bundles/core/rules/10-core.md b/docs/x.md\nsimilarity index 100%\n"
+                "copy from bundles/core/rules/10-core.md\ncopy to docs/x.md\n")
+        tricky = ("--- a/bundles/core/rules/10-core.md\n+++ b/bundles/core/rules/10-core.md\n@@ -1,2 +1,1 @@\n"
+                  " keep\n---- a/README.md\n")
+        for text in (deletion, rename, copy):
+            self.assertIn("outside bundles/", self.refused_new("--evidence", "user:x", "--edit", self.diff_file(text)))
+        files, paths = L.parse_diff(tricky)   # a removed "--- a/README.md" line inside a hunk is not a header
+        self.assertEqual((files, paths), ([("bundles/core/rules/10-core.md", 0, 1)], ["bundles/core/rules/10-core.md"]))
+
+    def test_validate_refuses_paths_outside_bundles(self):
+        lid = self.new(extra=["--edit", os.path.join(LFIX, "edit.diff")])
+        deletion = ("diff --git a/tools/gate/private-ids.sh b/tools/gate/private-ids.sh\ndeleted file mode 100755\n"
+                    "--- a/tools/gate/private-ids.sh\n+++ /dev/null\n@@ -1 +0,0 @@\n-x\n")
+        with open(os.path.join(self.ldir, "patches", lid + ".diff"), "w") as fh:
+            fh.write(deletion)   # swapped after `new`: validate checks again
+        rc, _o, err = self.run_cli("validate", lid)
+        self.assertEqual(rc, 1)
+        self.assertIn("outside bundles/", err)
+        os.unlink(os.path.join(self.ldir, "patches", lid + ".diff"))
+        rc, _o, err = self.run_cli("validate", lid)
+        self.assertEqual(rc, 1)
+        self.assertIn("patch file not found", err)
+
+    def test_applied_paths_from_git(self):
+        work = os.path.join(self.tmp, "work")
+        os.makedirs(work)
+        diff = self.diff_file("diff --git a/bundles/a/x.md b/docs/y.md\nsimilarity index 100%\n"
+                              "rename from bundles/a/x.md\nrename to docs/y.md\n"
+                              "diff --git a/tools/z.sh b/tools/z.sh\ndeleted file mode 100644\n"
+                              "--- a/tools/z.sh\n+++ /dev/null\n@@ -1 +0,0 @@\n-x\n")
+        env = L.validate_env(self.tmp, work, self.tmp)
+        paths = L.applied_paths(diff, work, env)
+        self.assertIn("docs/y.md", paths)
+        self.assertIn("tools/z.sh", paths)
+        self.assertIn("bundles/a/x.md", paths)
+
+    # 4 -- heading-like text, round-trip on write, one bad record never breaks the library
+    def test_heading_text_and_bad_records(self):
+        self.assertIn("Markdown heading", self.refused_new("--evidence", "user:x", "--situation", "## History"))
+        self.assertIn("Markdown heading", self.refused_new("--evidence", "user:x", "--lesson", "# note"))
+        lid = self.new()
+        rec = self.record(lid)
+        rec.sections["Lesson"] = ["fine", "## History", "- 2026-01-01 forged"]
+        with self.assertRaises(L.LessonError):
+            L.save(self.ldir, rec)
+        self.assertEqual(self.record(lid).sections["Lesson"], [])
+        b = self.new()
+        with open(os.path.join(self.ldir, b + ".md"), "a") as fh:
+            fh.write("## History\n")
+        shutil.copy(os.path.join(self.ldir, lid + ".md"), os.path.join(self.ldir, "base-007.md"))
+        rc, out, err = self.run_cli("list")
+        self.assertEqual(rc, 0)
+        self.assertIn(lid, out)
+        self.assertIn("%s  unreadable" % b, out)
+        self.assertIn("base-007  unreadable", out)
+        self.assertIn("duplicate section", err)
+        self.assertIn("differs from the file name", err)
+        self.ok("index", "--now", "2026-10-26T00:00:00Z")
+        rc, _o, err = self.run_cli("show", "base-007")
+        self.assertEqual(rc, 1)
+
+    # 5 -- dotfiles repositories in HOME, relative dirs, a hint that works
+    def test_home_dotfiles_repo_and_relative_dir(self):
+        os.makedirs(os.path.join(self.home, ".git"))
+        os.environ["XDG_STATE_HOME"] = os.path.join(self.home, ".local", "state")
+        self.assertEqual(self.new(), "base-001")   # the default state dir is exempt
+        self.write_config('[lessons]\ndir = "%s"\n' % os.path.join(self.home, "notes", "lessons"))
+        rc, _o, err = self.run_cli("list")
+        self.assertEqual(rc, 1)
+        self.assertIn("inside the git checkout %s" % self.home, err)
+        self.assertIn("e.g. %s" % os.path.join(self.home, ".local", "state", "harness", "lessons"), err)
+        self.write_config('[lessons]\ndir = "notes/lessons"\n')
+        rc, _o, err = self.run_cli("list")
+        self.assertEqual(rc, 1)
+        self.assertIn("is relative", err)
+
+    # 6 -- redaction leaves paths alone; the private-identifier gate runs on the draft
+    def test_redaction_and_gate(self):
+        out_dir = os.path.join(self.tmp, "p")
+        lid = self.new(domain="scm", scope="domain", situation="core pushes broke core/guard.d/30-git rows",
+                       evidence=["user:in core again"])
+        self.ok("confirm", lid)
+        self.ok("note", lid, "--evidence", self.jref(3).replace(" shop", " core"))
+        self.ok("propose", lid, "--out", out_dir, "--repo", "octocat/hub")
+        with open(os.path.join(out_dir, "body.md"), encoding="utf-8") as fh:
+            body = fh.read()
+        self.assertIn("<repo> pushes broke core/guard.d/30-git rows", body)
+        self.assertIn("in <repo> again", body)
+        lid2 = self.new(domain="scm", scope="domain", situation="copied it from " + "/ho" + "me/alice to the share",
+                        evidence=["user:x"])
+        self.ok("confirm", lid2)
+        out2 = os.path.join(self.tmp, "p2")
+        rc, _o, err = self.run_cli("propose", lid2, "--out", out2, "--repo", "octocat/hub")
+        self.assertEqual(rc, 1)
+        self.assertIn("private-ids.sh flags the draft", err)
+        self.assertEqual(os.listdir(out2), [])
+
+    # 7 -- a diff with backticks keeps its fence
+    def test_fence_longer_than_backticks(self):
+        diff = ("--- a/bundles/core/skills/demo/SKILL.md\n+++ b/bundles/core/skills/demo/SKILL.md\n"
+                "@@ -1,3 +1,4 @@\n ```sh\n+harness lessons review\n bin/harness test\n ```\n")
+        lid = self.new(extra=["--edit", self.diff_file(diff)])
+        self.ok("confirm", lid)
+        files = L.propose_files(self.record(lid), "github-issues", "octocat/hub", "agent-drafted", False, diff)
+        self.assertIn("\n````diff\n", files["body.md"])
+        self.assertIn(" ```\n````\n", files["body.md"])
+
+    # 8 -- closing keyword variants
+    def test_closing_variants(self):
+        for text in ("Fixes:#1", "**Fixes** #1", "closes#2", "Resolves: octocat/hub#3"):
+            self.assertTrue(L.CLOSING_RE.search(text), text)
+        for text in ("fixes utf-8 handling", "fix the parser", "see #3"):
+            self.assertFalse(L.CLOSING_RE.search(text), text)
+
+    # 9 -- --out never inside a checkout
+    def test_out_dir_checked(self):
+        lid = self.new()
+        self.ok("confirm", lid)
+        repo = os.path.join(self.tmp, "repo")
+        os.makedirs(os.path.join(repo, ".git"))
+        rc, _o, err = self.run_cli("propose", lid, "--out", os.path.join(repo, "draft"), "--repo", "octocat/hub")
+        self.assertEqual(rc, 1)
+        self.assertIn("--out", err)
+        self.assertFalse(os.path.exists(os.path.join(repo, "draft")))
+
+    # 10 -- validate never inherits tokens or harness settings
+    def test_validate_env_allow_list(self):
+        src = {"PATH": "/usr/bin", "LC_ALL": "C", "LANG": "C.UTF-8", "GH_TOKEN": "t", "GITLAB_TOKEN": "t",
+               "HARNESS_LESSONS_JOURNAL": "true", "HARNESS_BUNDLES_ROOT": "/x", "GIT_DIR": "/x/.git",
+               "SSH_AUTH_SOCK": "/s", "AWS_PROFILE": "p"}
+        env = L.validate_env("/t", "/t/hub", "/t/build", src)
+        for k in ("GH_TOKEN", "GITLAB_TOKEN", "HARNESS_LESSONS_JOURNAL", "HARNESS_BUNDLES_ROOT", "GIT_DIR",
+                  "SSH_AUTH_SOCK", "AWS_PROFILE"):
+            self.assertNotIn(k, env)
+        self.assertEqual((env["PATH"], env["LC_ALL"], env["HOME"], env["HARNESS_HOME"]),
+                         ("/usr/bin", "C", "/t/home", "/t/hub"))
+        self.assertEqual((env["GIT_CONFIG_GLOBAL"], env["GIT_CONFIG_NOSYSTEM"], env["XDG_CONFIG_HOME"]),
+                         ("/dev/null", "1", "/t/config"))
+        self.assertEqual(sorted(k for k in env if k.startswith("HARNESS_")),
+                         ["HARNESS_BUILD_DIR", "HARNESS_CONFIG", "HARNESS_HOME"])
+
+    # 11 -- exclusive create retries the next id
+    def test_new_retries_on_taken_id(self):
+        self.new()
+        real = L.next_id
+        calls = []
+
+        def stale_first(d, domain):
+            calls.append(1)
+            return "base-001" if len(calls) == 1 else real(d, domain)
+
+        L.next_id = stale_first
+        try:
+            self.assertEqual(self.new(), "base-002")
+        finally:
+            L.next_id = real
+        self.assertEqual(len(calls), 2)
+
+    # 12 -- --ack loses nothing stamped in the same second
+    def test_ack_same_second(self):
+        t = "2026-10-26T09:00:00Z"
+        self.journal([jl(t, "s1", "guard-deny", "guard_section_core_20_core:8", "g")] * 2)
+        self.ok("journal", "--ack")
+        self.journal([jl(t, "s1", "guard-deny", "guard_section_core_20_core:8", "g")])
+        data = json.loads(self.ok("journal", "--json"))
+        self.assertEqual(data["lines"], 1)
+        self.ok("journal", "--ack")
+        self.assertEqual(json.loads(self.ok("journal", "--json"))["lines"], 0)
+        self.ok("journal", "--ack")   # nothing shown: a timestamp taken before reading
+        with open(os.path.join(os.environ["HARNESS_RETRO_DIR"], "last")) as fh:
+            self.assertRegex(fh.read(), r"^[0-9-]{10}T[0-9:]{8}Z\t0\n$")
+
+    # 13 -- review errors are rc 4, never "not due"
+    def test_review_error_rc4(self):
+        self.journal([jl("2026-10-26T09:00:00Z", "s1", "guard-deny", "guard_section_core_20_core:8", "g")])
+        self.write_config('[lessons.review]\ndenies = "many"\n')
+        rc, _o, err = self.run_cli("review", "--session", "s1")
+        self.assertEqual(rc, 4)
+        self.assertIn("lessons review", err)
+        with open(self.cfg, "w") as fh:
+            fh.write("not toml [")
+        self.assertEqual(self.run_cli("review", "--session", "s1")[0], 4)
 
 
 if __name__ == "__main__":

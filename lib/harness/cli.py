@@ -258,10 +258,10 @@ LESSONS_HELP = [
     ("note", "deferred probing: count a use, a help or a recurrence; --recurred with a journal: ref is objective"),
     ("confirm", "human: confirm a candidate or recurring lesson"),
     ("retire", "human: retire a lesson"),
-    ("review", "is a retro due for this session? rc 0 due, 1 not due, 3 no journal / no session / no lines"),
+    ("review", "is a retro due for this session? rc 0 due, 1 not due, 3 no journal / no session / no lines, 4 error"),
     ("stats", "asks, denies and corrections per session before and after each lesson (one table)"),
     ("validate", "apply a lesson's candidate edit to a copy of the hub's HEAD and run lint, tests and render"),
-    ("propose", "render body.md, preview.md and create.sh for an issue (never runs create.sh)"),
+    ("propose", "render body.md, preview.md and create.sh for an issue (never runs create.sh; no #N in the title)"),
     ("index", "rewrite INDEX.md (grouped by domain, candidates capped)"),
     ("journal", "group guard-journal lines since the last retro by kind and rule site"),
 ]
@@ -305,7 +305,8 @@ def _lessons_parser(p: argparse.ArgumentParser, g: argparse.ArgumentParser) -> N
     q.add_argument("id", metavar="ID")
     q.add_argument("--used", action="store_true", help="the lesson was consulted")
     q.add_argument("--helped", action="store_true", help="it helped (subjective; never promotes)")
-    q.add_argument("--recurred", action="store_true", help="the situation recurred (objective with a journal: --evidence)")
+    q.add_argument("--recurred", action="store_true",
+                   help="the situation recurred; objective only with a new journal: --evidence that is a line of the journal")
     q.add_argument("--evidence", action="append", metavar="REF", help="KIND:TEXT evidence ref (repeatable)")
     q.add_argument("--note", metavar="TEXT", help="free text for the History line (<= 200 chars)")
     date(q)
@@ -329,7 +330,8 @@ def _lessons_parser(p: argparse.ArgumentParser, g: argparse.ArgumentParser) -> N
     q.add_argument("--now", metavar="TS", help="timestamp for validated_at (default: now, UTC)")
     q = add("propose")
     q.add_argument("id", metavar="ID")
-    q.add_argument("--out", required=True, metavar="DIR", help="where body.md, preview.md and create.sh go")
+    q.add_argument("--out", required=True, metavar="DIR",
+                   help="where body.md, preview.md and create.sh go (never inside a git checkout)")
     q.add_argument("--repo", metavar="OWNER/REPO", help="GitHub repository for the issue (default: from the hub checkout)")
     q.add_argument("--keep-repos", action="store_true", help="keep repository names from evidence (default: <repo>)")
     q.add_argument("--mark", action="store_true", help="set status proposed (after the issue exists)")
@@ -340,7 +342,8 @@ def _lessons_parser(p: argparse.ArgumentParser, g: argparse.ArgumentParser) -> N
     q = add("journal")
     q.add_argument("--all", action="store_true", help="every line, not only those since <retro dir>/last")
     q.add_argument("--since", metavar="TS", help="lines after TS (date or ISO UTC)")
-    q.add_argument("--ack", action="store_true", help="write <retro dir>/last = now and prune old retro/sessions markers")
+    q.add_argument("--ack", action="store_true",
+                   help="mark the lines shown as seen in <retro dir>/last and prune old retro/sessions markers")
 
 
 class Ctx:

@@ -102,14 +102,19 @@ LESSON_SCHEMA: Dict[str, Any] = {
 }
 
 # token shapes (config.looks_like_secret_value is the shared detector) and URL userinfo
-_USERINFO = re.compile(r"://[^/\s:@]+:[^/\s@]+@")
+_USERINFO = re.compile(r"://[^/\s@]+@")   # any userinfo: user:password@, token@, user@
+_SUBPARTS = re.compile(r"://|[@:/=]")
 _UUID = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 _HEX = re.compile(r"^[0-9a-f]{7,64}$")
 _IDENT = re.compile(r"^[a-z][a-z0-9]*([_.-][a-z0-9]+)+$")
+# keyword, optional markup (**Fixes**), optional colon, optional space, then an issue reference;
+# a Jira key is matched case-sensitively so "fixes utf-8" is not one
 CLOSING_RE = re.compile(
-    r"\b(close[sd]?|fix(e[sd])?|resolve[sd]?|implement(s|ed)?)\b\s*:?\s+"
-    r"(#[0-9]+|[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+#[0-9]+|https?://\S+/(issues|pull|merge_requests)/[0-9]+|[A-Z][A-Z0-9_]*-[0-9]+)",
+    r"\b(close[sd]?|fix(e[sd])?|resolve[sd]?|implement(s|ed)?)\b(\*\*|__)?\s*:?\s*"
+    r"(#[0-9]+|[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+#[0-9]+|https?://\S+/(issues|pull|merge_requests)/[0-9]+"
+    r"|(?-i:[A-Z][A-Z0-9_]*-[0-9]+))",
     re.I)
+HEADING_RE = re.compile(r"^#{1,6}(\s|$)")
 ISSUE_REF_RE = re.compile(r"(^|[^&A-Za-z0-9])#[0-9]+")
 OWNER_REPO_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 
@@ -166,16 +171,21 @@ def secret_reason(text: str) -> Optional[str]:
     from .config import _TOKEN_PREFIX, looks_like_secret_value
 
     if _USERINFO.search(text or ""):
-        return "contains URL userinfo (a user name and password before @ in a URL); drop the credential part"
+        return ("contains URL userinfo (a user name, token or password before @ in a URL); "
+                "drop the credential part")
     for raw in (text or "").split():
         word = raw.strip("\"'`()[]{}<>,;")
-        for part in [word] + word.split("=")[1:]:
+        if word and _TOKEN_PREFIX.match(word):
+            return "contains a token-shaped string (%s...); never record a secret" % word[:4]
+        # the parts of URLs, user@host, key=value and paths are tested on their own
+        for part in _SUBPARTS.split(word):
+            part = part.strip("\"'`()[]{}<>,;.")
             if not part:
                 continue
             if not _TOKEN_PREFIX.match(part):
                 if _UUID.match(part) or _HEX.match(part):
                     continue   # session ids and git object ids are not secrets
-                if _IDENT.match(part) and max(len(s) for s in re.split(r"[_.-]", part)) <= 16:
+                if _IDENT.match(part) and max(len(x) for x in re.split(r"[_.-]", part)) <= 16:
                     continue   # snake/kebab identifiers (guard_section_core_20_credentials)
                 if not looks_like_secret_value(part):
                     continue
@@ -187,6 +197,9 @@ def check_text(field: str, text: str, cap: int) -> str:
     text = one_line(text)
     if len(text) > cap:
         raise LessonError("%s is %d characters; the cap is %d: shorten it" % (field, len(text), cap))
+    if HEADING_RE.match(text):
+        raise LessonError("%s starts like a Markdown heading (%r); records use headings for their "
+                          "sections: reword it" % (field, text[:20]))
     why = secret_reason(text)
     if why:
         raise LessonError("%s %s" % (field, why))
@@ -205,16 +218,29 @@ def cfg(hub: Any, key: str) -> Any:
 
 
 def lessons_dir(hub: Any) -> str:
-    raw = cfg(hub, "lessons.dir") or ""
-    return os.path.abspath(os.path.expanduser(raw)) if raw else os.path.join(state_dir(), "lessons")
+    raw = str(cfg(hub, "lessons.dir") or "")
+    if not raw:
+        return os.path.join(state_dir(), "lessons")
+    full = os.path.expanduser(raw)
+    if not os.path.isabs(full):
+        raise LessonError("lessons.dir %r is relative: it would resolve against the current directory, "
+                          "which is usually a checkout; use an absolute path or ~/... (or leave it empty "
+                          "for %s)" % (raw, os.path.join(state_dir(), "lessons")))
+    return os.path.normpath(full)
+
+
+def _env_dir(name: str, leaf: str) -> str:
+    """Same rule as engine.sh: $NAME, else <state>/harness/<leaf>; a relative result is '' (off)."""
+    d = os.environ.get(name) or os.path.join(state_dir(), leaf)
+    return d if os.path.isabs(d) else ""
 
 
 def journal_dir() -> str:
-    return os.environ.get("HARNESS_JOURNAL_DIR") or os.path.join(state_dir(), "journal")
+    return _env_dir("HARNESS_JOURNAL_DIR", "journal")
 
 
 def retro_dir() -> str:
-    return os.environ.get("HARNESS_RETRO_DIR") or os.path.join(state_dir(), "retro")
+    return _env_dir("HARNESS_RETRO_DIR", "retro")
 
 
 def _git_checkout_of(path: str) -> Optional[str]:
@@ -229,18 +255,46 @@ def _git_checkout_of(path: str) -> Optional[str]:
         cur = parent
 
 
-def check_dir(path: str, home: str) -> None:
-    """Refuse a lessons directory under the hub checkout or inside any git checkout."""
+def _under(path: str, base: str) -> bool:
+    base = base.rstrip("/")
+    return path == base or path.startswith(base + "/")
+
+
+def dir_problem(path: str, home: str) -> Optional[str]:
+    """Why ``path`` may not hold lessons or proposals (under the hub, inside a checkout), else None.
+
+    ``$HOME``'s own ``.git`` (a dotfiles repository) is ignored for paths under the XDG state
+    directory, which such repositories do not track."""
     real = os.path.realpath(path)
     hub = os.path.realpath(home)
-    hint = ("lessons stay on this workstation and never enter a repository: set lessons.dir in "
-            "harness.toml to a directory outside every git checkout, or leave it empty for the "
-            "default %s" % os.path.join(state_dir(), "lessons"))
-    if real == hub or real.startswith(hub.rstrip("/") + "/"):
-        raise LessonError("lessons.dir %s is under the hub checkout %s; %s" % (path, home, hint))
+    if _under(real, hub):
+        return "is under the hub checkout %s" % home
     top = _git_checkout_of(path)
     if top:
-        raise LessonError("lessons.dir %s is inside the git checkout %s; %s" % (path, top, hint))
+        user = os.path.realpath(os.path.expanduser("~"))
+        state = os.path.realpath(os.environ.get("XDG_STATE_HOME") or os.path.join(user, ".local", "state"))
+        if top == user and _under(real, state):
+            return None
+        return "is inside the git checkout %s" % top
+    return None
+
+
+def _dir_hint(home: str) -> str:
+    for cand in (os.path.join(state_dir(), "lessons"),
+                 os.path.join(os.path.expanduser("~"), ".local", "state", "harness", "lessons")):
+        if dir_problem(cand, home) is None:
+            return "set lessons.dir to an absolute directory outside every git checkout, e.g. %s" % cand
+    return ("set lessons.dir to an absolute directory outside the hub and every git checkout "
+            "(the default %s is inside one here)" % os.path.join(state_dir(), "lessons"))
+
+
+def check_dir(path: str, home: str, what: str = "lessons.dir") -> None:
+    """Refuse a lessons directory under the hub checkout or inside any git checkout."""
+    why = dir_problem(path, home)
+    if why:
+        raise LessonError("%s %s %s; lessons stay on this workstation and never enter a repository: %s"
+                          % (what, path, why, _dir_hint(home) if what == "lessons.dir" else
+                             "pass a directory outside the hub and every git checkout"))
 
 
 # ================================================================= records
@@ -386,22 +440,62 @@ def load(d: str, lid: str) -> Lesson:
     text = read_text(path)
     if text is None:
         raise LessonError("no lesson %s in %s (`harness lessons list` shows the ids)" % (lid, d))
-    return parse(text, path)
+    rec = parse(text, path)
+    if rec.id != lid:
+        raise LessonError("%s: front matter id %s differs from the file name %s; records are renamed by "
+                          "nobody: restore the id or retire the record" % (path, rec.id, lid))
+    return rec
 
 
-def load_all(d: str) -> List[Lesson]:
+def load_all(d: str, bad: Optional[List[Tuple[str, str]]] = None) -> List[Lesson]:
+    """Every readable record. A record that does not parse is skipped, never fatal: it goes to
+    ``bad`` as (id, reason) when a list is given, else one line on stderr."""
+    import sys
+
     out = []
     for path in sorted(glob.glob(os.path.join(d, "*.md"))):
-        if not ID_RE.match(os.path.basename(path)[:-3]):
+        lid = os.path.basename(path)[:-3]
+        if not ID_RE.match(lid):
             continue
-        out.append(parse(read_text(path) or "", path))
+        try:
+            out.append(load(d, lid))
+        except LessonError as exc:
+            if bad is not None:
+                bad.append((lid, str(exc)))
+            else:
+                print("harness: skipping unreadable lesson %s: %s" % (path, exc), file=sys.stderr)
     return out
 
 
-def save(d: str, lesson: Lesson) -> str:
+def _checked(lesson: Lesson) -> bytes:
+    """dump() after the round-trip invariant: what is written parses back to the same bytes."""
     validate_fm(lesson.fm, lesson.id)
+    text = dump(lesson)
+    try:
+        again = dump(parse(text, lesson.id))
+    except LessonError as exc:
+        raise LessonError("%s: refusing to write a record that would not parse back (%s)" % (lesson.id, exc))
+    if again != text:
+        raise LessonError("%s: refusing to write a record that would not round-trip; check the text "
+                          "for heading-like or blank-padded lines" % lesson.id)
+    return text.encode("utf-8")
+
+
+def save(d: str, lesson: Lesson) -> str:
+    data = _checked(lesson)
     path = record_path(d, lesson.id)
-    atomic_write(path, dump(lesson).encode("utf-8"), mode=0o600)
+    atomic_write(path, data, mode=0o600)
+    return path
+
+
+def create(d: str, lesson: Lesson) -> str:
+    """Write a new record; FileExistsError when the id is already taken (O_CREAT | O_EXCL)."""
+    data = _checked(lesson)
+    path = record_path(d, lesson.id)
+    os.makedirs(d, mode=0o700, exist_ok=True)
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(fd, "wb") as fh:
+        fh.write(data)
     return path
 
 
@@ -426,40 +520,158 @@ def evidence_line(ref: str) -> str:
 
 # ----------------------------------------------------------------- candidate edits
 
-def diff_files(diff: str) -> List[Tuple[str, int, int]]:
-    """(path, added, removed) per file of a unified diff; paths without a/ b/ prefixes."""
+_HUNK = re.compile(r"^@@ -[0-9]+(?:,([0-9]+))? \+[0-9]+(?:,([0-9]+))? @@")
+
+
+def _strip_ab(p: str) -> str:
+    p = p.split("\t")[0].strip()
+    if p.startswith('"') and p.endswith('"'):
+        p = p[1:-1]
+    return p[2:] if p.startswith(("a/", "b/")) else p
+
+
+def parse_diff(diff: str) -> Tuple[List[Tuple[str, int, int]], List[str]]:
+    """(files, paths) of a git unified diff.
+
+    ``files`` is (path, added, removed) per file; ``paths`` is every path any header names:
+    ``diff --git a/X b/Y``, ``---``, ``+++``, ``rename|copy from|to`` and binary headers, so a
+    deletion (``+++ /dev/null``), a rename or a copy cannot hide a path. Hunk bodies are
+    consumed by their line counts, so a removed line that starts with ``--`` is never a header.
+    """
     files: List[List[Any]] = []
+    paths: List[str] = []
     cur: Optional[List[Any]] = None
-    for ln in diff.splitlines():
-        if ln.startswith("+++ "):
-            p = ln[4:].split("\t")[0].strip()
-            if p == "/dev/null":
-                p = cur[0] if cur else p
-            elif p.startswith("b/"):
-                p = p[2:]
-            cur = [p, 0, 0]
+    old = ""
+    lines = diff.splitlines()
+    i = 0
+
+    def add(p: str) -> None:
+        if p and p != "/dev/null" and p not in paths:
+            paths.append(p)
+
+    while i < len(lines):
+        ln = lines[i]
+        i += 1
+        if ln.startswith("diff --git "):
+            m = re.match(r"^diff --git (\S+) (\S+)$", ln)
+            if not m:
+                raise LessonError("--edit: unparsable header %r (paths with spaces are not supported)" % ln[:80])
+            a, b = _strip_ab(m.group(1)), _strip_ab(m.group(2))
+            add(a)
+            add(b)
+            cur = [b, 0, 0]
             files.append(cur)
+            old = a
         elif ln.startswith("--- "):
-            continue
-        elif cur is not None and ln.startswith("+"):
-            cur[1] += 1
-        elif cur is not None and ln.startswith("-"):
-            cur[2] += 1
-    return [(f[0], f[1], f[2]) for f in files]
+            old = _strip_ab(ln[4:])
+            add(old)
+        elif ln.startswith("+++ "):
+            p = _strip_ab(ln[4:])
+            add(p)
+            p = old if p == "/dev/null" else p
+            if cur is None or cur[0] not in (p, old):
+                cur = [p, 0, 0]
+                files.append(cur)
+            else:
+                cur[0] = p
+        elif re.match(r"^(rename|copy) (from|to) ", ln):
+            add(ln.split(" ", 2)[2].strip())
+        elif ln.startswith("Binary files "):
+            m = re.match(r"^Binary files (\S+) and (\S+) differ$", ln)
+            if m:
+                add(_strip_ab(m.group(1)))
+                add(_strip_ab(m.group(2)))
+        elif ln.startswith("GIT binary patch"):
+            raise LessonError("--edit: binary patches are not candidate edits; guides and sensors are text")
+        elif ln.startswith("@@ "):
+            m = _HUNK.match(ln)
+            if not m:
+                raise LessonError("--edit: unparsable hunk header %r" % ln[:80])
+            n_old = int(m.group(1)) if m.group(1) is not None else 1
+            n_new = int(m.group(2)) if m.group(2) is not None else 1
+            if cur is None:
+                cur = [old, 0, 0]
+                files.append(cur)
+            while (n_old > 0 or n_new > 0) and i < len(lines):
+                body = lines[i]
+                i += 1
+                if body.startswith("\\"):
+                    continue
+                if body.startswith("+"):
+                    cur[1] += 1
+                    n_new -= 1
+                elif body.startswith("-"):
+                    cur[2] += 1
+                    n_old -= 1
+                else:
+                    n_old -= 1
+                    n_new -= 1
+    return [(f[0], f[1], f[2]) for f in files if f[0]], paths
+
+
+def diff_files(diff: str) -> List[Tuple[str, int, int]]:
+    return parse_diff(diff)[0]
+
+
+def path_problem(path: str) -> Optional[str]:
+    parts = path.split("/")
+    if path.startswith("/") or ".." in parts or not path.startswith("bundles/") or len(parts) < 3:
+        return ("%s is outside bundles/; a candidate edit changes a guide and its sensor inside one or "
+                "more bundles only" % path)
+    return None
 
 
 def check_diff(diff: str) -> List[Tuple[str, int, int]]:
-    files = diff_files(diff)
-    if not files or "\n@@ " not in "\n" + diff:
+    files, paths = parse_diff(diff)
+    if not files or not paths or ("\n@@ " not in "\n" + diff and "\ndiff --git " not in "\n" + diff):
         raise LessonError("--edit: not a unified diff (git diff output against the hub root expected)")
-    for path, _a, _r in files:
-        if not path.startswith("bundles/") or ".." in path.split("/"):
-            raise LessonError("--edit: %s is outside bundles/; a candidate edit changes a guide and its "
-                              "sensor inside one or more bundles only" % path)
+    for path in paths:
+        why = path_problem(path)
+        if why:
+            raise LessonError("--edit: %s" % why)
     why = secret_reason(diff)
     if why:
         raise LessonError("--edit %s" % why)
     return files
+
+
+def _expand_rename(text: str) -> List[str]:
+    """``pre/{a => b}/post`` or ``a => b`` (git's rename notation) -> both paths."""
+    m = re.match(r"^(.*)\{(.*) => (.*)\}(.*)$", text)
+    if m:
+        return [re.sub("//+", "/", m.group(1) + x + m.group(4)) for x in (m.group(2), m.group(3))]
+    return [x.strip() for x in text.split(" => ")]
+
+
+def applied_paths(diff_path: str, cwd: str, env: Optional[Dict[str, str]] = None) -> List[str]:
+    """Every path ``git apply --numstat --summary`` says the patch touches (nothing is applied)."""
+    rc, out = _run_step(["git", "apply", "--numstat", "--summary", os.path.abspath(diff_path)], cwd, env, 120,
+                        whole=True)
+    if rc != 0:
+        raise LessonError("validate: git apply --numstat refused the patch: %s" % one_line(out)[:200])
+    paths: List[str] = []
+    for ln in out.splitlines():
+        if not ln.strip():
+            continue
+        if "\t" in ln:
+            got = _expand_rename(ln.split("\t", 2)[2])
+        else:
+            t = ln.strip()
+            m = re.match(r"^(create|delete) mode [0-7]+ (.+)$", t)
+            m2 = re.match(r"^mode change [0-7]+ => [0-7]+ (.+)$", t)
+            m3 = re.match(r"^(rename|copy) (.+?)(?: \([0-9]+%\))?$", t)
+            if m:
+                got = [m.group(2)]
+            elif m2:
+                got = [m2.group(1)]
+            elif m3:
+                got = _expand_rename(m3.group(2))
+            else:
+                got = [t]   # unknown summary line: checked as a path, so it fails closed
+        for p in got:
+            if p not in paths:
+                paths.append(p)
+    return paths
 
 
 def edit_text(rel: str, files: Sequence[Tuple[str, int, int]]) -> List[str]:
@@ -516,7 +728,22 @@ def new_lesson(d: str, domain: str, scope: str, situation: str, guide_ref: str, 
         if diff is None:
             raise LessonError("--edit %s: no such file" % edit)
         files = check_diff(diff)
-    lid = next_id(d, domain)
+    for _attempt in range(100):
+        rec = _new_record(next_id(d, domain), scope, domain, bundles, guide_ref, sensor_ref, source, date,
+                          situation, ev, lesson, diff, files)
+        try:
+            create(d, rec)
+        except FileExistsError:
+            continue   # another writer took this id: take the next one
+        if diff is not None:
+            atomic_write(os.path.join(d, rec.fm["candidate_edit"]), diff.encode("utf-8"), mode=0o600)
+        return rec
+    raise LessonError("could not reserve a new id in %s after 100 attempts" % d)
+
+
+def _new_record(lid: str, scope: str, domain: str, bundles: Sequence[str], guide_ref: str, sensor_ref: str,
+                source: str, date: str, situation: str, ev: List[str], lesson: str, diff: Optional[str],
+                files: Sequence[Tuple[str, int, int]]) -> Lesson:
     rel = "patches/%s.diff" % lid if diff is not None else ""
     fm: "OrderedDict[str, Any]" = OrderedDict([
         ("id", lid), ("status", "candidate"), ("scope", scope), ("domain", domain),
@@ -528,12 +755,7 @@ def new_lesson(d: str, domain: str, scope: str, situation: str, guide_ref: str, 
         ("Situation", [situation]), ("Evidence", ev), ("Lesson", [lesson] if lesson else []),
         ("Candidate edit", edit_text(rel, files) if diff is not None else []), ("Validation", []),
         ("History", ["- %s created (source %s)" % (date, source)])])
-    rec = Lesson(fm, sections)
-    validate_fm(fm, lid)
-    if diff is not None:
-        atomic_write(os.path.join(d, rel), diff.encode("utf-8"), mode=0o600)
-    save(d, rec)
-    return rec
+    return Lesson(fm, sections)
 
 
 def note(d: str, rec: Lesson, promote_after: int, used: bool = False, helped: bool = False,
@@ -547,8 +769,18 @@ def note(d: str, rec: Lesson, promote_after: int, used: bool = False, helped: bo
     if not (used or helped or recurred or evidence or text):
         raise HarnessError("nothing to note: pass --used, --helped, --recurred, --evidence or --note", 2)
     text = check_text("--note", text, CAP_NOTE)
-    lines = ["- " + evidence_line(ref) for ref in evidence]
-    objective = recurred and any(ln.startswith("- journal: ") for ln in lines)
+    lines: List[str] = []
+    for ref in evidence:
+        ln = "- " + evidence_line(ref)
+        if ln not in lines:
+            lines.append(ln)
+    added = [ln for ln in lines if ln not in rec.sections["Evidence"]]
+    # only a journal line new to this record, of the journal's own shape and present in the
+    # journal, makes a recurrence objective: a repeated or invented ref never promotes
+    fresh = [ln for ln in added if ln.startswith("- journal: ")]
+    objective = False
+    if recurred and fresh:
+        objective = bool(verified_journal_refs(fresh))
     words: List[str] = []
     if used:
         rec.fm["uses"] += 1
@@ -561,7 +793,6 @@ def note(d: str, rec: Lesson, promote_after: int, used: bool = False, helped: bo
         if objective:
             rec.fm["recurred_objective"] += 1
         words.append("recurred (objective)" if objective else "recurred")
-    added = [ln for ln in lines if ln not in rec.sections["Evidence"]]
     rec.sections["Evidence"].extend(added)
     if added:
         words.append("evidence +%d" % len(added))
@@ -576,6 +807,33 @@ def note(d: str, rec: Lesson, promote_after: int, used: bool = False, helped: bo
         words.append("now recurring")
     save(d, rec)
     return words
+
+
+def journal_ref_fields(line: str) -> Optional[Tuple[str, ...]]:
+    """``- journal: ts provider session kind site guard_id repo`` -> the seven fields, else None."""
+    fields = tuple(line[len("- journal: "):].split())
+    if len(fields) != 7 or not re.match(_TS, fields[0]) or fields[3] not in JOURNAL_KINDS:
+        return None
+    return fields
+
+
+def verified_journal_refs(lines: Sequence[str]) -> List[str]:
+    """The journal evidence lines that name a line of the journal; refuses malformed ones."""
+    jdir = journal_dir()
+    for ln in lines:
+        if journal_ref_fields(ln) is None:
+            raise LessonError("--recurred evidence %r is not a journal line: an objective recurrence cites "
+                              "one line of `harness lessons journal` as journal:<ts> <provider> <session> "
+                              "<kind> <site> <guard_id> <repo>" % ln[2:])
+    if not jdir or not journal_files(jdir):
+        raise LessonError("--recurred with journal evidence needs the journal, but %s has no .log files; "
+                          "note the recurrence without a journal: ref (it stays subjective)" % (jdir or "the journal dir"))
+    have = {(j.ts, j.provider, j.session, j.kind, j.site, j.guard_id, j.repo) for j in journal_lines(jdir)}
+    for ln in lines:
+        if journal_ref_fields(ln) not in have:
+            raise LessonError("--recurred evidence %r names no line of the journal in %s; copy the line "
+                              "from <journal dir>/<date>.log (its tabs as spaces)" % (ln[2:], jdir))
+    return list(lines)
 
 
 def confirm(d: str, rec: Lesson, date: Optional[str] = None) -> None:
@@ -624,16 +882,19 @@ def index_text(lessons: Sequence[Lesson], now: str, max_age: int, index_max: int
         shown_c = cands[:max_candidates]
         more_c = len(cands) - len(shown_c)
         body: List[str] = []
+        cut = 0
         for r in settled + shown_c:
             if listed >= index_max:
                 unlisted += 1
+                cut += 1
                 continue
             listed += 1
             body.append("- %s · %s · %d/%d/%d · %s · %s" % (
                 r.id, r.status, r.fm["uses"], r.fm["helped"], r.fm["recurred"],
                 "stale" if is_stale(r, now, max_age) else "ready", r.situation))
-        if not body:
-            continue   # every lesson of the domain fell under the overall cap
+        if not body and cut:
+            unlisted += more_c   # the overall cap emptied the domain: its hidden candidates count too
+            continue
         if more_c:
             body.append("- %d more candidate(s): `harness lessons list --domain %s --status candidate`" % (more_c, domain))
         out += ["", "### %s" % domain, ""] + body
@@ -660,7 +921,8 @@ class JLine:
 
 
 def journal_files(jdir: Optional[str] = None) -> List[str]:
-    return sorted(glob.glob(os.path.join(jdir or journal_dir(), "*.log")))
+    d = journal_dir() if jdir is None else jdir
+    return sorted(glob.glob(os.path.join(d, "*.log"))) if d else []
 
 
 def journal_lines(jdir: Optional[str] = None) -> List[JLine]:
@@ -842,7 +1104,8 @@ def redact_repos(text: str, rec: Lesson) -> str:
             if len(fields) == 7 and fields[6] != "-":
                 names.add(fields[6])
     for name in sorted(names, key=lambda n: (-len(n), n)):
-        text = re.sub(r"(?<![A-Za-z0-9._/-])%s(?![A-Za-z0-9_-])" % re.escape(name), "<repo>", text)
+        # never inside a path or id: a repository named core leaves core/guard.d/... alone
+        text = re.sub(r"(?<![A-Za-z0-9._/-])%s(?![A-Za-z0-9_/-])" % re.escape(name), "<repo>", text)
     return text
 
 
@@ -870,7 +1133,8 @@ def propose_files(rec: Lesson, tracker: str, repo: Optional[str], label: str, ke
     body += rec.sections["Evidence"]
     body += ["", "## Candidate edit", ""]
     if diff:
-        body += ["```diff", diff.rstrip("\n"), "```"]
+        fence = "`" * max(3, max([len(r) for r in re.findall(r"`+", diff)] or [0]) + 1)
+        body += [fence + "diff", diff.rstrip("\n"), fence]
     else:
         body.append("(none: the issue asks for the guide and sensor change)")
     body += ["", "## Validation", ""]
@@ -913,6 +1177,21 @@ def propose_files(rec: Lesson, tracker: str, repo: Optional[str], label: str, ke
     return files
 
 
+def private_id_hits(home: str, paths: Sequence[str]) -> Optional[str]:
+    """The private-identifier gate's findings for ``paths`` (``--ci`` form: private text is never
+    echoed), or None when it is clean or the hub has no gate."""
+    gate = os.path.join(home, "tools", "gate", "private-ids.sh")
+    if not os.path.isfile(gate):
+        return None
+    env = dict(os.environ)
+    env["HARNESS_HOME"] = home
+    rc, out = _run_step(["bash", gate, "--ci", "--files"] + [os.path.abspath(p) for p in paths], home, env, 120,
+                        whole=True)
+    if rc == 0:
+        return None
+    return out.strip() or "gate exited %d" % rc
+
+
 def hub_tracker(home: str) -> Tuple[Optional[str], Optional[str]]:
     """(tracker, owner/repo) of the hub checkout: ``.harness.toml [repo] tracker`` and the
     GitHub owner/repo parsed from ``origin`` (the URL itself is never printed)."""
@@ -936,14 +1215,51 @@ def hub_tracker(home: str) -> Tuple[Optional[str], Optional[str]]:
 
 # ----------------------------------------------------------------- validate
 
-def _run_step(argv: Sequence[str], cwd: str, env: Dict[str, str], timeout: int = 1800) -> Tuple[int, str]:
+def _run_step(argv: Sequence[str], cwd: str, env: Optional[Dict[str, str]], timeout: int = 1800,
+              whole: bool = False) -> Tuple[int, str]:
+    """Run one step in its own process group (killed as a group on timeout); return (rc, last
+    non-empty output line), or the whole output with ``whole``."""
+    import signal
+
     try:
-        proc = subprocess.run(list(argv), cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                              stdin=subprocess.DEVNULL, timeout=timeout)
+        proc = subprocess.Popen(list(argv), cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                stdin=subprocess.DEVNULL, start_new_session=True)
+    except FileNotFoundError:
+        return 127, "%s: not found" % argv[0]
+    try:
+        out, _err = proc.communicate(timeout=timeout)
     except subprocess.TimeoutExpired:
+        try:
+            os.killpg(proc.pid, signal.SIGKILL)
+        except OSError:
+            proc.kill()
+        proc.communicate()
         return 124, "timed out after %ds" % timeout
-    lines = [ln for ln in proc.stdout.decode("utf-8", "replace").splitlines() if ln.strip()]
+    text = out.decode("utf-8", "replace")
+    if whole:
+        return proc.returncode, text
+    lines = [ln for ln in text.splitlines() if ln.strip()]
     return proc.returncode, (lines[-1].strip() if lines else "")
+
+
+VALIDATE_ENV_KEEP = ("PATH", "LANG", "TMPDIR", "TERM")
+
+
+def validate_env(tmp: str, hub: str, build: str, source: Optional[Dict[str, str]] = None) -> Dict[str, str]:
+    """The environment of every validate step: an allow-list (PATH, LANG, LC_*, TMPDIR, TERM)
+    plus isolation values pointing into ``tmp``. Tokens (GH_TOKEN, GITLAB_TOKEN, ...), every
+    HARNESS_* and GIT_* variable and the user's git and XDG configuration are never inherited."""
+    src = os.environ if source is None else source
+    env = {k: v for k, v in src.items() if k in VALIDATE_ENV_KEEP or k.startswith("LC_")}
+    env.update({
+        "HOME": os.path.join(tmp, "home"), "XDG_STATE_HOME": os.path.join(tmp, "state"),
+        "XDG_CACHE_HOME": os.path.join(tmp, "cache"), "XDG_DATA_HOME": os.path.join(tmp, "data"),
+        "XDG_CONFIG_HOME": os.path.join(tmp, "config"),
+        "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_NOSYSTEM": "1", "GIT_CEILING_DIRECTORIES": tmp,
+        "HARNESS_HOME": hub, "HARNESS_BUILD_DIR": build,
+        "HARNESS_CONFIG": os.path.join(hub, "tests", "fixtures", "harness.ci.toml"),
+        "PYTHONPATH": os.path.join(hub, "lib")})
+    return env
 
 
 def validate_edit(home: str, diff_path: str, quick: bool = False, full: bool = False,
@@ -954,9 +1270,9 @@ def validate_edit(home: str, diff_path: str, quick: bool = False, full: bool = F
     """
     import sys
 
-    from .test import suite_env
-
-    diff = read_text(diff_path) or ""
+    diff = read_text(diff_path)
+    if diff is None:
+        raise LessonError("validate: patch file not found: %s" % diff_path)
     files = check_diff(diff)
     tmp = tempfile.mkdtemp(prefix="harness-lessons-validate-")
     steps: List[Tuple[str, bool, str]] = []
@@ -965,9 +1281,11 @@ def validate_edit(home: str, diff_path: str, quick: bool = False, full: bool = F
         hub = os.path.join(tmp, "hub")
         os.makedirs(hub)
         tar = os.path.join(tmp, "hub.tar")
-        env0 = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
-        rc = subprocess.call(["git", "-C", home, "archive", "--format=tar", "-o", tar, "HEAD"],
-                             env=env0, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        build = os.path.join(tmp, "build")
+        for sub in ("build", "home", "state", "cache", "data", "config"):
+            os.makedirs(os.path.join(tmp, sub))
+        env = validate_env(tmp, hub, build)
+        rc, _out = _run_step(["git", "-C", home, "archive", "--format=tar", "-o", tar, "HEAD"], tmp, env, 300)
         if rc != 0:
             raise LessonError("validate: `git archive HEAD` failed in %s (the hub must be a git checkout)" % home)
         with tarfile.open(tar) as tf:
@@ -976,23 +1294,15 @@ def validate_edit(home: str, diff_path: str, quick: bool = False, full: bool = F
                 tf.extractall(hub, filter="data")
             else:
                 tf.extractall(hub)
-        env0["GIT_CEILING_DIRECTORIES"] = tmp
-        rc, out = _run_step(["git", "apply", "--whitespace=nowarn", os.path.abspath(diff_path)], hub, env0, 120)
+        # git's own reading of the patch: every path it would touch must be under bundles/
+        for p in applied_paths(diff_path, hub, env):
+            why = path_problem(p)
+            if why:
+                raise LessonError("validate: git apply --numstat --summary lists %s" % why)
+        rc, out = _run_step(["git", "apply", "--whitespace=nowarn", os.path.abspath(diff_path)], hub, env, 120)
         steps.append(("apply", rc == 0, out or ("applied" if rc == 0 else "failed")))
         if rc != 0:
             return False, steps, gid
-        build = os.path.join(tmp, "build")
-        fake_home = os.path.join(tmp, "home")
-        os.makedirs(build)
-        os.makedirs(fake_home)
-        env = suite_env(hub, build)
-        env.update({"HOME": fake_home, "XDG_STATE_HOME": os.path.join(tmp, "state"),
-                    "XDG_CACHE_HOME": os.path.join(tmp, "cache"), "XDG_DATA_HOME": os.path.join(tmp, "data"),
-                    "HARNESS_CONFIG": os.path.join(hub, "tests", "fixtures", "harness.ci.toml"),
-                    "PYTHONPATH": os.path.join(hub, "lib"), "GIT_CEILING_DIRECTORIES": tmp})
-        for k in ("HARNESS_BUNDLES_ROOT", "HARNESS_BUNDLE_PATH", "HARNESS_PROVIDER_PATH",
-                  "HARNESS_JOURNAL_DIR", "HARNESS_RETRO_DIR"):
-            env.pop(k, None)
         py = sys.executable or "python3"
         plan: List[Tuple[str, List[str]]] = [("lint", [py, "-m", "harness", "lint"])]
         if full:
@@ -1051,7 +1361,16 @@ def run(ctx: Any, ns: Any) -> int:
     if not action:
         raise HarnessError("usage: harness lessons list|show|new|note|confirm|retire|review|stats|validate|"
                            "propose|index|journal (harness lessons --help)", 2)
-    hub = _hub(ctx)
+    if action == "review":
+        import sys
+
+        try:
+            hub = _hub(ctx)
+        except HarnessError as exc:
+            print("harness: lessons review: %s" % exc, file=sys.stderr)
+            return 4
+    else:
+        hub = _hub(ctx)
     fn = globals()["cmd_" + action]
     return int(fn(ctx, ns, hub) or 0)
 
@@ -1061,8 +1380,11 @@ def cmd_list(ctx: Any, ns: Any, hub: Any) -> int:
     want = ns.status or "open"
     now = norm_ts(None)
     max_age = int(cfg(hub, "lessons.max_age_days"))
+    import sys
+
     rows = []
-    for r in load_all(d):
+    bad: List[Tuple[str, str]] = []
+    for r in load_all(d, bad):
         if want == "open" and r.status == "retired":
             continue
         if want not in ("open", "all") and r.status != want:
@@ -1073,15 +1395,18 @@ def cmd_list(ctx: Any, ns: Any, hub: Any) -> int:
         if ns.stale and not stale:
             continue
         rows.append((r, stale))
+    for lid, why in bad:
+        print("harness: unreadable lesson %s: %s" % (lid, why), file=sys.stderr)
     if ctx.json:
         out = []
         for r, stale in rows:
             item = r.to_dict()
             item["stale"] = stale
             out.append(item)
+        out += [OrderedDict([("id", lid), ("status", "unreadable"), ("reason", why)]) for lid, why in bad]
         print(json.dumps(out, indent=2))
         return 0
-    if not rows:
+    if not rows and not bad:
         print("no lessons (%s; status %s)" % (d, want))
         return 0
     table = [["id", "status", "scope", "uses/helped/recurred", "updated", "fresh", "situation"]]
@@ -1089,6 +1414,8 @@ def cmd_list(ctx: Any, ns: Any, hub: Any) -> int:
         sit = r.situation if len(r.situation) <= 60 else r.situation[:57] + "..."
         table.append([r.id, r.status, r.fm["scope"], "%d/%d/%d" % (r.fm["uses"], r.fm["helped"], r.fm["recurred"]),
                       r.fm["updated"], "stale" if stale else "ready", sit])
+    for lid, _why in bad:
+        table.append([lid, "unreadable", "-", "-", "-", "-", "(see stderr; fix or delete the file)"])
     _print_table(table)
     return 0
 
@@ -1143,12 +1470,25 @@ def cmd_retire(ctx: Any, ns: Any, hub: Any) -> int:
 
 
 def cmd_review(ctx: Any, ns: Any, hub: Any) -> int:
+    """rc 0 due, 1 not due, 3 nothing to judge, 4 an error (so 1 only ever means "not due")."""
+    import sys
+
+    try:
+        return _review(ctx, ns, hub)
+    except (HarnessError, OSError, ValueError) as exc:
+        print("harness: lessons review: %s" % exc, file=sys.stderr)
+        return 4
+
+
+def _review(ctx: Any, ns: Any, hub: Any) -> int:
     jdir = journal_dir()
     session = ns.session or current_session()
     thresholds = {key: int(cfg(hub, key)) for _n, _k, key in CRITERIA}
     reason = None
     lines: List[JLine] = []
-    if not journal_files(jdir):
+    if not jdir:
+        reason = "no journal: the journal directory is relative or unset (HOME and XDG_STATE_HOME empty)"
+    elif not journal_files(jdir):
         reason = "no journal: %s has no .log files (lessons.journal is off, or nothing was asked or denied yet)" % jdir
     elif not session:
         reason = "no session: pass --session S, or let a journal line write %s" % os.path.join(retro_dir(), "current")
@@ -1253,9 +1593,22 @@ def cmd_propose(ctx: Any, ns: Any, hub: Any) -> int:
     diff = read_text(os.path.join(d, rec.fm["candidate_edit"])) if rec.fm["candidate_edit"] else None
     label = str(cfg(hub, "core.agent_labels.drafted"))
     files = propose_files(rec, tracker, repo, label, ns.keep_repos, diff)
-    out = os.path.abspath(ns.out)
+    out = os.path.abspath(os.path.expanduser(ns.out))
+    check_dir(out, hub.home, what="--out")
+    written = []
     for name, text in files.items():
-        atomic_write(os.path.join(out, name), text.encode("utf-8"), mode=0o644)
+        path = os.path.join(out, name)
+        atomic_write(path, text.encode("utf-8"), mode=0o644)
+        written.append(path)
+    hits = private_id_hits(hub.home, written)
+    if hits is not None:
+        for path in written:
+            try:
+                os.unlink(path)
+            except OSError:
+                pass
+        raise LessonError("propose: tools/gate/private-ids.sh flags the draft (files removed); reword the "
+                          "lesson or its evidence, or retire it:\n%s" % hits)
     print("wrote %s (%s); the harness never runs create.sh: read preview.md, then `sh %s`" % (
         ", ".join(files), out, os.path.join(out, "create.sh")))
     if ns.mark:
@@ -1286,18 +1639,49 @@ def cmd_index(ctx: Any, ns: Any, hub: Any) -> int:
     return 0
 
 
+def read_last(path: str) -> Optional[Tuple[str, int]]:
+    """``retro/last``: ``TS<TAB>N`` = acknowledged through the first N lines stamped TS."""
+    parts = (read_text(path) or "").strip().split("\t")
+    if not parts or not re.match(_TS, parts[0]):
+        return None
+    n = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 0
+    return parts[0], n
+
+
+def after_mark(lines: Sequence[JLine], since: Optional[str], skip: int = 0) -> List[JLine]:
+    """Lines at or after ``since``, minus the first ``skip`` lines stamped exactly ``since``
+    (already acknowledged): nothing in the same second is lost, nothing is shown twice."""
+    if not since:
+        return list(lines)
+    out = []
+    for ln in lines:
+        if ln.ts < since:
+            continue
+        if ln.ts == since and skip > 0:
+            skip -= 1
+            continue
+        out.append(ln)
+    return out
+
+
 def cmd_journal(ctx: Any, ns: Any, hub: Any) -> int:
+    started = now_ts()   # taken before reading: an --ack with nothing shown loses no later line
     rdir = retro_dir()
+    if not rdir:
+        raise LessonError("the retro directory is relative or unset (HOME and XDG_STATE_HOME empty); "
+                          "set HARNESS_RETRO_DIR to an absolute path")
     last_path = os.path.join(rdir, "last")
     since = None
     origin = "all"
     if ns.since:
         since, origin = norm_ts(ns.since), "--since"
-    elif not ns.all:
-        last = (read_text(last_path) or "").strip()
-        if re.match(_TS, last):
-            since, origin = last, "retro/last"
-    lines = [ln for ln in journal_lines() if not since or ln.ts > since]
+    skip = 0
+    if not ns.since and not ns.all:
+        mark = read_last(last_path)
+        if mark:
+            (since, skip), origin = mark, "retro/last"
+    every = journal_lines()
+    lines = after_mark(every, since, skip)
     gmap = GuardMap(hub)
     groups: "OrderedDict[Tuple[str, str, str], Dict[str, Any]]" = OrderedDict()
     for ln in lines:
@@ -1328,14 +1712,18 @@ def cmd_journal(ctx: Any, ns: Any, hub: Any) -> int:
                               g["text"] or ("-" if g["status"] != "stale" else "(older guard; line not attributed)")])
             _print_table(table)
     if ns.ack:
-        ack(rdir)
+        if lines:
+            newest = max(ln.ts for ln in lines)
+            ack(rdir, newest, sum(1 for ln in every if ln.ts == newest))
+        else:
+            ack(rdir, started, 0)
         print("acknowledged: %s" % last_path)
     return 0
 
 
-def ack(rdir: str, keep_days: int = 7) -> None:
+def ack(rdir: str, ts: str, count: int, keep_days: int = 7) -> None:
     os.makedirs(rdir, mode=0o700, exist_ok=True)
-    atomic_write(os.path.join(rdir, "last"), (now_ts() + "\n").encode("utf-8"), mode=0o600)
+    atomic_write(os.path.join(rdir, "last"), ("%s\t%d\n" % (ts, count)).encode("utf-8"), mode=0o600)
     cutoff = time.time() - keep_days * 86400
     for path in glob.glob(os.path.join(rdir, "sessions", "*")):
         try:
