@@ -421,7 +421,8 @@ Fixtures pin this per event (`tests/<event>/`, lint `hooks-events`): at least th
 
 Test rows live in `bundles/<b>/guard.d/tests.sh` and use the shared helpers from
 `bundles/core/guard/tests/lib.sh` (`t EXPECTED 'cmd'`, `tc EXPECTED cwd 'cmd'`,
-`tr EXPECTED 'reason-regex' 'cmd'`, `g` for git-stub state). `harness test guard` builds the
+`tr EXPECTED 'reason-regex' 'cmd'`, `g` for git-stub state, `tj on|off|unset EXPECTED 'cmd'`
+for the opt-in journal: line shape, and no word of the command in the file). `harness test guard` builds the
 concatenated script for **all** bundles into `build/` and runs every bundle's rows against it
 with stubs from `bundles/core/guard/tests/stubs/` on `PATH`.
 

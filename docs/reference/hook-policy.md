@@ -114,3 +114,50 @@ closing-keyword denies ([what owning a domain lifts](../repo-level.md#what-ownin
 
 Precedence per name: environment > `.harness.toml` `[overrides]` > `guard.env` > default. Never settable from `.harness.toml` (only from the developer's own environment): `HARNESS_GUARD_ENV`, `HARNESS_CRED_EXTRA_RE`, `GUARD_GIT`, `GUARD_KUBECTL`, `WORK_TICKET_JIRA_PY`, `WORK_TICKET_GLAB`, `WORK_TICKET_GH`, `WORK_TICKET_GDOC_PY`.
 <!-- generated:end -->
+
+## Journal
+
+Opt-in (`lessons.journal = true` in `harness.toml`, rendered as `HARNESS_LESSONS_JOURNAL` into
+`guard.env`; off by default, and anything but exactly `true` is off). With it on, every guard
+**ask** and **deny** appends one line to
+`${XDG_STATE_HOME:-~/.local/state}/harness/journal/<YYYY-MM-DD>.log` (UTC date;
+`HARNESS_JOURNAL_DIR` overrides the directory). Allows and passes write nothing, and the allow
+path starts no extra process. A line is seven tab-separated fields:
+
+| # | field | value |
+|---|---|---|
+| 1 | `ts` | `date -u +%Y-%m-%dT%H:%M:%SZ` |
+| 2 | `provider` | the provider the guard was rendered for (`HARNESS_PROVIDER`), else `-` |
+| 3 | `session` | the hook input's `session_id` when it matches `[A-Za-z0-9._-]{1,64}`, else `-` (the gemini and copilot shims pass it through when the provider sends one) |
+| 4 | `kind` | `guard-ask`, `guard-deny`; `correction`, `dissatisfaction` are written by the `lessons` bundle's prompt hook (`lessons.prompt_signals`, a later part) |
+| 5 | `site` | `<guard_section_*>:<line in that section's file>` of the deciding call; a flushed deferred ask is credited to the rule that deferred it; `-` for prompt kinds |
+| 6 | `guard_id` | `HARNESS_GUARD_ID`: the first 12 hex characters of the sha256 of the rendered `guard-bash.sh` |
+| 7 | `repo` | basename of the repository root found from the hook's cwd, else `-` |
+
+Example (fields separated by tabs):
+
+```
+2026-10-26T09:12:03Z	claude	s1	guard-deny	guard_section_core_30_git:65	3f9c1a7e02bd	shop
+```
+
+**Privacy.** The journal never records the command, any word of it, paths, prompt text or the
+decision's reason: fields 2–7 come from a fixed vocabulary, the rendered config and the
+sanitised session id (`bundles/core/guard.d/tests.sh` asserts that no word of a tested command
+longer than three characters reaches the file). It is a local file under your state directory,
+written with mode `0600`; nothing sends it anywhere ([governance](../governance.md#10-the-guard-journal-stays-on-your-workstation)).
+
+**`retro/current`.** Each journal line also writes its session id (not `-`) to
+`${XDG_STATE_HOME:-~/.local/state}/harness/retro/current` (`HARNESS_RETRO_DIR` overrides the
+directory): the last session that produced a signal, which `harness lessons review` reads when
+no `--session` is given. Concurrent sessions overwrite each other's pointer.
+
+**Stale lines.** `HARNESS_GUARD_ID` changes whenever the rendered guard changes (an upgrade, an
+edited section, another bundle set). Lines whose `guard_id` differs from the current one are
+**stale**: their `site` line numbers refer to an older guard, so they are counted but never
+attributed to a rule of the current one.
+
+Failures never change a decision: an unwritable directory, a full disk or a missing `date`
+leave the decision as it was and write nothing. `HARNESS_LESSONS_JOURNAL`,
+`HARNESS_JOURNAL_DIR`, `HARNESS_RETRO_DIR` and `HARNESS_GUARD_ID` carry the `HARNESS_` prefix,
+so a repository's `.harness.toml` `[overrides]` can never set them; only your own environment
+or `guard.env` does.
