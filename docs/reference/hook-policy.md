@@ -122,7 +122,11 @@ Opt-in (`lessons.journal = true` in `harness.toml`, rendered as `HARNESS_LESSONS
 **ask** and **deny** appends one line to
 `${XDG_STATE_HOME:-~/.local/state}/harness/journal/<YYYY-MM-DD>.log` (UTC date;
 `HARNESS_JOURNAL_DIR` overrides the directory). Allows and passes write nothing, and the allow
-path starts no extra process. A line is seven tab-separated fields:
+path starts no extra process. The two denies the engine prints before any section runs —
+malformed hook input and `jq` missing (both fail closed) — are not journaled. A directory that
+is empty or relative (no `HOME`, a relative `XDG_STATE_HOME` or `HARNESS_JOURNAL_DIR`) disables
+the journal for that call: nothing is ever written under the hook's working directory. A line
+is seven tab-separated fields:
 
 | # | field | value |
 |---|---|---|
@@ -132,7 +136,7 @@ path starts no extra process. A line is seven tab-separated fields:
 | 4 | `kind` | `guard-ask`, `guard-deny`; `correction`, `dissatisfaction` are written by the `lessons` bundle's prompt hook (`lessons.prompt_signals`, a later part) |
 | 5 | `site` | `<guard_section_*>:<line in that section's file>` of the deciding call; a flushed deferred ask is credited to the rule that deferred it; `-` for prompt kinds |
 | 6 | `guard_id` | `HARNESS_GUARD_ID`: the first 12 hex characters of the sha256 of the rendered `guard-bash.sh` |
-| 7 | `repo` | basename of the repository root found from the hook's cwd, else `-` |
+| 7 | `repo` | directory name of the main checkout of the repository found from the hook's cwd (for a linked worktree, the checkout its `.git` file points at, never the `<repo>_<branch>` worktree name), sanitised to `[A-Za-z0-9._-]`; else `-` |
 
 Example (fields separated by tabs):
 
@@ -141,9 +145,10 @@ Example (fields separated by tabs):
 ```
 
 **Privacy.** The journal never records the command, any word of it, paths, prompt text or the
-decision's reason: fields 2–7 come from a fixed vocabulary, the rendered config and the
-sanitised session id (`bundles/core/guard.d/tests.sh` asserts that no word of a tested command
-longer than three characters reaches the file). It is a local file under your state directory,
+decision's reason: fields 1–6 come from the clock, a fixed vocabulary, the rendered config and
+the sanitised session id, and field 7 is the main checkout's directory name, sanitised
+(`bundles/core/guard.d/tests.sh` asserts that no word of a tested command, nor of its cwd
+outside that name, longer than three characters reaches the file). It is a local file under your state directory,
 written with mode `0600`; nothing sends it anywhere ([governance](../governance.md#10-the-guard-journal-stays-on-your-workstation)).
 
 **`retro/current`.** Each journal line also writes its session id (not `-`) to

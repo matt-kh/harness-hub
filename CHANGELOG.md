@@ -86,22 +86,26 @@ prints every one between your applied version and the new one.
   runs every fixture set of a provider (`guard:<shim>`, `<event>:<shim>`) and each
   `tests/run.sh` execs it.
 - Opt-in guard journal (`core`; [hook policy "Journal"](docs/reference/hook-policy.md#journal)).
-  With `lessons.journal = true` every guard ask and deny appends one line of seven tab-separated
+  With `lessons.journal = true` every ask and deny a guard section decides (not the fail-closed
+  denies for malformed input or a missing jq) appends one line of seven tab-separated
   fields — `ts provider session kind site guard_id repo` — to
   `~/.local/state/harness/journal/<YYYY-MM-DD>.log` and points
   `~/.local/state/harness/retro/current` at the session. `kind` is `guard-ask` or `guard-deny`
   (`correction` and `dissatisfaction` are reserved for the lessons prompt hook); `site` is
   `<guard_section_*>:<line in the section file>`, and a flushed deferred ask is credited to the
   rule that deferred it; `session` is the hook input's `session_id` when it matches
-  `[A-Za-z0-9._-]{1,64}`, else `-`. The command, its words, paths and reasons are never
-  written; journal failures never change a decision; allows add no process. The engine reads
+  `[A-Za-z0-9._-]{1,64}` (ASCII), else `-`; `repo` is the main checkout's directory name (a
+  linked worktree resolves to it, so `<repo>_<branch>` names never appear). The command, its
+  words, paths and reasons are never written; journal failures never change a decision (HOME
+  unset or a relative state dir writes nothing, never under the repository); allows add no
+  process. The engine reads
   `session_id` in the same jq call as the command. `guard.env` gains `HARNESS_GUARD_ID` (12 hex
   characters of the rendered guard's sha256) and the four `HARNESS_LESSONS_*` names. The
   gemini and copilot guard shims pass `session_id` (copilot: `session_id // sessionId`) into the
   neutral envelope when present; the shared shim runner's stub guard now records its envelope,
   so guard fixtures may carry `NAME.envelope.json`. Guard test helper `tj on|off|unset EXPECTED
-  'cmd'` (journal shape, session sanitising, no command word longer than three characters in
-  the file) with rows in `bundles/core/guard.d/tests.sh`. `harness repo` now decodes `'\''` in
+  'cmd'` (all seven fields, session sanitising, no word longer than three characters of the
+  command or the cwd in the file) with rows in `bundles/core/guard.d/tests.sh`. `harness repo` now decodes `'\''` in
   single-quoted `guard.env` values the way the engine does.
 - `harness lint` rule `hooks-events` (principle 6, not skippable): a hook script missing or
   failing `bash -n`, a `when` key no schema defines, one script name in two bundles or named
