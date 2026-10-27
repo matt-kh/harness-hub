@@ -116,7 +116,7 @@ prints every one between your applied version and the new one.
   shapes, URL userinfo, over-cap text, edits outside `bundles/`), `note` (used / helped /
   recurred; only journal-backed recurrences count toward `recurring`), `confirm`, `retire`,
   `review` (the retro gate over one session's journal lines: rc 0 due, 1 not due, 3 no
-  journal, session or lines; `--explain`), `stats` (asks, denies and corrections per session
+  journal, session or lines, 4 error; `--explain`), `stats` (asks, denies and corrections per session
   before and after each lesson), `validate` (applies a candidate edit to a `git archive HEAD`
   copy of the hub and runs lint, the guard and bundle suites and render), `propose` (writes
   `body.md`, `preview.md` and a `create.sh` it never runs; refuses unconfirmed lessons,

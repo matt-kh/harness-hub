@@ -20,9 +20,13 @@ covers the engine command, which every provider gets.
 | Guard journal | `~/.local/state/harness/journal/<YYYY-MM-DD>.log` | `HARNESS_JOURNAL_DIR` |
 | Retro pointers (`current`, `last`, `sessions/`) | `~/.local/state/harness/retro/` | `HARNESS_RETRO_DIR` |
 
-`~/.local/state` is `$XDG_STATE_HOME` when that is set. The CLI refuses a `lessons.dir` under
-the hub checkout or inside any git checkout and says where to put it instead: lessons never
-enter a repository. `harness uninstall` keeps all three directories.
+`~/.local/state` is `$XDG_STATE_HOME` when that is set. The CLI refuses a relative
+`lessons.dir`, and one under the hub checkout or inside any git checkout, and says where to
+put it instead: lessons never enter a repository. A dotfiles repository whose `.git` is in
+`$HOME` itself does not count for directories under the state directory, which such
+repositories do not track. As in the guard, a journal or retro directory that resolves to a
+relative path (no `HOME`, a relative `XDG_STATE_HOME`) is treated as absent. `harness uninstall`
+keeps all three directories.
 
 ## Record format
 
@@ -88,10 +92,19 @@ patches/delivery-003.diff:
 | `validation`, `validated_at`, `validated_guard_id` | the last `validate` result, its time and the rendered guard's id |
 
 `new` refuses a record without evidence, an unknown domain, `invariant` outside `base`, a ref
-of the wrong shape, a token-shaped string or URL userinfo anywhere in the text, and text over
-the caps: situation 300, lesson 400 and every evidence ref (a quoted user correction too)
+of the wrong shape, a token-shaped string anywhere in the text (also inside URLs, `user@host`,
+`key=value` and paths), any URL userinfo (`scheme://anything@host`), text that starts like a
+Markdown heading, and text over the caps: situation 300, lesson 400 and every evidence ref (a quoted user correction too)
 200 characters; the candidate-edit summary is cut at 600. Evidence refs are `KIND:TEXT`
-with `KIND` one of `journal`, `retro`, `user`, `test`, `review`.
+with `KIND` one of `journal`, `retro`, `user`, `test`, `review`. A candidate edit must stay
+inside `bundles/`: every path a `diff --git`, `---`, `+++`, rename, copy or binary header names
+is checked (a deletion or a rename out of `bundles/` is refused), binary patches are refused, and
+`validate` checks again with git's own `git apply --numstat --summary`.
+
+Every write re-parses what it is about to write and refuses a record that would not round-trip.
+A record that does not parse (a hand edit, an `id` that differs from its file name) is skipped,
+never fatal: other commands keep working, and `list` shows it as `unreadable` with the reason on
+stderr.
 
 ## Journal lines and kinds
 
@@ -118,7 +131,9 @@ A threshold of `0` disables its criterion. Exit status: **0** due, **1** not due
 journal files, no session known, or no line for the session (the output says which). It prints
 `due: yes|no`, the session, the counts and the criterion that fired; `--explain` adds each line
 as time, kind and site, never anything else; `--json` prints
-`{"due", "session", "counts", "fired"}` (plus `reason` for rc 3).
+`{"due", "session", "counts", "fired"}` (plus `reason` for rc 3). **4** is an error (an
+unreadable config, a bad threshold value): rc 1 only ever means "not due", so a caller can treat
+4 like 3 and stay silent.
 
 ## Commands
 
@@ -130,14 +145,14 @@ Every subcommand takes the global flags (`--config`, `--json`, ...); full help i
 | `list [--status S\|all] [--domain D] [--stale]` | lessons, every status but retired by default |
 | `show ID` | the record as written |
 | `new --domain D --scope invariant\|domain --situation TEXT --guide-ref R --sensor-ref R --evidence REF... [--bundles B,...] [--source S] [--lesson TEXT] [--edit FILE.diff] [--date D]` | the only way a record is created (status `candidate`); prints the id |
-| `note ID [--used] [--helped] [--recurred] [--evidence REF]... [--note TEXT] [--date D]` | bumps counters and appends a History line; `--recurred` with a `journal:` ref also bumps `recurred_objective`, and a candidate becomes `recurring` at `lessons.promote_after` (3); refused on proposed and retired lessons |
+| `note ID [--used] [--helped] [--recurred] [--evidence REF]... [--note TEXT] [--date D]` | bumps counters and appends a History line; `--recurred` also bumps `recurred_objective` when it carries a `journal:` ref that is new to the record, has the journal's seven fields and is a line of the journal (copied from `<journal dir>/<date>.log`, tabs as spaces; a missing journal or an unknown line is refused), and a candidate becomes `recurring` at `lessons.promote_after` (3); refused on proposed and retired lessons |
 | `confirm ID`, `retire ID [--reason TEXT]` | human decisions; confirm only from candidate or recurring |
 | `review [--session S] [--explain]` | the review gate above |
 | `stats [--domain D] [--since DATE]` | one table: per lesson, before and after its `created` date, sessions and asks, denies and corrections per session in its scope (its guard section when the sensor is one, else the guard sections of its domain), plus its counters |
 | `validate [ID] [--quick] [--full] [--now TS]` | `git archive HEAD` of the hub into a temp dir, `git apply` the candidate edit, then `harness lint`, `test guard`, `test <touched bundle>` (skipped with `--quick`; `--full` runs every suite) and `render --out`, isolated from your config and home; records pass or fail, the time and the rendered guard's id. Without a candidate edit: `validation none`, rc 1 |
-| `propose ID --out DIR [--repo OWNER/REPO] [--keep-repos] [--mark] [--date D]` | writes `body.md`, `preview.md` and `create.sh` (a `gh issue create -R OWNER/REPO ... -l agent-drafted` line for a GitHub Issues tracker, a `/create-ticket` line for Jira; the tracker comes from the hub's `.harness.toml`, `--repo` overrides). Accepts `confirmed`, or `recurring` with `recurred_objective >= lessons.promote_after`; refuses closing keywords and a `#N` title; replaces repository names from evidence by `<repo>` unless `--keep-repos`. `--mark` sets `proposed` after the issue exists |
+| `propose ID --out DIR [--repo OWNER/REPO] [--keep-repos] [--mark] [--date D]` | writes `body.md`, `preview.md` and `create.sh` (a `gh issue create -R OWNER/REPO ... -l agent-drafted` line for a GitHub Issues tracker, a `/create-ticket` line for Jira; the tracker comes from the hub's `.harness.toml`, `--repo` overrides). Accepts `confirmed`, or `recurring` with `recurred_objective >= lessons.promote_after`; refuses closing keywords (`Fixes #1`, `Fixes:#1`, `**Fixes** #1`, `owner/repo#N`, issue URLs, Jira keys) anywhere and `#N` in the title (the body may mention `#N`); replaces repository names from journal evidence by `<repo>` unless `--keep-repos`; runs `tools/gate/private-ids.sh` over the three files and removes them on a hit. `--out` may not be inside a git checkout. `--mark` sets `proposed` after the issue exists |
 | `index [--prune] [--now TS]` | rewrites `INDEX.md`: grouped by domain, settled lessons first, at most `lessons.index_max_candidates` (5) candidates per domain and `lessons.index_max` (40) lines overall, `ready` or `stale` (no update in `lessons.max_age_days`, 90); `--prune` retires stale candidates |
-| `journal [--all] [--since TS] [--ack]` | journal lines since `retro/last`, grouped by kind and site; a current-guard site shows its source line, other guard ids show as stale; `--ack` writes `retro/last` and prunes `retro/sessions/*` older than 7 days |
+| `journal [--all] [--since TS] [--ack]` | journal lines since `retro/last`, grouped by kind and site; a current-guard site shows its source line, other guard ids show as stale; `--ack` marks what it showed as seen: `retro/last` holds the newest timestamp shown and how many lines carry it (`TS<TAB>N`), so a line written in the same second is shown next time and none is shown twice; it also prunes `retro/sessions/*` older than 7 days |
 
 ## Privacy
 
@@ -145,6 +160,11 @@ Nothing leaves the workstation. The records, the index, the journal and the retr
 are local files under your state directory, written with mode `0600`; no hub component sends
 them anywhere and none of them holds a command, a prompt or a secret (`new` refuses token
 shapes and URL userinfo). `propose` never creates anything: it writes three files for you to
-read, and you decide whether to run `create.sh`. Repository names from evidence are replaced
-by `<repo>` in what it writes unless you pass `--keep-repos`
+read, and you decide whether to run `create.sh`.
+
+What `propose` redacts is narrow, so read `body.md` before anyone runs `create.sh`: repository
+names that appear as field 7 of journal evidence become `<repo>` (unless `--keep-repos`), and the
+draft must pass the private-identifier gate (`tools/gate/private-ids.sh`, public patterns plus
+your private denylist). Everything else a lesson says (situation, lesson, user quotes, the
+candidate diff) is the author's responsibility
 ([governance](../governance.md#10-the-guard-journal-stays-on-your-workstation)).

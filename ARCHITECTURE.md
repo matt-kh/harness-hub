@@ -467,7 +467,7 @@ provider land in the repo.
 `lessons` (`lib/harness/lessons.py`, the only parser and writer of lesson records) keeps a
 private library under `lessons.dir` (default `<state>/lessons`; refused under the hub or inside
 any git checkout) and reads the guard journal (§5) read-only; `review` exits 0 due, 1 not due,
-3 without journal, session or lines; `validate` runs the hub's own sensors on a `git archive
+3 without journal, session or lines, 4 on an error; `validate` runs the hub's own sensors on a `git archive
 HEAD` copy with the candidate edit applied; `propose` writes an issue draft and a `create.sh`
 it never runs ([lessons](docs/reference/lessons.md)).
 
