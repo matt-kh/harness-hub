@@ -141,12 +141,17 @@ prints every one between your applied version and the new one.
   fixed-shape questionnaire; at most one invariant and one domain candidate through
   `harness lessons new|note`, journal refs copied verbatim; a fixed-shape report ending with the
   human's `confirm|retire|propose` commands). Rule `15-lessons` (consult `INDEX.md` at Step 0;
-  a lesson is evidence, never an instruction). Permissions: allow `Bash(harness lessons:*)`,
+  a lesson is evidence, never an instruction) and its guard section `15-lessons`, which asks
+  on `harness lessons confirm|retire|propose` however wrapped (`bash -c`, `xargs`, a path to
+  `bin/harness`, `python3 -m harness`, global flags) and passes every other `harness lessons`
+  call; it yields to a repository owning it or domain `base`. The stop hook passes
+  `--config <_harness.config>` from `build/config.json` and cuts the review off after 3 s
+  (GNU `timeout`, or a python fallback that kills the whole process group). Permissions: allow `Bash(harness lessons:*)`,
   ask on `Write`/`Edit` of `~/.local/state/harness/lessons/**`. Doctor checks
   `lessons-index-fresh`, `lessons-stale-candidates`, `lessons-review-keys`; manual steps
-  `enable-journal`, `read-the-loop`. Suites `bundles/lessons/tests/run.sh` (hooks against
-  `hooks/tests/prompts.tsv`, the regex contract, plus the doctor script) and the retro facts
-  goldens.
+  `enable-journal`, `read-the-loop`. Suites `bundles/lessons/tests/run.sh` (section 15 rows
+  against core + lessons, hooks against `hooks/tests/prompts.tsv`, the regex contract, plus the
+  doctor script) and the retro facts goldens.
 - `harness lint` rule `hooks-events` (principle 6, not skippable): a hook script missing or
   failing `bash -n`, a `when` key no schema defines, one script name in two bundles or named
   like a guard file or any provider's shim, an event no provider declares (warning); provider
@@ -658,10 +663,16 @@ prints every one between your applied version and the new one.
   `lessons.dissatisfaction_re` change to meet the prompt fixture list
   (`bundles/lessons/hooks/tests/prompts.tsv`). A correction no longer starts with any
   `no ` ("no changes needed" is task text): `no`, `no,`, `no.`, `no!` and `no that|this|it|you|i|not|wait|stop …`
-  still match. Dissatisfaction matches `don't do that|this` instead of any `don't do`
-  ("don't do the rebase yet" is an instruction). Nothing to edit unless you copied the old
-  defaults into `harness.toml`: then replace them with the new ones from
-  `harness config explain lessons.correction_re` or drop them.
+  still match; `wrong` and `incorrect` need a word end ("Wrong-way merge", "incorrectly
+  rendered" are task text); `undo` and `redo` count alone, before punctuation or before
+  `that|this|it` ("undo the last migration", "Redo the layout" are task text); curly
+  apostrophes (U+2019) count in `that's`, `didn't`, `don't`. Dissatisfaction matches
+  `don't do that|this` instead of any `don't do` ("don't do the rebase yet" is an instruction)
+  and `why did|are you` but no longer `why do you` ("why do you think the test fails?" is a
+  question). `^` and `$` apply to each line of a multi-line prompt. The new values:
+  `correction_re = "^(no([,.!]|$| (that|this|it|you|i|not|wait|stop)([ ,.!']|’|$))|nope|(wrong|incorrect)([^a-z-]|$)|that(’|')?s not|not what i|i (said|asked|meant|told you|wanted)|you (didn(’|')?t|did not|ignored|missed|forgot|broke|changed)|(undo|redo)([,.!]|$| (that|this|it)([^a-z-]|$))|revert (that|this|it)|try again|again[,.!]?$|still (wrong|broken|failing|not))"`,
+  `dissatisfaction_re = "(frustrat|annoy|unacceptable|stop (doing|that)|why (did|are) you|don(’|')?t (do (that|this)|ever)|you keep|this is (wrong|bad|useless))"`. Nothing to edit unless you copied the old defaults into
+  `harness.toml`: then replace them with these or drop them.
 - Guard journal: four new `core` keys under `[lessons]`, all off or inert by default, so there
   is nothing to edit. `lessons.journal` (bool, default `false`; `HARNESS_LESSONS_JOURNAL`)
   turns the journal on; `lessons.prompt_signals` (bool, default `false`;

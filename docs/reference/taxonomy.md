@@ -136,7 +136,7 @@ A value exists only while a component uses it. To add one:
 
 | value | meaning | components using it |
 |---|---|---|
-| `base` | the harness itself: engine, credentials, conventions, core agents | 25 (core, lessons) |
+| `base` | the harness itself: engine, credentials, conventions, core agents | 26 (core, lessons) |
 | `scm` | source hosts, branches, MRs/PRs | 35 (core, github, gitlab, stack) |
 | `tracker` | tickets, issues, their state | 15 (github, gitlab, jira) |
 | `delivery` | ticket-to-merge workflow spanning tracker and SCM | 10 (ticket-workflow) |
@@ -148,7 +148,7 @@ A value exists only while a component uses it. To add one:
 
 | value | meaning | components using it |
 |---|---|---|
-| `govern` | constrains the agent and says what to do instead | 35 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, stack, ticket-workflow) |
+| `govern` | constrains the agent and says what to do instead | 36 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, stack, ticket-workflow) |
 | `client` | thin interface to one system | 11 (gdoc, jira, k8s, obs, stack) |
 | `workflow` | multi-step governed procedure | 3 (lessons, ticket-workflow) |
 | `investigate` | diagnoses to a root cause, never applies the fix | 2 (k8s, obs) |
@@ -169,7 +169,7 @@ A value exists only while a component uses it. To add one:
 
 | value | meaning | components using it |
 |---|---|---|
-| `declaration` | returns early when the repository's .harness.toml owns its id or domain | 19 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, stack, ticket-workflow) |
+| `declaration` | returns early when the repository's .harness.toml owns its id or domain | 20 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, stack, ticket-workflow) |
 | `name` | the provider shadows it with a repository component of the same name | 7 (core, k8s, obs) |
 | `text` | concatenated with the repository's instructions, which come last and win | 10 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, stack, ticket-workflow) |
 | `config` | merged by the provider's permission system; a repository can add rules, never lift a deny | 9 (gdoc, github, gitlab, jira, k8s, lessons, obs, stack, ticket-workflow) |

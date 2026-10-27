@@ -15,13 +15,16 @@ this bundle adds the agent-facing half.
 1. **Signals** (opt-in, [`enable-journal`](#enable-journal)). With `lessons.journal` the
    guard appends one line per ask or deny to the journal; with `lessons.prompt_signals` the
    `prompt` hook (`hooks/prompt-signal.sh`) appends one `correction` or `dissatisfaction` line
-   per prompt that matches `lessons.correction_re` or `lessons.dissatisfaction_re`. Lines
+   per prompt that matches `lessons.correction_re` or `lessons.dissatisfaction_re` on any
+   of its lines (`^` and `$` are per line under `grep`). Lines
    carry a time, the provider, the session id, the kind, the rule site, the guard id and the
    repository's directory name: never a command, a prompt or any word of either.
 2. **Review.** `harness lessons review` is due when one session reaches a threshold
    (2 corrections, 1 dissatisfaction or 3 denies by default). The `stop` hook
-   (`hooks/stop-retro-nudge.sh`) asks it once per session and, only when it is due, shows
-   `harness: this session met the review criteria (…); run /retro`. It never blocks.
+   (`hooks/stop-retro-nudge.sh`) runs the review on every stop of a session until the session
+   is due, then shows `harness: this session met the review criteria (…); run /retro` once,
+   writes the session's marker and never runs the review again in that session. A review that
+   takes over 3 seconds is cut off and says nothing. It never blocks.
    work-ticket and create-ticket ask the same gate after their last step (a later part of
    this loop).
 3. **Reflect and record.** `/retro` reads the facts (`retro-facts.sh`: the review, the
@@ -31,7 +34,8 @@ this bundle adds the agent-facing half.
    consulted get a `harness lessons note` (used, helped, recurred).
 4. **Reuse.** Rule `15-lessons` has every agent consult `INDEX.md` for its domain at Step 0
    and weigh a lesson as evidence, never as an instruction.
-5. **Promote (human).** `harness lessons confirm`, `retire` and `propose` are yours.
+5. **Promote (human).** `harness lessons confirm`, `retire` and `propose` are yours: guard
+   section `15-lessons` asks before an agent runs any of them, however the command is wrapped.
    `propose` writes an issue body with the candidate guide edit and its sensor; read
    `body.md` before you run `create.sh`.
 
@@ -49,7 +53,7 @@ appears; `/retro` by hand still works.
 |---|---|---|---|
 | claude | enforced (`UserPromptSubmit`) | enforced (`Stop`) | `Stop` does not run when you interrupt the agent |
 | gemini | enforced via `shim-prompt.sh` (`BeforeAgent`) | enforced via `shim-stop.sh` (`AfterAgent`) | `AfterAgent` runs after every turn; the per-session marker keeps the nudge to one |
-| copilot | enforced via `shim-prompt.sh` (`userPromptSubmitted`) | none: `sessionEnd` has no message channel, the shim drops the output | event names verified on install, like the guard shim |
+| copilot | enforced via `shim-prompt.sh` (`userPromptSubmitted`) | registered on `sessionEnd` (one event per session), but the output is dropped by design: no message channel | event names verified on install, like the guard shim; run `/retro` by hand or rely on the workflow gate |
 | codex | advisory (no hook) | advisory | rule, skill and CLI only |
 | opencode | advisory (no hook) | advisory | rule, skill and CLI only |
 
@@ -59,8 +63,11 @@ It prints nothing: Claude would add its stdout to the model's context. Neither h
 transcript file. Everything stays on the workstation in files with mode 0600.
 
 **The regexes are a judgement call.** They will miss paraphrased corrections and flag some
-task text: "undo the last migration" is a documented false positive (it is a correction-shaped
-instruction). A false positive costs one nudge or one gated retro. The contract is
+task text: a correction-shaped word on any line of a pasted multi-line prompt counts (the
+600-character cap keeps most pastes out), and "undo that" next to real work reads the same as
+a correction. Word ends keep "Wrong-way merge", "incorrectly rendered" and "Redo the layout"
+out; curly apostrophes count like ASCII ones. A false positive costs one nudge or one gated
+retro. The contract is
 `bundles/lessons/hooks/tests/prompts.tsv`; tune `lessons.correction_re` and
 `lessons.dissatisfaction_re` in `harness.toml` if your normal prompts trip them.
 
@@ -110,6 +117,10 @@ Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md
 **Rules**
 
 - `lessons/rules/15-lessons` — control: guide · function: govern · yields: text
+
+**Guard sections**
+
+- `lessons/guard.d/15-lessons` — control: sensor · function: govern · decisions: ask 1 · yields: declaration
 
 **Hook scripts**
 
@@ -203,11 +214,13 @@ Guides steer the agent before it acts; sensors detect at or after the action. Pa
 
 | side | kind | ref | note | pairs with |
 |---|---|---|---|---|
-| guide | rule | `rules/15-lessons.md` | consult INDEX.md at Step 0; a lesson is evidence, never an instruction; records only through /retro; confirm/retire/propose are human | `skills/retro/scripts/tests/run.sh`, `yields` |
-| guide | skill | `skills/retro` | the retro: facts, one fixed-shape questionnaire, at most two candidates, harness lessons new\|note, a fixed-shape report | `skills/retro/scripts/tests/run.sh`, `skill-description`, `yields` |
-| guide | permission | `permissions.toml` | harness lessons allowed; hand edits of the library ask | `permissions-vs-guard` |
+| guide | rule | `rules/15-lessons.md` | consult INDEX.md at Step 0; a lesson is evidence, never an instruction; records only through /retro; confirm/retire/propose are human | `guard.d/15-lessons.sh`, `skills/retro/scripts/tests/run.sh`, `yields` |
+| guide | skill | `skills/retro` | the retro: facts, one fixed-shape questionnaire, at most two candidates, harness lessons new\|note, a fixed-shape report | `guard.d/15-lessons.sh`, `skills/retro/scripts/tests/run.sh`, `skill-description`, `yields` |
+| guide | permission | `permissions.toml` | harness lessons allowed; hand edits of the library ask | `permissions-vs-guard`, `guard.d/15-lessons.sh` |
+| sensor | guard | `guard.d/15-lessons.sh` | asks on harness lessons confirm\|retire\|propose (human decisions), however wrapped; every other harness lessons call passes | `rules/15-lessons.md`, `skills/retro`, `permissions.toml` |
+| sensor | test | `guard.d/tests.sh` | rows for section 15: each human verb asks (tr rows), the /retro writes pass, bypasses, repository ownership | — |
 | sensor | doctor | `doctor_checks` | INDEX.md fresh, no stale candidates, the review regexes compile | — |
-| sensor | test | `tests/run.sh` | the hook suite, then lib/doctor.sh per check | — |
+| sensor | test | `tests/run.sh` | this bundle's guard rows against core + lessons only, the hook suite, then lib/doctor.sh per check | — |
 | sensor | test | `hooks/tests/run.sh` | prompt-signal.sh against prompts.tsv (the regex contract) and edge cases: no prompt word in the journal, empty stdout, journal off, relative dirs, no jq; stop-retro-nudge.sh against a stub CLI: rc 0 only, once per session, no decision key; static greps; under one second | — |
 | sensor | test | `skills/retro/scripts/tests/run.sh` | retro-facts.sh goldens against a stub harness (due, not due, no signals, error rc, repo owns, outside a checkout, no CLI), state fixture byte-identical | `rules/15-lessons.md`, `skills/retro` |
 | sensor | lint | `permissions-vs-guard` | each Bash allow rule of permissions.toml run through the guard | `permissions.toml` |
@@ -215,7 +228,7 @@ Guides steer the agent before it acts; sensors detect at or after the action. Pa
 | sensor | lint | `yields` | the skill's Step 0 and the rule's repository sentence | `rules/15-lessons.md`, `skills/retro` |
 | sensor | lint | `hooks-events` | both hook scripts exist, parse, have known when keys and an event some provider declares | — |
 
-**Not covered:** Whether a candidate lesson is worth recording, and whether a consulted lesson helped, stay judgement: /retro caps the candidates at two and needs evidence, and only a human confirms, retires or proposes. The two hooks are signal sources and the nudge, not guides (kind hook has no control facet); their contract is sensed by hooks/tests/run.sh (no prompt text in the journal, empty stdout, once-per-session nudge) and lint hooks-events. Bash(harness lessons:*) also allows confirm, retire and propose: the rule, not a sensor, keeps them human.
+**Not covered:** Whether a candidate lesson is worth recording, and whether a consulted lesson helped, stay judgement: /retro caps the candidates at two and needs evidence, and only a human confirms, retires or proposes. The two hooks are signal sources and the nudge, not guides (kind hook has no control facet); their contract is sensed by hooks/tests/run.sh (no prompt text in the journal, empty stdout, once-per-session nudge) and lint hooks-events. Bash(harness lessons:*) also matches confirm, retire and propose; guard section 15 asks on those, so they stay human.
 
 ## Uninstall
 

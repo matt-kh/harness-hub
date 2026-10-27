@@ -75,6 +75,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | id | control | domain | decisions | yields | note |
 |---|---|---|---|---|---|
 | [`k8s/guard.d/10-k8s`](reference/hook-policy.md) | sensor | kubernetes | helper (no rules) | n/a | kubectl/helm clause parsing shared by the rules section |
+| [`lessons/guard.d/15-lessons`](reference/hook-policy.md) | sensor | base | ask 1 | declaration | asks on harness lessons confirm\|retire\|propose (human decisions), however wrapped; every other harness lessons call passes |
 | [`core/guard.d/20-credentials`](reference/hook-policy.md) | sensor | base | deny 7 | never | denies credential file reads and secret env dumps before they run |
 | [`k8s/guard.d/25-k8s-rules`](reference/hook-policy.md) | sensor | kubernetes | deny 4 · ask 7 | declaration | kubeconfig, Secret data, cluster, release, GitOps and IaC mutations |
 | [`core/guard.d/30-git`](reference/hook-policy.md) | sensor | scm | deny 1 · ask 6 · allow 1 | declaration | denies default-branch pushes; asks on force-push and destructive git |

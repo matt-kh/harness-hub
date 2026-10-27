@@ -12,9 +12,10 @@ Status legend: **planned** (nothing built), **in progress** (a branch exists), *
 
 ## What exists today
 
-Nine public bundles cover source control (`github`, `gitlab`), one tracker (`jira`), the
+Ten public bundles cover source control (`github`, `gitlab`), one tracker (`jira`), the
 ticket-to-merge workflow (`ticket-workflow`), stacked MRs/PRs on free tiers (`stack`),
-Kubernetes (`k8s`), Google Workspace (`gdoc`), the lessons loop (`lessons`)
+Kubernetes (`k8s`), observability backends (`obs`), Google Workspace (`gdoc`), the lessons
+loop (`lessons`)
 and the conventions, credentials and git rules every developer needs (`core`). That is the
 surface of a platform engineer. Application, data, QA, security and release engineers also
 run containers, package managers, databases, cloud CLIs, infrastructure-as-code, pipelines
@@ -38,7 +39,7 @@ ARCHITECTURE §3 is updated when a band is first used.
 
 | Prefix | Section | Bundle | Why this band |
 |---|---|---|---|
-| `15` | `15-lessons` | lessons | in use (rule only, no guard section): the loop's sensors are hooks, the CLI and doctor checks |
+| `15` | `15-lessons` | lessons | in use: asks on `harness lessons confirm|retire|propose` (human decisions); before `20` so a credential deny still wins |
 | `22` | `22-secrets` | secrets | credential-class denies; must run before any later `ask` |
 | `26` | `26-iac` | iac | next to `25-k8s-rules`, which already asks on `terraform apply` and `pulumi up`; same decisions, first wins |
 | `27` | `27-cloud` | cloud | after `25`, so the k8s deny on `aws eks update-kubeconfig` fires before cloud's generic `update-* -> ask` |
