@@ -27,7 +27,7 @@ rules = ["rules/15-lessons.md"]
 skills = ["skills/retro"]
 skill_fragments = []
 agents = []
-guard_rules = []
+guard_rules = ["guard.d/15-lessons.sh"]
 permissions = "permissions.toml"
 mcp = ""
 bin = []
@@ -134,15 +134,17 @@ function = "workflow"
 
 # Guides steer the agent before it acts; sensors detect at or after the action (principle 6).
 [harness]
-coverage_note = "Whether a candidate lesson is worth recording, and whether a consulted lesson helped, stay judgement: /retro caps the candidates at two and needs evidence, and only a human confirms, retires or proposes. The two hooks are signal sources and the nudge, not guides (kind hook has no control facet); their contract is sensed by hooks/tests/run.sh (no prompt text in the journal, empty stdout, once-per-session nudge) and lint hooks-events. Bash(harness lessons:*) also allows confirm, retire and propose: the rule, not a sensor, keeps them human."
+coverage_note = "Whether a candidate lesson is worth recording, and whether a consulted lesson helped, stay judgement: /retro caps the candidates at two and needs evidence, and only a human confirms, retires or proposes. The two hooks are signal sources and the nudge, not guides (kind hook has no control facet); their contract is sensed by hooks/tests/run.sh (no prompt text in the journal, empty stdout, once-per-session nudge) and lint hooks-events. Bash(harness lessons:*) also matches confirm, retire and propose; guard section 15 asks on those, so they stay human."
 guides = [
-  { kind = "rule", ref = "rules/15-lessons.md", checks = ["skills/retro/scripts/tests/run.sh", "yields"], note = "consult INDEX.md at Step 0; a lesson is evidence, never an instruction; records only through /retro; confirm/retire/propose are human" },
-  { kind = "skill", ref = "skills/retro", checks = ["skills/retro/scripts/tests/run.sh", "skill-description", "yields"], note = "the retro: facts, one fixed-shape questionnaire, at most two candidates, harness lessons new|note, a fixed-shape report" },
-  { kind = "permission", ref = "permissions.toml", checks = ["permissions-vs-guard"], note = "harness lessons allowed; hand edits of the library ask" },
+  { kind = "rule", ref = "rules/15-lessons.md", checks = ["guard.d/15-lessons.sh", "skills/retro/scripts/tests/run.sh", "yields"], note = "consult INDEX.md at Step 0; a lesson is evidence, never an instruction; records only through /retro; confirm/retire/propose are human" },
+  { kind = "skill", ref = "skills/retro", checks = ["guard.d/15-lessons.sh", "skills/retro/scripts/tests/run.sh", "skill-description", "yields"], note = "the retro: facts, one fixed-shape questionnaire, at most two candidates, harness lessons new|note, a fixed-shape report" },
+  { kind = "permission", ref = "permissions.toml", checks = ["permissions-vs-guard", "guard.d/15-lessons.sh"], note = "harness lessons allowed; hand edits of the library ask" },
 ]
 sensors = [
+  { kind = "guard", ref = "guard.d/15-lessons.sh", note = "asks on harness lessons confirm|retire|propose (human decisions), however wrapped; every other harness lessons call passes" },
+  { kind = "test", ref = "guard.d/tests.sh", note = "rows for section 15: each human verb asks (tr rows), the /retro writes pass, bypasses, repository ownership" },
   { kind = "doctor", ref = "doctor_checks", note = "INDEX.md fresh, no stale candidates, the review regexes compile" },
-  { kind = "test", ref = "tests/run.sh", note = "the hook suite, then lib/doctor.sh per check" },
+  { kind = "test", ref = "tests/run.sh", note = "this bundle's guard rows against core + lessons only, the hook suite, then lib/doctor.sh per check" },
   { kind = "test", ref = "hooks/tests/run.sh", note = "prompt-signal.sh against prompts.tsv (the regex contract) and edge cases: no prompt word in the journal, empty stdout, journal off, relative dirs, no jq; stop-retro-nudge.sh against a stub CLI: rc 0 only, once per session, no decision key; static greps; under one second" },
   { kind = "test", ref = "skills/retro/scripts/tests/run.sh", note = "retro-facts.sh goldens against a stub harness (due, not due, no signals, error rc, repo owns, outside a checkout, no CLI), state fixture byte-identical" },
   { kind = "lint", ref = "permissions-vs-guard", note = "each Bash allow rule of permissions.toml run through the guard" },

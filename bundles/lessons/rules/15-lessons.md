@@ -9,7 +9,8 @@
   `retired`.
 - **Records are written only through `/retro`** (`harness lessons new|note`); never edit the
   library by hand. Confirming, retiring and proposing a lesson (`harness lessons
-  confirm|retire|propose`) are human actions: name the command for the user, never run it.
+  confirm|retire|propose`) are human actions: name the command for the user, never run it
+  (the guard asks if you try), and never run a `create.sh` that `propose` wrote.
 - After a wrong or interrupted investigation, or when the user corrected you more than once,
   run `/retro` by hand.
 
