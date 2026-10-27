@@ -435,6 +435,7 @@ with stubs from `bundles/core/guard/tests/stubs/` on `PATH`.
 `pack [--out DIR] [--tag TAG] [--tools os/arch,...] [--self-extract]`,
 `verify FILE.bundle|FILE.run`, `release check [TAG]|notes TAG`, `uninstall`, `test [suite]`, `lint [--skip RULE]`, `docs generate|check`,
 `repo [show] [DIR] | owns ID [DIR] | init [DIR] [--write]` (§11),
+`lessons list|show|new|note|confirm|retire|review|stats|validate|propose|index|journal`,
 `steps [--pending]`, `version`. Global flags: `--config`, `--home`, `--json`, `--offline`,
 `--yes`, `--dry-run`. Environment: `HARNESS_HOME`, `HARNESS_CONFIG`, `HARNESS_OFFLINE`,
 `HARNESS_BUILD_DIR` (where `build/` products go; tests point it at a temp dir so a live hub's
@@ -462,6 +463,13 @@ merged targets (`json-merge`, `managed-block`, `toml-block`) compare only the ow
 blocks, so keys and text the provider or user own never count as drift. It can adopt a
 drifted rendered file back into its source bundle (`--adopt`) so that edits made through the
 provider land in the repo.
+
+`lessons` (`lib/harness/lessons.py`, the only parser and writer of lesson records) keeps a
+private library under `lessons.dir` (default `<state>/lessons`; refused under the hub or inside
+any git checkout) and reads the guard journal (§5) read-only; `review` exits 0 due, 1 not due,
+3 without journal, session or lines; `validate` runs the hub's own sensors on a `git archive
+HEAD` copy with the candidate edit applied; `propose` writes an issue draft and a `create.sh`
+it never runs ([lessons](docs/reference/lessons.md)).
 
 Rendering is deterministic: sorted keys, LF endings, no timestamps inside rendered content
 ([principle 9](principles/09-deterministic-by-construction.md)).
