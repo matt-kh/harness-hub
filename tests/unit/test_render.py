@@ -334,6 +334,61 @@ class RenderHubTest(HubTestCase):
         self.assertEqual(perms["ask"], ["Bash(demo write:*)"])  # ask beats allow
 
 
+class GuardJournalEnvTest(HubTestCase):
+    """guard.env carries the guard id and the core lessons.* keys (real core bundle)."""
+
+    with open(os.path.join(REPO, "tests", "fixtures", "harness.ci.toml"), encoding="utf-8") as _fh:
+        config_text = _fh.read()
+
+    def setUp(self) -> None:
+        super().setUp()
+        os.environ["HARNESS_BUNDLES_ROOT"] = os.path.join(REPO, "bundles")
+
+    def render_hooks(self):
+        hub = self.hub()
+        by = {t.path: t for t in R.Renderer(hub).render(hub.filter_providers(["claude"]))}
+        hooks = self.h(".claude", "hooks")
+        return by[os.path.join(hooks, "guard-bash.sh")].content, by[os.path.join(hooks, "guard.env")].content
+
+    def sourced(self, env_bytes, names):
+        """Values after `. guard.env` in bash (the file is valid shell, single-quoted words)."""
+        path = os.path.join(self.tmp, "guard.env")
+        with open(path, "wb") as fh:
+            fh.write(env_bytes)
+        script = "set -eu; . \"$1\"; shift; for n; do printf '%s\\0' \"${!n}\"; done"
+        out = subprocess.run(["bash", "-c", script, "bash", path] + list(names), stdout=subprocess.PIPE, check=True)
+        return dict(zip(names, out.stdout.decode().split("\0")))
+
+    def test_guard_id_and_lessons_defaults(self):
+        from harness.repo import read_guard_env
+        from harness.util import sha256_bytes
+
+        guard, env = self.render_hooks()
+        text = env.decode()
+        gid = sha256_bytes(guard)[:12]
+        self.assertRegex(gid, r"^[0-9a-f]{12}$")
+        self.assertIn("\nHARNESS_GUARD_ID='%s'\n" % gid, text)
+        self.assertIn("\nHARNESS_LESSONS_JOURNAL='false'\n", text)
+        self.assertIn("\nHARNESS_LESSONS_PROMPT_SIGNALS='false'\n", text)
+        self.assertEqual(self.render_hooks(), (guard, env))   # stable across renders of the same hub state
+        defaults = toml_compat.loads(self.read(os.path.join(REPO, "bundles", "core", "defaults.toml")))["lessons"]
+        names = ("HARNESS_LESSONS_CORRECTION_RE", "HARNESS_LESSONS_DISSATISFACTION_RE", "HARNESS_GUARD_ID")
+        want = {"HARNESS_LESSONS_CORRECTION_RE": defaults["correction_re"],
+                "HARNESS_LESSONS_DISSATISFACTION_RE": defaults["dissatisfaction_re"], "HARNESS_GUARD_ID": gid}
+        self.assertIn("'", want["HARNESS_LESSONS_CORRECTION_RE"])    # the quote the shell quoting must survive
+        self.assertEqual(self.sourced(env, names), want)
+        parsed = read_guard_env(os.path.join(self.tmp, "guard.env"))   # the engine's parse rules
+        self.assertEqual({k: parsed[k] for k in names}, want)
+
+    def test_journal_on_and_awkward_regex(self):
+        self.write(self.cfg, self.config_text + '\n[lessons]\njournal = true\n'
+                   'correction_re = "^(it\'s|a\\\\b|\\"x\\"|$HOME|`id`)"\n')
+        _, env = self.render_hooks()
+        self.assertIn("\nHARNESS_LESSONS_JOURNAL='true'\n", env.decode())
+        got = self.sourced(env, ("HARNESS_LESSONS_CORRECTION_RE",))["HARNESS_LESSONS_CORRECTION_RE"]
+        self.assertEqual(got, '^(it\'s|a\\b|"x"|$HOME|`id`)')
+
+
 class EventHooksTest(HubTestCase):
     """Neutral hook events beyond the guard: [[provides.hooks]] x [targets.hooks.events]."""
 

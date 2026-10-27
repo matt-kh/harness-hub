@@ -32,7 +32,7 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Set, Tuple
 from . import toml_compat
 from .config import get_path
 from .manifest import NEUTRAL_EVENTS, Bundle, Provider
-from .util import HarnessError, canonical_json, dump_json, expand, list_files, read_bytes, tilde
+from .util import HarnessError, canonical_json, dump_json, expand, list_files, read_bytes, sha256_bytes, tilde
 
 TEMPLATE_RE = re.compile(r"(?<![$\\])\{\{ ([a-z][a-z0-9_]*(?:\.[A-Za-z0-9_]+)+) \}\}")
 ESCAPED_RE = re.compile(r"\\(\{\{ [a-z][a-z0-9_]*(?:\.[A-Za-z0-9_]+)+ \}\})")
@@ -528,10 +528,14 @@ class Renderer:
                     hooks_dir: str) -> Any:
         """Render guard-bash.sh, guard.env and the guard shim; return the parsed hook entry."""
         guard_path = os.path.join(hooks_dir, "guard-bash.sh")
-        g = self.targets.add_file(guard_path, p.name, engine.name, build_guard(engine, bundles), executable=True)
+        guard_bytes = build_guard(engine, bundles)
+        g = self.targets.add_file(guard_path, p.name, engine.name, guard_bytes, executable=True)
         g.bundles.update(b.name for b in bundles if b.guard_rules())
         env = dict(self.env)
         env["HARNESS_PROVIDER"] = p.name
+        # the guard's identity for journal lines: stable across renders of the same hub state,
+        # changes with any section or engine edit (older journal lines then count as stale)
+        env["HARNESS_GUARD_ID"] = sha256_bytes(guard_bytes)[:12]
         ask_supported = p.capabilities.get("ask", True)
         ask_as = None
         if not ask_supported:
@@ -923,8 +927,6 @@ def parse_blocks(text: str) -> List[Tuple[str, Any]]:
 
 
 def body_sha(body: str) -> str:
-    from .util import sha256_bytes
-
     return sha256_bytes(body.rstrip("\n").encode("utf-8"))
 
 
@@ -1242,8 +1244,6 @@ def merge_toml_blocks(live: Optional[str], tblocks: Dict[str, str], prev: Dict[s
     The result is re-parsed; if the combination is invalid TOML (for example the user
     already defines the same table) the live file is kept and a conflict reported.
     """
-    from .util import sha256_bytes
-
     text = live or ""
     conflicts: List[str] = []
     existing = {m.group("id"): m.group("body") for m in _TBLOCK_RE.finditer(text)}

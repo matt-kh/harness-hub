@@ -83,6 +83,26 @@ default = ""
 description = "Extra ERE of credential paths the guard denies for readers (cat, grep, jq, cp, ...), on top of the built-in list (HARNESS_CRED_EXTRA_RE). Empty = none."
 example = '/etc/org-vault/|~/\.config/acme-cli/'
 
+[requires.config."lessons.journal"]
+type = "boolean"
+default = false
+description = "Opt-in guard journal: on every guard ask or deny, append one line to ~/.local/state/harness/journal/<date>.log with the timestamp, provider, session id, kind (guard-ask | guard-deny), rule site (section function and line), guard id and repository basename, and point ~/.local/state/harness/retro/current at the session. Never recorded: command text, prompt text, paths, reasons. Stays on the workstation (HARNESS_LESSONS_JOURNAL)."
+
+[requires.config."lessons.prompt_signals"]
+type = "boolean"
+default = false
+description = "Opt-in prompt signals (hook shipped by the lessons bundle): a prompt matching lessons.correction_re or lessons.dissatisfaction_re adds one journal line whose kind is the class name (correction | dissatisfaction) and whose other fields are the timestamp, provider, session id, guard id and repository basename. Never recorded: prompt text, command text, paths (HARNESS_LESSONS_PROMPT_SIGNALS)."
+
+[requires.config."lessons.correction_re"]
+type = "string"
+default = "^(no[,.! ]|nope|wrong|incorrect|that'?s not|not what i|i (said|asked|meant|told you|wanted)|you (didn'?t|did not|ignored|missed|forgot|broke|changed)|undo|revert (that|this|it)|redo|try again|again[,.!]?$|still (wrong|broken|failing|not))"
+description = "POSIX ERE, applied case-insensitively (grep -Eiq) to a prompt, that classifies it as a correction when lessons.prompt_signals is on. Only the class name is recorded, never the prompt (HARNESS_LESSONS_CORRECTION_RE)."
+
+[requires.config."lessons.dissatisfaction_re"]
+type = "string"
+default = "(frustrat|annoy|unacceptable|stop (doing|that)|why (did|do|are) you|don'?t (do|ever)|you keep|this is (wrong|bad|useless))"
+description = "POSIX ERE, applied case-insensitively (grep -Eiq) to a prompt, that classifies it as dissatisfaction when lessons.prompt_signals is on. Only the class name is recorded, never the prompt (HARNESS_LESSONS_DISSATISFACTION_RE)."
+
 [provides]
 rules = ["rules/00-conventions.md"]
 skills = []
@@ -101,6 +121,10 @@ WORK_TICKET_AGENT_LABEL_RE = "{{ core.agent_label_re }}"
 WORK_TICKET_BASE_BRANCH_RE = "{{ core.default_branch_re }}"
 HARNESS_TICKET_EXAMPLE = "{{ core.ticket_example }}"
 HARNESS_CRED_EXTRA_RE = "{{ credentials.extra_paths_re }}"
+HARNESS_LESSONS_JOURNAL = "{{ lessons.journal }}"
+HARNESS_LESSONS_PROMPT_SIGNALS = "{{ lessons.prompt_signals }}"
+HARNESS_LESSONS_CORRECTION_RE = "{{ lessons.correction_re }}"
+HARNESS_LESSONS_DISSATISFACTION_RE = "{{ lessons.dissatisfaction_re }}"
 
 [[manual_steps]]
 id = "local-bin-path"
@@ -216,8 +240,8 @@ fix = "harness apply --provider claude"
 providers = ["claude"]
 
 [uninstall]
-keeps = []
-notes = "Removes the rendered hook, agents and managed instruction blocks only; your own CLAUDE.md prose outside the managed blocks stays."
+keeps = ["~/.local/state/harness/lessons/**", "~/.local/state/harness/journal/**", "~/.local/state/harness/retro/**"]
+notes = "Removes the rendered hook, agents and managed instruction blocks only; your own CLAUDE.md prose outside the managed blocks stays, and so do the lessons, the guard journal and the retro pointer under ~/.local/state/harness/ (delete them by hand)."
 
 # Component taxonomy (docs/reference/taxonomy.md): bundle defaults, then per-component overrides.
 [taxonomy]

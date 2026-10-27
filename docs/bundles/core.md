@@ -30,6 +30,8 @@ Config it reads: `identity.email`, `core.default_branch_re`, `core.ticket_exampl
 | A legitimate read of a file under `~/.config/` is denied | the credential rule matches the path | read it yourself; if the path is not a credential, open an issue with the command (redacted) |
 | `plan` shows `CONFLICT` on `settings.json` or `CLAUDE.md` | you edited a hub-owned key or a managed block | `harness sync` → `--adopt` your change into your private bundle, or revert it |
 | Agents use the wrong model for Plan/Auto | `core.model_policy` differs from what you expect | `harness config get core.model_policy`; set it and `harness apply` |
+| Guard journal stays empty although `lessons.journal = true` | `guard.env` not re-rendered, `HARNESS_LESSONS_JOURNAL` set to something else in your environment, or only allows so far (allows and passes write nothing) | `harness apply`; `grep HARNESS_LESSONS_JOURNAL ~/.claude/hooks/guard.env` shows `'true'`; check `env \| grep '^HARNESS_LESSONS_JOURNAL='` is unset or `true`; trigger a known deny (`git push origin main`) and look in `~/.local/state/harness/journal/` ([journal](../reference/hook-policy.md#journal)) |
+| Journal lines missing, `Permission denied` on `~/.local/state/harness/` | the state directory (or `$XDG_STATE_HOME`) is not writable by you, e.g. created by another user | `ls -ld ~/.local/state/harness`; fix ownership (`chown -R "$USER" ~/.local/state/harness`); the guard swallows the error and its decisions are unaffected |
 
 Uninstall: `harness uninstall --bundle core` is refused while any other bundle is active;
 `harness uninstall --all` removes everything the state lists and keeps your own files.
@@ -101,6 +103,10 @@ Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md
 | `core.ticket_example` | string | no | `"PROJ-123"` | Example ticket key used in guard reasons, instructions and skill docs. |
 | `credentials.extra_paths_re` | string | no | `""` | Extra ERE of credential paths the guard denies for readers (cat, grep, jq, cp, ...), on top of the built-in list (HARNESS_CRED_EXTRA_RE). Empty = none. |
 | `identity.email` | string | yes |  | Your work email; shown in the instructions and used as the OAuth account hint. Never used as a commit author by the hub. |
+| `lessons.correction_re` | string | no | `"^(no[,.! ]\|nope\|wrong\|incorrect\|that'?s not\|not what i\|i (said\|asked\|meant\|told you\|wanted)\|you (didn'?t\|did not\|ignored\|missed\|forgot\|broke\|changed)\|undo\|revert (that\|this\|it)\|redo\|try again\|again[,.!]?$\|still (wrong\|broken\|failing\|not))"` | POSIX ERE, applied case-insensitively (grep -Eiq) to a prompt, that classifies it as a correction when lessons.prompt_signals is on. Only the class name is recorded, never the prompt (HARNESS_LESSONS_CORRECTION_RE). |
+| `lessons.dissatisfaction_re` | string | no | `"(frustrat\|annoy\|unacceptable\|stop (doing\|that)\|why (did\|do\|are) you\|don'?t (do\|ever)\|you keep\|this is (wrong\|bad\|useless))"` | POSIX ERE, applied case-insensitively (grep -Eiq) to a prompt, that classifies it as dissatisfaction when lessons.prompt_signals is on. Only the class name is recorded, never the prompt (HARNESS_LESSONS_DISSATISFACTION_RE). |
+| `lessons.journal` | boolean | no | `false` | Opt-in guard journal: on every guard ask or deny, append one line to ~/.local/state/harness/journal/<date>.log with the timestamp, provider, session id, kind (guard-ask \| guard-deny), rule site (section function and line), guard id and repository basename, and point ~/.local/state/harness/retro/current at the session. Never recorded: command text, prompt text, paths, reasons. Stays on the workstation (HARNESS_LESSONS_JOURNAL). |
+| `lessons.prompt_signals` | boolean | no | `false` | Opt-in prompt signals (hook shipped by the lessons bundle): a prompt matching lessons.correction_re or lessons.dissatisfaction_re adds one journal line whose kind is the class name (correction \| dissatisfaction) and whose other fields are the timestamp, provider, session id, guard id and repository basename. Never recorded: prompt text, command text, paths (HARNESS_LESSONS_PROMPT_SIGNALS). |
 
 ### Secrets (never in harness.toml)
 
@@ -198,7 +204,7 @@ Guides steer the agent before it acts; sensors detect at or after the action. Pa
 
 ## Uninstall
 
-Kept on uninstall: _nothing_
+Kept on uninstall: `~/.local/state/harness/lessons/**`, `~/.local/state/harness/journal/**`, `~/.local/state/harness/retro/**`
 
-Removes the rendered hook, agents and managed instruction blocks only; your own CLAUDE.md prose outside the managed blocks stays.
+Removes the rendered hook, agents and managed instruction blocks only; your own CLAUDE.md prose outside the managed blocks stays, and so do the lessons, the guard journal and the retro pointer under ~/.local/state/harness/ (delete them by hand).
 <!-- generated:end -->
