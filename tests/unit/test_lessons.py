@@ -854,6 +854,27 @@ class ReviewFixesTest(LessonsCase):
         with open(os.path.join(os.environ["HARNESS_RETRO_DIR"], "last")) as fh:
             self.assertRegex(fh.read(), r"^[0-9-]{10}T[0-9:]{8}Z\t0\n$")
 
+    # 12b -- --ack writes the stop nudge's marker for the session in retro/current
+    def test_ack_marks_current_session(self):
+        rdir = os.environ["HARNESS_RETRO_DIR"]
+        marker = os.path.join(rdir, "sessions", "s1")
+        self.ok("journal", "--ack")   # no retro/current: nothing marked
+        self.assertFalse(os.path.exists(os.path.join(rdir, "sessions")) and os.listdir(os.path.join(rdir, "sessions")))
+        for none in ("-", ".."):
+            with open(os.path.join(rdir, "current"), "w") as fh:
+                fh.write(none + "\n")
+            self.assertNotIn("session marked", self.ok("journal", "--ack"))
+        self.assertFalse(os.path.exists(os.path.join(rdir, "sessions", "-")))
+        with open(os.path.join(rdir, "current"), "w") as fh:
+            fh.write("s1\n")
+        out = self.ok("journal", "--ack")
+        self.assertIn("session marked: %s" % marker, out)
+        self.assertTrue(os.path.isfile(marker))
+        self.assertEqual(os.path.getsize(marker), 0)
+        self.assertEqual(os.stat(marker).st_mode & 0o777, 0o600)
+        self.ok("journal", "--ack")   # idempotent
+        self.assertTrue(os.path.isfile(marker))
+
     # 13 -- review errors are rc 4, never "not due"
     def test_review_error_rc4(self):
         self.journal([jl("2026-10-26T09:00:00Z", "s1", "guard-deny", "guard_section_core_20_core:8", "g")])

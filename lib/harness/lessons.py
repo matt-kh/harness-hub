@@ -1728,7 +1728,28 @@ def cmd_journal(ctx: Any, ns: Any, hub: Any) -> int:
         else:
             ack(rdir, started, 0)
         print("acknowledged: %s" % last_path)
+        marked = mark_session(rdir, current_session())
+        if marked:
+            print("session marked: %s" % marked)
     return 0
+
+
+def mark_session(rdir: str, session: Optional[str]) -> Optional[str]:
+    """Write the empty ``<retro dir>/sessions/<sid>`` marker that hooks/stop-retro-nudge.sh
+    checks, so a session whose retro already ran is not nudged to run one again. ``-``, ``.``
+    and ``..`` (no session) are skipped, as the hook skips them; returns the path or None."""
+    if not session or session in ("-", ".", ".."):
+        return None
+    sdir = os.path.join(rdir, "sessions")
+    path = os.path.join(sdir, session)
+    try:
+        os.makedirs(sdir, mode=0o700, exist_ok=True)
+        if not os.path.exists(path):
+            fd = os.open(path, os.O_WRONLY | os.O_CREAT, 0o600)
+            os.close(fd)
+    except OSError:
+        return None
+    return path
 
 
 def ack(rdir: str, ts: str, count: int, keep_days: int = 7) -> None:

@@ -129,7 +129,8 @@ prints every one between your applied version and the new one.
   closing keywords and `#N` titles; redacts repository names), `index` (`INDEX.md` by domain
   with per-domain candidate and overall caps, `--prune`) and `journal` (lines since the last
   retro grouped by kind and rule site, current sites resolved to their source line, other
-  guard ids stale, `--ack`). Unit tests with goldens in `tests/fixtures/lessons/`.
+  guard ids stale, `--ack`, which also writes the stop nudge's `retro/sessions/<sid>` marker
+  for the session in `retro/current` so a session whose retro ran is not nudged again). Unit tests with goldens in `tests/fixtures/lessons/`.
 - Bundle `lessons` (experimental, `depends_on = ["core"]`, in no profile;
   [docs](docs/bundles/lessons.md)): the first bundle hooks. `hooks/prompt-signal.sh`
   (`prompt`, when `lessons.prompt_signals`) appends one `correction` or `dissatisfaction`

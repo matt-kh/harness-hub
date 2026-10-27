@@ -186,6 +186,15 @@ for sid in '../x' '..' 'a/b' ''; do
 done
 others=""; for m in "$RD"/sessions/*; do case "${m##*/}" in s1|c1|c2) ;; *) others="$others ${m##*/}" ;; esac; done
 [ -z "$others" ] && [ ! -e "$tmp/x" ]; ok $? "nudge: only the markers of nudged sessions exist${others:+ —$others}"
+# the real CLI: `harness lessons journal --ack` after an in-workflow retro marks the session in
+# retro/current, so the nudge that follows stays silent and never runs the review
+AR="$tmp/ackretro"; mkdir -p "$AR" "$tmp/ackjournal"; printf 'ack1\n' > "$AR/current"
+HARNESS_RETRO_DIR="$AR" HARNESS_JOURNAL_DIR="$tmp/ackjournal" HARNESS_CONFIG=/nonexistent \
+  "$BASH" "$hub/bin/harness" --home "$hub" lessons journal --ack > "$tmp/ackout" 2>"$tmp/ackerr"
+ackrc=$?
+nudge '{"session_id":"ack1","stop_hook_active":false}' HARNESS_RETRO_DIR="$AR"
+[ "$ackrc" = 0 ] && [ -f "$AR/sessions/ack1" ] && [ ! -s "$AR/sessions/ack1" ] && silent && ! called
+ok $? "nudge: a session marked by journal --ack -> silent, review not run"
 nudge '{"session_id":"s3","stop_hook_active":false}' HARNESS_RETRO_DIR=relative
 silent && ! called; ok $? "nudge: relative retro dir -> silent"
 nudge '{"session_id":"s4","stop_hook_active":false}' HARNESS_HOME="$tmp/nohub"
