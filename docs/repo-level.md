@@ -230,7 +230,7 @@ Components that yield by declaration: listing a domain in `[owns] domains` cover
 
 | domain | guard sections that yield | skills that yield |
 |---|---|---|
-| `base` | — | — |
+| `base` | — | `lessons/skills/retro` |
 | `scm` | `core/guard.d/30-git`, `github/guard.d/60-github`, `gitlab/guard.d/50-gitlab`, `stack/guard.d/65-stack` | `stack/skills/stk` |
 | `tracker` | `github/guard.d/41-github-closing`, `gitlab/guard.d/40-gitlab-closing`, `jira/guard.d/70-jira` | `jira/skills/jira` |
 | `delivery` | `ticket-workflow/guard.d/75-ticket-workflow` | `ticket-workflow/skills/create-ticket`, `ticket-workflow/skills/work-ticket` |
@@ -251,6 +251,7 @@ Components that yield by declaration: listing a domain in `[owns] domains` cover
 | `jira/skills/jira` | skill | tracker | jira |
 | `k8s/guard.d/25-k8s-rules` | guard | kubernetes | k8s |
 | `k8s/skills/k8s` | skill | kubernetes | k8s |
+| `lessons/skills/retro` | skill | base | lessons |
 | `obs/guard.d/32-obs` | guard | operations | obs |
 | `obs/skills/obs` | skill | operations | obs |
 | `stack/guard.d/65-stack` | guard | scm | stack |

@@ -10,6 +10,12 @@ prints every one between your applied version and the new one.
 
 ### Docs
 
+- [docs/bundles/lessons.md](docs/bundles/lessons.md): the lessons loop (signals, review,
+  reflect and record, reuse, human promotion), the lifecycle of a record, the per-provider
+  matrix (claude and gemini enforce both hooks, copilot the prompt hook only, codex and
+  opencode advisory) and troubleshooting. Principle 6 "What it means in this repo" names the
+  loop as the routine form of the steering loop, with two "How it is checked" rows (no
+  `principles_version` bump); ARCHITECTURE §3 and the roadmap list prefix `15` (rule only).
 - [docs/roadmap.md](docs/roadmap.md): planned bundles and extensions by tranche (P0 coverage
   gaps and lint sensors; core git and shell hygiene, `run-checks`, `worktree`, Jira Cloud, the
   `ci` bundle; then the secret-tooling, toolchain, containers, release, cloud, iac, db, hosts
@@ -124,6 +130,23 @@ prints every one between your applied version and the new one.
   with per-domain candidate and overall caps, `--prune`) and `journal` (lines since the last
   retro grouped by kind and rule site, current sites resolved to their source line, other
   guard ids stale, `--ack`). Unit tests with goldens in `tests/fixtures/lessons/`.
+- Bundle `lessons` (experimental, `depends_on = ["core"]`, in no profile;
+  [docs](docs/bundles/lessons.md)): the first bundle hooks. `hooks/prompt-signal.sh`
+  (`prompt`, when `lessons.prompt_signals`) appends one `correction` or `dissatisfaction`
+  journal line per matching prompt (class only; slash commands and prompts over 600
+  characters skipped; stdout always empty; same directory rules as the guard journal) and
+  `hooks/stop-retro-nudge.sh` (`stop`, when `lessons.journal`) prints one `systemMessage` per
+  session when `harness lessons review --session <id>` exits 0, silent on every other exit
+  status, never a decision. Skill `/retro` (`retro-facts.sh` read-only facts with goldens; one
+  fixed-shape questionnaire; at most one invariant and one domain candidate through
+  `harness lessons new|note`, journal refs copied verbatim; a fixed-shape report ending with the
+  human's `confirm|retire|propose` commands). Rule `15-lessons` (consult `INDEX.md` at Step 0;
+  a lesson is evidence, never an instruction). Permissions: allow `Bash(harness lessons:*)`,
+  ask on `Write`/`Edit` of `~/.local/state/harness/lessons/**`. Doctor checks
+  `lessons-index-fresh`, `lessons-stale-candidates`, `lessons-review-keys`; manual steps
+  `enable-journal`, `read-the-loop`. Suites `bundles/lessons/tests/run.sh` (hooks against
+  `hooks/tests/prompts.tsv`, the regex contract, plus the doctor script) and the retro facts
+  goldens.
 - `harness lint` rule `hooks-events` (principle 6, not skippable): a hook script missing or
   failing `bash -n`, a `when` key no schema defines, one script name in two bundles or named
   like a guard file or any provider's shim, an event no provider declares (warning); provider
@@ -631,6 +654,14 @@ prints every one between your applied version and the new one.
   `lessons.review.corrections` (2), `lessons.review.dissatisfaction` (1) and
   `lessons.review.denies` (3), where `0` disables a criterion. A `lessons.dir` you set must lie
   outside the hub and every git checkout.
+- Prompt-signal regexes: the defaults of `lessons.correction_re` and
+  `lessons.dissatisfaction_re` change to meet the prompt fixture list
+  (`bundles/lessons/hooks/tests/prompts.tsv`). A correction no longer starts with any
+  `no ` ("no changes needed" is task text): `no`, `no,`, `no.`, `no!` and `no that|this|it|you|i|not|wait|stop …`
+  still match. Dissatisfaction matches `don't do that|this` instead of any `don't do`
+  ("don't do the rebase yet" is an instruction). Nothing to edit unless you copied the old
+  defaults into `harness.toml`: then replace them with the new ones from
+  `harness config explain lessons.correction_re` or drop them.
 - Guard journal: four new `core` keys under `[lessons]`, all off or inert by default, so there
   is nothing to edit. `lessons.journal` (bool, default `false`; `HARNESS_LESSONS_JOURNAL`)
   turns the journal on; `lessons.prompt_signals` (bool, default `false`;

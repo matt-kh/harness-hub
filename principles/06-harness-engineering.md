@@ -58,6 +58,13 @@ bundle ships: rules, skills, permissions, agents, guard sections, doctor checks,
   numeric prefixes. A small, fixed topology is what makes coverage checkable.
 - **Ambient affordances.** `harness doctor`, `harness steps --pending`, `harness status
   --matrix` and `harness config explain` make the environment legible to agent and human.
+- **The lessons loop is the routine form of the steering loop.** With the
+  [`lessons`](../docs/bundles/lessons.md) bundle the evidence a human would notice is recorded
+  (guard asks and denies, user corrections, as kinds only); when a session meets the review
+  criteria `/retro` writes at most two evidence-backed candidate lessons, later tasks consult
+  them at Step 0 as evidence, and only a human confirms one and turns it into an issue
+  carrying a guide edit and its paired sensor. The loop proposes; it never changes a bundle
+  without a PR.
 
 ## Anti-patterns and the repo's counter
 
@@ -92,6 +99,8 @@ bundle ships: rules, skills, permissions, agents, guard sections, doctor checks,
 | A change to what README prose states (manifest, CLI, principle, install or governance page) touches `README.md` | gate | `tools/gate/companions.sh` check `readme` (pre-push, CI `gate`) |
 | A pull request names the GitHub issue it builds on as `#N` (never after a closing keyword), or waives with `no-issue: <reason>` | gate | `tools/gate/companions.sh` check `issue` (CI `gate`, on the PR body) |
 | `ticket_workflow.trackers` entries are valid (the `match` ERE compiles, the tracker is known, `project` only with Jira) | doctor | `harness doctor` (check `ticket-workflow-trackers`) |
+| The lessons loop's hooks record kinds only (no prompt word in the journal, empty prompt-hook stdout) and nudge once per due session; `/retro` facts are read-only | tests | `bundles/lessons/hooks/tests/run.sh`, `bundles/lessons/skills/retro/scripts/tests/run.sh` |
+| The lessons index is fresh, no candidate is stale, the review regexes compile | doctor | `harness doctor` (checks `lessons-index-fresh`, `lessons-stale-candidates`, `lessons-review-keys`) |
 | PR states the pairing was checked | review | [PR template](../.github/PULL_REQUEST_TEMPLATE.md) |
 
 ## Tensions and how they are resolved
