@@ -1,0 +1,6 @@
+{
+  "due": false,
+  "session": "s1",
+  "counts": {"guard-ask": 0, "guard-deny": 1, "correction": 1, "dissatisfaction": 0},
+  "fired": []
+}
