@@ -24,6 +24,8 @@ class ParserTest(unittest.TestCase):
                 argv += ["x.bundle"]
             if name == "release":
                 argv += ["check"]
+            if name == "lessons":
+                argv += ["list"]
             ns = p.parse_args(argv)
             self.assertEqual(ns.command, name)
 

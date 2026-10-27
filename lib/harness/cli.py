@@ -39,6 +39,7 @@ COMMANDS = [
     ("lint", "validate manifests, cross-references, templates, private identifiers"),
     ("docs", "generate | check the generated regions under docs/"),
     ("repo", "show what the current repository's .harness.toml declares and which user-level components yield here"),
+    ("lessons", "private lessons library: record, review, index, validate and propose lessons (stays on this workstation)"),
     ("steps", "list manual steps (--pending: only those whose verify fails)"),
     ("version", "print hub, applied and runtime versions"),
 ]
@@ -240,12 +241,106 @@ def build_parser() -> argparse.ArgumentParser:
                    "show/init: the directory to look from (default: the current one)")
     p.add_argument("--write", action="store_true", help="init: create <repo root>/.harness.toml (never overwrites)")
 
+    _lessons_parser(add("lessons"), g)
+
     p = add("steps")
     p.add_argument("--bundle", action="append", metavar="NAME")
     p.add_argument("--pending", action="store_true", help="only steps whose verify command fails")
 
     add("version")
     return parser
+
+
+LESSONS_HELP = [
+    ("list", "list lessons (default: every status but retired)"),
+    ("show", "print one lesson record"),
+    ("new", "record a candidate lesson (the only way a record is created); prints its id"),
+    ("note", "deferred probing: count a use, a help or a recurrence; --recurred with a journal: ref is objective"),
+    ("confirm", "human: confirm a candidate or recurring lesson"),
+    ("retire", "human: retire a lesson"),
+    ("review", "is a retro due for this session? rc 0 due, 1 not due, 3 no journal / no session / no lines"),
+    ("stats", "asks, denies and corrections per session before and after each lesson (one table)"),
+    ("validate", "apply a lesson's candidate edit to a copy of the hub's HEAD and run lint, tests and render"),
+    ("propose", "render body.md, preview.md and create.sh for an issue (never runs create.sh)"),
+    ("index", "rewrite INDEX.md (grouped by domain, candidates capped)"),
+    ("journal", "group guard-journal lines since the last retro by kind and rule site"),
+]
+
+
+def _lessons_parser(p: argparse.ArgumentParser, g: argparse.ArgumentParser) -> None:
+    from .taxonomy import FACETS
+
+    domains = list(FACETS["domain"])
+    lsub = p.add_subparsers(dest="action", metavar="action")
+    helps = dict(LESSONS_HELP)
+
+    def add(name: str) -> argparse.ArgumentParser:
+        return lsub.add_parser(name, parents=[g], formatter_class=StableHelpFormatter,
+                               help=helps[name], description=helps[name])
+
+    def date(q: argparse.ArgumentParser) -> None:
+        q.add_argument("--date", metavar="YYYY-MM-DD", help="date for created/updated and History (default: today, UTC)")
+
+    q = add("list")
+    q.add_argument("--status", choices=["candidate", "confirmed", "recurring", "proposed", "retired", "all"],
+                   help="only this status (all: retired too)")
+    q.add_argument("--domain", choices=domains, help="only this taxonomy domain")
+    q.add_argument("--stale", action="store_true", help="only lessons without an update in lessons.max_age_days")
+    q = add("show")
+    q.add_argument("id", metavar="ID", help="lesson id, e.g. base-001")
+    q = add("new")
+    q.add_argument("--domain", required=True, choices=domains, help="taxonomy domain (base applies everywhere)")
+    q.add_argument("--scope", required=True, choices=["invariant", "domain"], help="invariant needs --domain base")
+    q.add_argument("--situation", required=True, metavar="TEXT", help="when the lesson applies, one line (<= 300 chars)")
+    q.add_argument("--guide-ref", required=True, metavar="R", help="the guide to change: <bundle>/<kind>/<name>")
+    q.add_argument("--sensor-ref", required=True, metavar="R", help="its paired sensor: <bundle>/<kind>/<name>")
+    q.add_argument("--bundles", action="append", metavar="B,...", help="bundles the lesson concerns")
+    q.add_argument("--source", default="retro", choices=["journal", "retro", "user"], help="where it came from (default retro)")
+    q.add_argument("--evidence", action="append", nargs="+", required=True, metavar="REF",
+                   help="KIND:TEXT, KIND one of journal, retro, user, test, review (<= 200 chars each)")
+    q.add_argument("--lesson", metavar="TEXT", help="the lesson itself (<= 400 chars)")
+    q.add_argument("--edit", metavar="FILE.diff", help="candidate edit: a unified diff against the hub root, bundles/ only")
+    date(q)
+    q = add("note")
+    q.add_argument("id", metavar="ID")
+    q.add_argument("--used", action="store_true", help="the lesson was consulted")
+    q.add_argument("--helped", action="store_true", help="it helped (subjective; never promotes)")
+    q.add_argument("--recurred", action="store_true", help="the situation recurred (objective with a journal: --evidence)")
+    q.add_argument("--evidence", action="append", metavar="REF", help="KIND:TEXT evidence ref (repeatable)")
+    q.add_argument("--note", metavar="TEXT", help="free text for the History line (<= 200 chars)")
+    date(q)
+    q = add("confirm")
+    q.add_argument("id", metavar="ID")
+    date(q)
+    q = add("retire")
+    q.add_argument("id", metavar="ID")
+    q.add_argument("--reason", metavar="TEXT", help="why, for the History line")
+    date(q)
+    q = add("review")
+    q.add_argument("--session", metavar="S", help="session id (default: <retro dir>/current)")
+    q.add_argument("--explain", action="store_true", help="list the session's lines (time, kind, site; never text)")
+    q = add("stats")
+    q.add_argument("--domain", choices=domains, help="only lessons of this domain")
+    q.add_argument("--since", metavar="DATE", help="ignore journal lines before DATE")
+    q = add("validate")
+    q.add_argument("id", nargs="?", metavar="ID", help="one lesson (default: every open lesson with a candidate edit)")
+    q.add_argument("--quick", action="store_true", help="skip the touched bundles' own suites")
+    q.add_argument("--full", action="store_true", help="run every test suite instead of guard + touched bundles")
+    q.add_argument("--now", metavar="TS", help="timestamp for validated_at (default: now, UTC)")
+    q = add("propose")
+    q.add_argument("id", metavar="ID")
+    q.add_argument("--out", required=True, metavar="DIR", help="where body.md, preview.md and create.sh go")
+    q.add_argument("--repo", metavar="OWNER/REPO", help="GitHub repository for the issue (default: from the hub checkout)")
+    q.add_argument("--keep-repos", action="store_true", help="keep repository names from evidence (default: <repo>)")
+    q.add_argument("--mark", action="store_true", help="set status proposed (after the issue exists)")
+    date(q)
+    q = add("index")
+    q.add_argument("--prune", action="store_true", help="retire stale candidates first")
+    q.add_argument("--now", metavar="TS", help="reference time for ready|stale (default: now, UTC)")
+    q = add("journal")
+    q.add_argument("--all", action="store_true", help="every line, not only those since <retro dir>/last")
+    q.add_argument("--since", metavar="TS", help="lines after TS (date or ISO UTC)")
+    q.add_argument("--ack", action="store_true", help="write <retro dir>/last = now and prune old retro/sessions markers")
 
 
 class Ctx:
@@ -364,6 +459,10 @@ def dispatch(ctx: Ctx, ns: argparse.Namespace, parser: argparse.ArgumentParser) 
         from . import repo
 
         return repo.run(ctx, ns.action, ns.args, write=ns.write)
+    if cmd == "lessons":
+        from . import lessons
+
+        return lessons.run(ctx, ns)
     if cmd == "init":
         from . import init
 
