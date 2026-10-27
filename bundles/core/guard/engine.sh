@@ -114,9 +114,11 @@
 #   ts provider session kind site guard_id repo
 # kind = guard-ask | guard-deny; site = <guard_section_*>:<line in that section's file> of the
 # deciding call (a flushed deferred ask is credited to the rule that deferred it); session = the
-# hook input's session_id when it matches [A-Za-z0-9._-]{1,64}, else -; repo = basename of the
-# repository root, else -. Never written: the command, its words, paths, reasons. The session id
-# also goes to <retro dir>/current. Every journal error is swallowed; the decision never changes.
+# hook input's session_id when it matches [A-Za-z0-9._-]{1,64} (ASCII), else -; repo = name of the
+# main checkout (a linked worktree resolves to it), else -. Never written: the command, its words,
+# paths, reasons. The session id also goes to <retro dir>/current. Every journal error is
+# swallowed; the decision never changes. Empty or relative dirs (HOME unset, a relative
+# XDG_STATE_HOME) write nothing. The fail-closed denies before the sections are not journaled.
 set -uo pipefail
 
 # >>> hn_timeout
@@ -183,8 +185,12 @@ if command -v jq >/dev/null 2>&1; then
   session=${_gin%%"$_gnl"*}
   case "$_gin" in *"$_gnl"*) cmd=${_gin#*"$_gnl"} ;; *) cmd="" ;; esac
   unset _gin _gnl
-  case "$session" in ''|*[!A-Za-z0-9._-]*) session=- ;; esac
-  [ "${#session}" -le 64 ] || session=-
+  guard_session_clean() {  # session -> itself when [A-Za-z0-9._-]{1,64} in the C locale (ASCII only), else -
+    local LC_ALL=C
+    case "$session" in ''|*[!A-Za-z0-9._-]*) session=- ;; esac
+    [ "${#session}" -le 64 ] || session=-
+  }
+  guard_session_clean
 else
   printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"guard-bash(user): jq not installed — install jq; every Bash command is denied until then"}}'
   exit 0
@@ -388,23 +394,47 @@ journal_site() {  # -> _jsite = <guard_section_*>:<line in the section file> of 
   return 0
 }
 journal_field() {  # VAR VALUE -> VAR = VALUE with every character outside [A-Za-z0-9._-] as _, at most 64, or -
+  local LC_ALL=C
   local _jv="${2:-}"
   _jv=${_jv//[!A-Za-z0-9._-]/_}
   printf -v "$1" '%s' "${_jv:0:64}"
   [ -n "${!1}" ] || printf -v "$1" '%s' -
 }
+journal_repo() {  # -> _jrepo: directory name of the main checkout of REPO_ROOT (a linked worktree's
+  # `<repo>_<branch>` name would leak the branch), else the checkout's own name, else empty.
+  # Builtins only; any surprise falls back to the checkout's name.
+  local r="${REPO_ROOT%/}" line="" d
+  _jrepo=${r##*/}
+  [ -n "$r" ] && [ -f "$r/.git" ] && [ -r "$r/.git" ] || return 0
+  IFS= read -r line 2>/dev/null < "$r/.git" || [ -n "$line" ] || return 0
+  case "$line" in 'gitdir: '?*) d=${line#gitdir: } ;; *) return 0 ;; esac
+  d=${d%/}
+  case "$d" in /*) ;; *) d="$r/$d" ;; esac          # relative gitdir (worktree.useRelativePaths)
+  case "$d" in */worktrees/?*) ;; *) return 0 ;; esac   # e.g. a submodule: keep the checkout name
+  d=${d%/worktrees/*}                                # <main>/.git (or a bare <main>.git)
+  case "$d" in */.git) d=${d%/.git} ;; *.git) d=${d%.git} ;; *) return 0 ;; esac
+  d=${d##*/}
+  case "$d" in ''|.|..) return 0 ;; esac
+  _jrepo=$d
+  return 0
+}
 journal_write() {  # KIND (guard-ask | guard-deny) -> one journal line; always returns 0
   [ "${HARNESS_LESSONS_JOURNAL:-}" = true ] || return 0
-  local site prov gid repo state jdir rdir
+  local site prov gid repo _jrepo=""
   if [ -n "$_jsite" ]; then site=$_jsite
   else journal_site; site=$_jsite; [ "$site" != - ] || site=${deferred_site:--}; fi
   journal_field prov "${HARNESS_PROVIDER:-}"
   journal_field gid "${HARNESS_GUARD_ID:-}"
-  journal_field repo "${REPO_ROOT##*/}"
-  state="${XDG_STATE_HOME:-$HOME/.local/state}/harness"
-  jdir="${HARNESS_JOURNAL_DIR:-$state/journal}"
-  rdir="${HARNESS_RETRO_DIR:-$state/retro}"
+  journal_repo; journal_field repo "$_jrepo"
+  # Everything that can fail (HOME unset under set -u, relative dirs, I/O) runs in this subshell:
+  # it may only ever exit, never stop the hook before the decision is printed.
   (
+    state="${XDG_STATE_HOME:-${HOME:+$HOME/.local/state}}"
+    jdir="${HARNESS_JOURNAL_DIR:-${state:+$state/harness/journal}}"
+    rdir="${HARNESS_RETRO_DIR:-${state:+$state/harness/retro}}"
+    # never relative: a relative dir would land in the hook's cwd (the repository)
+    case "$jdir" in /*) ;; *) exit 0 ;; esac
+    case "$rdir" in /*) ;; *) exit 0 ;; esac
     umask 077
     ts=$(date -u +%Y-%m-%dT%H:%M:%SZ) || exit 0
     mkdir -p "$jdir" || exit 0
