@@ -108,11 +108,20 @@ tj() {  # on|off|unset expected command
   else in=$(jq -cn --arg cwd "$cwd" --arg c "$cmd" '{cwd:$cwd,tool_input:{command:$c}}'); fi
   out=$(
     cd "$run/work" || exit 97                 # a relative journal dir would land here
-    case "$mode" in on) export HARNESS_LESSONS_JOURNAL=true ;; off) export HARNESS_LESSONS_JOURNAL=false ;; *) unset HARNESS_LESSONS_JOURNAL ;; esac
+    # (pattern) form: bash 3.2 cannot parse a bare `pat)` case inside $( … )
+    case "$mode" in
+      (on)  export HARNESS_LESSONS_JOURNAL=true ;;
+      (off) export HARNESS_LESSONS_JOURNAL=false ;;
+      (*)   unset HARNESS_LESSONS_JOURNAL ;;
+    esac
     export HARNESS_GUARD_ID="$TJ_GUARD_ID" HARNESS_PROVIDER=claude
     if [ -n "${TJ_STATE:-}" ]; then
       unset HARNESS_JOURNAL_DIR HARNESS_RETRO_DIR
-      case "$TJ_STATE" in unset) unset XDG_STATE_HOME ;; abs) export XDG_STATE_HOME="$run/state" ;; *) export XDG_STATE_HOME="$TJ_STATE" ;; esac
+      case "$TJ_STATE" in
+        (unset) unset XDG_STATE_HOME ;;
+        (abs)   export XDG_STATE_HOME="$run/state" ;;
+        (*)     export XDG_STATE_HOME="$TJ_STATE" ;;
+      esac
     else
       export HARNESS_JOURNAL_DIR="$jdir" HARNESS_RETRO_DIR="$rdir"
     fi
