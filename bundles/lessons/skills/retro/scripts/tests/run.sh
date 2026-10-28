@@ -7,7 +7,7 @@
 # UPDATE=1 rewrites the goldens (review the diff); KEEP=1 keeps the sandbox.
 set -uo pipefail
 here=$(cd "$(dirname "$0")" && pwd); F="$here/../retro-facts.sh"
-tmp=$(mktemp -d)
+tmp=$(mktemp -d); tmp=$(cd "$tmp" && pwd -P)   # real path: git prints /private/var/… on macOS
 [ "${KEEP:-0}" = 1 ] && echo "sandbox: $tmp" || trap 'rm -rf "$tmp"' EXIT
 fail=0; cases=0
 ok() { cases=$((cases + 1)); if [ "$1" = 0 ]; then echo "PASS $2"; else echo "FAIL $2"; fail=1; fi; }
