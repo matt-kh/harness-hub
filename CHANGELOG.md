@@ -10,6 +10,12 @@ prints every one between your applied version and the new one.
 
 ### Docs
 
+- [docs/bundles/lessons.md](docs/bundles/lessons.md): the lessons loop (signals, review,
+  reflect and record, reuse, human promotion), the lifecycle of a record, the per-provider
+  matrix (claude and gemini enforce both hooks, copilot the prompt hook only, codex and
+  opencode advisory) and troubleshooting. Principle 6 "What it means in this repo" names the
+  loop as the routine form of the steering loop, with two "How it is checked" rows (no
+  `principles_version` bump); ARCHITECTURE §3 and the roadmap list prefix `15` (rule only).
 - [docs/roadmap.md](docs/roadmap.md): planned bundles and extensions by tranche (P0 coverage
   gaps and lint sensors; core git and shell hygiene, `run-checks`, `worktree`, Jira Cloud, the
   `ci` bundle; then the secret-tooling, toolchain, containers, release, cloud, iac, db, hosts
@@ -57,6 +63,110 @@ prints every one between your applied version and the new one.
 
 ### Added
 
+- Neutral hook events beyond the guard (ARCHITECTURE §3–§5; roadmap "Provider hooks beyond
+  `PreToolUse`"). Bundles register hook scripts with `[[provides.hooks]]` (`event` = `prompt`
+  or `stop`, with `session-start` and `session-end` reserved; `script` = `hooks/<name>.sh`;
+  `when` = a dotted config key or a list of them; `timeout` in seconds, default 5); providers
+  map them with `[targets.hooks.events.<event>]` (`name`, `entry`, optional `matcher`, `shim`,
+  `timeout_unit` `s`|`ms`, `note`). The neutral envelope is the Claude Code payload
+  (`session_id`, `cwd`, `prompt` / `stop_hook_active`), the neutral output nothing or one JSON
+  object with `systemMessage` and/or `hookSpecificOutput.additionalContext`; these hooks never
+  block. Every event runs behind a shim that builds the envelope and allow-lists the output
+  (`systemMessage`, `additionalContext` where supported; exactly one JSON object or nothing;
+  never `decision`, `continue` or `reason`): claude registers `UserPromptSubmit` and `Stop`
+  behind `shim-event.sh`; gemini `BeforeAgent` and `AfterAgent` behind `shim-prompt.sh` /
+  `shim-stop.sh` (timeouts in ms; `AfterAgent` passes `systemMessage` only); copilot
+  `userPromptSubmitted` and `sessionEnd` in `harness.json` behind its own shims (output
+  discarded: no message channel; verify on install). Event commands are
+  `HARNESS_PROVIDER=<p> HARNESS_HOOK=<script> bash <shim>`; every rendered hook path,
+  the guard's included, is shell-quoted (unchanged for paths without special characters). Providers without the
+  event get a plan note; an unknown event is a render error. With no event hook active every
+  rendered file is byte-identical to before (the copilot register file included).
+  `harness status --matrix` and the README matrix gain the row "extra hook events (prompt,
+  stop)"; provider pages list their events. No bundle ships a hook yet.
+- Shim fixtures for the event shims under `providers/<p>/tests/{prompt,stop}/` (claude, gemini,
+  copilot), with `NAME.envelope.json` asserting the envelope the hook receives and cases for a
+  blocking `decision` (filtered), command substitution in the prompt (data, never run), a
+  missing hook and a failing hook. `providers/_shared/run-shim-tests.sh` gains a stub
+  `HARNESS_HOOK` and per-case work directories; `providers/_shared/run-provider-tests.sh`
+  runs every fixture set of a provider (`guard:<shim>`, `<event>:<shim>`) and each
+  `tests/run.sh` execs it.
+- Opt-in guard journal (`core`; [hook policy "Journal"](docs/reference/hook-policy.md#journal)).
+  With `lessons.journal = true` every ask and deny a guard section decides (not the fail-closed
+  denies for malformed input or a missing jq) appends one line of seven tab-separated
+  fields — `ts provider session kind site guard_id repo` — to
+  `~/.local/state/harness/journal/<YYYY-MM-DD>.log` and points
+  `~/.local/state/harness/retro/current` at the session. `kind` is `guard-ask` or `guard-deny`
+  (`correction` and `dissatisfaction` are reserved for the lessons prompt hook); `site` is
+  `<guard_section_*>:<line in the section file>`, and a flushed deferred ask is credited to the
+  rule that deferred it; `session` is the hook input's `session_id` when it matches
+  `[A-Za-z0-9._-]{1,64}` (ASCII), else `-`; `repo` is the main checkout's directory name (a
+  linked worktree resolves to it, so `<repo>_<branch>` names never appear). The command, its
+  words, paths and reasons are never written; journal failures never change a decision (HOME
+  unset or a relative state dir writes nothing, never under the repository); allows add no
+  process. The engine reads
+  `session_id` in the same jq call as the command. `guard.env` gains `HARNESS_GUARD_ID` (12 hex
+  characters of the rendered guard's sha256) and the four `HARNESS_LESSONS_*` names. The
+  gemini and copilot guard shims pass `session_id` (copilot: `session_id // sessionId`) into the
+  neutral envelope when present; the shared shim runner's stub guard now records its envelope,
+  so guard fixtures may carry `NAME.envelope.json`. Guard test helper `tj on|off|unset EXPECTED
+  'cmd'` (all seven fields, session sanitising, no word longer than three characters of the
+  command or the cwd in the file) with rows in `bundles/core/guard.d/tests.sh`. `harness repo` now decodes `'\''` in
+  single-quoted `guard.env` values the way the engine does.
+- `harness lessons` (`lib/harness/lessons.py`; [lessons reference](docs/reference/lessons.md)):
+  a private, per-workstation library of evidence-backed lessons under
+  `~/.local/state/harness/lessons/` (never inside a git checkout; the CLI refuses one) and the
+  only parser and writer of its records (banner, fixed-order front matter validated by a
+  schema, six sections; records round-trip byte for byte). Subcommands `list`, `show`, `new`
+  (refuses missing evidence, unknown domains, `invariant` outside `base`, bad refs, token
+  shapes, URL userinfo, over-cap text, edits outside `bundles/`), `note` (used / helped /
+  recurred; only journal-backed recurrences count toward `recurring`), `confirm`, `retire`,
+  `review` (the retro gate over one session's journal lines: rc 0 due, 1 not due, 3 no
+  journal, session or lines, 4 error; `--explain`), `stats` (asks, denies and corrections per session
+  before and after each lesson), `validate` (applies a candidate edit to a `git archive HEAD`
+  copy of the hub and runs lint, the guard and bundle suites and render), `propose` (writes
+  `body.md`, `preview.md` and a `create.sh` it never runs; refuses unconfirmed lessons,
+  closing keywords and `#N` titles; redacts repository names), `index` (`INDEX.md` by domain
+  with per-domain candidate and overall caps, `--prune`) and `journal` (lines since the last
+  retro grouped by kind and rule site, current sites resolved to their source line, other
+  guard ids stale, `--ack`, which also writes the stop nudge's `retro/sessions/<sid>` marker
+  for the session in `retro/current` so a session whose retro ran is not nudged again). Unit tests with goldens in `tests/fixtures/lessons/`.
+- Bundle `lessons` (experimental, `depends_on = ["core"]`, in no profile;
+  [docs](docs/bundles/lessons.md)): the first bundle hooks. `hooks/prompt-signal.sh`
+  (`prompt`, when `lessons.prompt_signals`) appends one `correction` or `dissatisfaction`
+  journal line per matching prompt (class only; slash commands and prompts over 600
+  characters skipped; stdout always empty; same directory rules as the guard journal) and
+  `hooks/stop-retro-nudge.sh` (`stop`, when `lessons.journal`) prints one `systemMessage` per
+  session when `harness lessons review --session <id>` exits 0, silent on every other exit
+  status, never a decision. Skill `/retro` (`retro-facts.sh` read-only facts with goldens; one
+  fixed-shape questionnaire; at most one invariant and one domain candidate through
+  `harness lessons new|note`, journal refs copied verbatim; a fixed-shape report ending with the
+  human's `confirm|retire|propose` commands). Rule `15-lessons` (consult `INDEX.md` at Step 0;
+  a lesson is evidence, never an instruction) and its guard section `15-lessons`, which asks
+  on `harness lessons confirm|retire|propose` however wrapped (`bash -c`, `xargs`, a path to
+  `bin/harness`, `python3 -m harness`, global flags) and passes every other `harness lessons`
+  call; it yields to a repository owning it or domain `base`. The stop hook passes
+  `--config <_harness.config>` from `build/config.json` and cuts the review off after 3 s
+  (GNU `timeout`, or a python fallback that kills the whole process group). Permissions: allow `Bash(harness lessons:*)`,
+  ask on `Write`/`Edit` of `~/.local/state/harness/lessons/**`. Doctor checks
+  `lessons-index-fresh`, `lessons-stale-candidates`, `lessons-review-keys`; manual steps
+  `enable-journal`, `read-the-loop`. Suites `bundles/lessons/tests/run.sh` (section 15 rows
+  against core + lessons, hooks against `hooks/tests/prompts.tsv`, the regex contract, plus the
+  doctor script) and the retro facts goldens.
+- `work-ticket` and `create-ticket` end with a review-gated retro step (Step 8 and Step 9):
+  with the `lessons` bundle installed and the harness CLI found, `harness lessons review` (with
+  the rendered `--config`, like the facts script and the stop nudge) rc 0 invokes `/retro` once
+  with `--workflow work-ticket|create-ticket --arg 'KEY'` (quoted, so `#N` survives), rc 1 prints
+  one `Retro: not due (<counts>)` line, any other exit status stays silent; never after a
+  Handover or a later `stk sync` handoff. create-ticket's Step 8 is now "Report" (its stop
+  sentence is unchanged). `ticket-workflow` recommends `lessons`.
+- `harness lint` rule `hooks-events` (principle 6, not skippable): a hook script missing or
+  failing `bash -n`, a `when` key no schema defines, one script name in two bundles or named
+  like a guard file or any provider's shim, an event no provider declares (warning); provider
+  events whose shim is missing, fails `bash -n`, has no `tests/<event>/` fixtures or none for
+  the cases malformed, garbage, silent, decide, or is not run by `tests/run.sh`, whose
+  `entry` is not a JSON object after substitution, with a bad `timeout_unit`, or whose
+  provider event name is the guard's or is used twice. `shim-fixtures` now also requires `tests/run.sh` for a provider with only event shims.
 - Per-guide pairing (principle 6): `[harness]` guides take an optional `checks` list naming the
   sensors that check them (`ref` values of the same bundle's `sensors`; schema only, no
   `schema_version` bump). Lint rule `guide-checks` (skippable) errors on a ref no sensor
@@ -316,6 +426,9 @@ prints every one between your applied version and the new one.
 
 ### Taxonomy
 
+- New component kind `hook` (hook scripts of `[[provides.hooks]]`): id `<bundle>/hooks/<name>`,
+  function fixed to `govern`, no posture, yields `n/a`; listed by `harness catalog` and
+  `docs/catalog.md` ("Hook scripts"), and `[taxonomy.components]` accepts `hooks/<name>` keys.
 - New domain value `operations` ("running systems: signals, incidents, reliability
   targets"), first used by `obs`: `schema/bundle.schema.json`, `lib/harness/taxonomy.py`
   `FACETS`, and the `[owns] domains` enum of `schema/repo.schema.json`, so a repository's
@@ -547,6 +660,36 @@ prints every one between your applied version and the new one.
   (`OBS_REDACT_EXTRA_RE`); see the manual step `configure-backends`. The guard's `guard.env`
   parser now also accepts `OBS_` keys (core engine and the `env-provides` lint list); nothing
   to edit for existing setups.
+- Lessons library: eight new `core` keys under `[lessons]`, read only by `harness lessons`;
+  nothing to edit, and no `guard.env` change. `lessons.dir` (default `""` =
+  `~/.local/state/harness/lessons`), `lessons.promote_after` (3), `lessons.max_age_days` (90),
+  `lessons.index_max` (40), `lessons.index_max_candidates` (5), and the review thresholds
+  `lessons.review.corrections` (2), `lessons.review.dissatisfaction` (1) and
+  `lessons.review.denies` (3), where `0` disables a criterion. A `lessons.dir` you set must lie
+  outside the hub and every git checkout.
+- Prompt-signal regexes: the defaults of `lessons.correction_re` and
+  `lessons.dissatisfaction_re` change to meet the prompt fixture list
+  (`bundles/lessons/hooks/tests/prompts.tsv`). A correction no longer starts with any
+  `no ` ("no changes needed" is task text): `no`, `no,`, `no.`, `no!` and `no that|this|it|you|i|not|wait|stop …`
+  still match; `wrong` and `incorrect` need a word end ("Wrong-way merge", "incorrectly
+  rendered" are task text); `undo` and `redo` count alone, before punctuation or before
+  `that|this|it` ("undo the last migration", "Redo the layout" are task text); curly
+  apostrophes (U+2019) count in `that's`, `didn't`, `don't`. Dissatisfaction matches
+  `don't do that|this` instead of any `don't do` ("don't do the rebase yet" is an instruction)
+  and `why did|are you` but no longer `why do you` ("why do you think the test fails?" is a
+  question). `^` and `$` apply to each line of a multi-line prompt. The new values:
+  `correction_re = "^(no([,.!]|$| (that|this|it|you|i|not|wait|stop)([ ,.!']|’|$))|nope|(wrong|incorrect)([^a-z-]|$)|that(’|')?s not|not what i|i (said|asked|meant|told you|wanted)|you (didn(’|')?t|did not|ignored|missed|forgot|broke|changed)|(undo|redo)([,.!]|$| (that|this|it)([^a-z-]|$))|revert (that|this|it)|try again|again[,.!]?$|still (wrong|broken|failing|not))"`,
+  `dissatisfaction_re = "(frustrat|annoy|unacceptable|stop (doing|that)|why (did|are) you|don(’|')?t (do (that|this)|ever)|you keep|this is (wrong|bad|useless))"`. Nothing to edit unless you copied the old defaults into
+  `harness.toml`: then replace them with these or drop them.
+- Guard journal: four new `core` keys under `[lessons]`, all off or inert by default, so there
+  is nothing to edit. `lessons.journal` (bool, default `false`; `HARNESS_LESSONS_JOURNAL`)
+  turns the journal on; `lessons.prompt_signals` (bool, default `false`;
+  `HARNESS_LESSONS_PROMPT_SIGNALS`) is declared now for the lessons prompt hook of a later
+  release; `lessons.correction_re` and `lessons.dissatisfaction_re` (POSIX ERE, used
+  case-insensitively; `HARNESS_LESSONS_CORRECTION_RE`, `HARNESS_LESSONS_DISSATISFACTION_RE`)
+  ship defaults. `guard.env` gains `HARNESS_GUARD_ID` and those four names on the next
+  `harness apply`; no guard decision changes. `harness uninstall` keeps
+  `~/.local/state/harness/{lessons,journal,retro}/`.
 
 ## [0.1.0] - 2026-09-30
 

@@ -1,0 +1,89 @@
+# exit 0
+{
+  "harness": "HERE/stub-hub/bin/harness",
+  "git": null,
+  "repo_owns": false,
+  "active_bundles": [
+    "core",
+    "lessons"
+  ],
+  "review": {
+    "due": true,
+    "session": "s1",
+    "counts": {
+      "guard-ask": 0,
+      "guard-deny": 1,
+      "correction": 2,
+      "dissatisfaction": 0
+    },
+    "fired": [
+      "corrections"
+    ]
+  },
+  "journal": {
+    "since": null,
+    "from": "all",
+    "guard_id": "3f9c1a7e02bd",
+    "lines": 2,
+    "groups": [
+      {
+        "kind": "guard-deny",
+        "site": "guard_section_core_20_credentials:12",
+        "status": "current",
+        "count": 1,
+        "sessions": 1,
+        "first": "2026-10-26T09:12:03Z",
+        "last": "2026-10-26T09:12:03Z",
+        "text": "deny: reading a credential file",
+        "example": "journal:2026-10-26T09:12:03Z claude s1 guard-deny guard_section_core_20_credentials:12 3f9c1a7e02bd shop"
+      },
+      {
+        "kind": "correction",
+        "site": "-",
+        "status": "-",
+        "count": 2,
+        "sessions": 1,
+        "first": "2026-10-26T09:13:00Z",
+        "last": "2026-10-26T09:20:00Z",
+        "text": "",
+        "example": "journal:2026-10-26T09:13:00Z claude s1 correction - 3f9c1a7e02bd shop"
+      }
+    ]
+  },
+  "lessons": [
+    {
+      "id": "base-001",
+      "status": "candidate",
+      "scope": "invariant",
+      "domain": "base",
+      "bundles": [],
+      "guide_ref": "core/rules/00-conventions",
+      "sensor_ref": "core/guard.d/20-credentials",
+      "source": "journal",
+      "created": "2026-10-01",
+      "updated": "2026-10-01",
+      "uses": 1,
+      "helped": 0,
+      "recurred": 0,
+      "recurred_objective": 0,
+      "candidate_edit": "",
+      "validation": "none",
+      "validated_at": "",
+      "validated_guard_id": "",
+      "situation": "reading a key file to check its format",
+      "lesson": "",
+      "evidence": [
+        "journal: 2026-10-01"
+      ],
+      "stale": false
+    }
+  ],
+  "workflow": {
+    "name": "manual",
+    "arg": null
+  }
+}
+# calls:
+lessons review --json --config /home/u/harness.toml
+lessons journal --json --config /home/u/harness.toml
+lessons list --json --config /home/u/harness.toml

@@ -17,6 +17,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | [`gitlab`](bundles/gitlab.md#components) | scm | label-gated | govern, setup | stable | GitLab via glab: MR-based workflow, agent-label write gates, stacked-MR rules, Jira closing-keyword deny |
 | [`jira`](bundles/jira.md#components) | tracker | label-gated | govern, client, setup | stable | Jira Server client (jira CLI + skill), read-only jira-mcp server, Jira write governance in the guard |
 | [`k8s`](bundles/k8s.md#components) | kubernetes | read-only | govern, client, investigate, plan, review, setup | stable | Read-only Kubernetes client (k8s CLI + skill), triage / audit / architect agents, kubeconfig and Secret guards |
+| [`lessons`](bundles/lessons.md#components) | base | local | govern, workflow, setup | experimental | The lessons loop: a /retro skill that turns a session's journal signals into at most two evidence-backed candidate lessons, a rule that has agents consult them, and hooks that record user corrections and nudge for a retro |
 | [`obs`](bundles/obs.md#components) | operations | read-only | govern, client, investigate, setup | experimental | Read-only observability client (obs CLI + skill) for SigNoz, Prometheus and Grafana, an obs-triage agent, and API-key and raw-backend guards |
 | [`stack`](bundles/stack.md#components) | scm | label-gated | govern, client, setup | experimental | Stacked MRs/PRs on free tiers: the `stk` CLI (plan, status, check, sync) keeps a chain of dependent parts retargeted, rebased and pushed |
 | [`ticket-workflow`](bundles/ticket-workflow.md#components) | delivery | label-gated | govern, workflow, setup | beta | /work-ticket (ticket → governed MR/PR, stacked delivery) and /create-ticket (one drafted ticket or issue) |
@@ -30,6 +31,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | `gdoc/skills/gdoc` | guide | workspace | client | label-gated | execute | declaration | Read, write and search the user's corporate Google Workspace ({{ google.domain }}) — Google Docs, Drive, Sheets and Gmail — with the `gdoc` CLI. |
 | `jira/skills/jira` | guide | tracker | client | label-gated | execute | declaration | Interact with the org's self-hosted Jira Server ({{ jira.url }}) — read/search/update tickets, sprints, versions, transitions, attachments, comments. |
 | `k8s/skills/k8s` | guide | kubernetes | client | read-only | execute | declaration | Read-only Kubernetes operator client for every context in the user's kubeconfig via the `k8s` CLI and explicit-context kubectl. |
+| `lessons/skills/retro` | guide | base | workflow | local | execute | declaration | Reflect on the task just finished and record at most two evidence-backed candidate lessons (one invariant, one for the task's domain) in the private lessons li… |
 | `obs/skills/obs` | guide | operations | client | read-only | execute | declaration | Read-only observability client for SigNoz, Prometheus and Grafana via the `obs` CLI. |
 | `stack/skills/stk` | guide | scm | client | label-gated | execute | declaration | Stacked MRs/PRs on free tiers with the `stk` CLI over native glab, gh and git: check a repository's readiness, plan a stack (topology, bottom-up merge order, t… |
 | `ticket-workflow/skills/create-ticket` | guide | delivery | workflow | label-gated | execute | declaration | Create ONE Jira ticket (self-hosted Jira Server 8.x) from the user's free-text ask in any project they can create in (discovered, never hardcoded). |
@@ -57,6 +59,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 |---|---|---|---|---|
 | `core/rules/00-conventions` | guide | base | text | Global conventions |
 | `k8s/rules/10-k8s` | guide | kubernetes | text | Kubernetes |
+| `lessons/rules/15-lessons` | guide | base | text | Lessons (lessons loop) |
 | `obs/rules/32-obs` | guide | operations | text | Observability |
 | `gitlab/rules/50-gitlab` | guide | scm | text | GitLab ({{ gitlab.host }}) |
 | `github/rules/60-github` | guide | scm | text | GitHub ({{ github.host }}) |
@@ -72,6 +75,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | id | control | domain | decisions | yields | note |
 |---|---|---|---|---|---|
 | [`k8s/guard.d/10-k8s`](reference/hook-policy.md) | sensor | kubernetes | helper (no rules) | n/a | kubectl/helm clause parsing shared by the rules section |
+| [`lessons/guard.d/15-lessons`](reference/hook-policy.md) | sensor | base | ask 1 | declaration | asks on harness lessons confirm\|retire\|propose (human decisions), however wrapped; every other harness lessons call passes |
 | [`core/guard.d/20-credentials`](reference/hook-policy.md) | sensor | base | deny 7 | never | denies credential file reads and secret env dumps before they run |
 | [`k8s/guard.d/25-k8s-rules`](reference/hook-policy.md) | sensor | kubernetes | deny 4 · ask 7 | declaration | kubeconfig, Secret data, cluster, release, GitOps and IaC mutations |
 | [`core/guard.d/30-git`](reference/hook-policy.md) | sensor | scm | deny 1 · ask 6 · allow 1 | declaration | denies default-branch pushes; asks on force-push and destructive git |
@@ -85,6 +89,15 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | [`ticket-workflow/guard.d/75-ticket-workflow`](reference/hook-policy.md) | sensor | delivery | ask 4 | declaration | key-free branches and subjects, sub worktree paths, squash delivery |
 | [`gdoc/guard.d/80-gdoc`](reference/hook-policy.md) | sensor | workspace | deny 1 · ask 2 · allow 2 | declaration | GET-only api, provenance check before writes, ask on mark and mail send |
 
+## Hook scripts
+
+**Reach:** registered on every provider that declares its neutral event (`harness status --matrix`, row "extra hook events"); a plan note names the providers that do not.
+
+| id | domain | yields | summary |
+|---|---|---|---|
+| `lessons/hooks/prompt-signal` | base | n/a | on `prompt` when `lessons.prompt_signals`; records correction / dissatisfaction journal lines (class only, never the prompt); prints nothing |
+| `lessons/hooks/stop-retro-nudge` | base | n/a | on `stop` when `lessons.journal`; once per session, a systemMessage when `harness lessons review` is due; never blocks |
+
 ## Permission lists
 
 **Reach:** native on claude; advisory on codex, copilot, gemini; none on opencode.
@@ -97,6 +110,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | `gitlab/permissions` | guide | scm | ask 11 · allow 13 | config | read-only glab commands allowed |
 | `jira/permissions` | guide | tracker | allow 12 | config | read commands allowed; writes left to the guard |
 | `k8s/permissions` | guide | kubernetes | deny 12 · ask 45 · allow 42 | config | read-only kubectl/helm allowed |
+| `lessons/permissions` | guide | base | ask 2 · allow 1 | config | harness lessons allowed; hand edits of the library ask |
 | `obs/permissions` | guide | operations | deny 1 · ask 3 · allow 5 | config | obs and read-only rule tooling allowed, alert-state changes ask, key files denied to Read |
 | `stack/permissions` | guide | scm | allow 4 | config | stk plan\|status\|check\|sync allowed; never Bash(stk:*) |
 | `ticket-workflow/permissions` |  | delivery | empty (no rules) | config |  |
@@ -162,6 +176,9 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | [`k8s/doctor/k8s-cli`](bundles/k8s.md#doctor-checks) | sensor | kubernetes | k8s CLI on PATH |
 | [`k8s/doctor/kube-contexts`](bundles/k8s.md#doctor-checks) | sensor | kubernetes | kubeconfig has at least one context |
 | [`k8s/doctor/kubectl-binary`](bundles/k8s.md#doctor-checks) | sensor | kubernetes | kubectl installed |
+| [`lessons/doctor/lessons-index-fresh`](bundles/lessons.md#doctor-checks) | sensor | base | lessons INDEX.md is not older than the newest lesson record |
+| [`lessons/doctor/lessons-review-keys`](bundles/lessons.md#doctor-checks) | sensor | base | lessons.correction_re and lessons.dissatisfaction_re compile under grep -E |
+| [`lessons/doctor/lessons-stale-candidates`](bundles/lessons.md#doctor-checks) | sensor | base | No stale candidate lessons |
 | [`obs/doctor/obs-backends`](bundles/obs.md#doctor-checks) | sensor | operations | at least one observability backend configured |
 | [`obs/doctor/obs-cli`](bundles/obs.md#doctor-checks) | sensor | operations | obs CLI on PATH |
 | [`obs/doctor/obs-hosts-re`](bundles/obs.md#doctor-checks) | sensor | operations | obs.hosts_re is a POSIX ERE covering every configured backend |
@@ -205,6 +222,8 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | [`k8s/steps/gitops-checkout`](bundles/k8s.md#gitops-checkout) | kubernetes | Clone your GitOps repo and set k8s.gitops_root (optional) |
 | [`k8s/steps/install-kubectl`](bundles/k8s.md#install-kubectl) | kubernetes | Install kubectl (and helm) |
 | [`k8s/steps/kubeconfig-contexts`](bundles/k8s.md#kubeconfig-contexts) | kubernetes | Merge your clusters' kubeconfig contexts (human-managed) |
+| [`lessons/steps/enable-journal`](bundles/lessons.md#enable-journal) | base | Turn on the journal and prompt signals (opt-in) |
+| [`lessons/steps/read-the-loop`](bundles/lessons.md#read-the-loop) | base | Read how the lessons loop works (you confirm, retire and propose) |
 | [`obs/steps/configure-backends`](bundles/obs.md#configure-backends) | operations | Describe your observability backends in local/harness.toml |
 | [`obs/steps/obs-api-key`](bundles/obs.md#obs-api-key) | operations | Create a read-only API key per backend |
 | [`stack/steps/stack-github-repo-settings`](bundles/stack.md#stack-github-repo-settings) | scm | GitHub: repository settings for stacked PRs |
@@ -243,7 +262,7 @@ Skills, agents, CLIs and MCP servers by domain and posture (the strongest effect
 
 | domain | read-only | local | label-gated |
 |---|---|---|---|
-| base | `core/agents/Plan`, `core/agents/code-reviewer` | `core/agents/Auto` | — |
+| base | `core/agents/Plan`, `core/agents/code-reviewer` | `core/agents/Auto`, `lessons/skills/retro` | — |
 | scm | — | — | `stack/bin/stk`, `stack/skills/stk` |
 | tracker | `jira/mcp/jira-mcp` | — | `jira/bin/jira`, `jira/skills/jira` |
 | delivery | — | — | `ticket-workflow/skills/create-ticket`, `ticket-workflow/skills/work-ticket` |

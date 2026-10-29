@@ -12,9 +12,10 @@ Status legend: **planned** (nothing built), **in progress** (a branch exists), *
 
 ## What exists today
 
-Eight public bundles cover source control (`github`, `gitlab`), one tracker (`jira`), the
+Ten public bundles cover source control (`github`, `gitlab`), one tracker (`jira`), the
 ticket-to-merge workflow (`ticket-workflow`), stacked MRs/PRs on free tiers (`stack`),
-Kubernetes (`k8s`), Google Workspace (`gdoc`)
+Kubernetes (`k8s`), observability backends (`obs`), Google Workspace (`gdoc`), the lessons
+loop (`lessons`)
 and the conventions, credentials and git rules every developer needs (`core`). That is the
 surface of a platform engineer. Application, data, QA, security and release engineers also
 run containers, package managers, databases, cloud CLIs, infrastructure-as-code, pipelines
@@ -38,6 +39,7 @@ ARCHITECTURE §3 is updated when a band is first used.
 
 | Prefix | Section | Bundle | Why this band |
 |---|---|---|---|
+| `15` | `15-lessons` | lessons | in use: asks on `harness lessons confirm|retire|propose` (human decisions); before `20` so a credential deny still wins |
 | `22` | `22-secrets` | secrets | credential-class denies; must run before any later `ask` |
 | `26` | `26-iac` | iac | next to `25-k8s-rules`, which already asks on `terraform apply` and `pulumi up`; same decisions, first wins |
 | `27` | `27-cloud` | cloud | after `25`, so the k8s deny on `aws eks update-kubeconfig` fires before cloud's generic `update-* -> ask` |
@@ -53,7 +55,7 @@ ARCHITECTURE §3 is updated when a band is first used.
 | `55` | `55-ci` | ci | between `50-gitlab` and `60-github`; adds only the rows those two lack |
 | `82` | `82-hosts` | hosts | miscellaneous band, with `80-gdoc` |
 
-Free after this table: `15`, `39`, `42`–`44`, `46`–`49`, `85`.
+Free after this table: `39`, `42`–`44`, `46`–`49`, `85`.
 
 ## Proposed taxonomy values
 
@@ -379,6 +381,13 @@ Cross-tranche items that make the hub easier to maintain and to extend.
   inactive, which leaves dangling references.
 - Provider hooks beyond `PreToolUse` (needed by the session banner): `events` list and
   optional extra hook scripts per bundle, registered only on providers that declare the event.
+  **Shipped**: neutral events `prompt` and `stop` (`session-start`, `session-end` reserved),
+  bundle `[[provides.hooks]]`, provider `[targets.hooks.events]` for claude, gemini (shims)
+  and copilot (shims, verify on install), lint rule `hooks-events` (ARCHITECTURE §3–§5).
+- Codex hooks (documented behind `features.hooks`, TOML register): map `prompt` and `stop`
+  (and, if it fits, the guard's pre-tool event) through a `[[hooks.<Event>]]` managed TOML
+  block in `config.toml`, with shims and fixtures like gemini's; until then Codex stays
+  advisory and bundle hooks get a plan note there.
 - Config keys this roadmap introduces, all with defaults and documentation-value examples:
   `gitlab.mr_title_re`, `github.pr_title_forbid_re`, `core.max_staged_kb`,
   `core.secret_shapes_extra_re`, `core.sudo_decision`, `core.review.standards_files`,

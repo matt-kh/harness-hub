@@ -300,6 +300,23 @@ rebases the next part. No transition on the parent — ever. Final message: MR U
 order, sub-tickets, what CI runs vs ran locally, open questions, deferred asks, and the
 expected `git worktree list` (stacked: main checkout + one worktree per open part).
 
+### Step 8 — Retro (gated)
+After Step 7's tracker comment (fork flow: after the PR is open), before the final message;
+once per `/work-ticket` run, never on a later `stk sync` handoff and never after a Handover
+(that path ends there). The final message stays last, so this step runs before it (create-ticket
+runs its retro after its verbatim stop sentence instead). Only when the `retro` skill is among
+your available skills (the `lessons` bundle) and the harness CLI is found; otherwise skip
+silently.
+```bash
+hb="${HARNESS_HOME:-$HOME/harness-hub}/bin/harness"; [ -f "$hb" ] || hb=harness
+cfg=$(jq -r '._harness.config // empty' "${HARNESS_CONFIG_JSON:-${HARNESS_HOME:-$HOME/harness-hub}/build/config.json}" 2>/dev/null)
+bash "$hb" lessons review ${cfg:+--config "$cfg"}   # no --session: reads <state>/retro/current
+```
+rc 0 → invoke the `retro` skill once with `--workflow work-ticket --arg 'KEY'` (GitHub:
+`--arg '#N'`, quoted: an unquoted `#N` is a shell comment); rc 1 → print exactly one line
+`Retro: not due (<counts from the review output>)`; rc 3, 4, 127 or any other → nothing. This
+step never writes a lesson itself and never runs `harness lessons confirm|retire|propose`.
+
 ## Handover (repository-level workflow present)
 Principle 8: a repository-level workflow for the same action **replaces** this skill
 wholesale — nothing is merged. Detection is Step 0: preflight reports `repo_owns` (the

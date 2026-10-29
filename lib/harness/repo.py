@@ -282,7 +282,9 @@ def read_guard_env(path: Optional[str]) -> Dict[str, str]:
         if not line or line.startswith("#") or "=" not in line:
             continue
         k, v = line.split("=", 1)
-        if len(v) >= 2 and v[0] == v[-1] and v[0] in "'\"":
+        if len(v) >= 2 and v[0] == v[-1] == "'":
+            v = v[1:-1].replace("'\\''", "'")   # POSIX single quotes, like the engine's parser
+        elif len(v) >= 2 and v[0] == v[-1] == '"':
             v = v[1:-1]
         out[k] = v
     return out

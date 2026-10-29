@@ -122,10 +122,29 @@
            "shim": {"type": "string", "description": "File in providers/<name>/ copied next to guard-bash.sh; empty = the provider speaks the neutral envelope."},
            "register": {"type": "string", "enum": ["settings", "file"], "description": "settings: merge the entry into the settings target at hooks.<event>; file: write register_path."},
            "register_path": {"$ref": "#/$defs/path"},
-           "entry": {"type": "string", "description": "JSON template; {command}, {matcher} and {event} are replaced."},
+           "entry": {"type": "string", "description": "JSON template of the guard hook; {command}, {matcher} and {event} are replaced. With register = file it is the whole register document, and event entries are added to its hooks.<name> arrays."},
+           "events": {"type": "object", "additionalProperties": false,
+             "description": "Neutral hook events beyond the guard this provider can run (bundle [[provides.hooks]]), keyed by the neutral name. Registered like the guard: into the settings target at hooks.<name> (register = settings) or into the register file (register = file).",
+             "properties": {
+               "prompt": {"$ref": "#/$defs/hook_event"},
+               "stop": {"$ref": "#/$defs/hook_event"},
+               "session-start": {"$ref": "#/$defs/hook_event"},
+               "session-end": {"$ref": "#/$defs/hook_event"}
+             }},
            "note": {"type": "string"}
          }}
       ]
+    },
+    "hook_event": {
+      "type": "object", "additionalProperties": false, "required": ["name", "entry"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1, "description": "The provider's own event name (UserPromptSubmit, BeforeAgent, ...)."},
+        "entry": {"type": "string", "description": "JSON template of one hook entry; {command}, {matcher}, {event} (the provider event name) and {hook} (the script name without .sh) are replaced as JSON string contents, {timeout} as a bare integer in timeout_unit. A top-level \"matcher\": \"\" is dropped when no matcher is declared."},
+        "matcher": {"type": "string"},
+        "shim": {"type": "string", "description": "File in providers/<name>/ copied next to the hook script; it translates the provider payload to the neutral envelope and runs HARNESS_HOOK. Empty or absent = the provider speaks the neutral envelope."},
+        "timeout_unit": {"type": "string", "enum": ["s", "ms"], "default": "s"},
+        "note": {"type": "string"}
+      }
     },
     "into_settings": {
       "anyOf": [

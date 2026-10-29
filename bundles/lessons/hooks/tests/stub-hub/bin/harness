@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Stub `harness` for the stop-hook cases: logs argv to $STUB_LOG, answers `lessons review` with
+# a fixed due JSON and exits $STUB_RC (default 0); $STUB_SLEEP seconds first when set.
+printf '%s\n' "$*" >> "${STUB_LOG:-/dev/null}"
+[ -z "${STUB_SLEEP:-}" ] || sleep "$STUB_SLEEP"
+[ "${1:-} ${2:-}" = "lessons review" ] || exit 64
+printf '%s\n' '{"due": true, "session": "s1", "counts": {"guard-ask": 0, "guard-deny": 1, "correction": 2, "dissatisfaction": 0}, "fired": ["corrections"]}'
+exit "${STUB_RC:-0}"

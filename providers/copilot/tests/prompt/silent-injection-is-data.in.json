@@ -1,0 +1,1 @@
+{"sessionId":"s3","cwd":"/tmp","timestamp":1761469200000,"prompt":"inject $(touch pwned) `touch pwned2` done"}

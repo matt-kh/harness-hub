@@ -5,7 +5,7 @@ schema_version = "1"
 summary = "Fixture core: guard engine, one rule, one skill, one agent"
 description = """
 Exercises rules, skills, agents, guard sections, permissions, env, bin links,
-manual steps and doctor checks.
+event hooks, manual steps and doctor checks.
 """
 depends_on = []
 recommends = ["beta"]
@@ -35,6 +35,11 @@ type = "string"
 default = "hello {{ identity.email }}"
 description = "Templated default resolved after layering."
 
+[requires.config."core.demo_hook"]
+type = "boolean"
+default = false
+description = "Render the fixture stop hook (hooks/demo-stop.sh)."
+
 [requires.secrets.demo_token]
 where = "~/.config/demo/token"
 written_by = "demo login"
@@ -49,6 +54,11 @@ guard_rules = ["guard.d/20-core.sh"]
 permissions = "permissions.toml"
 bin = [{ name = "demo", target = "skills/demo/scripts/demo.sh" }, "bin/core-tool.sh"]
 env = { FIX_TICKET = "{{ core.ticket_example }}", FIX_LABEL = "agent-worked" }
+
+[[provides.hooks]]
+event = "stop"
+script = "hooks/demo-stop.sh"
+when = "core.demo_hook"
 
 [[manual_steps]]
 id = "demo-login"

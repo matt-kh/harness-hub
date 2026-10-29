@@ -30,7 +30,8 @@ References: `references/prompts.md` (the ONLY place questions are worded), `refe
    (GitHub: plus `gh label create agent-drafted` if the repo lacks it — `type-rules.md`); the Create answer
    is the only confirmation — the hook allows labelled creates, so never run it before Round 2.
 2. **This skill stops at creation.** No edits, no transitions, no `agent-worked` from here —
-   offer `/work-ticket KEY` and stop. (`agent-drafted` marks provenance; the hook treats it
+   offer `/work-ticket KEY` and stop (the gated Step 9 retro reads the session only; it never
+   touches the ticket). (`agent-drafted` marks provenance; the hook treats it
    like any agent-* label, so a later `/work-ticket` run needs no extra gate.)
 3. **Only catalogue prompts**, only when their trigger fires, ≤ 4 per round, ≤ 2 agent-initiated
    rounds (gaps, then preview). "Edit a field" re-previews are user-initiated.
@@ -77,7 +78,7 @@ GitHub replaces the Jira lines below with:
 gh auth status --hostname github.com >/dev/null                            # fail → stop: user runs `! gh auth login --git-protocol ssh --web`
 bash ~/.claude/skills/create-ticket/scripts/create-facts.sh <owner/repo>   # provider:"github", labels, milestones, templates
 ```
-`error` or `creatable:false` → stop and say why. Steps 1–8 are unchanged except where marked
+`error` or `creatable:false` → stop and say why. Steps 1–9 are unchanged except where marked
 **GitHub**; the type/version/component/priority prompts never fire (see `type-rules.md`).
 Jira:
 ```bash
@@ -142,6 +143,22 @@ user could approve; never auto-fix (it is a human ticket now).
 ### Step 7 — Attachments (only if P12 = upload; **GitHub**: `gh` cannot upload — list the paths for the user)
 One batched Bash call: `jira upload NEW <path>` per file (hook: allow — agent-labelled), then `jira attachments NEW`.
 
-### Step 8 — Report and stop
+### Step 8 — Report
 Key + URL, type, one-line summary, what was defaulted. Then exactly:
 "Not starting work on it — run `/work-ticket NEW` if you want me to." (GitHub: `NEW` = `#N`)
+
+### Step 9 — Retro (gated)
+After the stop sentence above, which stays verbatim and the last line before any retro output
+(work-ticket instead runs its retro before its final message, which stays last). Only when the
+`retro` skill is among your available skills (the `lessons` bundle) and the harness CLI is
+found; otherwise skip silently.
+```bash
+hb="${HARNESS_HOME:-$HOME/harness-hub}/bin/harness"; [ -f "$hb" ] || hb=harness
+cfg=$(jq -r '._harness.config // empty' "${HARNESS_CONFIG_JSON:-${HARNESS_HOME:-$HOME/harness-hub}/build/config.json}" 2>/dev/null)
+bash "$hb" lessons review ${cfg:+--config "$cfg"}   # no --session: reads <state>/retro/current
+```
+rc 0 → invoke the `retro` skill once with `--workflow create-ticket --arg 'NEW'` (GitHub:
+`--arg '#N'`, quoted: an unquoted `#N` is a shell comment); rc 1 → print exactly one line
+`Retro: not due (<counts from the review output>)`; rc 3, 4, 127 or any other → nothing. The
+ticket is never touched again; this step never writes a lesson itself and never runs
+`harness lessons confirm|retire|propose`.

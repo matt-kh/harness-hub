@@ -34,9 +34,18 @@ Errors (exit 1):
   ``[targets]``: hooks wired with ``hook_enforced = false`` or ``hook_enforced``/``ask`` without
   hooks; a ``native``/``inlined``/``none`` capability for skills, agents, mcp, instructions or
   permissions whose target mode says otherwise
-* ``shim-fixtures`` (principle 6): a provider with a ``shim`` but no ``tests/run.sh``, an
-  ``.in.json`` fixture without its ``.out.json``, or no fixture for one of the cases allow,
-  deny, ask, unknown tool, malformed (base name starts with the case word)
+* ``shim-fixtures`` (principle 6): a provider with a ``shim`` (guard or event) but no
+  ``tests/run.sh``, an ``.in.json`` fixture without its ``.out.json``, or no fixture for one of
+  the guard cases allow, deny, ask, unknown tool, malformed (base name starts with the case word)
+* ``hooks-events`` (principle 6): a ``[[provides.hooks]]`` script that is missing or fails
+  ``bash -n``, a ``when`` key no schema defines, an event outside the neutral list, one script
+  basename provided by two bundles (or named like a guard file or any provider's shim); a
+  provider event whose shim is missing, fails ``bash -n``, has no ``tests/<event>/`` fixtures,
+  lacks a fixture for one of the cases malformed, garbage, silent, decide, or is not run by
+  ``tests/run.sh`` (``<event>:<shim>``), whose ``entry`` is not a JSON object after
+  substitution, whose ``timeout_unit`` is not ``s``/``ms``, or whose provider event name is the
+  guard's event or one another neutral event already uses. Warning: a bundle hook whose event no
+  provider declares (it is never registered)
 * ``taxonomy`` (principle 6, variety reduction): a ``[taxonomy.components]`` key that names no
   component; a posture on a kind that takes none (rule, guard, permission, installer, step,
   doctor); a function that contradicts a kind's fixed one; a component posture stronger than
@@ -109,7 +118,7 @@ SHELL_EXPANSION_RE = re.compile(r"\$\([^()]*\)|\$\{[^{}]*\}|\$[A-Za-z_][A-Za-z0-
 LINT_RULES = {"manifest", "templates", "guard-syntax", "guard-reasons", "guard-messages", "guides-sensors", "dependencies", "private-ids",
               "taxonomy", "env-provides", "rule-guard-pairing", "permissions-vs-guard", "agent-tools",
               "skill-description", "fragments-target", "profile-sane", "stability", "yields",
-              "provider-honesty", "shim-fixtures", "guide-checks"}
+              "provider-honesty", "shim-fixtures", "guide-checks", "hooks-events"}
 # rules `harness lint --skip RULE` can turn off (the others are woven into the manifest pass)
 SKIPPABLE_RULES = ("agent-tools", "dependencies", "env-provides", "fragments-target", "guard-messages", "guide-checks",
                    "permissions-vs-guard", "private-ids", "profile-sane", "rule-guard-pairing", "skill-description",
@@ -400,7 +409,7 @@ def lint_taxonomy(b: M.Bundle, rep: Report) -> None:
         if c is None:
             rep.err("%s components.%r names no component of the bundle; use an id printed by "
                     "`harness catalog --bundle %s` without the %r prefix (agents/<name>, guard.d/NN-<topic>, "
-                    "doctor/<id>, steps/<id>, bin/<name>, mcp/<server>, install/<tool>, permissions)"
+                    "hooks/<name>, doctor/<id>, steps/<id>, bin/<name>, mcp/<server>, install/<tool>, permissions)"
                     % (where, key, b.name, b.name + "/"))
             continue
         cls = cls or {}
@@ -1076,15 +1085,23 @@ def lint_provider_honesty(p: M.Provider, home: str, rep: Report) -> None:
                  % (where, rel, m.group("tier"), tier))
 
 
+def event_shims(p: M.Provider) -> List[Tuple[str, str]]:
+    """``(neutral event, shim)`` for every ``[targets.hooks.events]`` entry that declares a shim."""
+    events = (p.target("hooks") or {}).get("events") or {}
+    return [(n, str(ev["shim"])) for n, ev in sorted(events.items()) if isinstance(ev, dict) and ev.get("shim")]
+
+
 def lint_shim_fixtures(p: M.Provider, rep: Report) -> None:
     """A provider with a shim ships fixtures for every decision the shim translates."""
     hooks = p.target("hooks") or {}
-    if not hooks.get("shim"):
+    if not hooks.get("shim") and not event_shims(p):
         return
     where = "providers/%s: shim-fixtures:" % p.name
     tests = os.path.join(p.path, "tests")
     if not os.path.isfile(os.path.join(tests, "run.sh")):
         rep.err("%s tests/run.sh is missing; add it (exec providers/_shared/run-shim-tests.sh, see gemini)" % where)
+    if not hooks.get("shim"):
+        return  # the decision cases below belong to the guard shim
     names = sorted(fn[:-len(".in.json")] for fn in (os.listdir(tests) if os.path.isdir(tests) else [])
                    if fn.endswith(".in.json"))
     for n in names:
@@ -1097,8 +1114,147 @@ def lint_shim_fixtures(p: M.Provider, rep: Report) -> None:
                 % (where, ", ".join(missing)))
 
 
+# ----------------------------------------------------------------- hooks-events
+
+# placeholder values an event entry template is checked with (lint never renders a real path)
+HOOK_ENTRY_PLACEHOLDERS = {"command": "bash ~/.example/hooks/example.sh", "matcher": "", "event": "Event",
+                           "hook": "example", "timeout": "5"}
+# basenames a bundle hook script may not take besides the providers' shims: the guard's own files
+GUARD_HOOK_FILES = ("guard-bash.sh", "guard.env")
+# hooks-events: case words every tests/<event>/ fixture set needs (base name starts with the word)
+EVENT_SHIM_CASES = ("malformed", "garbage", "silent", "decide")
+
+
+def reserved_hook_names(providers: Optional[Dict[str, M.Provider]]) -> Set[str]:
+    """Basenames that land in a provider hooks directory besides bundle hook scripts."""
+    out = set(GUARD_HOOK_FILES)
+    for p in (providers or {}).values():
+        hooks = p.target("hooks") or {}
+        if hooks.get("shim"):
+            out.add(os.path.basename(str(hooks["shim"])))
+        out.update(os.path.basename(shim) for _n, shim in event_shims(p))
+    return out
+
+
+def hook_when_keys(h: Dict[str, Any]) -> List[str]:
+    when = h.get("when")
+    if isinstance(when, str):
+        return [when]
+    return [k for k in (when or []) if isinstance(k, str)] if isinstance(when, list) else []
+
+
+def lint_hooks_events(b: M.Bundle, providers: Optional[Dict[str, M.Provider]], schema: Dict[str, Any],
+                      rep: Report) -> Set[str]:
+    """Bundle side of ``hooks-events``; returns the config keys the hooks' ``when`` reads."""
+    where = "%s: hooks-events:" % b.name
+    used: Set[str] = set()
+    leaves = set(C.schema_leaf_keys(schema))
+    declared = set()
+    for p in (providers or {}).values():
+        declared.update(((p.target("hooks") or {}).get("events") or {}).keys())
+    reserved = reserved_hook_names(providers)
+    for h in b.hooks():
+        rel, ev = str(h.get("script", "")), h.get("event")
+        if ev not in M.NEUTRAL_EVENTS:
+            rep.err("%s %s names event %r; use one of %s" % (where, rel or "?", ev, ", ".join(M.NEUTRAL_EVENTS)))
+        full = b.rel(rel)
+        if not rel or not os.path.isfile(full):
+            rep.err("%s %s does not exist; add the script or drop its [[provides.hooks]] entry"
+                    % (where, rel or "script"))
+        else:
+            rc, _o, err = run_argv(["bash", "-n", full], timeout=20)
+            if rc != 0:
+                rep.err("%s bash -n %s: %s" % (where, rel, err.strip().splitlines()[0] if err.strip() else rc))
+        if os.path.basename(rel) in reserved:
+            rep.err("%s %s is named like a guard file or a provider shim, which share the hooks directory; "
+                    "rename the script" % (where, rel))
+        for key in hook_when_keys(h):
+            used.add(key)
+            if not key_known(key, leaves, schema):
+                rep.err("%s %s: when names %s, which no schema key defines; declare it in [requires.config] "
+                        "or fix the key" % (where, rel, key))
+        if providers is not None and ev in M.NEUTRAL_EVENTS and ev not in declared:
+            rep.warn("%s %s: no provider declares the %s event, so the hook is never registered; add "
+                     "[targets.hooks.events.%s] to a provider adapter or use another event" % (where, rel, ev, ev))
+    return used
+
+
+def lint_hook_script_names(bundles: Dict[str, M.Bundle], rep: Report) -> None:
+    """``hooks-events``: one hook script basename per hooks directory, whatever the bundle."""
+    owners: Dict[str, List[str]] = {}
+    for name in sorted(bundles):
+        for rel in sorted(set(str(h.get("script", "")) for h in bundles[name].hooks())):
+            owners.setdefault(os.path.basename(rel), []).append(name)
+    for base, names in sorted(owners.items()):
+        if len(names) > 1:
+            rep.err("hooks-events: hook script %s is provided by %s; they land in the same provider hooks "
+                    "directory, rename one" % (base, " and ".join(names)))
+
+
+def lint_provider_hook_events(p: M.Provider, rep: Report) -> None:
+    """Provider side of ``hooks-events``: ``[targets.hooks.events]`` shims, fixtures, templates, units."""
+    hooks = p.target("hooks") or {}
+    events = hooks.get("events") or {}
+    if not events:
+        return
+    where = "providers/%s: hooks-events:" % p.name
+    run_sh = read_text(os.path.join(p.path, "tests", "run.sh")) or ""
+    by_name: Dict[str, List[str]] = {}
+    for neutral in sorted(events):
+        ev = events[neutral] if isinstance(events[neutral], dict) else {}
+        if neutral not in M.NEUTRAL_EVENTS:
+            rep.err("%s events.%s is not a neutral hook event; use one of %s"
+                    % (where, neutral, ", ".join(M.NEUTRAL_EVENTS)))
+        by_name.setdefault(str(ev.get("name", "")), []).append(neutral)
+        if ev.get("name") and ev.get("name") == hooks.get("event"):
+            rep.err("%s events.%s.name %r is the guard's event; the guard owns it, map the neutral event to "
+                    "another provider event" % (where, neutral, ev["name"]))
+        unit = ev.get("timeout_unit", "s")
+        if unit not in ("s", "ms"):
+            rep.err("%s events.%s.timeout_unit = %r; use \"s\" or \"ms\"" % (where, neutral, unit))
+        shim = ev.get("shim") or ""
+        if shim:
+            path = os.path.join(p.path, shim)
+            if not os.path.isfile(path):
+                rep.err("%s events.%s.shim %s does not exist; add it or drop the shim key" % (where, neutral, shim))
+            else:
+                rc, _o, err = run_argv(["bash", "-n", path], timeout=20)
+                if rc != 0:
+                    rep.err("%s bash -n %s failed: %s" % (where, shim, err.strip()))
+            fdir = os.path.join(p.path, "tests", neutral)
+            ins = sorted(fn for fn in (os.listdir(fdir) if os.path.isdir(fdir) else []) if fn.endswith(".in.json"))
+            if not ins:
+                rep.err("%s events.%s.shim has no fixtures; add tests/%s/<case>.in.json + .out.json and run them "
+                        "from tests/run.sh" % (where, neutral, neutral))
+            for fn in ins:
+                if not os.path.isfile(os.path.join(fdir, fn[:-len(".in.json")] + ".out.json")):
+                    rep.err("%s tests/%s/%s has no .out.json; add the expected output (empty file = no output)"
+                            % (where, neutral, fn))
+            missing = [c for c in EVENT_SHIM_CASES if ins and not any(fn.startswith(c) for fn in ins)]
+            if missing:
+                rep.err("%s tests/%s/ has no fixture for case(s) %s; add tests/%s/<case>[-variant].in.json + "
+                        ".out.json for each" % (where, neutral, ", ".join(missing), neutral))
+            spec = "%s:%s" % (neutral, shim)
+            if spec not in run_sh:
+                rep.err("%s tests/run.sh does not run tests/%s/; pass %s to providers/_shared/run-provider-tests.sh"
+                        % (where, neutral, spec))
+        values = dict(HOOK_ENTRY_PLACEHOLDERS, event=str(ev.get("name", "")))
+        try:
+            obj = json.loads(R.fill_entry(str(ev.get("entry", "")), values))
+        except ValueError as exc:
+            rep.err("%s events.%s.entry is not valid JSON after substitution (%s); quote {command}, {matcher}, "
+                    "{event} and {hook}, leave {timeout} bare" % (where, neutral, exc))
+            continue
+        if not isinstance(obj, dict):
+            rep.err("%s events.%s.entry must be a JSON object; wrap the hook entry in {...}" % (where, neutral))
+    for name, neutrals in sorted(by_name.items()):
+        if len(neutrals) > 1:
+            rep.err("%s events %s all map to provider event %r; give each neutral event its own provider event"
+                    % (where, ", ".join(neutrals), name))
+
+
 def lint_provider(p: M.Provider, home: str, rep: Report, pschema: Optional[Dict[str, Any]] = None) -> None:
-    """Schema, shim existence and ``bash -n``, then ``provider-honesty`` and ``shim-fixtures``."""
+    """Schema, shim existence and ``bash -n``, then ``provider-honesty``, ``shim-fixtures`` and ``hooks-events``."""
     name = p.name
     if pschema is not None:
         for e in M.validate_provider(p, pschema).errors:
@@ -1115,6 +1271,7 @@ def lint_provider(p: M.Provider, home: str, rep: Report, pschema: Optional[Dict[
                 rep.err("providers/%s: bash -n %s failed: %s" % (name, shim, err.strip()))
     lint_provider_honesty(p, home, rep)
     lint_shim_fixtures(p, rep)
+    lint_provider_hook_events(p, rep)
 
 
 def run_lint(hub: Any, skip: Sequence[str] = ()) -> Report:
@@ -1130,6 +1287,7 @@ def run_lint(hub: Any, skip: Sequence[str] = ()) -> Report:
     for name in sorted(hub.bundles):
         b = hub.bundles[name]
         used |= lint_bundle(b, hub.bundles, schema, bschema, rep, hub.providers)
+        used |= lint_hooks_events(b, hub.providers, schema, rep)
         if on("env-provides"):
             lint_env_provides(b, prefixes, rep)
         if on("rule-guard-pairing"):
@@ -1146,6 +1304,7 @@ def run_lint(hub: Any, skip: Sequence[str] = ()) -> Report:
             lint_fragments_target(b, hub.bundles, rep)
         if on("stability"):
             lint_stability(b, rep)
+    lint_hook_script_names(hub.bundles, rep)
     if on("permissions-vs-guard"):
         lint_permissions_vs_guard(hub, rep)
     for name in sorted(hub.bundles):

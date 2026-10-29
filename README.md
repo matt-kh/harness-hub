@@ -25,6 +25,7 @@ Pick the bundles you need; each one is a capability with its own docs page.
 | [gitlab](docs/bundles/gitlab.md) | scm / label-gated | stable | GitLab via glab: MR-based workflow, agent-label write gates, stacked-MR rules, Jira closing-keyword deny | [4 steps](docs/bundles/gitlab.md#manual-steps) |
 | [jira](docs/bundles/jira.md) | tracker / label-gated | stable | Jira Server client (jira CLI + skill), read-only jira-mcp server, Jira write governance in the guard | [3 steps](docs/bundles/jira.md#manual-steps) |
 | [k8s](docs/bundles/k8s.md) | kubernetes / read-only | stable | Read-only Kubernetes client (k8s CLI + skill), triage / audit / architect agents, kubeconfig and Secret guards | [4 steps](docs/bundles/k8s.md#manual-steps) |
+| [lessons](docs/bundles/lessons.md) | base / local | experimental | The lessons loop: a /retro skill that turns a session's journal signals into at most two evidence-backed candidate lessons, a rule that has agents consult them, and hooks that record user corrections and nudge for a retro | [2 steps](docs/bundles/lessons.md#manual-steps) |
 | [obs](docs/bundles/obs.md) | operations / read-only | experimental | Read-only observability client (obs CLI + skill) for SigNoz, Prometheus and Grafana, an obs-triage agent, and API-key and raw-backend guards | [2 steps](docs/bundles/obs.md#manual-steps) |
 | [stack](docs/bundles/stack.md) | scm / label-gated | experimental | Stacked MRs/PRs on free tiers: the `stk` CLI (plan, status, check, sync) keeps a chain of dependent parts retargeted, rebased and pushed | [3 steps](docs/bundles/stack.md#manual-steps) |
 | [ticket-workflow](docs/bundles/ticket-workflow.md) | delivery / label-gated | beta | /work-ticket (ticket → governed MR/PR, stacked delivery) and /create-ticket (one drafted ticket or issue) | [1 step](docs/bundles/ticket-workflow.md#manual-steps) |
@@ -97,11 +98,14 @@ Step by step: [getting started](docs/getting-started.md); tiers and release file
 | skills | native | native | native | native | native |
 | agents | native | inlined | native | inlined | inlined |
 | mcp | native | native | native | native | none |
+| extra hook events (prompt, stop) | prompt, stop | - | prompt, stop | prompt, stop | - |
 
 **Tier:** enforced on claude; partial on copilot, gemini; advisory on codex, opencode.
 <!-- generated:end -->
 
 Where a provider has no "ask", an ask maps to **deny** (`[providers.<name>].ask_as`).
+"Extra hook events" are the neutral `prompt` and `stop` events bundles can hook beyond the
+guard; on a provider showing `-` such hooks are not rendered.
 Details per provider: [capability matrix](docs/reference/capability-matrix.md).
 
 <!-- generated:begin source=PRINCIPLES.md#readme -->
@@ -134,6 +138,12 @@ Ten principles govern every change to the hub; each links to its document (check
   text. Only the rules protecting your own credentials stay
   ([repository-level harnesses](docs/repo-level.md)).
 - Hundreds of table-driven test rows, bypass attempts included, specify the guard.
+- An opt-in, local-only journal of guard asks and denies feeds `harness lessons`: a private
+  library of evidence-backed lessons that a human confirms before one becomes an issue
+  draft; nothing leaves the workstation ([lessons](docs/reference/lessons.md)). The
+  experimental [`lessons`](docs/bundles/lessons.md) bundle closes the loop: an opt-in prompt
+  hook records corrections (the class, never the text), a stop hook nudges once when a
+  session is due for review, and `/retro` writes at most two evidence-backed candidates.
 - `harness plan` shows every path before `harness apply` writes; modified files are backed
   up; `harness uninstall` removes only the paths it recorded. Your text outside managed
   blocks is never touched.
@@ -182,7 +192,7 @@ call is listed in [SECURITY.md](SECURITY.md).
 | [Self-host](docs/runbooks/self-host.md) | an org platform instance |
 | [Runbooks](docs/runbooks/new-machine.md) | new machine, upgrade, air-gapped, migration, rotation |
 | [Catalog](docs/catalog.md) | every bundle, skill, agent, rule, guard section and check, with its id and facets |
-| [Reference](docs/reference/cli.md) | CLI, config schema, hook policy, secrets, [taxonomy](docs/reference/taxonomy.md) |
+| [Reference](docs/reference/cli.md) | CLI, config schema, hook policy, secrets, [taxonomy](docs/reference/taxonomy.md), [lessons](docs/reference/lessons.md) |
 | [Roadmap](docs/roadmap.md) | planned bundles and extensions by tranche, reserved guard prefixes, rejected ideas |
 | [Architecture](ARCHITECTURE.md) | normative contracts |
 | [AGENTS.md](AGENTS.md) | for agents changing this repo |

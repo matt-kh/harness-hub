@@ -44,6 +44,8 @@ positional arguments:
     docs         generate | check the generated regions under docs/
     repo         show what the current repository's .harness.toml declares and which user-level
                  components yield here
+    lessons      private lessons library: record, review, index, validate and propose lessons
+                 (stays on this workstation)
     steps        list manual steps (--pending: only those whose verify fails)
     version      print hub, applied and runtime versions
 
@@ -147,7 +149,7 @@ options:
 
 ```text
 usage: harness catalog [-h] [--config PATH] [--home DIR] [--json] [--offline] [--yes] [--dry-run]
-                       [--kind {bundle,skill,agent,rule,guard,permission,mcp,bin,installer,doctor,step,provider,profile}]
+                       [--kind {bundle,skill,agent,rule,guard,hook,permission,mcp,bin,installer,doctor,step,provider,profile}]
                        [--bundle NAME]
                        [--domain {base,scm,tracker,delivery,kubernetes,workspace,operations}]
 
@@ -161,7 +163,7 @@ options:
   --offline             skip network checks (HARNESS_OFFLINE=1)
   --yes, -y             assume yes; never prompt
   --dry-run             show what would happen, write nothing
-  --kind {bundle,skill,agent,rule,guard,permission,mcp,bin,installer,doctor,step,provider,profile}
+  --kind {bundle,skill,agent,rule,guard,hook,permission,mcp,bin,installer,doctor,step,provider,profile}
                         only this kind of component
   --bundle NAME         only this bundle's components (and the bundle itself)
   --domain {base,scm,tracker,delivery,kubernetes,workspace,operations}
@@ -701,6 +703,346 @@ options:
   --yes, -y       assume yes; never prompt
   --dry-run       show what would happen, write nothing
   --write         init: create <repo root>/.harness.toml (never overwrites)
+```
+
+### harness lessons
+
+```text
+usage: harness lessons [-h] [--config PATH] [--home DIR] [--json] [--offline] [--yes] [--dry-run]
+                       action ...
+
+private lessons library: record, review, index, validate and propose lessons (stays on this
+workstation)
+
+positional arguments:
+  action
+    list         list lessons (default: every status but retired)
+    show         print one lesson record
+    new          record a candidate lesson (the only way a record is created); prints its id
+    note         deferred probing: count a use, a help or a recurrence; --recurred with a journal:
+                 ref is objective
+    confirm      human: confirm a candidate or recurring lesson
+    retire       human: retire a lesson
+    review       is a retro due for this session? rc 0 due, 1 not due, 3 no journal / no session /
+                 no lines, 4 error
+    stats        asks, denies and corrections per session before and after each lesson (one table)
+    validate     apply a lesson's candidate edit to a copy of the hub's HEAD and run lint, tests
+                 and render
+    propose      render body.md, preview.md and create.sh for an issue (never runs create.sh; no
+                 #N in the title)
+    index        rewrite INDEX.md (grouped by domain, candidates capped)
+    journal      group guard-journal lines since the last retro by kind and rule site
+
+options:
+  -h, --help     show this help message and exit
+  --config PATH  config file (default: $HARNESS_CONFIG or <hub>/local/harness.toml)
+  --home DIR     hub directory (HARNESS_HOME)
+  --json         machine-readable output
+  --offline      skip network checks (HARNESS_OFFLINE=1)
+  --yes, -y      assume yes; never prompt
+  --dry-run      show what would happen, write nothing
+```
+
+#### harness lessons list
+
+```text
+usage: harness lessons list [-h] [--config PATH] [--home DIR] [--json] [--offline] [--yes]
+                            [--dry-run]
+                            [--status {candidate,confirmed,recurring,proposed,retired,all}]
+                            [--domain {base,scm,tracker,delivery,kubernetes,workspace,operations}]
+                            [--stale]
+
+list lessons (default: every status but retired)
+
+options:
+  -h, --help            show this help message and exit
+  --config PATH         config file (default: $HARNESS_CONFIG or <hub>/local/harness.toml)
+  --home DIR            hub directory (HARNESS_HOME)
+  --json                machine-readable output
+  --offline             skip network checks (HARNESS_OFFLINE=1)
+  --yes, -y             assume yes; never prompt
+  --dry-run             show what would happen, write nothing
+  --status {candidate,confirmed,recurring,proposed,retired,all}
+                        only this status (all: retired too)
+  --domain {base,scm,tracker,delivery,kubernetes,workspace,operations}
+                        only this taxonomy domain
+  --stale               only lessons without an update in lessons.max_age_days
+```
+
+#### harness lessons show
+
+```text
+usage: harness lessons show [-h] [--config PATH] [--home DIR] [--json] [--offline] [--yes]
+                            [--dry-run]
+                            ID
+
+print one lesson record
+
+positional arguments:
+  ID             lesson id, e.g. base-001
+
+options:
+  -h, --help     show this help message and exit
+  --config PATH  config file (default: $HARNESS_CONFIG or <hub>/local/harness.toml)
+  --home DIR     hub directory (HARNESS_HOME)
+  --json         machine-readable output
+  --offline      skip network checks (HARNESS_OFFLINE=1)
+  --yes, -y      assume yes; never prompt
+  --dry-run      show what would happen, write nothing
+```
+
+#### harness lessons new
+
+```text
+usage: harness lessons new [-h] [--config PATH] [--home DIR] [--json] [--offline] [--yes]
+                           [--dry-run] --domain
+                           {base,scm,tracker,delivery,kubernetes,workspace,operations} --scope
+                           {invariant,domain} --situation TEXT --guide-ref R --sensor-ref R
+                           [--bundles B,...] [--source {journal,retro,user}] --evidence REF
+                           [REF ...] [--lesson TEXT] [--edit FILE.diff] [--date YYYY-MM-DD]
+
+record a candidate lesson (the only way a record is created); prints its id
+
+options:
+  -h, --help            show this help message and exit
+  --config PATH         config file (default: $HARNESS_CONFIG or <hub>/local/harness.toml)
+  --home DIR            hub directory (HARNESS_HOME)
+  --json                machine-readable output
+  --offline             skip network checks (HARNESS_OFFLINE=1)
+  --yes, -y             assume yes; never prompt
+  --dry-run             show what would happen, write nothing
+  --domain {base,scm,tracker,delivery,kubernetes,workspace,operations}
+                        taxonomy domain (base applies everywhere)
+  --scope {invariant,domain}
+                        invariant needs --domain base
+  --situation TEXT      when the lesson applies, one line (<= 300 chars)
+  --guide-ref R         the guide to change: <bundle>/<kind>/<name>
+  --sensor-ref R        its paired sensor: <bundle>/<kind>/<name>
+  --bundles B,...       bundles the lesson concerns
+  --source {journal,retro,user}
+                        where it came from (default retro)
+  --evidence REF [REF ...]
+                        KIND:TEXT, KIND one of journal, retro, user, test, review (<= 200 chars
+                        each)
+  --lesson TEXT         the lesson itself (<= 400 chars)
+  --edit FILE.diff      candidate edit: a unified diff against the hub root, bundles/ only
+  --date YYYY-MM-DD     date for created/updated and History (default: today, UTC)
+```
+
+#### harness lessons note
+
+```text
+usage: harness lessons note [-h] [--config PATH] [--home DIR] [--json] [--offline] [--yes]
+                            [--dry-run] [--used] [--helped] [--recurred] [--evidence REF]
+                            [--note TEXT] [--date YYYY-MM-DD]
+                            ID
+
+deferred probing: count a use, a help or a recurrence; --recurred with a journal: ref is objective
+
+positional arguments:
+  ID
+
+options:
+  -h, --help         show this help message and exit
+  --config PATH      config file (default: $HARNESS_CONFIG or <hub>/local/harness.toml)
+  --home DIR         hub directory (HARNESS_HOME)
+  --json             machine-readable output
+  --offline          skip network checks (HARNESS_OFFLINE=1)
+  --yes, -y          assume yes; never prompt
+  --dry-run          show what would happen, write nothing
+  --used             the lesson was consulted
+  --helped           it helped (subjective; never promotes)
+  --recurred         the situation recurred; objective only with a new journal: --evidence that is
+                     a line of the journal
+  --evidence REF     KIND:TEXT evidence ref (repeatable)
+  --note TEXT        free text for the History line (<= 200 chars)
+  --date YYYY-MM-DD  date for created/updated and History (default: today, UTC)
+```
+
+#### harness lessons confirm
+
+```text
+usage: harness lessons confirm [-h] [--config PATH] [--home DIR] [--json] [--offline] [--yes]
+                               [--dry-run] [--date YYYY-MM-DD]
+                               ID
+
+human: confirm a candidate or recurring lesson
+
+positional arguments:
+  ID
+
+options:
+  -h, --help         show this help message and exit
+  --config PATH      config file (default: $HARNESS_CONFIG or <hub>/local/harness.toml)
+  --home DIR         hub directory (HARNESS_HOME)
+  --json             machine-readable output
+  --offline          skip network checks (HARNESS_OFFLINE=1)
+  --yes, -y          assume yes; never prompt
+  --dry-run          show what would happen, write nothing
+  --date YYYY-MM-DD  date for created/updated and History (default: today, UTC)
+```
+
+#### harness lessons retire
+
+```text
+usage: harness lessons retire [-h] [--config PATH] [--home DIR] [--json] [--offline] [--yes]
+                              [--dry-run] [--reason TEXT] [--date YYYY-MM-DD]
+                              ID
+
+human: retire a lesson
+
+positional arguments:
+  ID
+
+options:
+  -h, --help         show this help message and exit
+  --config PATH      config file (default: $HARNESS_CONFIG or <hub>/local/harness.toml)
+  --home DIR         hub directory (HARNESS_HOME)
+  --json             machine-readable output
+  --offline          skip network checks (HARNESS_OFFLINE=1)
+  --yes, -y          assume yes; never prompt
+  --dry-run          show what would happen, write nothing
+  --reason TEXT      why, for the History line
+  --date YYYY-MM-DD  date for created/updated and History (default: today, UTC)
+```
+
+#### harness lessons review
+
+```text
+usage: harness lessons review [-h] [--config PATH] [--home DIR] [--json] [--offline] [--yes]
+                              [--dry-run] [--session S] [--explain]
+
+is a retro due for this session? rc 0 due, 1 not due, 3 no journal / no session / no lines, 4
+error
+
+options:
+  -h, --help     show this help message and exit
+  --config PATH  config file (default: $HARNESS_CONFIG or <hub>/local/harness.toml)
+  --home DIR     hub directory (HARNESS_HOME)
+  --json         machine-readable output
+  --offline      skip network checks (HARNESS_OFFLINE=1)
+  --yes, -y      assume yes; never prompt
+  --dry-run      show what would happen, write nothing
+  --session S    session id (default: <retro dir>/current)
+  --explain      list the session's lines (time, kind, site; never text)
+```
+
+#### harness lessons stats
+
+```text
+usage: harness lessons stats [-h] [--config PATH] [--home DIR] [--json] [--offline] [--yes]
+                             [--dry-run]
+                             [--domain {base,scm,tracker,delivery,kubernetes,workspace,operations}]
+                             [--since DATE]
+
+asks, denies and corrections per session before and after each lesson (one table)
+
+options:
+  -h, --help            show this help message and exit
+  --config PATH         config file (default: $HARNESS_CONFIG or <hub>/local/harness.toml)
+  --home DIR            hub directory (HARNESS_HOME)
+  --json                machine-readable output
+  --offline             skip network checks (HARNESS_OFFLINE=1)
+  --yes, -y             assume yes; never prompt
+  --dry-run             show what would happen, write nothing
+  --domain {base,scm,tracker,delivery,kubernetes,workspace,operations}
+                        only lessons of this domain
+  --since DATE          ignore journal lines before DATE
+```
+
+#### harness lessons validate
+
+```text
+usage: harness lessons validate [-h] [--config PATH] [--home DIR] [--json] [--offline] [--yes]
+                                [--dry-run] [--quick] [--full] [--now TS]
+                                [ID]
+
+apply a lesson's candidate edit to a copy of the hub's HEAD and run lint, tests and render
+
+positional arguments:
+  ID             one lesson (default: every open lesson with a candidate edit)
+
+options:
+  -h, --help     show this help message and exit
+  --config PATH  config file (default: $HARNESS_CONFIG or <hub>/local/harness.toml)
+  --home DIR     hub directory (HARNESS_HOME)
+  --json         machine-readable output
+  --offline      skip network checks (HARNESS_OFFLINE=1)
+  --yes, -y      assume yes; never prompt
+  --dry-run      show what would happen, write nothing
+  --quick        skip the touched bundles' own suites
+  --full         run every test suite instead of guard + touched bundles
+  --now TS       timestamp for validated_at (default: now, UTC)
+```
+
+#### harness lessons propose
+
+```text
+usage: harness lessons propose [-h] [--config PATH] [--home DIR] [--json] [--offline] [--yes]
+                               [--dry-run] --out DIR [--repo OWNER/REPO] [--keep-repos] [--mark]
+                               [--date YYYY-MM-DD]
+                               ID
+
+render body.md, preview.md and create.sh for an issue (never runs create.sh; no #N in the title)
+
+positional arguments:
+  ID
+
+options:
+  -h, --help         show this help message and exit
+  --config PATH      config file (default: $HARNESS_CONFIG or <hub>/local/harness.toml)
+  --home DIR         hub directory (HARNESS_HOME)
+  --json             machine-readable output
+  --offline          skip network checks (HARNESS_OFFLINE=1)
+  --yes, -y          assume yes; never prompt
+  --dry-run          show what would happen, write nothing
+  --out DIR          where body.md, preview.md and create.sh go (never inside a git checkout)
+  --repo OWNER/REPO  GitHub repository for the issue (default: from the hub checkout)
+  --keep-repos       keep repository names from evidence (default: <repo>)
+  --mark             set status proposed (after the issue exists)
+  --date YYYY-MM-DD  date for created/updated and History (default: today, UTC)
+```
+
+#### harness lessons index
+
+```text
+usage: harness lessons index [-h] [--config PATH] [--home DIR] [--json] [--offline] [--yes]
+                             [--dry-run] [--prune] [--now TS]
+
+rewrite INDEX.md (grouped by domain, candidates capped)
+
+options:
+  -h, --help     show this help message and exit
+  --config PATH  config file (default: $HARNESS_CONFIG or <hub>/local/harness.toml)
+  --home DIR     hub directory (HARNESS_HOME)
+  --json         machine-readable output
+  --offline      skip network checks (HARNESS_OFFLINE=1)
+  --yes, -y      assume yes; never prompt
+  --dry-run      show what would happen, write nothing
+  --prune        retire stale candidates first
+  --now TS       reference time for ready|stale (default: now, UTC)
+```
+
+#### harness lessons journal
+
+```text
+usage: harness lessons journal [-h] [--config PATH] [--home DIR] [--json] [--offline] [--yes]
+                               [--dry-run] [--all] [--since TS] [--ack]
+
+group guard-journal lines since the last retro by kind and rule site
+
+options:
+  -h, --help     show this help message and exit
+  --config PATH  config file (default: $HARNESS_CONFIG or <hub>/local/harness.toml)
+  --home DIR     hub directory (HARNESS_HOME)
+  --json         machine-readable output
+  --offline      skip network checks (HARNESS_OFFLINE=1)
+  --yes, -y      assume yes; never prompt
+  --dry-run      show what would happen, write nothing
+  --all          every line, not only those since <retro dir>/last
+  --since TS     lines after TS (date or ISO UTC)
+  --ack          mark the lines shown as seen in <retro dir>/last and prune old retro/sessions
+                 markers
 ```
 
 ### harness steps

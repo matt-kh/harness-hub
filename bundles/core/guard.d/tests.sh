@@ -311,3 +311,52 @@ tr 'run the push from the main checkout instead' 'cd ../shop_feat-x-sub-01-schem
 tr 'push the named branch instead' 'git push --all origin'
 tr 'print specific non-secret variables instead' 'env'
 tr 'print its length with' 'echo $JIRA_TOKEN'
+# ---- opt-in guard journal (lessons.journal): seven fields, never the command ----------
+tj off   deny  'git push origin master'                                  # off: no file at all
+tj unset deny  'git push origin master'                                  # unset is off too
+tj on    deny  'git push origin master'
+TJ_SITE='^guard_section_core_20_credentials:[0-9]+$' tj on deny 'cat ~/.config/jira'
+tj on    ask   'git reset --hard HEAD~1'
+# a flushed deferred ask is credited to the line that deferred it (section file line numbers)
+_tjl=$(grep -n '^  defer "shell write to .harness.toml' "$GUARD_TESTS_DIR/../../guard.d/30-git.sh" | cut -d: -f1)
+TJ_SITE="^guard_section_core_30_git:${_tjl:-none}\$" tj on ask 'printf x > .harness.toml'
+TJ_SITE='^guard_section_core_30_git:[0-9]+$' tj on ask 'printf x > .harness.toml && git reset --hard HEAD~1'
+tj on    pass  'ls -la /home/u/dev/shop'                                 # pass writes nothing
+tj on    allow 'git push --force-with-lease origin feat-x-sub-02-api'   # allow writes nothing
+TJ_SITE='^guard_section_core_20_credentials:' tj on deny 'bash -c "cat ~/.config/gdoc/token.json"'   # wrapped: still no command text
+_tjf=$(mktemp)
+TJ_JOURNAL_DIR="$_tjf/journal" tj on deny 'git push origin master'      # unwritable journal dir: same decision, nothing written
+TJ_JOURNAL_DIR="$_tjf/journal" tj on ask  'git reset --hard HEAD~1'
+rm -f "$_tjf"
+TJ_SESSION='../x'  tj on deny 'git push origin master'                   # recorded as -
+TJ_SESSION=''      tj on deny 'git push origin master'                   # missing session_id: -
+TJ_SESSION="$(printf '%065d' 0)" tj on deny 'git push origin master'     # longer than 64: -
+TJ_SESSION='ab12-cd.EF_9' tj on deny 'git push origin master'
+TJ_CWD="$rpd" TJ_REPO="${rpd##*/}" tj on deny 'git push origin master'          # repository basename recorded
+TJ_CWD="$rpd/" TJ_REPO="${rpd##*/}" tj on deny 'git push origin master'         # trailing slash in cwd
+TJ_CWD="$rpd/sub" TJ_REPO="${rpd##*/}" tj on deny 'git push origin master'      # from a subdirectory: the root's name
+# a linked worktree records the main checkout's name, never <repo>_<branch> (branch names may carry keys)
+_tjw=$(mktemp -d); mkdir -p "$_tjw/mainrepo/.git/worktrees/x" "$_tjw/mainrepo_feat-lbl-sub-01-api" "$_tjw/relwt" "$_tjw/odd"
+printf 'gitdir: %s\n' "$_tjw/mainrepo/.git/worktrees/x" > "$_tjw/mainrepo_feat-lbl-sub-01-api/.git"
+printf 'gitdir: ../mainrepo/.git/worktrees/y\n' > "$_tjw/relwt/.git"             # relative gitdir
+printf 'not a gitdir line\n' > "$_tjw/odd/.git"                                   # unparsable: the checkout's own name
+TJ_CWD="$_tjw/mainrepo_feat-lbl-sub-01-api" TJ_REPO=mainrepo tj on deny 'git push origin master'
+TJ_CWD="$_tjw/relwt" TJ_REPO=mainrepo tj on deny 'git push origin master'
+TJ_CWD="$_tjw/odd" TJ_REPO=odd tj on deny 'git push origin master'
+rm -rf "$_tjw"
+# HOME unset (launchd, systemd, CI): the decision stands; with absolute dirs the line is still written
+TJ_NOHOME=1 tj on deny 'git push origin master'
+TJ_NOHOME=1 TJ_STATE=unset tj on deny 'git push origin master'                 # no HOME, no XDG_STATE_HOME: nothing
+TJ_NOHOME=1 TJ_STATE=unset tj on ask  'git reset --hard HEAD~1'
+TJ_STATE=abs tj on deny 'git push origin master'                                 # default dirs under XDG_STATE_HOME
+# relative dirs never create files under the hook's working directory
+TJ_STATE=relstate tj on deny 'git push origin master'
+TJ_JOURNAL_DIR=reljournal tj on deny 'git push origin master'
+# a non-ASCII letter in the session id is not [A-Za-z]: recorded as -
+TJ_SESSION="s$(printf '\303\251')1" tj on deny 'git push origin master'
+LC_ALL=en_US.UTF-8 TJ_SESSION="s$(printf '\303\251')1" tj on deny 'git push origin master'
+# bypass: a repository cannot switch the journal on (HARNESS_* is never repo-settable)
+decl '[overrides]' 'HARNESS_LESSONS_JOURNAL = "true"' 'HARNESS_JOURNAL_DIR = "/tmp"'
+tn deny 'HARNESS_LESSONS_JOURNAL is settable only from your own environment' "$rpd" 'git push origin master'
+TJ_CWD="$rpd" tj unset deny 'git push origin master'
+decl

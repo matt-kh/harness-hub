@@ -11,6 +11,21 @@
 #   r  EXPECTED 'cmd'            like t, with cwd = the fixture repository $rpd
 #   tn EXPECTED 'stderr-regex' CWD 'cmd'   decision AND the hook's stderr note must match (rows
 #                                whose decision alone would pass vacuously, e.g. ignored overrides)
+#   tj on|off|unset EXPECTED 'cmd'   decision like t, with HARNESS_LESSONS_JOURNAL=true|false|unset
+#                                and a fresh HARNESS_JOURNAL_DIR / HARNESS_RETRO_DIR, run from a
+#                                fresh work directory; then: on + ask or deny -> exactly one
+#                                7-field line (1 = UTC timestamp, 2 = claude, 3 = the sanitised
+#                                session, 4 = guard-ask|guard-deny, 6 = the guard id in use, 7 =
+#                                $TJ_REPO) and retro/current = that session (absent for -);
+#                                otherwise no file at all. Always: no word (> 3 chars) of the
+#                                command, nor of the cwd outside $TJ_REPO, appears in any file.
+#                                Knobs (prefix env): TJ_SESSION (default s1; empty = no
+#                                session_id in the input), TJ_CWD (default $T_CWD), TJ_REPO
+#                                (field 7, default -), TJ_SITE (ERE field 5 must match),
+#                                TJ_JOURNAL_DIR (dir to use instead; nothing may be written),
+#                                TJ_STATE (no HARNESS_*_DIR; XDG_STATE_HOME = `unset`, `abs` (a
+#                                fresh absolute dir: line expected) or a literal: nothing expected),
+#                                TJ_NOHOME=1 (HOME unset)
 # EXPECTED is allow | ask | deny | pass (pass = no output, the provider decides).
 # Prefix env assignments work as usual: `WORK_TICKET_ALLOW_TRANSITION=1 t ask '…'`.
 # NOTE: `tr` shadows the tr(1) command inside the test shell; the guard runs in its own bash.
@@ -28,7 +43,11 @@ export GUARD_KUBECTL="$STUBS/kubectl-stub.sh"
 export GUARD_GIT="$STUBS/git-stub.sh"   # current branch via GIT_STUB_BRANCH (unset = not a repo)
 export WORK_TICKET_GH="$STUBS/gh-stub.sh"
 unset GIT_STUB_BRANCH GIT_STUB_TOPLEVEL WORK_TICKET_ALLOW_DEFAULT_PUSH_RE WORK_TICKET_ALLOW_TRANSITION WORK_TICKET_KEY_IN_BRANCH \
-      WORK_TICKET_LABELED_DECISION WORK_TICKET_BASE_BRANCH_RE HARNESS_CRED_EXTRA_RE
+      WORK_TICKET_LABELED_DECISION WORK_TICKET_BASE_BRANCH_RE HARNESS_CRED_EXTRA_RE \
+      HARNESS_LESSONS_JOURNAL HARNESS_GUARD_ID HARNESS_PROVIDER TJ_SESSION TJ_CWD TJ_SITE TJ_JOURNAL_DIR TJ_REPO TJ_STATE TJ_NOHOME
+# every row's journal (should one ever be written by mistake) lands in a sink, never in ~/.local/state
+tjd=$(mktemp -d)
+export HARNESS_JOURNAL_DIR="$tjd/sink/journal" HARNESS_RETRO_DIR="$tjd/sink/retro" XDG_STATE_HOME="$tjd/sink/state"
 T_REPO="${T_REPO:-shop}"                     # repo directory name used by the rows
 T_CWD="/home/u/dev/$T_REPO"                   # default cwd = a main checkout (need not exist)
 pass=${pass:-0}; fail=${fail:-0}
@@ -67,4 +86,88 @@ tn() {  # expected stderr-regex cwd command
   else
     fail=$((fail+1)); printf 'FAIL want=%s got=%s, stderr !~ /%s/ | [%s] %s\n   stderr=%s\n' "$exp" "$d" "$re" "$(basename "$cwd")" "$cmd" "$err"
   fi
+}
+
+# journal rows (opt-in guard journal): see the header
+# the id the renderer would write for this guard (sha256 of guard-bash.sh, 12 hex chars)
+TJ_GUARD_ID=$(python3 -c 'import hashlib, sys; print(hashlib.sha256(open(sys.argv[1], "rb").read()).hexdigest()[:12])' "$H")
+tj() {  # on|off|unset expected command
+  local mode="$1" exp="$2" cmd="$3" cwd="${TJ_CWD:-$T_CWD}" sid="${TJ_SESSION-s1}" want_repo="${TJ_REPO:--}"
+  local want_sid w why="" in out d run="$tjd/run.$((pass+fail))" jdir rdir files n line f c want_line=0
+  rm -rf "$run"; mkdir -p "$run/work"
+  jdir="${TJ_JOURNAL_DIR:-$run/journal}"; rdir="$run/retro"
+  case "${TJ_STATE:-}" in abs) jdir="$run/state/harness/journal"; rdir="$run/state/harness/retro" ;; esac
+  want_sid=$sid
+  case "$want_sid" in ''|*[!A-Za-z0-9._-]*) want_sid=- ;; esac
+  case "$(LC_ALL=C; printf '%s' "$want_sid" | command tr -d 'A-Za-z0-9._-')" in '') ;; *) want_sid=- ;; esac
+  [ "${#want_sid}" -le 64 ] || want_sid=-
+  if [ "$mode" = on ] && [ -z "${TJ_JOURNAL_DIR:-}" ] && { [ "$exp" = ask ] || [ "$exp" = deny ]; }; then
+    case "${TJ_STATE:-}" in ''|abs) want_line=1 ;; esac
+  fi
+  if [ -n "$sid" ]; then in=$(jq -cn --arg s "$sid" --arg cwd "$cwd" --arg c "$cmd" '{session_id:$s,cwd:$cwd,tool_input:{command:$c}}')
+  else in=$(jq -cn --arg cwd "$cwd" --arg c "$cmd" '{cwd:$cwd,tool_input:{command:$c}}'); fi
+  out=$(
+    cd "$run/work" || exit 97                 # a relative journal dir would land here
+    # (pattern) form: bash 3.2 cannot parse a bare `pat)` case inside $( … )
+    case "$mode" in
+      (on)  export HARNESS_LESSONS_JOURNAL=true ;;
+      (off) export HARNESS_LESSONS_JOURNAL=false ;;
+      (*)   unset HARNESS_LESSONS_JOURNAL ;;
+    esac
+    export HARNESS_GUARD_ID="$TJ_GUARD_ID" HARNESS_PROVIDER=claude
+    if [ -n "${TJ_STATE:-}" ]; then
+      unset HARNESS_JOURNAL_DIR HARNESS_RETRO_DIR
+      case "$TJ_STATE" in
+        (unset) unset XDG_STATE_HOME ;;
+        (abs)   export XDG_STATE_HOME="$run/state" ;;
+        (*)     export XDG_STATE_HOME="$TJ_STATE" ;;
+      esac
+    else
+      export HARNESS_JOURNAL_DIR="$jdir" HARNESS_RETRO_DIR="$rdir"
+    fi
+    [ -z "${TJ_NOHOME:-}" ] || unset HOME
+    printf '%s' "$in" | bash "$H" 2>/dev/null
+  )
+  d=$(jq -r '.hookSpecificOutput.permissionDecision // "pass"' <<<"${out:-{\}}")
+  [ "$d" = "$exp" ] || why="decision $d"
+  files=$(find "$run" "$jdir" -type f 2>/dev/null | sort -u)
+  if [ "$want_line" = 1 ]; then
+    n=$(find "$jdir" -type f -name '*.log' 2>/dev/null | wc -l | command tr -d ' ')
+    if [ "$n" != 1 ]; then why="$why; $n journal files"
+    else
+      line=$(cat "$jdir"/*.log)
+      [ "$(printf '%s\n' "$line" | wc -l | command tr -d ' ')" = 1 ] || why="$why; not exactly one line"
+      printf '%s\n' "$line" | awk -F '\t' 'NF != 7 { exit 1 }' || why="$why; not 7 tab fields: $line"
+      printf '%s' "$line" | cut -f1 | grep -qE '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:]{8}Z$' || why="$why; ts $(printf '%s' "$line" | cut -f1)"
+      [ "$(printf '%s' "$line" | cut -f2)" = claude ] || why="$why; provider $(printf '%s' "$line" | cut -f2)"
+      [ "$(printf '%s' "$line" | cut -f3)" = "$want_sid" ] || why="$why; session $(printf '%s' "$line" | cut -f3)"
+      [ "$(printf '%s' "$line" | cut -f4)" = "guard-$exp" ] || why="$why; kind $(printf '%s' "$line" | cut -f4)"
+      [ -z "${TJ_SITE:-}" ] || printf '%s' "$line" | cut -f5 | grep -qE -e "$TJ_SITE" || why="$why; site $(printf '%s' "$line" | cut -f5) !~ $TJ_SITE"
+      [ "$(printf '%s' "$line" | cut -f6)" = "$TJ_GUARD_ID" ] || why="$why; guard id $(printf '%s' "$line" | cut -f6)"
+      [ "$(printf '%s' "$line" | cut -f7)" = "$want_repo" ] || why="$why; repo $(printf '%s' "$line" | cut -f7) != $want_repo"
+      if [ "$want_sid" = - ]; then [ ! -e "$rdir/current" ] || why="$why; retro/current written for session -"
+      else [ "$(cat "$rdir/current" 2>/dev/null)" = "$want_sid" ] || why="$why; retro/current != $want_sid"; fi
+    fi
+  else
+    [ -z "$files" ] || why="$why; wrote $(printf '%s' "$files" | command tr '\n' ' ')"
+    case "${TJ_JOURNAL_DIR:-}" in /*) [ ! -e "$TJ_JOURNAL_DIR" ] || why="$why; created $TJ_JOURNAL_DIR" ;; esac
+  fi
+  # privacy: no word (split on anything but letters and digits) longer than 3 chars of the command,
+  # nor of the cwd unless it is part of the expected repository name, appears in a written file
+  for c in cmd cwd; do
+    if [ "$c" = cmd ]; then w=$cmd; else w=$cwd; fi
+    for w in $(printf '%s' "$w" | command tr -c 'A-Za-z0-9' ' '); do
+      [ "${#w}" -gt 3 ] || continue
+      if [ "$c" = cwd ]; then case "$want_repo" in *"$w"*) continue ;; esac; fi
+      while IFS= read -r f; do
+        [ -n "$f" ] || continue
+        if grep -qF -- "$w" "$f"; then why="$why; $c word '$w' in ${f##*/}"; fi
+      done <<EOF
+$files
+EOF
+    done
+  done
+  rm -rf "$run"
+  if [ -z "$why" ]; then pass=$((pass+1)); printf 'PASS %-5s | journal %s [%s] %s\n' "$d" "$mode" "$want_sid" "$cmd"
+  else fail=$((fail+1)); printf 'FAIL want=%s | journal %s [%s] %s\n   %s\n' "$exp" "$mode" "$want_sid" "$cmd" "${why#; }"; fi
 }

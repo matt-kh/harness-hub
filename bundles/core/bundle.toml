@@ -83,6 +83,74 @@ default = ""
 description = "Extra ERE of credential paths the guard denies for readers (cat, grep, jq, cp, ...), on top of the built-in list (HARNESS_CRED_EXTRA_RE). Empty = none."
 example = '/etc/org-vault/|~/\.config/acme-cli/'
 
+[requires.config."lessons.journal"]
+type = "boolean"
+default = false
+description = "Opt-in guard journal: on every guard ask or deny, append one line to ~/.local/state/harness/journal/<date>.log with the timestamp, provider, session id, kind (guard-ask | guard-deny), rule site (section function and line), guard id and repository basename, and point ~/.local/state/harness/retro/current at the session. Never recorded: command text, prompt text, paths, reasons. Stays on the workstation (HARNESS_LESSONS_JOURNAL)."
+
+[requires.config."lessons.prompt_signals"]
+type = "boolean"
+default = false
+description = "Opt-in prompt signals (hook shipped by the lessons bundle): a prompt matching lessons.correction_re or lessons.dissatisfaction_re adds one journal line whose kind is the class name (correction | dissatisfaction) and whose other fields are the timestamp, provider, session id, guard id and repository basename. Never recorded: prompt text, command text, paths (HARNESS_LESSONS_PROMPT_SIGNALS)."
+
+[requires.config."lessons.correction_re"]
+type = "string"
+default = "^(no([,.!]|$| (that|this|it|you|i|not|wait|stop)([ ,.!']|’|$))|nope|(wrong|incorrect)([^a-z-]|$)|that(’|')?s not|not what i|i (said|asked|meant|told you|wanted)|you (didn(’|')?t|did not|ignored|missed|forgot|broke|changed)|(undo|redo)([,.!]|$| (that|this|it)([^a-z-]|$))|revert (that|this|it)|try again|again[,.!]?$|still (wrong|broken|failing|not))"
+description = "POSIX ERE, applied case-insensitively (grep -Eiq) to a prompt, that classifies it as a correction when lessons.prompt_signals is on. Only the class name is recorded, never the prompt (HARNESS_LESSONS_CORRECTION_RE)."
+
+[requires.config."lessons.dissatisfaction_re"]
+type = "string"
+default = "(frustrat|annoy|unacceptable|stop (doing|that)|why (did|are) you|don(’|')?t (do (that|this)|ever)|you keep|this is (wrong|bad|useless))"
+description = "POSIX ERE, applied case-insensitively (grep -Eiq) to a prompt, that classifies it as dissatisfaction when lessons.prompt_signals is on. Only the class name is recorded, never the prompt (HARNESS_LESSONS_DISSATISFACTION_RE)."
+
+[requires.config."lessons.dir"]
+type = "string"
+default = ""
+description = "Directory of the private lessons library that `harness lessons` reads and writes (one <domain>-NNN.md record per lesson plus INDEX.md). Empty = ~/.local/state/harness/lessons (under $XDG_STATE_HOME when set). The CLI refuses a directory under the hub checkout or inside any git checkout: lessons stay on the workstation and never enter a repository."
+example = "~/.local/state/harness/lessons"
+
+[requires.config."lessons.promote_after"]
+type = "integer"
+default = 3
+minimum = 1
+description = "Objective recurrences (`harness lessons note --recurred` with a journal: evidence ref) after which a candidate lesson becomes recurring, which `harness lessons propose` accepts like a confirmed one."
+
+[requires.config."lessons.max_age_days"]
+type = "integer"
+default = 90
+minimum = 1
+description = "Days without an update after which a lesson is shown stale in INDEX.md and `harness lessons list --stale`; `harness lessons index --prune` retires stale candidates."
+
+[requires.config."lessons.index_max"]
+type = "integer"
+default = 40
+minimum = 1
+description = "Most lessons INDEX.md lists overall (confirmed, recurring and proposed first); the rest are counted, never listed."
+
+[requires.config."lessons.index_max_candidates"]
+type = "integer"
+default = 5
+minimum = 0
+description = "Most unconfirmed candidate lessons INDEX.md lists per domain (newest update first); the rest appear as \"N more candidates\", so a run of bad retros cannot flood the index."
+
+[requires.config."lessons.review.corrections"]
+type = "integer"
+default = 2
+minimum = 0
+description = "`harness lessons review` is due when one session has at least this many correction journal lines. 0 disables this criterion."
+
+[requires.config."lessons.review.dissatisfaction"]
+type = "integer"
+default = 1
+minimum = 0
+description = "`harness lessons review` is due when one session has at least this many dissatisfaction journal lines. 0 disables this criterion."
+
+[requires.config."lessons.review.denies"]
+type = "integer"
+default = 3
+minimum = 0
+description = "`harness lessons review` is due when one session has at least this many guard-deny journal lines. 0 disables this criterion."
+
 [provides]
 rules = ["rules/00-conventions.md"]
 skills = []
@@ -101,6 +169,10 @@ WORK_TICKET_AGENT_LABEL_RE = "{{ core.agent_label_re }}"
 WORK_TICKET_BASE_BRANCH_RE = "{{ core.default_branch_re }}"
 HARNESS_TICKET_EXAMPLE = "{{ core.ticket_example }}"
 HARNESS_CRED_EXTRA_RE = "{{ credentials.extra_paths_re }}"
+HARNESS_LESSONS_JOURNAL = "{{ lessons.journal }}"
+HARNESS_LESSONS_PROMPT_SIGNALS = "{{ lessons.prompt_signals }}"
+HARNESS_LESSONS_CORRECTION_RE = "{{ lessons.correction_re }}"
+HARNESS_LESSONS_DISSATISFACTION_RE = "{{ lessons.dissatisfaction_re }}"
 
 [[manual_steps]]
 id = "local-bin-path"
@@ -216,8 +288,8 @@ fix = "harness apply --provider claude"
 providers = ["claude"]
 
 [uninstall]
-keeps = []
-notes = "Removes the rendered hook, agents and managed instruction blocks only; your own CLAUDE.md prose outside the managed blocks stays."
+keeps = ["~/.local/state/harness/lessons/**", "~/.local/state/harness/journal/**", "~/.local/state/harness/retro/**"]
+notes = "Removes the rendered hook, agents and managed instruction blocks only; your own CLAUDE.md prose outside the managed blocks stays, and so do the lessons, the guard journal and the retro pointer under ~/.local/state/harness/ (delete them by hand)."
 
 # Component taxonomy (docs/reference/taxonomy.md): bundle defaults, then per-component overrides.
 [taxonomy]
