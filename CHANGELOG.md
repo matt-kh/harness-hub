@@ -129,7 +129,8 @@ prints every one between your applied version and the new one.
   closing keywords and `#N` titles; redacts repository names), `index` (`INDEX.md` by domain
   with per-domain candidate and overall caps, `--prune`) and `journal` (lines since the last
   retro grouped by kind and rule site, current sites resolved to their source line, other
-  guard ids stale, `--ack`). Unit tests with goldens in `tests/fixtures/lessons/`.
+  guard ids stale, `--ack`, which also writes the stop nudge's `retro/sessions/<sid>` marker
+  for the session in `retro/current` so a session whose retro ran is not nudged again). Unit tests with goldens in `tests/fixtures/lessons/`.
 - Bundle `lessons` (experimental, `depends_on = ["core"]`, in no profile;
   [docs](docs/bundles/lessons.md)): the first bundle hooks. `hooks/prompt-signal.sh`
   (`prompt`, when `lessons.prompt_signals`) appends one `correction` or `dissatisfaction`
@@ -152,6 +153,13 @@ prints every one between your applied version and the new one.
   `enable-journal`, `read-the-loop`. Suites `bundles/lessons/tests/run.sh` (section 15 rows
   against core + lessons, hooks against `hooks/tests/prompts.tsv`, the regex contract, plus the
   doctor script) and the retro facts goldens.
+- `work-ticket` and `create-ticket` end with a review-gated retro step (Step 8 and Step 9):
+  with the `lessons` bundle installed and the harness CLI found, `harness lessons review` (with
+  the rendered `--config`, like the facts script and the stop nudge) rc 0 invokes `/retro` once
+  with `--workflow work-ticket|create-ticket --arg 'KEY'` (quoted, so `#N` survives), rc 1 prints
+  one `Retro: not due (<counts>)` line, any other exit status stays silent; never after a
+  Handover or a later `stk sync` handoff. create-ticket's Step 8 is now "Report" (its stop
+  sentence is unchanged). `ticket-workflow` recommends `lessons`.
 - `harness lint` rule `hooks-events` (principle 6, not skippable): a hook script missing or
   failing `bash -n`, a `when` key no schema defines, one script name in two bundles or named
   like a guard file or any provider's shim, an event no provider declares (warning); provider

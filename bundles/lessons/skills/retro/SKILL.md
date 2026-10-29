@@ -59,7 +59,7 @@ re-gate. `--no-record` runs Steps 1–3 and the report but writes nothing (Step 
 ## Step 1 — facts (read-only)
 
 ```bash
-bash {{ provider.skills_dir }}/retro/scripts/retro-facts.sh [--workflow W --arg A]
+bash {{ provider.skills_dir }}/retro/scripts/retro-facts.sh [--workflow W --arg "A"]   # quote A: #N is a comment
 ```
 
 One JSON object: `harness` (the CLI, or null: then say "harness CLI not found; run harness

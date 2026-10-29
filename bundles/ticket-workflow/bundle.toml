@@ -14,7 +14,7 @@ check the CLI they need at preflight and name the missing bundle instead of impr
 Org-specific issue-type rules and field ids come from jira.issue_types / jira.fields.
 """
 depends_on = ["core"]
-recommends = ["jira", "gitlab", "github", "stack"]
+recommends = ["jira", "gitlab", "github", "stack", "lessons"]
 conflicts_with = []
 any_of = [["jira", "github"], ["gitlab", "github"]]
 owners = []
@@ -144,8 +144,8 @@ function = "workflow"
 coverage_note = "The size rubric, Q-checklist and MR body content are judgement calls (inferential: code-reviewer); SCM verb conventions are sensed by the gitlab/github guard sections; the preflight and facts scripts are sensed by golden suites against stubbed gh, glab and jira."
 guides = [
   { kind = "rule", ref = "rules/75-ticket-workflow.md", checks = ["guard.d/75-ticket-workflow.sh", "doctor_checks", "skills/work-ticket/scripts/tests/run.sh"], note = "ticket to MR/PR flow, label gate, key-free branches, stacked delivery; the tracker is declared per repository (sensed by the work-ticket golden suite and the ticket-workflow-trackers doctor check)" },
-  { kind = "skill", ref = "skills/work-ticket", checks = ["guard.d/75-ticket-workflow.sh", "skills/work-ticket/scripts/tests/run.sh"], note = "the governed ticket workflow and its preflight scripts" },
-  { kind = "skill", ref = "skills/create-ticket", checks = ["skills/create-ticket/scripts/tests/run.sh"], note = "one drafted ticket or issue, rendered deterministically" },
+  { kind = "skill", ref = "skills/work-ticket", checks = ["guard.d/75-ticket-workflow.sh", "skills/work-ticket/scripts/tests/run.sh"], note = "the governed ticket workflow and its preflight scripts; Step 8 runs the retro skill only when harness lessons review is due (lessons bundle)" },
+  { kind = "skill", ref = "skills/create-ticket", checks = ["skills/create-ticket/scripts/tests/run.sh"], note = "one drafted ticket or issue, rendered deterministically; Step 9 runs the retro skill only when harness lessons review is due (lessons bundle)" },
 ]
 sensors = [
   { kind = "guard", ref = "guard.d/75-ticket-workflow.sh", note = "key-free branches and subjects, sub worktree paths, squash delivery" },
