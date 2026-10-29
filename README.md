@@ -137,6 +137,9 @@ Ten principles govern every change to the hub; each links to its document (check
   text. Only the rules protecting your own credentials stay
   ([repository-level harnesses](docs/repo-level.md)).
 - Hundreds of table-driven test rows, bypass attempts included, specify the guard.
+- An opt-in, local-only journal of guard asks and denies feeds `harness lessons`: a private
+  library of evidence-backed lessons that a human confirms before one becomes an issue
+  draft; nothing leaves the workstation ([lessons](docs/reference/lessons.md)).
 - `harness plan` shows every path before `harness apply` writes; modified files are backed
   up; `harness uninstall` removes only the paths it recorded. Your text outside managed
   blocks is never touched.
@@ -185,7 +188,7 @@ call is listed in [SECURITY.md](SECURITY.md).
 | [Self-host](docs/runbooks/self-host.md) | an org platform instance |
 | [Runbooks](docs/runbooks/new-machine.md) | new machine, upgrade, air-gapped, migration, rotation |
 | [Catalog](docs/catalog.md) | every bundle, skill, agent, rule, guard section and check, with its id and facets |
-| [Reference](docs/reference/cli.md) | CLI, config schema, hook policy, secrets, [taxonomy](docs/reference/taxonomy.md) |
+| [Reference](docs/reference/cli.md) | CLI, config schema, hook policy, secrets, [taxonomy](docs/reference/taxonomy.md), [lessons](docs/reference/lessons.md) |
 | [Roadmap](docs/roadmap.md) | planned bundles and extensions by tranche, reserved guard prefixes, rejected ideas |
 | [Architecture](ARCHITECTURE.md) | normative contracts |
 | [AGENTS.md](AGENTS.md) | for agents changing this repo |

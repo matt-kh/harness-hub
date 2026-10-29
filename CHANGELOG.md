@@ -107,6 +107,23 @@ prints every one between your applied version and the new one.
   'cmd'` (all seven fields, session sanitising, no word longer than three characters of the
   command or the cwd in the file) with rows in `bundles/core/guard.d/tests.sh`. `harness repo` now decodes `'\''` in
   single-quoted `guard.env` values the way the engine does.
+- `harness lessons` (`lib/harness/lessons.py`; [lessons reference](docs/reference/lessons.md)):
+  a private, per-workstation library of evidence-backed lessons under
+  `~/.local/state/harness/lessons/` (never inside a git checkout; the CLI refuses one) and the
+  only parser and writer of its records (banner, fixed-order front matter validated by a
+  schema, six sections; records round-trip byte for byte). Subcommands `list`, `show`, `new`
+  (refuses missing evidence, unknown domains, `invariant` outside `base`, bad refs, token
+  shapes, URL userinfo, over-cap text, edits outside `bundles/`), `note` (used / helped /
+  recurred; only journal-backed recurrences count toward `recurring`), `confirm`, `retire`,
+  `review` (the retro gate over one session's journal lines: rc 0 due, 1 not due, 3 no
+  journal, session or lines, 4 error; `--explain`), `stats` (asks, denies and corrections per session
+  before and after each lesson), `validate` (applies a candidate edit to a `git archive HEAD`
+  copy of the hub and runs lint, the guard and bundle suites and render), `propose` (writes
+  `body.md`, `preview.md` and a `create.sh` it never runs; refuses unconfirmed lessons,
+  closing keywords and `#N` titles; redacts repository names), `index` (`INDEX.md` by domain
+  with per-domain candidate and overall caps, `--prune`) and `journal` (lines since the last
+  retro grouped by kind and rule site, current sites resolved to their source line, other
+  guard ids stale, `--ack`). Unit tests with goldens in `tests/fixtures/lessons/`.
 - `harness lint` rule `hooks-events` (principle 6, not skippable): a hook script missing or
   failing `bash -n`, a `when` key no schema defines, one script name in two bundles or named
   like a guard file or any provider's shim, an event no provider declares (warning); provider
@@ -607,6 +624,13 @@ prints every one between your applied version and the new one.
   (`OBS_REDACT_EXTRA_RE`); see the manual step `configure-backends`. The guard's `guard.env`
   parser now also accepts `OBS_` keys (core engine and the `env-provides` lint list); nothing
   to edit for existing setups.
+- Lessons library: eight new `core` keys under `[lessons]`, read only by `harness lessons`;
+  nothing to edit, and no `guard.env` change. `lessons.dir` (default `""` =
+  `~/.local/state/harness/lessons`), `lessons.promote_after` (3), `lessons.max_age_days` (90),
+  `lessons.index_max` (40), `lessons.index_max_candidates` (5), and the review thresholds
+  `lessons.review.corrections` (2), `lessons.review.dissatisfaction` (1) and
+  `lessons.review.denies` (3), where `0` disables a criterion. A `lessons.dir` you set must lie
+  outside the hub and every git checkout.
 - Guard journal: four new `core` keys under `[lessons]`, all off or inert by default, so there
   is nothing to edit. `lessons.journal` (bool, default `false`; `HARNESS_LESSONS_JOURNAL`)
   turns the journal on; `lessons.prompt_signals` (bool, default `false`;
