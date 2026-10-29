@@ -85,6 +85,12 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | [`ticket-workflow/guard.d/75-ticket-workflow`](reference/hook-policy.md) | sensor | delivery | ask 4 | declaration | key-free branches and subjects, sub worktree paths, squash delivery |
 | [`gdoc/guard.d/80-gdoc`](reference/hook-policy.md) | sensor | workspace | deny 1 · ask 2 · allow 2 | declaration | GET-only api, provenance check before writes, ask on mark and mail send |
 
+## Hook scripts
+
+**Reach:** registered on every provider that declares its neutral event (`harness status --matrix`, row "extra hook events"); a plan note names the providers that do not.
+
+_none_
+
 ## Permission lists
 
 **Reach:** native on claude; advisory on codex, copilot, gemini; none on opencode.

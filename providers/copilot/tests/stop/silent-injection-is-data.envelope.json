@@ -1,0 +1,1 @@
+{"session_id":"s5","cwd":"/tmp/inject $(touch pwned) `touch pwned2` done","stop_hook_active":false,"hook_event_name":"Stop"}

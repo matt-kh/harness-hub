@@ -43,6 +43,20 @@ class RegionTest(unittest.TestCase):
         rows = G.hook_rules([b])
         self.assertEqual(rows[0], ("20-core.sh", "core", "fixture-deny ...", "deny", "fixture deny rule"))
 
+    def test_provider_hook_events_and_matrix_row(self):
+        from harness import status as ST
+
+        provs = M.discover_providers([os.path.join(REPO, "providers")])
+        body = G.provider_body(provs["gemini"])
+        self.assertIn("### Hook events\n", body)
+        self.assertIn("| `prompt` | `BeforeAgent` | `shim-prompt.sh` | milliseconds |  |", body)
+        self.assertIn("| `stop` | `AfterAgent` | `shim-stop.sh` | milliseconds | runs after every turn", body)
+        self.assertIn("| `prompt` | `UserPromptSubmit` | `shim-event.sh` | seconds |  |", G.provider_body(provs["claude"]))
+        self.assertNotIn("### Hook events", G.provider_body(provs["codex"]))
+        rows = ST.matrix_rows([provs[n] for n in sorted(provs)])
+        self.assertEqual(rows[-1], ["extra hook events (prompt, stop)", "prompt, stop", "-", "prompt, stop",
+                                    "prompt, stop", "-"])
+
     def test_cli_body_is_stable(self):
         self.assertEqual(G.cli_body(), G.cli_body())
         self.assertIn("### harness plan", G.cli_body())

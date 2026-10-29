@@ -19,10 +19,24 @@ MATRIX_ROWS = [
 ]
 
 
+# a row computed from [targets.hooks.events] rather than [capabilities]
+HOOK_EVENTS_ROW = "extra hook events (prompt, stop)"
+
+
+def hook_events(p: Any) -> str:
+    """The neutral hook events a provider declares beyond the guard (``prompt, stop``), or ``-``."""
+    from .manifest import NEUTRAL_EVENTS
+
+    t = p.target("hooks") if hasattr(p, "target") else None
+    events = (t or {}).get("events") or {}
+    return ", ".join(n for n in NEUTRAL_EVENTS if n in events) or "-"
+
+
 def matrix_rows(providers: List[Any]) -> List[List[str]]:
     rows = [["capability"] + [p.name for p in providers]]
     for label, fn in MATRIX_ROWS:
         rows.append([label] + [str(fn(p.capabilities)) for p in providers])
+    rows.append([HOOK_EVENTS_ROW] + [hook_events(p) for p in providers])
     return rows
 
 

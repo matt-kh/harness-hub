@@ -15,6 +15,9 @@ the directory convention is used: ``rules/NN-*.md``, ``skills/*/``, ``agents/*.m
 ``guard.d/NN-*.sh``, ``skill-fragments/**``, ``permissions.toml``, ``mcp.toml``, ``bin/*``.
 ``hook_rules`` is accepted as a deprecated alias of ``guard_rules``. Installers are
 ``install/*.sh``; MCP servers are the ``[servers.<name>]`` tables of the MCP file.
+``[[provides.hooks]]`` (no directory convention) lists the bundle's hook scripts for the
+neutral hook events in :data:`NEUTRAL_EVENTS`; a provider maps each event in
+``[targets.hooks.events.<event>]`` (ARCHITECTURE §4).
 
 ``[taxonomy]`` (optional; ``domain``, ``posture``, ``function`` and per-component
 ``[taxonomy.components]`` overrides) classifies the bundle's components; see
@@ -34,6 +37,11 @@ from . import schema_lite, toml_compat
 from .util import HarnessError, hub_home
 
 _NN = re.compile(r"^[0-9][0-9]-")
+
+# neutral hook events a bundle's [[provides.hooks]] may name (ARCHITECTURE §5); the envelope of
+# each is the Claude Code payload of the same event. session-start and session-end are reserved:
+# no provider maps them yet. schema/bundle.schema.json and provider.schema.json repeat the list.
+NEUTRAL_EVENTS = ("prompt", "stop", "session-start", "session-end")
 
 PROFILE_SCHEMA: Dict[str, Any] = {
     "type": "object", "additionalProperties": False, "required": ["profile"],
@@ -192,6 +200,12 @@ class Bundle:
 
     def env(self) -> Dict[str, str]:
         return {k: v for k, v in sorted((self.provides.get("env") or {}).items())}
+
+    def hooks(self) -> List[Dict[str, Any]]:
+        """``[[provides.hooks]]`` entries (``event``, ``script``, ``when``, ``timeout``, ``note``), sorted by
+        script then event: the order hook entries are registered in within this bundle."""
+        rows = [dict(h) for h in (self.provides.get("hooks") or []) if isinstance(h, dict)]
+        return sorted(rows, key=lambda h: (str(h.get("script", "")), str(h.get("event", ""))))
 
     # -- [harness]: guides (feedforward) and sensors (feedback) -----------------
     @property

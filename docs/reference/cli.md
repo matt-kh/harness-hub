@@ -147,7 +147,7 @@ options:
 
 ```text
 usage: harness catalog [-h] [--config PATH] [--home DIR] [--json] [--offline] [--yes] [--dry-run]
-                       [--kind {bundle,skill,agent,rule,guard,permission,mcp,bin,installer,doctor,step,provider,profile}]
+                       [--kind {bundle,skill,agent,rule,guard,hook,permission,mcp,bin,installer,doctor,step,provider,profile}]
                        [--bundle NAME]
                        [--domain {base,scm,tracker,delivery,kubernetes,workspace,operations}]
 
@@ -161,7 +161,7 @@ options:
   --offline             skip network checks (HARNESS_OFFLINE=1)
   --yes, -y             assume yes; never prompt
   --dry-run             show what would happen, write nothing
-  --kind {bundle,skill,agent,rule,guard,permission,mcp,bin,installer,doctor,step,provider,profile}
+  --kind {bundle,skill,agent,rule,guard,hook,permission,mcp,bin,installer,doctor,step,provider,profile}
                         only this kind of component
   --bundle NAME         only this bundle's components (and the bundle itself)
   --domain {base,scm,tracker,delivery,kubernetes,workspace,operations}

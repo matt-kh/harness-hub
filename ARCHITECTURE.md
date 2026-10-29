@@ -161,6 +161,7 @@ skill-fragments/<skill>/  files overlaid into a skill owned by another bundle (s
 agents/<name>.md          sub-agent definitions (Claude Code front-matter; other providers inline)
 guard.d/NN-<topic>.sh     guard rule sections (bash, sourced by concatenation, see §5)
 guard.d/tests.sh          guard test rows for this bundle (uses the shared t/tc/tr/g helpers)
+hooks/<name>.sh           event hook scripts ([[provides.hooks]], neutral events, §5); copied verbatim
 permissions.toml          [permissions] allow/ask/deny lists in Claude Code rule syntax
 mcp.toml                  [servers.<name>] command/args/env; secrets only as env_files = { VAR = "~/path" }
 bin/                      scripts exposed in ~/.local/bin (symlinked to the rendered copy)
@@ -191,6 +192,9 @@ where = "~/.config/gh/hosts.yml"; written_by = "gh auth login"; mode = "0600"; d
 rules = ["rules/40-github.md"]; skills = []; skill_fragments = ["skill-fragments/work-ticket/**"]
 agents = []; guard_rules = ["guard.d/60-github.sh"]; permissions = "permissions.toml"; mcp = ""
 bin = []; env = { WORK_TICKET_GH = "gh" }
+
+[[provides.hooks]]        # neutral hook events beyond the guard (§5); none by default
+event = "stop"; script = "hooks/stop-note.sh"; when = "github.stop_note"; timeout = 5; note = "…"
 
 [[manual_steps]]
 id = "gh-auth"; title = "…"; once_per = "account"; needs = ["browser"]; minutes = 3
@@ -233,7 +237,7 @@ Rules:
   `guard-messages`, `guides-sensors`, `dependencies`, `private-ids`, `taxonomy`, `env-provides`,
   `rule-guard-pairing`, `permissions-vs-guard`, `agent-tools`, `skill-description`,
   `fragments-target`, `profile-sane`, `stability`, `yields`, `provider-honesty`, `shim-fixtures`,
-  `guide-checks`), for `provider-feature` `<provider>:<feature>`
+  `guide-checks`, `hooks-events`), for `provider-feature` `<provider>:<feature>`
   naming an entry of that provider's `features` (§4) — an inferential sensor that lives in the
   product, such as `claude:auto-mode-classifier`. A ref that resolves to nothing is a lint error; a bundle with guides but no
   sensors, sensors but no guides, or (public bundles) no `[harness]` at all is a lint warning.
@@ -244,6 +248,17 @@ Rules:
   `coverage_note` states what is deliberately not sensed. Rendered as "Guides and sensors" in
   `docs/bundles/<b>.md` (with a **pairs with** column) and summarised in
   `docs/reference/harness-coverage.md` (with an **unpaired guides** column).
+- `[[provides.hooks]]` registers a script for a **neutral hook event** (§5): `event` is
+  `prompt` or `stop` (`session-start` and `session-end` are reserved), `script` is
+  `hooks/<name>.sh`, `when` a dotted config key or a list of them that must all be truthy,
+  `timeout` 1–60 seconds (default 5). Render copies the script into the hooks directory of
+  every provider that declares the event (§4) and registers it there; a provider that does
+  not gets a plan note, an unknown event is a render error. The script reads the neutral
+  envelope on stdin, prints nothing or one JSON object, and never blocks. Lint
+  (`hooks-events`) checks that the script exists and parses, that the `when` keys exist,
+  that some provider declares the event (warning) and that no two bundles ship the same
+  script name. Hook scripts are components (`<bundle>/hooks/<name>`, function `govern`, no
+  posture, yields `n/a`).
 - Every `deny`/`ask` `# rule:` reason in `guard.d/` states the alternative action; lint warns
   (`guard-reasons`) when the reason contains none of *use, instead, ask, run, mention, see,
   pass, pipe, check, drop, hand*. The runtime `deny "…"` / `ask "…"` / `defer "…"` strings the
@@ -278,9 +293,12 @@ Rules:
 ```
 provider.toml             where each artifact goes and how it is written
 shim.sh                   hook envelope translation (only if the provider has command hooks)
+shim-<event>.sh           neutral event translation and output filter, one per declared event (§5)
 README.md                 verified-against version and date, quirks
 tests/*.in.json,*.out.json  shim fixtures: NAME starts with the case word (allow, deny, ask,
                           unknown-tool, malformed), variants after `-` (lint `shim-fixtures`)
+tests/<event>/*.in.json   event shim fixtures, with .out.json and an optional .envelope.json
+                          (the neutral envelope the hook must receive; lint `hooks-events`)
 ```
 
 ```toml
@@ -297,9 +315,27 @@ settings     = { path = "~/.claude/settings.json", mode = "json-merge", owner_ke
 hooks        = { path = "~/.claude/hooks", mode = "dir", event = "PreToolUse", matcher = "Bash", shim = "" }
 mcp          = { mode = "json-merge", path = "~/.claude.json", key = "mcpServers" }
 
+[targets.hooks.events.stop]   # neutral events beyond the guard (§5), keyed by the neutral name
+name = "Stop"; entry = '{"hooks": [{"type": "command", "command": "{command}", "timeout": {timeout}}]}'
+shim = ""; timeout_unit = "s"; matcher = ""; note = ""   # all optional
+
 [capabilities]
 hook_enforced = true; permissions = "native"; ask = true; skills = "native"; agents = "native"; mcp = "native"
 ```
+
+`[targets.hooks.events.<neutral>]` maps a neutral hook event to the provider's event `name`.
+`entry` is the JSON template of one hook entry: `{command}`, `{matcher}`, `{event}` (the
+provider event name) and `{hook}` (the script name without `.sh`) are substituted as JSON
+string contents, `{timeout}` as a bare integer in `timeout_unit` (`s`, default, or `ms`;
+bundles declare seconds). A top-level `"matcher": ""` is dropped when no `matcher` is
+declared. With a `shim`, the command is `HARNESS_HOOK=<hooks dir>/<script> bash <hooks
+dir>/<shim>` (the shim is copied next to the script, as the guard shim is); without one it
+is `bash <hooks dir>/<script>`. Registration follows the guard's `register`: `settings`
+merges `[entry]` into the settings target at `hooks.<name>`; `file` adds it to the
+`hooks.<name>` array of the register file, whose base is the guard `entry` document (with
+no event hooks the file is byte-identical to the guard-only one). Entries are ordered by
+bundle (dependency order), then script name. Providers without a hooks target or without
+the event get a plan note instead.
 
 Write modes: `dir` and `file` (copy, tracked by sha256), `managed-block` (insert/replace a
 block delimited by `<!-- harness:begin bundle=<b> file=<f> -->` … `<!-- harness:end bundle=<b> file=<f> -->`,
@@ -349,6 +385,39 @@ Provider shims translate envelopes:
 | gemini | `{tool_name:"run_shell_command", tool_input:{command}, cwd}` → neutral | `allow`→`{decision:"allow"}`, `deny`→`{decision:"deny",reason}`, `ask`→ per `providers.gemini.ask_as` |
 | copilot | `{toolName:"bash", toolArgs:"<json string>"}` → neutral | `deny`→`{permissionDecision:"deny",permissionDecisionReason}`, `ask`→ per `providers.copilot.ask_as` |
 | codex, opencode | no command hook | advisory only; `harness status --matrix` says so |
+
+**Neutral hook events.** Hook scripts beyond the guard (`[[provides.hooks]]`, §3) use the
+same convention: the neutral envelope of each event is the Claude Code payload of the
+matching event, minus the fields the hub never reads (`transcript_path`, the last assistant
+message). Unlike the guard, every event has a shim, Claude included: it builds the envelope and
+allow-lists the hook's output, so a hook can never block or inject text. The command is
+`HARNESS_PROVIDER=<provider> HARNESS_HOOK=<script> bash <shim>`, every path shell-quoted:
+
+```
+prompt  stdin : {"session_id":"…","cwd":"…","prompt":"…","hook_event_name":"UserPromptSubmit"}
+stop    stdin : {"session_id":"…","cwd":"…","stop_hook_active":false,"hook_event_name":"Stop"}
+        stdout: nothing, or one JSON object with any of
+                {"systemMessage":"…"}                                (shown to the user)
+                {"hookSpecificOutput":{"additionalContext":"…"}}     (added to the model's context)
+exit    : 0 always; these hooks never block, never print a decision
+```
+
+Claude Code adds plain stdout of a `UserPromptSubmit` hook to the model's context and honours
+`decision`, `continue` and `reason`; "Claude speaks the envelope natively" holds for the guard
+only, and the event shim lets none of that through.
+
+| provider | `prompt` | `stop` | translation |
+|---|---|---|---|
+| claude | `UserPromptSubmit` | `Stop` | `shim-event.sh` for both: the payload minus `transcript_path` and `last_assistant_message`; output allow-listed to `systemMessage` (and `hookSpecificOutput {hookEventName, additionalContext}` on `UserPromptSubmit`), exactly one object or nothing; timeouts in seconds |
+| gemini | `BeforeAgent` | `AfterAgent` (every turn) | `shim-prompt.sh` / `shim-stop.sh`: Gemini parses stdout as one JSON object, so the shim prints `systemMessage` (and, on `BeforeAgent` only, `hookSpecificOutput {hookEventName, additionalContext}`) as that object, or nothing (non-JSON hook output is dropped); never `decision`, `continue` or `reason`; timeouts in ms |
+| copilot | `userPromptSubmitted` | `sessionEnd` | `shim-prompt.sh` / `shim-stop.sh`: prompt from `.prompt // .userPrompt // .message`, session from `.session_id // .sessionId`; no message channel, so the hook's output is discarded; written to the published spec, verify on install |
+| codex, opencode | – | – | no hook contract; the scripts are not rendered (plan note) |
+
+Every event shim requires `jq`; it prints nothing without it, when stdin is not exactly one JSON
+object, when `HARNESS_HOOK` is unreadable or when the hook exits non-zero, and it exits 0. The
+payload is data: it reaches the hook through jq on stdin, never through the command line.
+Fixtures pin this per event (`tests/<event>/`, lint `hooks-events`): at least the cases
+`malformed`, `garbage`, `silent` and `decide`, run from `tests/run.sh` as `<event>:<shim>`.
 
 Test rows live in `bundles/<b>/guard.d/tests.sh` and use the shared helpers from
 `bundles/core/guard/tests/lib.sh` (`t EXPECTED 'cmd'`, `tc EXPECTED cwd 'cmd'`,

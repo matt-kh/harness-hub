@@ -36,6 +36,23 @@ shim = "shim.sh"
 register = "settings"
 entry = '{"matcher": "{matcher}", "hooks": [{"type": "command", "name": "harness-guard", "command": "{command}", "timeout": 20000}]}'
 
+# Neutral hook events beyond the guard (bundle [[provides.hooks]]; ARCHITECTURE §5). The shims
+# translate Gemini's payload to the neutral envelope and the hook's output back; Gemini parses
+# hook stdout as one JSON object, so the shims print that object or nothing, and never a
+# decision. Timeouts are milliseconds. Written to the published spec; verify on install.
+[targets.hooks.events.prompt]
+name = "BeforeAgent"
+shim = "shim-prompt.sh"
+timeout_unit = "ms"
+entry = '{"hooks": [{"type": "command", "name": "harness-{hook}", "command": "{command}", "timeout": {timeout}}]}'
+
+[targets.hooks.events.stop]
+name = "AfterAgent"
+shim = "shim-stop.sh"
+timeout_unit = "ms"
+note = "runs after every turn, not once per session"
+entry = '{"hooks": [{"type": "command", "name": "harness-{hook}", "command": "{command}", "timeout": {timeout}}]}'
+
 [capabilities]
 hook_enforced = true
 permissions = "advisory"

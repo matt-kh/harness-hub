@@ -97,11 +97,14 @@ Step by step: [getting started](docs/getting-started.md); tiers and release file
 | skills | native | native | native | native | native |
 | agents | native | inlined | native | inlined | inlined |
 | mcp | native | native | native | native | none |
+| extra hook events (prompt, stop) | prompt, stop | - | prompt, stop | prompt, stop | - |
 
 **Tier:** enforced on claude; partial on copilot, gemini; advisory on codex, opencode.
 <!-- generated:end -->
 
 Where a provider has no "ask", an ask maps to **deny** (`[providers.<name>].ask_as`).
+"Extra hook events" are the neutral `prompt` and `stop` events bundles can hook beyond the
+guard; on a provider showing `-` such hooks are not rendered.
 Details per provider: [capability matrix](docs/reference/capability-matrix.md).
 
 <!-- generated:begin source=PRINCIPLES.md#readme -->
