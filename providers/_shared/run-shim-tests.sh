@@ -4,8 +4,8 @@
 # For each DIR/NAME.in.json: pipe it through SHIM with HARNESS_GUARD pointing at a stub guard and
 # HARNESS_HOOK at a stub event hook, compare the output (jq -S, or empty) with DIR/NAME.out.json.
 # DIR/NAME.env may export extra variables (e.g. HARNESS_ASK_AS=allow). DIR/NAME.envelope.json,
-# when present, is the neutral envelope the stub hook must have received (jq -S); an empty one
-# means the hook must not have run. HARNESS_GUARD/HARNESS_HOOK are exported before NAME.env, so a
+# when present, is the neutral envelope the stub hook (event shims) or the stub guard (guard
+# shims) must have received (jq -S); an empty one means it must not have run. HARNESS_GUARD/HARNESS_HOOK are exported before NAME.env, so a
 # case can point them elsewhere (HARNESS_HOOK=/nonexistent). Each case runs in an empty work
 # directory; a file left there (an injected `touch`) fails the case. Prints one line per case and
 # a summary line.
@@ -23,8 +23,9 @@ tmp=$(mktemp -d "${TMPDIR:-/tmp}/harness-shim.XXXXXX")
 trap 'rm -rf "$tmp"' EXIT
 cat > "$tmp/guard.sh" <<'STUB'
 #!/usr/bin/env bash
-# stub guard: decision from the command prefix
+# stub guard: records the envelope it received, decision from the command prefix
 in=$(cat)
+printf '%s' "$in" > "$HARNESS_HOOK_ENVELOPE"
 cmd=$(printf '%s' "$in" | jq -r '.tool_input.command // empty' 2>/dev/null) || exit 0
 emit() { jq -cn --arg d "$1" --arg r "stub: $1" '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:$d,permissionDecisionReason:$r}}'; exit 0; }
 case "$cmd" in

@@ -128,6 +128,16 @@ you send it.
 | Change branch protection, repo settings, sharing | asks | yes |
 | Sign in, create tokens, OAuth clients, SSH keys | never | **yes** ([manual steps](bundles/core.md)) |
 
+## 10. The guard journal stays on your workstation
+
+The guard journal (`lessons.journal`, off by default) is a local, opt-in record of guard asks
+and denies: one line per decision with a timestamp, the provider, the session id, the kind, the
+rule site, the guard id and the repository basename
+([line format](reference/hook-policy.md#journal)). It is not telemetry: no hub component reads
+it except `harness lessons` on the same machine, nothing uploads or sends it, and it never
+contains a command, a prompt, a path or a reason. Turning it off stops new lines; deleting
+`~/.local/state/harness/journal/` removes the old ones (`harness uninstall` keeps them).
+
 ## Adapting the rules
 
 Everything above is configurable in `harness.toml` (label names, regexes, default

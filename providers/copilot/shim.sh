@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # GitHub Copilot CLI preToolUse hook -> harness guard (ARCHITECTURE §5).
 #
-# stdin  (Copilot): {"toolName":"bash","toolArgs":"{\"command\":\"…\"}","cwd":"…",…}
-#                   toolArgs is a JSON *string*
-# guard  (neutral, Claude PreToolUse): {"tool_name":"Bash","tool_input":{"command":"…"},"cwd":"…"}
+# stdin  (Copilot): {"sessionId":"…","toolName":"bash","toolArgs":"{\"command\":\"…\"}","cwd":"…",…}
+#                   toolArgs is a JSON *string*; the session is read as .session_id // .sessionId
+# guard  (neutral, Claude PreToolUse): {"tool_name":"Bash","tool_input":{"command":"…"},"cwd":"…",
+#                   "session_id":"…"}  (session_id only when the input has one; the guard journal uses it)
 # stdout (Copilot): {"permissionDecision":"allow"} |
 #                   {"permissionDecision":"deny","permissionDecisionReason":"…"} | nothing
 #
@@ -33,7 +34,8 @@ neutral=$(printf '%s' "$input" | jq -c '
   (.toolArgs // "{}") as $a
   | (if ($a | type) == "string" then ($a | fromjson) else $a end) as $args
   | if ($args | type) != "object" then error("toolArgs is not an object") else . end
-  | {tool_name: "Bash", tool_input: {command: ($args.command // "" | tostring)}, cwd: (.cwd // "" | tostring)}' 2>/dev/null) \
+  | {tool_name: "Bash", tool_input: {command: ($args.command // "" | tostring)}, cwd: (.cwd // "" | tostring)}
+    + ((.session_id // .sessionId) as $s | if $s == null then {} else {session_id: ($s | tostring)} end)' 2>/dev/null) \
   || out_deny "harness shim: malformed toolArgs"
 [ -r "$guard" ] || out_deny "harness shim: guard not found at $guard (run harness apply)"
 res=$(printf '%s' "$neutral" | bash "$guard")

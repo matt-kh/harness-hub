@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Gemini CLI BeforeTool hook -> harness guard (ARCHITECTURE §5).
 #
-# stdin  (Gemini): {"tool_name":"run_shell_command","tool_input":{"command":"…"},"cwd":"…",…}
-# guard  (neutral, Claude PreToolUse): {"tool_name":"Bash","tool_input":{"command":"…"},"cwd":"…"}
+# stdin  (Gemini): {"session_id":"…","tool_name":"run_shell_command","tool_input":{"command":"…"},"cwd":"…",…}
+# guard  (neutral, Claude PreToolUse): {"tool_name":"Bash","tool_input":{"command":"…"},"cwd":"…",
+#                  "session_id":"…"}  (session_id only when the input has one; the guard journal uses it)
 # stdout (Gemini): {"decision":"allow"} | {"decision":"deny","reason":"…"} | nothing (no opinion)
 #
 # Gemini has no "ask" decision: a guard "ask" becomes HARNESS_ASK_AS (deny by default, set from
@@ -29,7 +30,9 @@ tool=$(printf '%s' "$input" | jq -r '.tool_name // empty')
 [ "$tool" = "run_shell_command" ] || exit 0
 neutral=$(printf '%s' "$input" | jq -c '{tool_name: "Bash",
   tool_input: {command: (.tool_input.command // "" | tostring)},
-  cwd: (.cwd // "" | tostring)}') || out_deny "harness shim: could not translate the hook input"
+  cwd: (.cwd // "" | tostring)}
+  + (if .session_id == null then {} else {session_id: (.session_id | tostring)} end)') \
+  || out_deny "harness shim: could not translate the hook input"
 [ -r "$guard" ] || out_deny "harness shim: guard not found at $guard (run harness apply)"
 res=$(printf '%s' "$neutral" | bash "$guard")
 [ -n "$res" ] || exit 0
