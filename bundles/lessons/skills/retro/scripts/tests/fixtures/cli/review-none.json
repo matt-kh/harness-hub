@@ -1,0 +1,7 @@
+{
+  "due": false,
+  "session": "s1",
+  "counts": {"guard-ask": 0, "guard-deny": 0, "correction": 0, "dissatisfaction": 0},
+  "fired": [],
+  "reason": "no journal lines for session s1"
+}

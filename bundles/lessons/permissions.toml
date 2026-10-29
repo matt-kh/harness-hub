@@ -1,0 +1,15 @@
+# Claude Code permission rules contributed by bundle `lessons` (merged into settings.json
+# `permissions` by the claude provider; other providers translate what they can).
+# `harness lessons` is the only writer of the library, so it is allowed; the guard's 15-lessons
+# section asks on confirm, retire and propose (human decisions), which this prefix also matches. Hand edits of the default
+# library directory ask (permissions are not templated: a custom lessons.dir is not covered).
+
+[permissions]
+allow = [
+  "Bash(harness lessons:*)",
+]
+ask = [
+  "Write(~/.local/state/harness/lessons/**)",
+  "Edit(~/.local/state/harness/lessons/**)",
+]
+deny = []

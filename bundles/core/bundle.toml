@@ -95,12 +95,12 @@ description = "Opt-in prompt signals (hook shipped by the lessons bundle): a pro
 
 [requires.config."lessons.correction_re"]
 type = "string"
-default = "^(no[,.! ]|nope|wrong|incorrect|that'?s not|not what i|i (said|asked|meant|told you|wanted)|you (didn'?t|did not|ignored|missed|forgot|broke|changed)|undo|revert (that|this|it)|redo|try again|again[,.!]?$|still (wrong|broken|failing|not))"
+default = "^(no([,.!]|$| (that|this|it|you|i|not|wait|stop)([ ,.!']|’|$))|nope|(wrong|incorrect)([^a-z-]|$)|that(’|')?s not|not what i|i (said|asked|meant|told you|wanted)|you (didn(’|')?t|did not|ignored|missed|forgot|broke|changed)|(undo|redo)([,.!]|$| (that|this|it)([^a-z-]|$))|revert (that|this|it)|try again|again[,.!]?$|still (wrong|broken|failing|not))"
 description = "POSIX ERE, applied case-insensitively (grep -Eiq) to a prompt, that classifies it as a correction when lessons.prompt_signals is on. Only the class name is recorded, never the prompt (HARNESS_LESSONS_CORRECTION_RE)."
 
 [requires.config."lessons.dissatisfaction_re"]
 type = "string"
-default = "(frustrat|annoy|unacceptable|stop (doing|that)|why (did|do|are) you|don'?t (do|ever)|you keep|this is (wrong|bad|useless))"
+default = "(frustrat|annoy|unacceptable|stop (doing|that)|why (did|are) you|don(’|')?t (do (that|this)|ever)|you keep|this is (wrong|bad|useless))"
 description = "POSIX ERE, applied case-insensitively (grep -Eiq) to a prompt, that classifies it as dissatisfaction when lessons.prompt_signals is on. Only the class name is recorded, never the prompt (HARNESS_LESSONS_DISSATISFACTION_RE)."
 
 [requires.config."lessons.dir"]

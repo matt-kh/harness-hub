@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Stub `harness` for the retro-facts suite: logs its argv to $STUB_LOG and answers
+# `lessons review|journal|list ... --json` with fixtures/cli/<subcommand>.json. Exit status:
+# $STUB_REVIEW_RC for review (default 0), 0 otherwise; any other command exits 64 (a write the
+# facts script must never make shows up in the log and fails the suite).
+here=$(cd "$(dirname "$0")/../.." && pwd)
+printf '%s\n' "$*" >> "${STUB_LOG:-/dev/null}"
+[ "${1:-}" = lessons ] || exit 64
+case "${2:-}" in
+  review) cat "$here/fixtures/cli/review-${STUB_REVIEW:-due}.json"; exit "${STUB_REVIEW_RC:-0}" ;;
+  journal) cat "$here/fixtures/cli/journal.json" ;;
+  list) cat "$here/fixtures/cli/list.json" ;;
+  *) exit 64 ;;
+esac

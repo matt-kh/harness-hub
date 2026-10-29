@@ -15,6 +15,7 @@ marks the developer's own credentials and the ask on writing `.harness.toml`.
 <!-- generated:begin source=bundles/*/guard.d -->
 | section | bundle | pattern | decision | reason | yields |
 |---|---|---|---|---|---|
+| 15-lessons.sh | lessons | ``harness lessons confirm\|retire\|propose (also …/bin/harness, python3 -m harness, global flags before `lessons`)`` | ask | a human decision on a lesson; run it yourself, or ask the user (/retro never runs it) | owns base |
 | 20-credentials.sh | core | `<reader> ~/.kube/* \| $KUBECONFIG` | deny | kubeconfig holds cluster credentials; use 'kubectl config get-contexts' or 'k8s contexts' instead | never |
 | 20-credentials.sh | core | `<reader> tool credential files (~/.config/{jira,glab-cli,gdoc,gh}, agent credential json)` | deny | use the tool's own auth status command | never |
 | 20-credentials.sh | core | `<reader> .env / .env.*` | deny | secrets; ask the user for the variable names | never |

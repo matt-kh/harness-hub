@@ -1,0 +1,30 @@
+{
+  "since": null,
+  "from": "all",
+  "guard_id": "3f9c1a7e02bd",
+  "lines": 2,
+  "groups": [
+    {
+      "kind": "guard-deny",
+      "site": "guard_section_core_20_credentials:12",
+      "status": "current",
+      "count": 1,
+      "sessions": 1,
+      "first": "2026-10-26T09:12:03Z",
+      "last": "2026-10-26T09:12:03Z",
+      "text": "deny: reading a credential file",
+      "example": "journal:2026-10-26T09:12:03Z claude s1 guard-deny guard_section_core_20_credentials:12 3f9c1a7e02bd shop"
+    },
+    {
+      "kind": "correction",
+      "site": "-",
+      "status": "-",
+      "count": 2,
+      "sessions": 1,
+      "first": "2026-10-26T09:13:00Z",
+      "last": "2026-10-26T09:20:00Z",
+      "text": "",
+      "example": "journal:2026-10-26T09:13:00Z claude s1 correction - 3f9c1a7e02bd shop"
+    }
+  ]
+}

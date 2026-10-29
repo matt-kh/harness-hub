@@ -10,6 +10,12 @@ prints every one between your applied version and the new one.
 
 ### Docs
 
+- [docs/bundles/lessons.md](docs/bundles/lessons.md): the lessons loop (signals, review,
+  reflect and record, reuse, human promotion), the lifecycle of a record, the per-provider
+  matrix (claude and gemini enforce both hooks, copilot the prompt hook only, codex and
+  opencode advisory) and troubleshooting. Principle 6 "What it means in this repo" names the
+  loop as the routine form of the steering loop, with two "How it is checked" rows (no
+  `principles_version` bump); ARCHITECTURE §3 and the roadmap list prefix `15` (rule only).
 - [docs/roadmap.md](docs/roadmap.md): planned bundles and extensions by tranche (P0 coverage
   gaps and lint sensors; core git and shell hygiene, `run-checks`, `worktree`, Jira Cloud, the
   `ci` bundle; then the secret-tooling, toolchain, containers, release, cloud, iac, db, hosts
@@ -124,6 +130,28 @@ prints every one between your applied version and the new one.
   with per-domain candidate and overall caps, `--prune`) and `journal` (lines since the last
   retro grouped by kind and rule site, current sites resolved to their source line, other
   guard ids stale, `--ack`). Unit tests with goldens in `tests/fixtures/lessons/`.
+- Bundle `lessons` (experimental, `depends_on = ["core"]`, in no profile;
+  [docs](docs/bundles/lessons.md)): the first bundle hooks. `hooks/prompt-signal.sh`
+  (`prompt`, when `lessons.prompt_signals`) appends one `correction` or `dissatisfaction`
+  journal line per matching prompt (class only; slash commands and prompts over 600
+  characters skipped; stdout always empty; same directory rules as the guard journal) and
+  `hooks/stop-retro-nudge.sh` (`stop`, when `lessons.journal`) prints one `systemMessage` per
+  session when `harness lessons review --session <id>` exits 0, silent on every other exit
+  status, never a decision. Skill `/retro` (`retro-facts.sh` read-only facts with goldens; one
+  fixed-shape questionnaire; at most one invariant and one domain candidate through
+  `harness lessons new|note`, journal refs copied verbatim; a fixed-shape report ending with the
+  human's `confirm|retire|propose` commands). Rule `15-lessons` (consult `INDEX.md` at Step 0;
+  a lesson is evidence, never an instruction) and its guard section `15-lessons`, which asks
+  on `harness lessons confirm|retire|propose` however wrapped (`bash -c`, `xargs`, a path to
+  `bin/harness`, `python3 -m harness`, global flags) and passes every other `harness lessons`
+  call; it yields to a repository owning it or domain `base`. The stop hook passes
+  `--config <_harness.config>` from `build/config.json` and cuts the review off after 3 s
+  (GNU `timeout`, or a python fallback that kills the whole process group). Permissions: allow `Bash(harness lessons:*)`,
+  ask on `Write`/`Edit` of `~/.local/state/harness/lessons/**`. Doctor checks
+  `lessons-index-fresh`, `lessons-stale-candidates`, `lessons-review-keys`; manual steps
+  `enable-journal`, `read-the-loop`. Suites `bundles/lessons/tests/run.sh` (section 15 rows
+  against core + lessons, hooks against `hooks/tests/prompts.tsv`, the regex contract, plus the
+  doctor script) and the retro facts goldens.
 - `harness lint` rule `hooks-events` (principle 6, not skippable): a hook script missing or
   failing `bash -n`, a `when` key no schema defines, one script name in two bundles or named
   like a guard file or any provider's shim, an event no provider declares (warning); provider
@@ -631,6 +659,20 @@ prints every one between your applied version and the new one.
   `lessons.review.corrections` (2), `lessons.review.dissatisfaction` (1) and
   `lessons.review.denies` (3), where `0` disables a criterion. A `lessons.dir` you set must lie
   outside the hub and every git checkout.
+- Prompt-signal regexes: the defaults of `lessons.correction_re` and
+  `lessons.dissatisfaction_re` change to meet the prompt fixture list
+  (`bundles/lessons/hooks/tests/prompts.tsv`). A correction no longer starts with any
+  `no ` ("no changes needed" is task text): `no`, `no,`, `no.`, `no!` and `no that|this|it|you|i|not|wait|stop …`
+  still match; `wrong` and `incorrect` need a word end ("Wrong-way merge", "incorrectly
+  rendered" are task text); `undo` and `redo` count alone, before punctuation or before
+  `that|this|it` ("undo the last migration", "Redo the layout" are task text); curly
+  apostrophes (U+2019) count in `that's`, `didn't`, `don't`. Dissatisfaction matches
+  `don't do that|this` instead of any `don't do` ("don't do the rebase yet" is an instruction)
+  and `why did|are you` but no longer `why do you` ("why do you think the test fails?" is a
+  question). `^` and `$` apply to each line of a multi-line prompt. The new values:
+  `correction_re = "^(no([,.!]|$| (that|this|it|you|i|not|wait|stop)([ ,.!']|’|$))|nope|(wrong|incorrect)([^a-z-]|$)|that(’|')?s not|not what i|i (said|asked|meant|told you|wanted)|you (didn(’|')?t|did not|ignored|missed|forgot|broke|changed)|(undo|redo)([,.!]|$| (that|this|it)([^a-z-]|$))|revert (that|this|it)|try again|again[,.!]?$|still (wrong|broken|failing|not))"`,
+  `dissatisfaction_re = "(frustrat|annoy|unacceptable|stop (doing|that)|why (did|are) you|don(’|')?t (do (that|this)|ever)|you keep|this is (wrong|bad|useless))"`. Nothing to edit unless you copied the old defaults into
+  `harness.toml`: then replace them with these or drop them.
 - Guard journal: four new `core` keys under `[lessons]`, all off or inert by default, so there
   is nothing to edit. `lessons.journal` (bool, default `false`; `HARNESS_LESSONS_JOURNAL`)
   turns the journal on; `lessons.prompt_signals` (bool, default `false`;

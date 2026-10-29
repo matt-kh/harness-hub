@@ -1,0 +1,25 @@
+# exit 0
+{
+  "harness": null,
+  "git": {
+    "root": "TMP/repos/shop",
+    "branch": "topic",
+    "repo": "shop"
+  },
+  "repo_owns": false,
+  "active_bundles": [
+    "core",
+    "lessons"
+  ],
+  "review": {
+    "due": null,
+    "reason": "harness CLI not found"
+  },
+  "journal": null,
+  "lessons": null,
+  "workflow": {
+    "name": "manual",
+    "arg": null
+  }
+}
+# calls:

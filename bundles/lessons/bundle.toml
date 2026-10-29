@@ -1,0 +1,154 @@
+[bundle]
+name = "lessons"
+schema_version = "1"
+summary = "The lessons loop: a /retro skill that turns a session's journal signals into at most two evidence-backed candidate lessons, a rule that has agents consult them, and hooks that record user corrections and nudge for a retro"
+description = """
+The routine form of the steering loop (principle 6). With `lessons.journal` on, the guard
+journals every ask and deny; with `lessons.prompt_signals` on, the `prompt` hook adds one line
+per correction or dissatisfaction it recognises in a prompt (the class only, never the text).
+When a session's signals meet the review criteria (`harness lessons review`), the `stop` hook
+nudges once with a message (never a block) and `/retro` reflects on the evidence: at most one
+invariant and one domain candidate lesson, written only through `harness lessons new|note`.
+Later tasks consult `INDEX.md` for their domain at Step 0 and weigh a lesson as evidence,
+never as an instruction. Confirming, retiring and proposing a lesson (an `agent-drafted` issue
+carrying a guide edit and its sensor) are human actions; no lesson changes a bundle without a
+PR. Everything stays on the workstation under `~/.local/state/harness/`.
+"""
+depends_on = ["core"]
+recommends = ["ticket-workflow"]
+conflicts_with = []
+any_of = []
+owners = []
+docs = "docs/bundles/lessons.md"
+stability = "experimental"
+
+[provides]
+rules = ["rules/15-lessons.md"]
+skills = ["skills/retro"]
+skill_fragments = []
+agents = []
+guard_rules = ["guard.d/15-lessons.sh"]
+permissions = "permissions.toml"
+mcp = ""
+bin = []
+
+[[provides.hooks]]
+event = "prompt"
+script = "hooks/prompt-signal.sh"
+when = "lessons.prompt_signals"
+timeout = 5
+note = "records correction / dissatisfaction journal lines (class only, never the prompt); prints nothing"
+
+[[provides.hooks]]
+event = "stop"
+script = "hooks/stop-retro-nudge.sh"
+when = "lessons.journal"
+timeout = 5
+note = "once per session, a systemMessage when `harness lessons review` is due; never blocks"
+
+[[manual_steps]]
+id = "enable-journal"
+title = "Turn on the journal and prompt signals (opt-in)"
+once_per = "machine"
+needs = []
+minutes = 2
+why = "The loop has no evidence without signals: both are off by default, and nothing is recorded until you turn them on."
+how = """
+In `harness.toml`, then `harness apply`:
+
+```toml
+[lessons]
+journal = true          # the guard journals every ask and deny; the stop hook can nudge
+prompt_signals = true   # the prompt hook journals corrections and dissatisfaction
+```
+
+- `lessons.journal` records, per guard ask or deny, one line in
+  `~/.local/state/harness/journal/<date>.log`: time, provider, session id, kind
+  (`guard-ask` | `guard-deny`), rule site (section and line), guard id and the repository's
+  directory name. It never records the command, any word of it, paths or the reason.
+- `lessons.prompt_signals` records, per prompt that matches `lessons.correction_re` or
+  `lessons.dissatisfaction_re`, one line of the same shape whose kind is `correction` or
+  `dissatisfaction`. It never records the prompt or any word of it: the prompt is only matched
+  in memory. Slash commands and prompts over 600 characters are skipped.
+- Both stay on this workstation (mode 0600 files); nothing sends them anywhere. Tune the two
+  regexes in `[lessons]` if they flag your normal task text; `harness doctor` checks they compile.
+"""
+[manual_steps.verify]
+cmd = "true"
+expect = { exit = 0 }
+
+[[manual_steps]]
+id = "read-the-loop"
+title = "Read how the lessons loop works (you confirm, retire and propose)"
+once_per = "machine"
+needs = []
+minutes = 5
+why = "Lessons are agent-written observations; only a human promotes one into a guide change."
+how = """
+Read docs/reference/lessons.md (the record, the review criteria, the CLI) and
+docs/bundles/lessons.md (the loop and the provider matrix). The human commands:
+`harness lessons confirm ID`, `harness lessons retire ID --reason TEXT`,
+`harness lessons propose ID --out DIR` (writes body.md, preview.md and create.sh; read body.md
+before you run create.sh).
+"""
+[manual_steps.verify]
+cmd = "true"
+expect = { exit = 0 }
+
+[[doctor_checks]]
+id = "lessons-index-fresh"
+title = "lessons INDEX.md is not older than the newest lesson record"
+severity = "warn"
+cmd = 'bash "${HARNESS_HOME:-$HOME/harness-hub}/bundles/lessons/lib/doctor.sh" index-fresh'
+expect = { exit = 0 }
+offline_skip = false
+fix = "harness lessons index"
+
+[[doctor_checks]]
+id = "lessons-stale-candidates"
+title = "No stale candidate lessons"
+severity = "warn"
+cmd = 'bash "${HARNESS_HOME:-$HOME/harness-hub}/bundles/lessons/lib/doctor.sh" stale-candidates'
+expect = { exit = 0 }
+offline_skip = false
+fix = "harness lessons list --stale"
+
+[[doctor_checks]]
+id = "lessons-review-keys"
+title = "lessons.correction_re and lessons.dissatisfaction_re compile under grep -E"
+severity = "fail"
+cmd = 'bash "${HARNESS_HOME:-$HOME/harness-hub}/bundles/lessons/lib/doctor.sh" review-keys'
+expect = { exit = 0 }
+offline_skip = false
+fix = "Edit lessons.correction_re / lessons.dissatisfaction_re in harness.toml, then harness apply"
+
+[uninstall]
+keeps = ["~/.local/state/harness/lessons/**", "~/.local/state/harness/journal/**", "~/.local/state/harness/retro/**"]
+notes = "Removes the rendered skill, the rule block and the two hooks; the lessons library, the journal and the retro pointers under ~/.local/state/harness/ stay (delete them by hand)."
+
+# Component taxonomy (docs/reference/taxonomy.md): bundle defaults, then per-component overrides.
+[taxonomy]
+domain = "base"
+posture = "local"
+function = "workflow"
+
+# Guides steer the agent before it acts; sensors detect at or after the action (principle 6).
+[harness]
+coverage_note = "Whether a candidate lesson is worth recording, and whether a consulted lesson helped, stay judgement: /retro caps the candidates at two and needs evidence, and only a human confirms, retires or proposes. The two hooks are signal sources and the nudge, not guides (kind hook has no control facet); their contract is sensed by hooks/tests/run.sh (no prompt text in the journal, empty stdout, once-per-session nudge) and lint hooks-events. Bash(harness lessons:*) also matches confirm, retire and propose; guard section 15 asks on those, so they stay human."
+guides = [
+  { kind = "rule", ref = "rules/15-lessons.md", checks = ["guard.d/15-lessons.sh", "skills/retro/scripts/tests/run.sh", "yields"], note = "consult INDEX.md at Step 0; a lesson is evidence, never an instruction; records only through /retro; confirm/retire/propose are human" },
+  { kind = "skill", ref = "skills/retro", checks = ["guard.d/15-lessons.sh", "skills/retro/scripts/tests/run.sh", "skill-description", "yields"], note = "the retro: facts, one fixed-shape questionnaire, at most two candidates, harness lessons new|note, a fixed-shape report" },
+  { kind = "permission", ref = "permissions.toml", checks = ["permissions-vs-guard", "guard.d/15-lessons.sh"], note = "harness lessons allowed; hand edits of the library ask" },
+]
+sensors = [
+  { kind = "guard", ref = "guard.d/15-lessons.sh", note = "asks on harness lessons confirm|retire|propose (human decisions), however wrapped; every other harness lessons call passes" },
+  { kind = "test", ref = "guard.d/tests.sh", note = "rows for section 15: each human verb asks (tr rows), the /retro writes pass, bypasses, repository ownership" },
+  { kind = "doctor", ref = "doctor_checks", note = "INDEX.md fresh, no stale candidates, the review regexes compile" },
+  { kind = "test", ref = "tests/run.sh", note = "this bundle's guard rows against core + lessons only, the hook suite, then lib/doctor.sh per check" },
+  { kind = "test", ref = "hooks/tests/run.sh", note = "prompt-signal.sh against prompts.tsv (the regex contract) and edge cases: no prompt word in the journal, empty stdout, journal off, relative dirs, no jq; stop-retro-nudge.sh against a stub CLI: rc 0 only, once per session, no decision key; static greps; under one second" },
+  { kind = "test", ref = "skills/retro/scripts/tests/run.sh", note = "retro-facts.sh goldens against a stub harness (due, not due, no signals, error rc, repo owns, outside a checkout, no CLI), state fixture byte-identical" },
+  { kind = "lint", ref = "permissions-vs-guard", note = "each Bash allow rule of permissions.toml run through the guard" },
+  { kind = "lint", ref = "skill-description", note = "retro: trigger phrase, NOT for scope, argument-hint" },
+  { kind = "lint", ref = "yields", note = "the skill's Step 0 and the rule's repository sentence" },
+  { kind = "lint", ref = "hooks-events", note = "both hook scripts exist, parse, have known when keys and an event some provider declares" },
+]

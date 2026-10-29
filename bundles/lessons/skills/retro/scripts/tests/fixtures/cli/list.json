@@ -1,0 +1,5 @@
+[{"id": "base-001", "status": "candidate", "scope": "invariant", "domain": "base", "bundles": [],
+  "guide_ref": "core/rules/00-conventions", "sensor_ref": "core/guard.d/20-credentials", "source": "journal",
+  "created": "2026-10-01", "updated": "2026-10-01", "uses": 1, "helped": 0, "recurred": 0, "recurred_objective": 0,
+  "candidate_edit": "", "validation": "none", "validated_at": "", "validated_guard_id": "",
+  "situation": "reading a key file to check its format", "lesson": "", "evidence": ["journal: 2026-10-01"], "stale": false}]
