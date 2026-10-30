@@ -19,7 +19,9 @@ loop (`lessons`)
 and the conventions, credentials and git rules every developer needs (`core`). That is the
 surface of a platform engineer. Application, data, QA, security and release engineers also
 run containers, package managers, databases, cloud CLIs, infrastructure-as-code, pipelines
-and remote hosts from the same terminal, and the agent sees none of it today.
+and remote hosts from the same terminal, and the agent sees none of it today. The
+[Security track](#security-track) plans the security engineer's surface, starting with the
+software supply chain.
 
 Site reliability work has the same gap: `k8s` reads the Kubernetes API only, so the agent sees
 no signals outside the cluster (metrics, logs, traces and alerts in an observability backend),
@@ -50,27 +52,34 @@ ARCHITECTURE §3 is updated when a band is first used.
 | `35` | `35-shell-hygiene` | core | shell-level hazards (pipe to shell, privilege escalation, destructive removal outside the checkout) |
 | `36` | `36-containers` | containers | local-workstation tooling |
 | `37` | `37-db` | db | local and remote data tooling |
-| `38` | `38-toolchain` | toolchain | package managers |
+| `38` | `38-supply-chain` | supply-chain | package managers, lockfiles, signatures and SBOMs; supersedes the planned `38-toolchain` ([Security track](#security-track)) |
+| `39` | `39-appsec` | appsec | reserved ([Security track](#security-track)); next to `38` |
+| `42` | `42-vuln` | vuln | reserved ([Security track](#security-track)); after the closing-keyword sections, before `45` release and `50` gitlab |
+| `43` | `43-iam` | iam | reserved ([Security track](#security-track)) |
+| `44` | `44-privacy` | privacy | reserved ([Security track](#security-track)) |
 | `45` | `45-release` | release | tags and publication; after the closing-keyword sections, before the SCM CLIs |
+| `46` | `46-compliance` | compliance | reserved ([Security track](#security-track)) |
 | `55` | `55-ci` | ci | between `50-gitlab` and `60-github`; adds only the rows those two lack |
 | `82` | `82-hosts` | hosts | miscellaneous band, with `80-gdoc` |
 
-Free after this table: `39`, `42`–`44`, `46`–`49`, `85`.
+Free after this table: `47`–`49`, `85`.
 
 ## Proposed taxonomy values
 
-Three new `domain` values, added through the procedure in
-[taxonomy](reference/taxonomy.md#adding-a-value) when the first bundle using them lands:
+New `domain` values, added through the procedure in
+[taxonomy](reference/taxonomy.md#adding-a-value) when the first bundle using them lands
+(`operations` and `security` are in the vocabulary already):
 
 | Value | Meaning | Used by |
 |---|---|---|
 | `infrastructure` | cloud accounts, hosts, containers, databases and IaC outside Kubernetes | cloud, iac, containers, db, hosts |
-| `code` | the checkout itself: toolchains, dependencies, generated artefacts | toolchain |
 | `operations` | running systems: signals, incidents, reliability targets | obs, incident, slo |
+| `security` | security posture of code, dependencies, artefacts and credentials: supply chain, appsec, vulnerabilities | supply-chain (first), appsec, vuln, iam, privacy, compliance |
 
 Everything else reuses existing values: `ci`, `release` and the worktree work are `scm`
 (pipelines, tags and worktrees live on or for the source host); `secrets` is `base` (its
-meaning already includes credentials); `digest` is `delivery`. `db` stays under
+meaning already includes credentials, and the credential denies never yield; see
+[security](reference/security.md#which-domain-security-or-the-systems-own)); `digest` is `delivery`. `db` stays under
 `infrastructure` until a second data bundle exists ("a value exists only while a component
 uses it"). No new `function` or `posture` values are needed.
 
@@ -324,6 +333,96 @@ docs page with Troubleshooting) and adds to the `tests-boilerplate` debt below. 
 `experimental` on landing, `beta` once the suite is complete and `stable` after the two-week
 steering pass on guard false asks.
 
+## Security track
+
+Make the harness serve security engineering with the same shape as the SRE track:
+**architecting** (supply-chain posture, signing and provenance strategy, threat models),
+**developing** (pins, lockfiles, SBOMs, CI workflow hardening and policy as config, each a
+repository change through an MR/PR) and **operating** (posture reviews of a checkout, a
+pipeline or an image; triage of an advisory or a failed verification to a root cause and a
+remediation for the human). Every bundle keeps the invariants in
+[security](reference/security.md#invariants-of-every-security-bundle): reads and local scans
+free, signing and publishing are human release steps that ask, verification is never switched
+off (deny, with the trust-root fix as the alternative), findings in the `code-reviewer`
+contract, output through the shared `redact` block, optional scanners pinned by
+`tools/<tool>.lock.json`, organisation policy as config. The reference page maps nine
+disciplines onto the taxonomy and says what stays out of scope for a user-level harness.
+**Status: planned.**
+
+| Item | Kind | Domain / posture / function | Prefix | Slice |
+|---|---|---|---|---|
+| [security](reference/security.md), this section, domain `security` | docs + taxonomy | security | — | A (#50) |
+| **`supply-chain`** | new bundle, supersedes `toolchain` | security / local / client (+ `supply-architect` plan, `supply-auditor` review, `supply-triage` investigate, `/pin-deps` and `/audit-deps` workflow) | `38` | S1 (#51) |
+| core `35-shell-hygiene`, pipe-to-shell rows only | core extension (optional part of S1) | base | `35` | S1 |
+| **`appsec`** | candidate bundle | security / read-only (`appsec-architect` plan, `/draft-threat-model` workflow, `appsec-reviewer` review) | `39` | S2 |
+| **`vuln`** | candidate bundle, after `containers` | security / read-only / client (+ `vuln-triage` investigate) | `42` | S3 |
+| **`iam`** | candidate bundle | security / read-only / client (+ `iam-auditor` review) | `43` | S4 |
+| **`privacy`**, **`compliance`** | candidate bundles | security / read-only / review | `44`, `46` | later |
+| `profiles/security.toml` | profile | — | — | S9 |
+
+`secrets` (`22`), `containers` (`36`), `release` (`45`) and `ci` (`55`) stay where they are
+(P1, P2); the family references them and duplicates none of their rows.
+
+### `supply-chain` bundle
+
+`depends_on = ["core"]`, `recommends = ["github"]` (`gh attestation verify`, tag lookups),
+stability `experimental`; taxonomy security / local / client, the CLI and client skill
+read-only. Supersedes the P2 `toolchain` row: its asks and `/audit-deps` move here unchanged.
+
+- CLI and client skill **`supply`** (the `stack` → `stk` precedent: bundle and CLI names
+  differ), stdlib, inlining the core `harness_config` and `redact` blocks; banner on stderr
+  `supply: dir=<path> ecosystems=<list> tools=<installed list>`; exit `0` clean, `1` findings,
+  `2` access, tool or config error, `3` unsupported.
+
+  ```
+  supply detect [DIR]                            ecosystems, manifests, lockfiles, CI systems, Dockerfiles
+  supply pins [DIR] [--apply FILE]               unpinned actions, images, dependencies, downloads without a checksum
+  supply ci FILE...                              workflow hardening: permissions, pull_request_target, script injection, secrets echoed
+  supply audit [DIR] [--lockfile F] [--offline]  osv-scanner, else each ecosystem's own auditor when present
+  supply sbom DIR|IMAGE ; supply sbom lint FILE  syft (optional); the lint needs no tool
+  supply verify TARGET [--identity NAME | --key F | --github OWNER/REPO]   cosign / gh attestation verify, read-only
+  supply redact                                  stdin filter (the core redact block)
+  ```
+
+- Agents `supply-architect` (plan, design only, ends with a decision record; adopts the
+  `/draft-adr` model shape when S4a lands), `supply-auditor` (review, `code-reviewer`
+  contract), `supply-triage` (investigate, `k8s-triage` contract). Workflow skills `/pin-deps`
+  (`supply pins --json`, read-only resolution, `supply pins --apply`, `supply pins` exits `0`;
+  never commits or pushes) and `/audit-deps` (patch and minor upgrades with the ecosystem's own
+  tool as a diff; majors listed, never applied).
+- Guard `38-supply-chain`:
+
+  ```
+  # rule: pip --trusted-host | http:// index | npm strict-ssl false | git http.sslVerify false | GIT_SSL_NO_VERIFY | GOINSECURE | go env -w GONOSUMDB | cosign verify --insecure-* -> deny : disables verification; fix the trust root (CA bundle, http.sslCAInfo, GOPRIVATE) instead
+  # rule: pip install outside a venv | npm -g | yarn global add | cargo install | go install …@latest -> ask : install into the project instead (uv, .venv/bin/pip, npm i -D); supply_chain.allow_global_re allow-lists tools
+  # rule: git or URL dependency without a commit (pip git+…, npm github:…, cargo --git without --rev) -> ask : pin a commit or a released version; run 'supply pins'
+  # rule: cosign sign|attest|generate-key-pair -> ask : a human release step; hand the command to the user
+  # rule: curl -k | wget --no-check-certificate writing a file -> ask : use HTTPS with --cacert instead
+  ```
+
+  Pipe-to-shell is core `35-shell-hygiene`, not this band.
+- Config (`SUPPLY_`): `supply_chain.allow_global_re = ""`, `supply_chain.venv_markers =
+  "VIRTUAL_ENV CONDA_PREFIX PIPENV_ACTIVE"`, `supply_chain.registries_re = ""`,
+  `supply_chain.identities = []` (`{ name, identity_re, issuer }`, documentation values),
+  `supply_chain.redact_extra_re`, `supply_chain.osv_offline_db`, `supply_chain.pin_actions =
+  true`, `supply_chain.max_bytes = 65536`.
+- Optional pinned tools: `osv-scanner`, `cosign`, `syft` in `tools/<tool>.lock.json`, marked
+  `"optional": true` so `harness pack --tools` and bootstrap skip them unless asked.
+- Sensors: guard rows with bypasses and yield rows, doctor (`supply-cli`, `supply-detect`, one
+  check per optional tool, `supply-config`), goldens per verb over fixture checkouts with stub
+  tools, a dry-run request log that shows reads only.
+- Not implemented: publishing, signing, key generation, registry administration, SBOM upload,
+  licence policy (org overlay), reachability analysis.
+- Seams: image scanning is `containers`; tags and publication are `release`; credential
+  scanning is `secrets`; `helm|kubectl --insecure-skip-tls-verify` is a `k8s` follow-up.
+
+### Delivery
+
+| Slice | Branch | Scope | Companions | Depends on |
+|---|---|---|---|---|
+| **A** | `security-track` | [security](reference/security.md), this section, domain `security` | CHANGELOG `### Docs` + `### Taxonomy`; README | — |
+| **S1** | `supply-chain` (stacked) | the `supply-chain` bundle, `SUPPLY_` prefix, three lock files, optional core `35` part | rows (`tr`) per deny/ask; CHANGELOG with Migration; docs page; README; ARCHITECTURE §3 (`35`, `38`) | A |
+
 ## Tranche P2: breadth
 
 Workflow skills on the SCM bundles, tooling for bundle authors, and four new bundles whose
@@ -339,7 +438,7 @@ only dependency is a tool the developer already has. **Status: planned.**
 | Provider verification | `docs/runbooks/verify-provider.md`, lint `provider-verified`, smoke `provider-render.sh` | a human protocol per provider (install, render into a temp home, try one deny and one ask), a render-and-parse smoke, a lint warning when a profile ships a provider whose README says "not yet verified" | S code, M human time | multi-provider orgs |
 | Stack status | `stack` | shipped as `stk status` (part, target, state, behind, worktree, merged parts whose worktree still exists) | S | stacked-MR users |
 | **`secrets` bundle** | `bundles/secrets` (`base`, read-only; guard `22`) | deny `sops -d`, `age -d`, `gpg -d` to stdout and `vault kv get`, `op read`, `pass show`; ask plaintext written to disk and Vault mutations; deny reading key material; `secrets keys FILE` (names and lengths), `secrets redact`, `secrets scan [--staged] [--deep]` (optional pinned `gitleaks`), `secrets status`; `exec-env`/`op run` forms stay allowed | S/M | all |
-| **`toolchain` bundle** | `bundles/toolchain` (`code`, local; guard `38`) | ask `pip install` outside a venv, global installs (`npm -g`, `cargo install`, `go install @latest`, allow-list `toolchain.allow_global_re`), unpinned git or URL dependencies; `toolchain detect|audit|outdated` using each ecosystem's own auditor, optional pinned `osv-scanner`; `/audit-deps` | S/M | all |
+| **`toolchain` bundle** | superseded | replaced by `supply-chain` ([Security track](#security-track)); its asks (`pip install` outside a venv, global installs, unpinned git or URL dependencies) and `/audit-deps` move there unchanged | — | — |
 | **`containers` bundle** | `bundles/containers` (`infrastructure`, local; guard `36`) | ask registry pushes, `system prune`, `volume rm`, `compose down -v`, `--privileged`, `--pid=host`, docker-socket mounts, remote engines matching `containers.remote_re`; deny `inspect` of env, `exec … env` and passwords on the `docker login` command line; `containers ps|inspect|env|logs|images|disk|compose status` (redacted); local build/run/exec/logs stay promptless | S/M | app, data, platform |
 | **`release` bundle** | `bundles/release` (`scm`, local; guard `45`) | ask tag pushes and `npm|twine|cargo|gem|poetry publish`; deny moving or deleting a tag; `/cut-release [patch|minor|major]` stops at the release PR and prints the tag commands; CLI `release next|notes|check|changelog lint|tags`; first use of the `template` guide kind; flips the core row `git push --tags` from pass to ask, stated in the PR | M | release engineers, maintainers |
 
@@ -394,8 +493,10 @@ Cross-tranche items that make the hub easier to maintain and to extend.
   `core.review.max_diff_kb`, `core.checks.extra_patterns`, `core.worktree_path_tmpl`,
   `core.session_banner`, `core.report_max_age_days`, `providers.claude.status_line`,
   `ci.log_tail`, `ci.redact_extra_re`, `ci.flaky_re`, `k8s.registries_allow_re`,
-  `secrets.extra_token_shapes_re`, `secrets.scan_exclude_re`, `toolchain.venv_markers`,
-  `toolchain.allow_global_re`, `containers.remote_re`, `containers.prod_re`,
+  `secrets.extra_token_shapes_re`, `secrets.scan_exclude_re`, `supply_chain.venv_markers`,
+  `supply_chain.allow_global_re`, `supply_chain.registries_re`, `supply_chain.identities`,
+  `supply_chain.redact_extra_re`, `supply_chain.osv_offline_db`, `supply_chain.pin_actions`,
+  `supply_chain.max_bytes`, `containers.remote_re`, `containers.prod_re`,
   `containers.registries_re`, `release.changelog`, `release.version_file`,
   `release.tag_prefix`, `release.tag_re`, `release.conventional_commits`, `cloud.prod_re`,
   `cloud.accounts`, `iac.prod_re`, `iac.stateful_types_re`, `db.prod_re`, `db.targets`,
@@ -407,7 +508,7 @@ Cross-tranche items that make the hub easier to maintain and to extend.
   `incident.timeline_since`, `incident.tracker`, `slo.dir`, `slo.default_window`,
   `slo.burn_windows`, `slo.page_threshold`, `slo.ticket_threshold`, and (shipped) `stack.label`, `stack.push`,
   `stack.update_method`, `stack.leaf_refresh`. Every env name a guard section reads must carry a prefix the
-  guard accepts (`HARNESS_`, `K8S_`, `OBS_`, `INCIDENT_`, `SLO_`, …; lint `env-provides` enforces this).
+  guard accepts (`HARNESS_`, `K8S_`, `OBS_`, `INCIDENT_`, `SLO_`, `SUPPLY_`, …; lint `env-provides` enforces this).
 
 ## Rejected or deferred
 
@@ -423,10 +524,10 @@ Cross-tranche items that make the hub easier to maintain and to extend.
 | `/standup` posting to chat or sending mail | rejected | drafts only; humans send (the gdoc bundle never sends) |
 | `/standup` inside `ticket-workflow` | rejected | it spans more sources than that bundle's `any_of` allows and must degrade per missing CLI |
 | EKS/GKE/AKS reads inside `k8s` | rejected | `k8s` is Kubernetes-API-only by its own contract and never reads kubeconfig; the `cloud` bundle supplies them |
-| Per-language toolchain bundles | rejected | one `toolchain` bundle; splitting multiplies manifests without new sensors |
+| Per-language toolchain bundles | rejected | one `supply-chain` bundle (was `toolchain`); splitting multiplies manifests without new sensors |
 | Observability bundle (Prometheus, Grafana, Loki) | un-deferred as `obs` ([SRE track](#sre-track)) | token-by-path, URL-in-config and a host-regex guard row are generic mechanisms, which removes the per-backend objection; the narrower audience is answered by the `sre` profile |
-| SAST wrapper | reshaped | `semgrep` needs pip (principle 1); `secrets scan` and `code-reviewer` cover the lightweight cases; CI keeps the thorough scan |
-| SBOM and licence policy | reshaped | ecosystem auditors plus optional `osv-scanner` in `toolchain audit`; licence policy is org-specific and belongs in an org bundle |
+| SAST wrapper | reshaped | `semgrep` needs pip (principle 1); `secrets scan` and `code-reviewer` cover the lightweight cases, and the `appsec` candidate ([Security track](#security-track)) reviews with an agent; CI keeps the thorough scan |
+| SBOM and licence policy | reshaped | SBOMs in `supply-chain` (`supply sbom` via pinned `syft`, `supply sbom lint` with no tool) and audits in `supply audit` (pinned `osv-scanner`, else the ecosystem auditors); licence policy is org-specific and belongs in an org bundle |
 | ADR / runbook documentation skill | reshaped | `/draft-adr` (core) and `incident runbook` (incident): renderer goldens and a `--check` lint are the sensors, so the dependency on `release` shipping the `template` guide kind is dropped |
 | Asking on edits to CI files | rejected | user-level friction for every developer editing CI legitimately; the skill rule stays a guide with a coverage note |
 | Denying `sudo` | rejected | deny only what must never happen; `sudo` asks, and `core.sudo_decision` can relax it |

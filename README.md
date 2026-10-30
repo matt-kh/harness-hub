@@ -193,7 +193,7 @@ call is listed in [SECURITY.md](SECURITY.md).
 | [Runbooks](docs/runbooks/new-machine.md) | new machine, upgrade, air-gapped, migration, rotation |
 | [Catalog](docs/catalog.md) | every bundle, skill, agent, rule, guard section and check, with its id and facets |
 | [Reference](docs/reference/cli.md) | CLI, config schema, hook policy, secrets, [taxonomy](docs/reference/taxonomy.md), [lessons](docs/reference/lessons.md), [security](docs/reference/security.md) |
-| [Roadmap](docs/roadmap.md) | planned bundles and extensions by tranche, reserved guard prefixes, rejected ideas |
+| [Roadmap](docs/roadmap.md) | planned bundles and extensions by tranche, the SRE and security tracks, reserved guard prefixes, rejected ideas |
 | [Architecture](ARCHITECTURE.md) | normative contracts |
 | [AGENTS.md](AGENTS.md) | for agents changing this repo |
 | [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Changelog](CHANGELOG.md) | |

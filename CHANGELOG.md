@@ -10,6 +10,11 @@ prints every one between your applied version and the new one.
 
 ### Docs
 
+- [docs/roadmap.md](docs/roadmap.md): the Security track. `supply-chain` (#51) is its first
+  bundle and supersedes the planned `toolchain` (guard band `38`; the P2 row becomes a pointer,
+  the proposed `code` domain is dropped, `toolchain.*` keys become `supply_chain.*`, env prefix
+  `SUPPLY_`); candidates `appsec`, `vuln`, `iam`, `privacy` and `compliance` reserve bands `39`,
+  `42`–`44` and `46`; the SAST and SBOM rows of the rejected table say what replaces them.
 - [docs/reference/security.md](docs/reference/security.md): the framing for the security bundle
   family. Nine disciplines mapped to domain, function and posture with their architect /
   develop / operate components and what is out of scope for a user-level harness; the rule for
