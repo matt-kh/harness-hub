@@ -10,6 +10,14 @@ prints every one between your applied version and the new one.
 
 ### Docs
 
+- [docs/reference/security.md](docs/reference/security.md): the framing for the security bundle
+  family. Nine disciplines mapped to domain, function and posture with their architect /
+  develop / operate components and what is out of scope for a user-level harness; the rule for
+  `security` versus a system's own domain (`secrets` stays `base`, Kubernetes posture review
+  stays `kubernetes`); a NIST CSF crosswalk to the `function` facet (no new values); the
+  invariants every security bundle keeps; the family with guard bands `38`, `39`, `42`–`44`,
+  `46` and config and env prefixes; and author guidance for verification-bypass denies and their
+  test rows. Linked from the README reference row and from `SECURITY.md`.
 - [docs/bundles/lessons.md](docs/bundles/lessons.md): the lessons loop (signals, review,
   reflect and record, reuse, human promotion), the lifecycle of a record, the per-provider
   matrix (claude and gemini enforce both hooks, copilot the prompt hook only, codex and
