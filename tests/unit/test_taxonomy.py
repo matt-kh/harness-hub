@@ -441,6 +441,17 @@ class YieldsTest(HubTestCase):
         pat = schema["properties"]["overrides"]["propertyNames"]["pattern"]
         self.assertEqual(pat, T.REPO_OVERRIDE_PREFIX_RE.pattern)
 
+    def test_handwritten_domain_lists(self):
+        # ARCHITECTURE, concepts and repo-level spell the domain list out by hand; adding a
+        # domain to FACETS without them leaves the docs stale (docs/reference/taxonomy.md).
+        domains = list(T.FACETS["domain"])
+        plain = ", ".join(domains)
+        ticked = ", ".join("`%s`" % d for d in domains)
+        for rel, form in (("ARCHITECTURE.md", ticked), ("docs/concepts.md", plain),
+                          ("docs/repo-level.md", plain), ("docs/repo-level.md", ticked)):
+            text = " ".join(self.read(os.path.join(REPO, rel)).split())
+            self.assertTrue(form in text, "%s: hand-written domain list is stale; write it as: %s" % (rel, form))
+
     def test_repo_overrides_parse(self):
         public = M.discover_bundles([(os.path.join(REPO, "bundles"), "public")])
         rows = T.repo_overrides([public[n] for n in sorted(public)])

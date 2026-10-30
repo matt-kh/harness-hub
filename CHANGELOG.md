@@ -426,6 +426,16 @@ prints every one between your applied version and the new one.
 
 ### Taxonomy
 
+- New domain value `security` ("security posture of code, dependencies, artefacts and
+  credentials: supply chain, appsec, vulnerabilities"): `schema/bundle.schema.json`,
+  `lib/harness/taxonomy.py` `FACETS`, the `[owns] domains` enum of `schema/repo.schema.json` and
+  the `--domain` choices of `harness catalog` and `harness lessons`. It lands one PR ahead of its
+  first user, the `supply-chain` bundle (#51), as the roadmap's Security track names it; the
+  vocabulary row reads `0` until that bundle ships. "Adding a value" in
+  [taxonomy](docs/reference/taxonomy.md) now names `schema/repo.schema.json`, the hand-written
+  domain lists in `ARCHITECTURE.md`, `docs/concepts.md` and `docs/repo-level.md`, and the
+  one-PR-ahead allowance; a unit test (`test_handwritten_domain_lists`) keeps those lists equal
+  to `FACETS`.
 - New component kind `hook` (hook scripts of `[[provides.hooks]]`): id `<bundle>/hooks/<name>`,
   function fixed to `govern`, no posture, yields `n/a`; listed by `harness catalog` and
   `docs/catalog.md` ("Hook scripts"), and `[taxonomy.components]` accepts `hooks/<name>` keys.

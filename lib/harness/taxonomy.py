@@ -57,6 +57,7 @@ FACETS: Dict[str, "OrderedDict[str, str]"] = {
         ("kubernetes", "clusters, Helm, GitOps, IaC targeting them"),
         ("workspace", "docs, drive, sheets, mail"),
         ("operations", "running systems: signals, incidents, reliability targets"),
+        ("security", "security posture of code, dependencies, artefacts and credentials: supply chain, appsec, vulnerabilities"),
     ]),
     "function": OrderedDict([
         ("govern", "constrains the agent and says what to do instead"),

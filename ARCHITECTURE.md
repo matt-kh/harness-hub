@@ -641,7 +641,7 @@ committed ([principle 8](principles/08-user-level-by-design.md); authors' guide:
   `project` (Jira only: `/create-ticket`'s default project). The ticket-workflow facts scripts
   report the result as `tracker` with its `tracker_source` (`repo`, `config`, `host`).
 - **`[owns] domains`** — taxonomy domain values (`base`, `scm`, `tracker`, `delivery`,
-  `kubernetes`, `workspace`, `operations`); every component in an owned domain yields there.
+  `kubernetes`, `workspace`, `operations`, `security`); every component in an owned domain yields there.
 - **`[owns] components`** — catalog ids (`core/guard.d/30-git`,
   `ticket-workflow/skills/work-ticket`).
 - **`[overrides]`** — allow-listed `WORK_TICKET_*` names with string values: exactly the
