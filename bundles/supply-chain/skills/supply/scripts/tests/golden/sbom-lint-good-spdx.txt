@@ -1,0 +1,18 @@
+# exit=0
+# stderr:
+# stdout:
+{
+  "command": "sbom lint",
+  "data": {
+    "sbom": {
+      "file": "../sbom/good.spdx.json",
+      "format": "spdx-json",
+      "packages": 2,
+      "spec_version": "SPDX-2.3"
+    }
+  },
+  "dir": "-",
+  "ecosystems": [],
+  "findings": [],
+  "tools": []
+}

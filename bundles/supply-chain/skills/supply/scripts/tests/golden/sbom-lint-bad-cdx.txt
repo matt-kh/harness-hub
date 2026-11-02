@@ -1,0 +1,27 @@
+# exit=1
+# stderr:
+# stdout:
+# supply sbom lint — -
+
+ecosystems: none · tools: none
+
+## Findings (7)
+
+| sev | id | where | message | fix |
+|---|---|---|---|---|
+| warn | SBM002 | ../sbom/bad.cdx.json:1 | missing required top-level field(s): version | regenerate the SBOM; the format's required fields are missing |
+| info | SBM007 | ../sbom/bad.cdx.json:1 | 1 of 2 package(s) have no version | regenerate from a lockfile or the built artefact so versions resolve |
+| info | SBM008 | ../sbom/bad.cdx.json:1 | 2 of 2 package(s) have no purl | regenerate with purls so scanners can match the packages |
+| warn | SBM004 | ../sbom/bad.cdx.json:14 | no creation timestamp | regenerate the SBOM; consumers need the creation time |
+| warn | SBM005 | ../sbom/bad.cdx.json:14 | no generating tool recorded | regenerate the SBOM with a tool that records itself |
+| info | SBM009 | ../sbom/bad.cdx.json:14 | the document does not say what it describes | record what the SBOM describes (SPDX DESCRIBES relationship, CycloneDX metadata.component) |
+| info | SBM003 | ../sbom/bad.cdx.json:15 | spec version 1.2 is not CycloneDX 1.4-1.6 | regenerate with SPDX 2.3 or CycloneDX 1.5/1.6 |
+
+## sbom
+
+| key | value |
+|---|---|
+| file | ../sbom/bad.cdx.json |
+| format | cyclonedx-json |
+| packages | 2 |
+| spec_version | 1.2 |

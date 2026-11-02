@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Test stub for `cargo` (supply CLI suite): logs "cargo ARGS" to $STUB_LOG, answers from
+# $SUPPLY_STUB_FIX, and fails loudly on anything that writes, signs or switches verification off.
+name=cargo
+printf '%s %s\n' "$name" "$*" >> "${STUB_LOG:-/dev/null}"
+fix=${SUPPLY_STUB_FIX:?SUPPLY_STUB_FIX is not set}
+for a in "$@"; do
+  case "$a" in
+    sign|sign-blob|attest|attest-blob|fix|push|publish|--insecure*|--allow-*-registry|--download-offline-databases)
+      echo "stub $name: refusing a mutating or verification-off argument: $a" >&2; exit 1 ;;
+  esac
+done
+if [ "${STUB_FAIL:-}" = "$name" ]; then
+  echo "stub $name: failing on request (STUB_FAIL)" >&2; exit 2
+fi
+[ "$1 $2" = "audit --json" ] || { echo "stub cargo: only 'cargo audit --json' is supported, got: $*" >&2; exit 1; }
+[ -f Cargo.lock ] || { echo "error: not found: Couldn't load Cargo.lock" >&2; exit 1; }
+cat "$fix/cargo-audit.json"
+exit 1

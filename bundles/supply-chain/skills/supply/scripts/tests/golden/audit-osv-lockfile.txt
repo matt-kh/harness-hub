@@ -1,0 +1,78 @@
+# exit=1
+# stderr:
+supply: dir=dirty ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,shell tools=cargo,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+# stdout:
+{
+  "command": "audit",
+  "data": {
+    "auditors": [
+      {
+        "ecosystem": "go",
+        "packages": 1,
+        "status": "ok",
+        "tool": "osv-scanner"
+      },
+      {
+        "ecosystem": "pip",
+        "packages": 2,
+        "status": "ok",
+        "tool": "osv-scanner"
+      }
+    ]
+  },
+  "dir": "dirty",
+  "ecosystems": [
+    "cargo",
+    "docker",
+    "github-actions",
+    "gitlab-ci",
+    "go",
+    "npm",
+    "pip",
+    "shell"
+  ],
+  "findings": [
+    {
+      "file": "go.mod",
+      "fix": "no fix published: remove or replace the dependency, mitigate, or accept it with a reason (references/vuln-triage.md)",
+      "id": "OSV001",
+      "line": 5,
+      "message": "go example.com/lib 1.2.3: GO-2099-0003 \u2014 Synthetic low-severity issue in example.com/lib; no fixed version published",
+      "severity": "info"
+    },
+    {
+      "file": "go.mod",
+      "fix": "upgrade example.com/lib to 1.10.0 (/audit-deps applies patch and minor upgrades; a major upgrade is a human decision)",
+      "id": "OSV001",
+      "line": 5,
+      "message": "go example.com/lib 1.2.3: GO-2099-0004 (CVE-2099-0004) \u2014 Synthetic issue with no severity data; fixed in 1.10.0, 1.11.2",
+      "severity": "warn"
+    },
+    {
+      "file": "requirements.txt",
+      "fix": "upgrade flask to 2.2.5 (/audit-deps applies patch and minor upgrades; a major upgrade is a human decision)",
+      "id": "OSV001",
+      "line": 1,
+      "message": "pip flask 2.0.0: GHSA-0000-0000-0001 (CVE-2099-0001, PYSEC-0000-0001) \u2014 Synthetic session cookie disclosure in flask; fixed in 2.2.5, 2.3.2",
+      "severity": "crit"
+    },
+    {
+      "file": "requirements.txt",
+      "fix": "upgrade requests to 2.32.4 (/audit-deps applies patch and minor upgrades; a major upgrade is a human decision)",
+      "id": "OSV001",
+      "line": 3,
+      "message": "pip requests 2.32.3: GHSA-0000-0000-0002 (CVE-2099-0002) \u2014 Synthetic certificate check bypass in requests when token=***REDACTED*** is set; fixed in 2.32.4",
+      "severity": "warn"
+    }
+  ],
+  "tools": [
+    "cargo",
+    "cosign",
+    "gh",
+    "govulncheck",
+    "npm",
+    "osv-scanner",
+    "pip-audit",
+    "syft"
+  ]
+}

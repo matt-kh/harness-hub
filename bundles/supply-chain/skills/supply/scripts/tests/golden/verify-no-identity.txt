@@ -1,0 +1,5 @@
+# exit=2
+# stderr:
+supply: dir=- ecosystems=none tools=cargo,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+supply verify: no signer identity for registry.example.com/app:1.0: pass --identity NAME (configured: release) or --identity RE --issuer URL, --key FILE, or --github OWNER/REPO; or add a [[supply_chain.identities]] entry whose match_re matches the target
+# stdout:

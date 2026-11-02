@@ -1,0 +1,5 @@
+# exit=3
+# stderr:
+supply: dir=- ecosystems=none tools=cargo,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+supply verify: --offline needs --trusted-root FILE (a Sigstore trusted_root.json): without the network there is nothing else to verify against
+# stdout:

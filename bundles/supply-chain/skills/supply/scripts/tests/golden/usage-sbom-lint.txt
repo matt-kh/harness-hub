@@ -1,0 +1,4 @@
+# exit=1
+# stderr:
+supply sbom lint: exactly one FILE (a directory named lint: pass ./lint)
+# stdout:

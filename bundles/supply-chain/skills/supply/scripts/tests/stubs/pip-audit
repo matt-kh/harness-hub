@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Test stub for `pip-audit` (supply CLI suite): logs "pip-audit ARGS" to $STUB_LOG, answers from
+# $SUPPLY_STUB_FIX, and fails loudly on anything that writes, signs or switches verification off.
+name=pip-audit
+printf '%s %s\n' "$name" "$*" >> "${STUB_LOG:-/dev/null}"
+fix=${SUPPLY_STUB_FIX:?SUPPLY_STUB_FIX is not set}
+for a in "$@"; do
+  case "$a" in
+    sign|sign-blob|attest|attest-blob|fix|push|publish|--insecure*|--allow-*-registry|--download-offline-databases)
+      echo "stub $name: refusing a mutating or verification-off argument: $a" >&2; exit 1 ;;
+  esac
+done
+if [ "${STUB_FAIL:-}" = "$name" ]; then
+  echo "stub $name: failing on request (STUB_FAIL)" >&2; exit 2
+fi
+[ "$1 $2 $3" = "-f json -r" ] || { echo "stub pip-audit: expected -f json -r FILE, got: $*" >&2; exit 1; }
+[ -f "$4" ] || { echo "stub pip-audit: no such requirements file: $4" >&2; exit 1; }
+if [ "${STUB_PIP_AUDIT:-}" = error ]; then cat "$fix/pip-audit-error.txt" >&2; exit 2; fi
+cat "$fix/pip-audit.json"
+exit 1

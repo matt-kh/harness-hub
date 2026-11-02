@@ -1,0 +1,6 @@
+# exit=1
+# stderr:
+Unknown command 'bogus'. Commands: detect, pins, ci, audit, sbom, verify, redact
+
+Run `supply` with no arguments for the full usage.
+# stdout:

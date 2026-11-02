@@ -13,8 +13,12 @@ cargo install without --locked --version, go install @latest; pipx, uv tool inst
 pinned installs pass), so do unpinned git and URL dependencies, GONOSUMDB,
 cosign sign|attest and insecure downloads written to a file. supply_chain.allow_global_re
 allow-lists global tools; venv detection reads the hook's environment and the command text.
-The `supply` CLI (detect, pins, ci, audit, sbom, verify), the /pin-deps and /audit-deps
-skills and the supply-architect, supply-auditor and supply-triage agents land in later parts.
+The read-only `supply` CLI and client skill: detect (ecosystems, manifests, lockfiles), pins
+(unpinned actions, images, dependencies and unverified downloads, with an exact-token
+--apply), ci (workflow hardening), audit (osv-scanner, else npm audit, pip-audit, cargo audit,
+govulncheck), sbom (syft) and sbom lint, verify (cosign, gh attestation verify) and redact.
+The /pin-deps and /audit-deps skills, the supply-architect, supply-auditor and supply-triage
+agents and the pinned osv-scanner, cosign and syft land in later parts.
 """
 depends_on = ["core"]
 recommends = ["github"]
@@ -91,6 +95,18 @@ type = "boolean"
 default = true
 description = "Whether `supply pins` reports (and `supply pins --apply` rewrites) GitHub Actions referenced by tag instead of by commit."
 
+[requires.config."supply_chain.exclude_re"]
+type = "string"
+default = ""
+description = "Python regex matched against paths relative to DIR that the supply CLI skips (detect, pins, audit, sbom), on top of .git, node_modules, vendor, .venv, venv, target, dist, build, __pycache__ and .tox. Empty = skip nothing more. SUPPLY_EXCLUDE_RE."
+example = '^(third_party|testdata)/'
+
+[requires.config."supply_chain.timeout"]
+type = "integer"
+default = 120
+minimum = 5
+description = "Seconds the supply CLI waits for one tool run (osv-scanner, an auditor, syft, cosign, gh) before exit 2 (--timeout overrides). SUPPLY_TIMEOUT."
+
 [requires.config."supply_chain.max_bytes"]
 type = "integer"
 default = 65536
@@ -99,16 +115,35 @@ description = "Default output cap in bytes for the supply CLI (--max-bytes overr
 
 [provides]
 rules = ["rules/38-supply-chain.md"]
-skills = []
+skills = ["skills/supply"]
 skill_fragments = []
 agents = []
 guard_rules = ["guard.d/38-supply-chain.sh"]
 permissions = "permissions.toml"
 mcp = ""
+bin = [{ name = "supply", target = "skills/supply/scripts/supply.py" }]
 
 [provides.env]
 SUPPLY_ALLOW_GLOBAL_RE = "{{ supply_chain.allow_global_re }}"
 SUPPLY_VENV_MARKERS = "{{ supply_chain.venv_markers }}"
+
+[[doctor_checks]]
+id = "supply-cli"
+title = "supply CLI on PATH"
+severity = "fail"
+cmd = "command -v supply >/dev/null && supply --help >/dev/null"
+expect = { exit = 0 }
+offline_skip = false
+fix = "harness apply"
+
+[[doctor_checks]]
+id = "supply-detect"
+title = "supply detect runs offline on the current directory"
+severity = "warn"
+cmd = "supply detect . --json >/dev/null"
+expect = { exit = 0 }
+offline_skip = false
+fix = "harness apply"
 
 [uninstall]
 keeps = ["~/.sigstore/**", "~/.cache/osv-scanner/**", "~/.cache/syft/**"]
@@ -120,16 +155,23 @@ domain = "security"
 posture = "local"
 function = "client"
 
+[taxonomy.components]
+"skills/supply" = { posture = "read-only" }
+"bin/supply" = { posture = "read-only" }
+
 # Guides steer the agent before it acts; sensors detect at or after the action (principle 6).
 [harness]
-coverage_note = "Pipe-to-shell (curl … | sh) is core band 35 and lands in a later part of #51. Reachability of a vulnerability and licence policy are judgement or organisation-specific and are not sensed. A venv activated outside the provider's process is invisible to the guard (it reads the hook's environment and the command text). Direct writes to configuration files (>> ~/.npmrc, ~/.gitconfig, pip.conf, .yarnrc.yml) and an empty quoted value (git config http.sslVerify '') are out of scope for the guard. The command lexer is a heuristic, not a shell parser. The supply CLI, its doctor checks, the agents and the /pin-deps and /audit-deps workflow skills land in later parts of #51."
+coverage_note = "Pipe-to-shell (curl … | sh) as a command is core band 35 and lands in a later part of #51 (supply pins and supply ci already report it in files as SH001). Reachability of a vulnerability, major-upgrade safety and licence policy are judgement or organisation-specific and are not sensed. A venv activated outside the provider's process is invisible to the guard (it reads the hook's environment and the command text). Direct writes to configuration files (>> ~/.npmrc, ~/.gitconfig, pip.conf, .yarnrc.yml) and an empty quoted value (git config http.sslVerify '') are out of scope for the guard. The command lexer is a heuristic, not a shell parser. The CLI's own tool runs are not shell commands and are not guarded; the suite's stub log and dry-run log are the read-only proof. YAML is read with a line model: anchors, multi-document files, reusable workflows and extends are not checked. The agents, the /pin-deps and /audit-deps workflow skills and the pinned tools land in later parts of #51."
 guides = [
   { kind = "rule", ref = "rules/38-supply-chain.md", checks = ["guard.d/38-supply-chain.sh"], note = "pin what you add, install inside the project, never switch verification off, signing is a human release step" },
+  { kind = "skill", ref = "skills/supply", checks = ["skills/supply/scripts/tests/run.sh", "doctor_checks"], note = "the supply CLI: detect, pins (with --apply), ci, audit, sbom, verify, redact; severities from the reference rubrics" },
   { kind = "permission", ref = "permissions.toml", checks = ["permissions-vs-guard", "guard.d/38-supply-chain.sh"], note = "verification and audit tools allowed, cosign signing asks, verification-off config and cosign keys denied" },
 ]
 sensors = [
   { kind = "guard", ref = "guard.d/38-supply-chain.sh", note = "verification-off denies, global-install and unpinned-dependency asks, cosign signing and insecure-download asks" },
   { kind = "test", ref = "guard.d/tests.sh", note = "guard rows incl. bypasses, ordering against later denies and the security yield" },
   { kind = "test", ref = "tests/run.sh", note = "this bundle's rows against core + supply-chain only" },
+  { kind = "test", ref = "skills/supply/scripts/tests/run.sh", note = "the supply CLI against stub tools and fixture checkouts: goldens per verb, byte-exact --apply, redaction, stub-log invariants (verify only, no fix, no docker), a rubric row per rule id, two identical runs" },
+  { kind = "doctor", ref = "doctor_checks", note = "the supply CLI on PATH and an offline detect" },
   { kind = "lint", ref = "permissions-vs-guard", note = "each Bash allow/deny rule of permissions.toml run through the guard: no allowed command the guard denies or asks, no denied one it allows" },
 ]

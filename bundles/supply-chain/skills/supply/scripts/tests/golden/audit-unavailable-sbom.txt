@@ -1,0 +1,5 @@
+# exit=3
+# stderr:
+supply: dir=dirty ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,shell tools=none
+supply audit: only osv-scanner audits an SBOM and it is not installed: harness install osv-scanner
+# stdout:

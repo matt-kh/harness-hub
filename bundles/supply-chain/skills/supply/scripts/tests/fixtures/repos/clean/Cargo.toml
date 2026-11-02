@@ -1,0 +1,7 @@
+[package]
+name = "example-clean"
+version = "0.1.0"
+
+[dependencies]
+serde = "1.0.215"
+hello = { git = "https://github.com/octocat/hello-world", rev = "0123456789abcdef0123456789abcdef01234567" }

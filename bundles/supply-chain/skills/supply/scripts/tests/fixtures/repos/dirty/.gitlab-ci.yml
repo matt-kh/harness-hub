@@ -1,0 +1,7 @@
+include:
+  - project: example-group/ci-templates
+    file: /templates/build.yml
+  - remote: https://example.com/ci/common.yml
+build:
+  script:
+    - make

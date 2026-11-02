@@ -1,0 +1,57 @@
+# exit=0
+# stderr:
+supply: dir=clean ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,shell tools=cargo,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+# stdout:
+{
+  "command": "audit",
+  "data": {
+    "auditors": [
+      {
+        "ecosystem": "cargo",
+        "packages": 0,
+        "status": "ok",
+        "tool": "osv-scanner"
+      },
+      {
+        "ecosystem": "go",
+        "packages": 0,
+        "status": "ok",
+        "tool": "osv-scanner"
+      },
+      {
+        "ecosystem": "npm",
+        "packages": 0,
+        "status": "ok",
+        "tool": "osv-scanner"
+      },
+      {
+        "ecosystem": "pip",
+        "packages": 0,
+        "status": "ok",
+        "tool": "osv-scanner"
+      }
+    ]
+  },
+  "dir": "clean",
+  "ecosystems": [
+    "cargo",
+    "docker",
+    "github-actions",
+    "gitlab-ci",
+    "go",
+    "npm",
+    "pip",
+    "shell"
+  ],
+  "findings": [],
+  "tools": [
+    "cargo",
+    "cosign",
+    "gh",
+    "govulncheck",
+    "npm",
+    "osv-scanner",
+    "pip-audit",
+    "syft"
+  ]
+}

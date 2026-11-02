@@ -1,0 +1,34 @@
+# exit=0
+# stderr:
+supply: dir=tabs ecosystems=github-actions tools=cargo,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+# stdout:
+{
+  "command": "pins",
+  "data": {
+    "files_scanned": 1
+  },
+  "dir": "tabs",
+  "ecosystems": [
+    "github-actions"
+  ],
+  "findings": [
+    {
+      "file": ".github/workflows/broken.yml",
+      "fix": "the file was not scanned: indent with spaces, or check it with its own tool (actionlint, the GitLab CI lint)",
+      "id": "CI000",
+      "line": 0,
+      "message": "not scanned: line 4: tab indentation",
+      "severity": "info"
+    }
+  ],
+  "tools": [
+    "cargo",
+    "cosign",
+    "gh",
+    "govulncheck",
+    "npm",
+    "osv-scanner",
+    "pip-audit",
+    "syft"
+  ]
+}

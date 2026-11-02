@@ -1,0 +1,4 @@
+# exit=2
+# stderr:
+supply ci: no-such-file.yml: not readable (No such file or directory)
+# stdout:

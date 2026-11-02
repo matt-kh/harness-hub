@@ -1,0 +1,4 @@
+# exit=1
+# stderr:
+supply ci: unknown rule id 'NOPE001' in --ignore (known: CI000, CI001, CI002, CI003, CI004, CI005, CI006, CI007, CI008, CI009, GHA001, GHA002, GHA003, REG001, SH001, SH002)
+# stdout:

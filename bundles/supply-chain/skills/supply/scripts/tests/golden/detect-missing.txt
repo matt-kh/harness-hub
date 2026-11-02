@@ -1,0 +1,4 @@
+# exit=2
+# stderr:
+supply detect: no-such-dir: not a directory (pass a checkout directory)
+# stdout:

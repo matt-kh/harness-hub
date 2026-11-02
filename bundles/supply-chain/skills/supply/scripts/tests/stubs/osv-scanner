@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Test stub for `osv-scanner` (supply CLI suite): logs "osv-scanner ARGS" to $STUB_LOG, answers from
+# $SUPPLY_STUB_FIX, and fails loudly on anything that writes, signs or switches verification off.
+name=osv-scanner
+printf '%s %s\n' "$name" "$*" >> "${STUB_LOG:-/dev/null}"
+fix=${SUPPLY_STUB_FIX:?SUPPLY_STUB_FIX is not set}
+for a in "$@"; do
+  case "$a" in
+    sign|sign-blob|attest|attest-blob|fix|push|publish|--insecure*|--allow-*-registry|--download-offline-databases)
+      echo "stub $name: refusing a mutating or verification-off argument: $a" >&2; exit 1 ;;
+  esac
+done
+if [ "${STUB_FAIL:-}" = "$name" ]; then
+  echo "stub $name: failing on request (STUB_FAIL)" >&2; exit 2
+fi
+[ "$1 $2" = "scan source" ] || { echo "stub osv-scanner: only 'scan source' is supported, got: $*" >&2; exit 1; }
+target=""; prev=""
+for a in "$@"; do
+  case "$prev" in -r|-L) [ -z "$target" ] && target=$a ;; esac
+  prev=$a
+done
+case "$target" in
+  *empty*) cat "$fix/osv-nopackages.txt" >&2; exit 128 ;;
+  *clean*) cat "$fix/osv-clean.json"; exit 0 ;;
+  *gitlab-include*) cat "$fix/osv-error.txt" >&2; exit 127 ;;
+esac
+if [ -d "$target" ]; then abs=$(cd "$target" && pwd); else abs=$(cd "$(dirname "$target")" && pwd); fi
+sed "s#__DIR__#$abs#g" "$fix/osv-findings.json"
+exit 1

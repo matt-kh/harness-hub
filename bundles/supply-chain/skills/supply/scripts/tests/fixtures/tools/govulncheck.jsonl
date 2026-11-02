@@ -1,0 +1,6 @@
+{"config": {"protocol_version": "v1.0.0", "scan_level": "symbol", "scanner_name": "govulncheck"}}
+{"progress": {"message": "Scanning your code and 12 packages across 1 dependent module for known vulnerabilities..."}}
+{"osv": {"aliases": ["CVE-2099-0008"], "id": "GO-2099-0008", "summary": "Synthetic HTML parser loop in golang.org/x/text"}}
+{"osv": {"aliases": [], "id": "GO-2099-0009", "summary": "Synthetic unused-code issue"}}
+{"finding": {"fixed_version": "v0.22.0", "osv": "GO-2099-0008", "trace": [{"function": "Parse", "module": "golang.org/x/text", "package": "golang.org/x/text/language", "version": "v0.21.0"}]}}
+{"finding": {"fixed_version": "", "osv": "GO-2099-0009", "trace": [{"module": "golang.org/x/text", "version": "v0.21.0"}]}}

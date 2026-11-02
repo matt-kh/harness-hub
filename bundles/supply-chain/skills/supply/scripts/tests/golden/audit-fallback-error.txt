@@ -1,0 +1,102 @@
+# exit=1
+# stderr:
+supply: dir=clean ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,shell tools=cargo,govulncheck,npm,pip-audit
+# stdout:
+{
+  "command": "audit",
+  "data": {
+    "auditors": [
+      {
+        "ecosystem": "cargo",
+        "packages": 1,
+        "status": "ok",
+        "tool": "cargo"
+      },
+      {
+        "ecosystem": "go",
+        "packages": 1,
+        "status": "ok",
+        "tool": "govulncheck"
+      },
+      {
+        "ecosystem": "npm",
+        "packages": 2,
+        "status": "ok",
+        "tool": "npm"
+      },
+      {
+        "ecosystem": "pip",
+        "packages": 0,
+        "status": "error",
+        "tool": "pip-audit"
+      }
+    ]
+  },
+  "dir": "clean",
+  "ecosystems": [
+    "cargo",
+    "docker",
+    "github-actions",
+    "gitlab-ci",
+    "go",
+    "npm",
+    "pip",
+    "shell"
+  ],
+  "findings": [
+    {
+      "file": "Cargo.lock",
+      "fix": "upgrade serde to >=1.0.216 (/audit-deps applies patch and minor upgrades; a major upgrade is a human decision)",
+      "id": "VUL001",
+      "line": 4,
+      "message": "cargo serde 1.0.215: RUSTSEC-2099-0007 (CVE-2099-0007) \u2014 Synthetic deserialisation issue; fixed in >=1.0.216",
+      "severity": "warn"
+    },
+    {
+      "file": "go.mod",
+      "fix": "upgrade golang.org/x/text to v0.22.0 (/audit-deps applies patch and minor upgrades; a major upgrade is a human decision)",
+      "id": "VUL001",
+      "line": 0,
+      "message": "go golang.org/x/text v0.21.0: GO-2099-0008 (CVE-2099-0008) \u2014 Synthetic HTML parser loop in golang.org/x/text; fixed in v0.22.0; called",
+      "severity": "warn"
+    },
+    {
+      "file": "go.mod",
+      "fix": "no fix published: remove or replace the dependency, mitigate, or accept it with a reason (references/vuln-triage.md)",
+      "id": "VUL001",
+      "line": 0,
+      "message": "go golang.org/x/text v0.21.0: GO-2099-0009 \u2014 Synthetic unused-code issue; no fixed version published; imported, not called",
+      "severity": "info"
+    },
+    {
+      "file": "package-lock.json",
+      "fix": "update lodash within its declared range (`npm update lodash`; /audit-deps applies patch and minor upgrades)",
+      "id": "VUL001",
+      "line": 0,
+      "message": "npm lodash <4.17.21: GHSA-0000-0000-0005 \u2014 Synthetic prototype pollution in lodash; npm reports a fix within the declared ranges",
+      "severity": "crit"
+    },
+    {
+      "file": "package-lock.json",
+      "fix": "upgrade minimist to 1.2.8 (/audit-deps applies patch and minor upgrades; a major upgrade is a human decision)",
+      "id": "VUL001",
+      "line": 0,
+      "message": "npm minimist <1.2.6: GHSA-0000-0000-0006 \u2014 Synthetic prototype pollution in minimist; fixed in 1.2.8",
+      "severity": "crit"
+    },
+    {
+      "file": "requirements.txt",
+      "fix": "run the auditor by hand to see its error; an errored audit is not clean",
+      "id": "AUD003",
+      "line": 0,
+      "message": "pip-audit failed (exit 2): ERROR:pip_audit._cli:Failed to resolve: password=***REDACTED*** rejected by https://pypi.example.com",
+      "severity": "warn"
+    }
+  ],
+  "tools": [
+    "cargo",
+    "govulncheck",
+    "npm",
+    "pip-audit"
+  ]
+}

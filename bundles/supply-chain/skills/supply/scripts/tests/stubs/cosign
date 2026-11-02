@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Test stub for `cosign` (supply CLI suite): logs "cosign ARGS" to $STUB_LOG, answers from
+# $SUPPLY_STUB_FIX, and fails loudly on anything that writes, signs or switches verification off.
+name=cosign
+printf '%s %s\n' "$name" "$*" >> "${STUB_LOG:-/dev/null}"
+fix=${SUPPLY_STUB_FIX:?SUPPLY_STUB_FIX is not set}
+for a in "$@"; do
+  case "$a" in
+    sign|sign-blob|attest|attest-blob|fix|push|publish|--insecure*|--allow-*-registry|--download-offline-databases)
+      echo "stub $name: refusing a mutating or verification-off argument: $a" >&2; exit 1 ;;
+  esac
+done
+if [ "${STUB_FAIL:-}" = "$name" ]; then
+  echo "stub $name: failing on request (STUB_FAIL)" >&2; exit 2
+fi
+target=""
+for a in "$@"; do target=$a; done
+case "$1" in
+  verify|verify-attestation|verify-blob|verify-blob-attestation) ;;
+  *) echo "stub cosign: only verify* is supported, got: $1" >&2; exit 1 ;;
+esac
+case "$target" in
+  *unsigned*) cat "$fix/cosign-fail.txt" >&2; exit 1 ;;
+esac
+case "$1" in
+  verify) echo "Verification for $target --" >&2; cat "$fix/cosign-verify.json" ;;
+  verify-attestation) cat "$fix/cosign-verify-attestation.jsonl" ;;
+  *) echo "Verified OK" >&2 ;;
+esac
