@@ -1,6 +1,6 @@
 # exit=0
 # stderr:
-supply: dir=- ecosystems=none tools=cargo,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+supply: dir=- ecosystems=none tools=cargo-audit,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
 # stdout:
 {
   "command": "verify",
@@ -34,7 +34,7 @@ supply: dir=- ecosystems=none tools=cargo,cosign,gh,govulncheck,npm,osv-scanner,
     }
   ],
   "tools": [
-    "cargo",
+    "cargo-audit",
     "cosign",
     "gh",
     "govulncheck",

@@ -1,10 +1,10 @@
 # exit=1
 # stderr:
-supply: dir=dirty ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,shell tools=cargo,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+supply: dir=dirty ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,shell tools=cargo-audit,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
 # stdout:
 # supply pins — dirty
 
-ecosystems: cargo, docker, github-actions, gitlab-ci, go, npm, pip, shell · tools: cargo, cosign, gh, govulncheck, npm, osv-scanner, pip-audit, syft
+ecosystems: cargo, docker, github-actions, gitlab-ci, go, npm, pip, shell · tools: cargo-audit, cosign, gh, govulncheck, npm, osv-scanner, pip-audit, syft
 
 ## Findings (22)
 

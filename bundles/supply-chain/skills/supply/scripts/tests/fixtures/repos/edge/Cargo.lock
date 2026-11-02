@@ -1,0 +1,6 @@
+version = 4
+
+[[package]]
+name = "hello"
+version = "0.1.0"
+source = "git+https://github.com/octocat/hello-world?branch=main#0123456789abcdef0123456789abcdef01234567"

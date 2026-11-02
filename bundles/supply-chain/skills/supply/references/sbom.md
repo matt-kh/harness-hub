@@ -5,10 +5,14 @@ later. Generate it from the built artefact (an image) or a checkout with lockfil
 manifest with version ranges produces an SBOM without versions.
 
 - `supply sbom DIR|IMAGE [--format spdx-json|cyclonedx-json] [--out F] [--force]` runs
-  `syft scan dir:DIR|registry:IMAGE -o FORMAT -q` (never the docker daemon), redacts the
-  document, lints it, and writes it with sorted keys to `--out` (an existing file needs
-  `--force`). Without `--out` it prints a summary only. `syft` missing → exit 2 with
-  `harness install syft`.
+  `syft scan dir:DIR|registry:IMAGE -o FORMAT -q` (never the docker daemon), lints the
+  document and writes it with sorted keys to `--out`. The written SBOM gets **token-shape**
+  redaction only — AWS keys, JWTs, PEM private keys, URL credentials (`://***:***@`) and
+  `supply_chain.redact_extra_re` — so CPEs, authors, suppliers and licence texts stay intact;
+  the summary printed without `--out` is redacted in full (key names too). `--out` creates the
+  file exclusively (an existing file or symlink exits 1 unless `--force`, which replaces it
+  atomically and keeps its mode); a missing parent directory exits 2 before syft runs. `syft`
+  missing → exit 2 with `harness install syft`.
 - `supply sbom lint FILE` checks an SPDX or CycloneDX JSON document offline; a file that is not
   JSON exits 3 (tag-value and XML are out of scope).
 - `supply audit DIR --sbom F` audits an SBOM with osv-scanner; it must be named

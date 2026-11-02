@@ -1,6 +1,6 @@
 # exit=1
 # stderr:
-supply: dir=gha-injection ecosystems=github-actions tools=cargo,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+supply: dir=gha-injection ecosystems=github-actions tools=cargo-audit,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
 # stdout:
 {
   "command": "pins",
@@ -41,7 +41,7 @@ supply: dir=gha-injection ecosystems=github-actions tools=cargo,cosign,gh,govuln
     }
   ],
   "tools": [
-    "cargo",
+    "cargo-audit",
     "cosign",
     "gh",
     "govulncheck",

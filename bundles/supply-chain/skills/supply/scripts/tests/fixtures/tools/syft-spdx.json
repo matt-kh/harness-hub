@@ -13,7 +13,7 @@
   "packages": [
     {
       "SPDXID": "SPDXRef-Package-flask",
-      "comment": "fetched with password=hunter2",
+      "comment": "fetched from https://ci:hunter2@example.com/simple/flask",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
@@ -28,6 +28,24 @@
       "SPDXID": "SPDXRef-Package-local",
       "name": "local-helper",
       "versionInfo": ""
+    },
+    {
+      "SPDXID": "SPDXRef-Package-authlib",
+      "externalRefs": [
+        {
+          "referenceCategory": "SECURITY",
+          "referenceLocator": "cpe:2.3:a:authlib:authlib:1.3.0:*:*:*:*:*:*:*",
+          "referenceType": "cpe23Type"
+        },
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceLocator": "pkg:pypi/authlib@1.3.0",
+          "referenceType": "purl"
+        }
+      ],
+      "name": "authlib",
+      "supplier": "Person: Token Author",
+      "versionInfo": "1.3.0"
     }
   ],
   "relationships": [

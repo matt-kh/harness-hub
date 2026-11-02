@@ -14,7 +14,12 @@ if [ "${STUB_FAIL:-}" = "$name" ]; then
   echo "stub $name: failing on request (STUB_FAIL)" >&2; exit 2
 fi
 [ "$1 $2" = "attestation verify" ] || { echo "stub gh: only 'gh attestation verify' is supported, got: $*" >&2; exit 1; }
-case "$3" in
+target=""
+for a in "$@"; do target=$a; done
+case "$target" in
+  -*) echo "stub gh: the subject looks like an option: $target" >&2; exit 1 ;;
+esac
+case "$target" in
   *unattested*) cat "$fix/gh-fail.txt" >&2; exit 1 ;;
 esac
 cat "$fix/gh-attestation.json"

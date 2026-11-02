@@ -1,10 +1,10 @@
 # exit=0
 # stderr:
-supply: dir=- ecosystems=none tools=cargo,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+supply: dir=- ecosystems=none tools=cargo-audit,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
 # stdout:
 # supply verify — -
 
-ecosystems: none · tools: cargo, cosign, gh, govulncheck, npm, osv-scanner, pip-audit, syft
+ecosystems: none · tools: cargo-audit, cosign, gh, govulncheck, npm, osv-scanner, pip-audit, syft
 
 ## Findings (1)
 

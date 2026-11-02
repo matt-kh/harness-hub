@@ -13,14 +13,24 @@ FIX="$here/fixtures"
 GOLD="$here/golden"
 REPOS="$FIX/repos"
 unset SUPPLY_REGISTRIES_RE SUPPLY_REDACT_EXTRA_RE SUPPLY_EXCLUDE_RE SUPPLY_TIMEOUT SUPPLY_OSV_OFFLINE_DB \
-      SUPPLY_MAX_BYTES SUPPLY_MAX_FILES STUB_FAIL STUB_PIP_AUDIT HARNESS_HOME
+      SUPPLY_MAX_BYTES SUPPLY_MAX_FILES SUPPLY_TEST_FAIL_AFTER STUB_FAIL STUB_PIP_AUDIT STUB_SLEEP \
+      STUB_MALFORMED HARNESS_HOME
 tmp=$(mktemp -d); tmp=$(cd "$tmp" && pwd -P)
 [ "${KEEP:-0}" = 1 ] || trap 'rm -rf "$tmp"' EXIT
 export LC_ALL=C PYTHONDONTWRITEBYTECODE=1
 export SUPPLY_PATH="$here/stubs" SUPPLY_STUB_FIX="$FIX/tools" SUPPLY_DRY_RUN=1
 fail=0; cases=0
 mkdir -p "$GOLD" "$tmp/empty-path" "$tmp/fallback-path"
-for t in npm pip-audit cargo govulncheck; do ln -s "$here/stubs/$t" "$tmp/fallback-path/$t"; done
+for t in npm pip-audit cargo-audit govulncheck; do ln -s "$here/stubs/$t" "$tmp/fallback-path/$t"; done
+# a trap: `cargo` must never run (it executes .cargo/config.toml aliases and rust-toolchain.toml
+# of the scanned checkout); the CLI calls the cargo-audit binary directly
+cat > "$tmp/fallback-path/cargo" <<'SH'
+#!/bin/sh
+printf 'cargo %s\n' "$*" >> "${STUB_LOG:-/dev/null}"
+echo "trap: cargo must never run" >&2
+exit 99
+SH
+chmod +x "$tmp/fallback-path/cargo"
 
 # Hermetic config: one documentation-value signer identity.
 cat > "$tmp/config.json" <<'JSON'
@@ -78,6 +88,7 @@ chk() {  # chk <condition-exit> <label>
   if [ "$1" = 0 ]; then echo "PASS $2"; else echo "FAIL $2"; fail=1; fi
 }
 ck() { local d=$1; shift; "$@"; chk $? "$d"; }  # ck <label> <test...>
+not_root() { "$PY" -c 'import os, sys; sys.exit(0 if os.geteuid() else 1)'; }
 
 run_cases() {
   cd "$REPOS" || exit 1
@@ -94,6 +105,8 @@ run_cases() {
   SUPPLY_MAX_FILES=3 t detect-truncated 0 detect dirty --json
   SUPPLY_EXCLUDE_RE='(^|/)\.github/' t detect-exclude 0 detect dirty --json
   SUPPLY_PATH="$tmp/empty-path" t detect-no-tools 0 detect clean --json
+  SUPPLY_PATH=":" t detect-path-colon 0 detect clean --json
+  SUPPLY_PATH="." t detect-path-relative 0 detect clean --json
 
   # -------------------------------------------------------------------- pins
   t pins-dirty-json         1 pins dirty --json
@@ -108,6 +121,7 @@ run_cases() {
   SUPPLY_REGISTRIES_RE='^(ghcr\.io|registry\.example\.com)$' t pins-registries 1 pins dockerfiles --json
   HARNESS_CONFIG_JSON="$tmp/config-noactions.json" t pins-no-actions 1 pins dirty --json
   SUPPLY_EXCLUDE_RE='(' t pins-bad-exclude 2 pins dirty --json
+  t pins-edge-json        1 pins edge --json
 
   # pins --apply on a copy: exact tokens, everything else on the line kept, byte-exact
   rm -rf "$out/work/orig" "$out/work/dirty"
@@ -159,6 +173,72 @@ JSON
   grep -q 'pin_actions is false' "$out/noact.out" && grep -q 'checkout@v4' "$out/work/noact/.github/workflows/w.yml"
   chk $? "pin_actions = false: --apply skips action pins and says why"
 
+  # --apply refuses symlinks (file and parent directory), .git, NUL, a `new` that is not a pin,
+  # and a `new` that renames what it pins; nothing is written, nothing outside DIR is touched
+  rm -rf "$out/work/sym" "$out/work/outside" "$out/work/outside-orig"
+  cp -R dirty "$out/work/sym"; mkdir -p "$out/work/outside"
+  mv "$out/work/sym/Dockerfile" "$out/work/outside/Dockerfile"
+  ln -s ../outside/Dockerfile "$out/work/sym/Dockerfile"
+  mv "$out/work/sym/.github/workflows" "$out/work/outside/workflows"
+  ln -s ../../outside/workflows "$out/work/sym/.github/workflows"
+  mkdir -p "$out/work/sym/.git"; printf '[core]\n\tbare = false\n' > "$out/work/sym/.git/config"
+  cp -R "$out/work/outside" "$out/work/outside-orig"; cp -R "$out/work/sym" "$out/work/sym-orig"
+  cat > "$out/work/refuse.json" <<JSON
+[{"file": "Dockerfile", "line": 3, "old": "alpine", "new": "alpine:3.20@sha256:$D64"},
+ {"file": ".github/workflows/build.yml", "line": 8, "old": "actions/checkout@v4", "new": "actions/checkout@$SHA"},
+ {"file": ".git/config", "line": 2, "old": "false", "new": "true"},
+ {"file": "requirements.txt\u0000.txt", "line": 1, "old": "a", "new": "b"},
+ {"file": "requirements.txt", "line": 2, "old": "git+https://github.com/octocat/hello-world", "new": "git+https://github.com/octocat/hello-world@v1.0"},
+ {"file": "package.json", "line": 5, "old": "github:octocat/hello-world", "new": "github:example/hello-world#$SHA"},
+ {"file": "docker-compose.yml", "line": 3, "old": "redis:7", "new": "registry.example.com/redis:7@sha256:$D64"}]
+JSON
+  (cd "$out/work" && "$PY" "$CLI" pins sym --apply refuse.json --json > "$out/pins-apply-refused2.out" 2> "$out/pins-apply-refused2.err"; echo $? > "$out/pins-apply-refused2.rc")
+  record pins-apply-refused2 "$(cat "$out/pins-apply-refused2.rc")" "$out/pins-apply-refused2.out" "$out/pins-apply-refused2.err"
+  ck "symlinks, .git, NUL and non-pins are refused (exit 2)" [ "$(cat "$out/pins-apply-refused2.rc")" = 2 ]
+  ck "a refused apply writes nothing outside DIR" diff -r "$out/work/outside-orig" "$out/work/outside"
+  ck "a refused apply writes nothing inside DIR" diff -r "$out/work/sym-orig" "$out/work/sym"
+
+  # whole-token matching: `alpine` in `AS alpinebuild` and `actions/checkout@v4` in a comment's
+  # `actions/checkout@v4.1` are not occurrences; the rewrite is byte-exact
+  rm -rf "$out/work/tok"; mkdir -p "$out/work/tok/.github/workflows"
+  printf 'FROM alpine AS alpinebuild\nFROM alpinebuild\n' > "$out/work/tok/Dockerfile"
+  printf 'on: push\npermissions: {}\njobs:\n  b:\n    runs-on: ubuntu-24.04\n    steps:\n      - uses: actions/checkout@v4 # was actions/checkout@v4.1\n' \
+    > "$out/work/tok/.github/workflows/w.yml"
+  cat > "$out/work/tok.json" <<JSON
+[{"file": "Dockerfile", "line": 1, "old": "alpine", "new": "alpine:3.20@sha256:$D64"},
+ {"file": ".github/workflows/w.yml", "line": 7, "old": "actions/checkout@v4", "new": "actions/checkout@$SHA"}]
+JSON
+  (cd "$out/work" && "$PY" "$CLI" pins tok --apply tok.json --json > "$out/tok.out" 2> "$out/tok.err"); rc=$?
+  ck "apply across token boundaries succeeds and re-scans clean (exit 0)" [ "$rc" = 0 ]
+  ck "a token inside a longer word (alpinebuild) is never rewritten" \
+    [ "$(cat "$out/work/tok/Dockerfile")" = "$(printf 'FROM alpine:3.20@sha256:%s AS alpinebuild\nFROM alpinebuild' "$D64")" ]
+  grep -q "uses: actions/checkout@$SHA # was actions/checkout@v4.1\$" "$out/work/tok/.github/workflows/w.yml"
+  chk $? "a token followed by . (v4.1 in a comment) is never rewritten"
+
+  # all-or-nothing: a failure after the first rename rolls the renamed file back
+  rm -rf "$out/work/ro"; cp -R dirty "$out/work/ro"
+  cat > "$out/work/two.json" <<JSON
+[{"file": "Dockerfile", "line": 3, "old": "alpine", "new": "alpine:3.20@sha256:$D64"},
+ {"file": "requirements.txt", "line": 2, "old": "git+https://github.com/octocat/hello-world", "new": "git+https://github.com/octocat/hello-world@$SHA"}]
+JSON
+  (cd "$out/work" && SUPPLY_TEST_FAIL_AFTER=1 "$PY" "$CLI" pins ro --apply two.json --json > "$out/pins-apply-rollback.out" 2> "$out/pins-apply-rollback.err"; echo $? > "$out/pins-apply-rollback.rc")
+  record pins-apply-rollback "$(cat "$out/pins-apply-rollback.rc")" "$out/pins-apply-rollback.out" "$out/pins-apply-rollback.err"
+  ck "a write failure part-way exits 2" [ "$(cat "$out/pins-apply-rollback.rc")" = 2 ]
+  ck "a write failure part-way rolls back every file, no temp file left" diff -r dirty "$out/work/ro"
+  if not_root; then  # root ignores mode bits: these two cases need an ordinary user
+    chmod 444 "$out/work/ro/requirements.txt"
+    (cd "$out/work" && "$PY" "$CLI" pins ro --apply two.json --json > /dev/null 2> "$out/ro.err"); rc=$?
+    chmod 644 "$out/work/ro/requirements.txt"
+    [ "$rc" = 2 ] && grep -q 'requirements.txt is not writable' "$out/ro.err" && diff -r dirty "$out/work/ro" > /dev/null
+    chk $? "a read-only file (mode 444) refuses the whole apply, nothing written"
+    rm -rf "$out/work/unread"; cp -R clean "$out/work/unread"; mkdir "$out/work/unread/secret"
+    chmod 000 "$out/work/unread/secret"
+    (cd "$out/work" && "$PY" "$CLI" pins unread --json > "$out/unread.out" 2> /dev/null); rc=$?
+    chmod 755 "$out/work/unread/secret"
+    [ "$rc" = 1 ] && grep -q '"file": "secret/"' "$out/unread.out" && grep -q '"SUP002"' "$out/unread.out"
+    chk $? "an unreadable directory is a SUP002 finding, never clean (exit 1)"
+  fi
+
   # ---------------------------------------------------------------------- ci
   # a tab-indented workflow, generated here (the repository's YAML hook would reject the file)
   mkdir -p "$out/work/tabs/.github/workflows"
@@ -177,8 +257,11 @@ JSON
   t ci-clean-json        0 ci clean/.github/workflows/ci.yml clean/.gitlab-ci.yml clean/scripts/install.bash clean/Dockerfile --json
   t ci-ignore-json       1 ci dirty/.github/workflows/build.yml --ignore CI001,gha001 --json
   t ci-ignore-unknown    1 ci dirty/.github/workflows/build.yml --ignore NOPE001
-  t ci-unrecognised      0 ci clean/package.json --json
+  t ci-unrecognised      3 ci clean/package.json --json
   t ci-missing           2 ci no-such-file.yml --json
+  t ci-edge-json         1 ci edge/.github/workflows/compose.yml edge/.github/workflows/inputs.yml \
+                              edge/.github/workflows/prt.yml edge/scripts/negatives.bash \
+                              edge/scripts/positives.bash edge/Dockerfile edge/docker-compose.yml --json
 
   # ------------------------------------------------------------------- audit
   t audit-osv-json       1 audit dirty --json
@@ -198,6 +281,17 @@ JSON
   SUPPLY_PATH="$tmp/empty-path" t audit-unavailable 3 audit clean --json
   SUPPLY_PATH="$tmp/empty-path" t audit-unavailable-empty 0 audit empty --json
   SUPPLY_PATH="$tmp/empty-path" t audit-unavailable-sbom 3 audit dirty --sbom ../sbom/good.cdx.json
+  STUB_MALFORMED=1 t audit-osv-malformed 2 audit dirty --json
+  s0=$SECONDS
+  STUB_SLEEP=6 t audit-timeout 2 audit clean --timeout 1 --json
+  ck "--timeout 1 stops a sleeping tool (and its children) within 4 s" [ $((SECONDS - s0)) -le 4 ]
+  # cargo-audit runs from an empty directory: the checkout's cargo alias and toolchain file never run
+  rm -rf "$out/work/calias"; cp -R clean "$out/work/calias"; mkdir -p "$out/work/calias/.cargo"
+  printf '[alias]\naudit = "run --quiet --bin pwn"\n' > "$out/work/calias/.cargo/config.toml"
+  printf '[toolchain]\nchannel = "nightly-2099-01-01"\n' > "$out/work/calias/rust-toolchain.toml"
+  (cd "$out/work" && SUPPLY_PATH="$tmp/fallback-path" "$PY" "$CLI" audit calias --json > "$out/calias.out" 2> "$out/calias.err"); rc=$?
+  [ "$rc" = 1 ] && grep -q '"tool": "cargo-audit"' "$out/calias.out" && ! grep -q '^cargo ' "$STUB_LOG"
+  chk $? "a cargo alias in .cargo/config.toml never runs (cargo-audit is called directly)"
 
   # -------------------------------------------------------------------- sbom
   t sbom-dir-json        0 sbom clean --json
@@ -206,6 +300,9 @@ JSON
   t sbom-out             0 sbom clean --out "$out/clean.spdx.json" --json
   t sbom-out-exists      1 sbom clean --out "$out/clean.spdx.json" --json
   t sbom-out-force       0 sbom clean --out "$out/clean.spdx.json" --force --json
+  t sbom-out-nodir       2 sbom clean --out "$out/no-such-dir/clean.spdx.json" --json
+  rm -f "$out/image.cdx.json"
+  t sbom-out-cdx         0 sbom ghcr.io/octocat/hello-world:1.0 --format cyclonedx-json --out "$out/image.cdx.json" --json
   t sbom-image-missing   2 sbom oci://ghcr.io/octocat/missing:1.0 --json
   t sbom-file            3 sbom clean/Dockerfile --json
   SUPPLY_PATH="$tmp/empty-path" t sbom-unavailable 2 sbom clean --json
@@ -219,8 +316,18 @@ JSON
   # ------------------------------------------------------------------ verify
   t verify-name-json     0 verify ghcr.io/octocat/hello-world:1.0 --identity release --json
   t verify-match-md      0 verify ghcr.io/octocat/hello-world:1.0 --md
-  t verify-regexp        0 verify ghcr.io/octocat/hello-world:1.0 --identity '^https://github\.com/octocat/' \
+  t verify-regexp        0 verify ghcr.io/octocat/hello-world:1.0 --identity '^https://github\.com/octocat/.*$' \
                               --issuer https://token.actions.githubusercontent.com --json
+  t verify-regexp-unanchored 2 verify ghcr.io/octocat/hello-world:1.0 --identity '^https://github\.com/octocat/' \
+                              --issuer https://token.actions.githubusercontent.com --json
+  t verify-dash-cosign   1 verify --identity release --json -- -rf
+  t verify-dash-key      1 verify --key cosign.pub --json -- --insecure-ignore-tlog
+  t verify-dash-gh       1 verify --github octocat --json -- -rf
+  t verify-github-offline-nobundle 3 verify dirty/deploy.bash --github octocat --offline \
+                              --trusted-root ../tools/trusted-root.json --json
+  t verify-github-offline 0 verify dirty/deploy.bash --github octocat --offline --bundle deploy.bash.sigstore.json \
+                              --trusted-root ../tools/trusted-root.json --json
+  t verify-nosig         2 verify ghcr.io/octocat/nosig:1.0 --identity release --json
   t verify-regexp-no-issuer 2 verify ghcr.io/octocat/hello-world:1.0 --identity '^https://github\.com/octocat/'
   t verify-no-identity   2 verify registry.example.com/app:1.0 --json
   HARNESS_CONFIG_JSON="$tmp/config-badid.json" t verify-bad-config 2 verify registry.example.com/app:1.0 --json
@@ -249,6 +356,7 @@ JSON
   # ------------------------------------------------------------------- usage
   t usage-unknown        1 bogus
   t usage-sbom-lint      1 sbom lint
+  t usage-unrecognised   1 detect clean --nope
 
   record dry-run-requests 0 "$SUPPLY_DRY_RUN_LOG" "$out/empty.err"
   cd "$here" || exit 1
@@ -273,12 +381,14 @@ cd "$REPOS" || exit 1
 for f in "$out"/*.err; do
   n=$(basename "$f" .err)
   case "$n" in redact-*|sbom-lint-*|usage-*|empty|apply-bad|pins-apply-diff|verify-key-and-github|ci-ignore-unknown|audit-sbom-name|verify-blob-no-bundle) continue ;;
-    detect-missing|ci-missing|pins-bad-exclude|sbom-file) continue ;;  # refused before the scan starts
+    detect-missing|ci-missing|pins-bad-exclude|sbom-file|verify-dash-*) continue ;;  # refused before the scan starts
   esac
   head -1 "$f" | grep -qE '^supply: dir=[^ ]+ ecosystems=[a-z,-]+ tools=[a-z,-]+$' || { echo "FAIL banner shape in $n: $(head -1 "$f")"; fail=1; }
 done
 chk 0 "every command except redact and sbom lint prints the banner first"
 grep -q 'tools=none' "$out/detect-no-tools.err"; chk $? "SUPPLY_PATH=<empty dir> means no tools, even with npm or docker on PATH"
+grep -q 'tools=none' "$out/detect-path-colon.err" && grep -q 'tools=none' "$out/detect-path-relative.err"
+chk $? "empty and relative PATH entries are ignored (SUPPLY_PATH=\":\" or \".\" means no tools)"
 grep -q '^supply: dir=- ecosystems=none' "$out/verify-name-json.err"; chk $? "an image target banners dir=-"
 
 "$PY" - "$out" <<'PY'
@@ -309,15 +419,44 @@ sys.exit(1 if bad else 0)
 PY
 chk $? "every JSON output parses, carries the envelope, and its findings are sorted with a fix"
 
-leaks=$(grep -lE 'hunter2|s3cr3tpass|abc123def456' "$out"/*.out "$out"/*.err "$out/clean.spdx.json" 2>/dev/null)
+leaks=$(grep -lE 'hunter2|s3cr3tpass|abc123def456' "$out"/*.out "$out"/*.err "$out/clean.spdx.json" "$out/image.cdx.json" 2>/dev/null)
 ck "no fixture secret (password=hunter2, URL credentials, token=) reaches stdout, stderr or --out" [ -z "$leaks" ]
 grep -q 'REDACTED' "$out/pins-dirty-json.out"; chk $? "a finding snippet from a file is redacted"
-grep -q 'REDACTED' "$out/sbom-out.out" || grep -q 'REDACTED' "$out/clean.spdx.json"; chk $? "syft output is redacted before it is written"
+grep -q '://\*\*\*:\*\*\*@example.com' "$out/clean.spdx.json"; chk $? "syft output is redacted (token shapes) before it is written"
+grep -q '"referenceLocator": "cpe:2.3:a:authlib:authlib:1.3.0:\*' "$out/clean.spdx.json" && grep -q '"supplier": "Person: Token Author"' "$out/clean.spdx.json"
+chk $? "sbom --out keeps CPEs and suppliers (no key-name masking in the written SBOM)"
+grep -q '"author": "anchore"' "$out/image.cdx.json"; chk $? "sbom --out keeps a CycloneDX author"
+grep -q 'does not exist' "$out/sbom-out-nodir.err"; chk $? "sbom --out into a missing directory is an access error"
 bad=$(grep -lE "$here|/home/|/Users/" "$GOLD"/*.txt 2>/dev/null | grep -v 'audit-osv-offline\|dry-run-requests')
 ck "no golden carries an absolute checkout or home path" [ -z "$bad" ]
 "$PY" -c 'import json,sys; json.load(open(sys.argv[1]))' "$out/clean.spdx.json"; chk $? "sbom --out writes a whole JSON document"
 ck "the sbom --out file is sorted JSON" "$PY" -c 'import json,sys; t=open(sys.argv[1]).read(); sys.exit(0 if t==json.dumps(json.loads(t),indent=2,sort_keys=True,ensure_ascii=False)+"\n" else 1)' "$out/clean.spdx.json"
 grep -q 'already exists' "$out/sbom-out-exists.err"; chk $? "sbom --out refuses an existing file without --force"
+
+# edge fixture: what must and must not be a finding
+E="$out/ci-edge-json.out"
+! "$PY" -c 'import json,sys; sys.exit(not any("negatives" in f["file"] for f in json.load(open(sys.argv[1]))["findings"]))' "$E"
+chk $? "| python -c, | python -m, | python FILE, quoted echoes and case patterns are not SH001/SH002"
+ck "CI004 warns for string inputs only (name, note, tag), never choice, number or boolean" \
+  [ "$(grep -c '"message": "free-text input' "$E")" = 3 ]
+[ "$(grep -c '"id": "CI003"' "$E")" = 1 ] && grep -q 'git fetch origin pull/' "$E"
+chk $? "CI003 only when the head ref is an argument of the git fetch|checkout itself"
+grep -q '"file": "edge/.github/workflows/compose.yml",' "$E"; chk $? "a workflow named compose.yml is scanned as a workflow"
+P="$out/pins-edge-json.out"
+[ "$(grep -c '"id": "DKR003"' "$P")" = 1 ] && grep -q 'service `worker` image `redis`' "$P"
+chk $? "a compose service with build: is skipped unless pull_policy pulls the image"
+grep -q 'pinned to `release-2024`, a tag or branch' "$P" && [ "$(grep -c '"id": "GHA002"' "$P")" = 2 ]
+chk $? "named action refs warn (GHA001); branch names and refs with / are crit (GHA002)"
+grep -q 'Cargo.lock pins the commit' "$P" && grep -q 'the lockfile pins the commit' "$P"
+chk $? "locked git dependencies are warn, not crit (CGO001, NPM002)"
+grep -q 'my-lodash npm:@example/lodash' "$P" && ! grep -q 'comes from git (`npm:' "$P"
+chk $? "an npm: alias is a registry range, never a git dependency"
+grep -q 'is pinned to `refs/tags/v1.0`' "$P"; chk $? "PIP002 reads refs/tags/X after the last @ of the path as a tag"
+grep -A2 '"file": "Dockerfile",' "$P" | grep -q '"SH001"'
+chk $? "a comment line inside a Dockerfile continuation does not end the RUN"
+grep -q 'printed unexpected output' "$out/audit-osv-malformed.err"; chk $? "malformed tool JSON is an access error, never a traceback"
+! grep -l 'Traceback' "$out"/*.err > /dev/null 2>&1; chk $? "no command prints a Python traceback"
+grep -q 'timed out after 1s' "$out/audit-timeout.err"; chk $? "--timeout reaches the tool run"
 
 # offline-only commands never run a tool
 STUB_LOG="$tmp/offline.log"; : > "$STUB_LOG"; export STUB_LOG
@@ -345,6 +484,19 @@ bad=$(grep '^gh ' "$L" | grep -v '^gh attestation verify .*--format json' | head
 ck "every gh call is 'attestation verify … --format json'" [ -z "$bad" ]
 bad=$(grep '^npm ' "$L" | grep -v '^npm audit --json --audit-level=none$' | head -3)
 ck "every npm call is 'npm audit --json --audit-level=none'" [ -z "$bad" ]
+bad=$(grep '^cargo-audit ' "$L" | grep -vE '^cargo-audit audit --json --file /[^ ]+Cargo\.lock$' | head -3)
+ck "every cargo-audit call is 'audit --json --file /ABS/Cargo.lock'" [ -z "$bad" ]
+! grep -q '^cargo ' "$L"; chk $? "cargo itself never runs"
+bad=$(grep '^pip-audit ' "$L" | grep -vE '^pip-audit -f json --require-hashes --no-deps --disable-pip -r /' | head -3)
+ck "every pip-audit call is hashed-only, no deps, no pip" [ -z "$bad" ]
+! grep -q '^pip-audit .*dirty/requirements.txt' "$L" && grep -q 'pip-audit would resolve and build' "$out/audit-fallbacks-nolock.out"
+chk $? "pip-audit never runs on an unhashed requirements file (AUD001 instead)"
+bad=$(grep -E '^(cosign|gh) ' "$L" | grep -vE ' -- [^-][^ ]*$' | head -3)
+ck "every cosign and gh call ends with -- SUBJECT" [ -z "$bad" ]
+! grep -qE ' -- -' "$L"; chk $? "a TARGET starting with - never reaches a verifier"
+bad=$(grep '^osv-scanner ' "$L" | grep -vE ' -[rL] /' | head -3)
+ck "osv-scanner gets absolute -r/-L paths" [ -z "$bad" ]
+grep -q 'GOFLAGS=-mod=readonly GOTOOLCHAIN=local govulncheck' "$out/dry-run.log"; chk $? "govulncheck runs with GOTOOLCHAIN=local GOFLAGS=-mod=readonly"
 ! grep -qiE 'docker' "$L" "$out/dry-run.log"; chk $? "the docker daemon is never called"
 ck "the dry-run log matches the stub log one for one" [ "$(wc -l < "$out/dry-run.log")" = "$(wc -l < "$L")" ]
 

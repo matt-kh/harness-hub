@@ -1,6 +1,6 @@
 # exit=1
 # stderr:
-supply: dir=- ecosystems=github-actions tools=cargo,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+supply: dir=- ecosystems=github-actions tools=cargo-audit,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
 # stdout:
 {
   "command": "ci",
@@ -72,8 +72,8 @@ supply: dir=- ecosystems=github-actions tools=cargo,cosign,gh,govulncheck,npm,os
       "fix": "pass the value through env: (`env: TITLE: ${{ ... }}`) and use \"$TITLE\" in the script; never expand it into the script text",
       "id": "CI004",
       "line": 33,
-      "message": "untrusted `inputs.target` is expanded into the script text",
-      "severity": "crit"
+      "message": "free-text input `inputs.target` is expanded into the script text",
+      "severity": "warn"
     },
     {
       "file": "gha-injection/.github/workflows/triage.yml",
@@ -118,7 +118,7 @@ supply: dir=- ecosystems=github-actions tools=cargo,cosign,gh,govulncheck,npm,os
     }
   ],
   "tools": [
-    "cargo",
+    "cargo-audit",
     "cosign",
     "gh",
     "govulncheck",

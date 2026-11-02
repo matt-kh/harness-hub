@@ -1,10 +1,10 @@
 # exit=1
 # stderr:
-supply: dir=- ecosystems=github-actions tools=cargo,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+supply: dir=- ecosystems=github-actions tools=cargo-audit,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
 # stdout:
 # supply ci — -
 
-ecosystems: github-actions · tools: cargo, cosign, gh, govulncheck, npm, osv-scanner, pip-audit, syft
+ecosystems: github-actions · tools: cargo-audit, cosign, gh, govulncheck, npm, osv-scanner, pip-audit, syft
 
 ## Findings (12)
 
@@ -16,7 +16,7 @@ ecosystems: github-actions · tools: cargo, cosign, gh, govulncheck, npm, osv-sc
 | crit | CI006 | gha-injection/.github/workflows/triage.yml:20 | service `cache` image `redis:latest` has no tag or uses :latest | pin the image digest: `IMAGE:TAG@sha256:<digest>` (resolve with `docker buildx imagetools inspect` or `crane digest`) |
 | crit | CI003 | gha-injection/.github/workflows/triage.yml:24 | pull_request_target checks out the pull request head: `gh pr checkout ${{ github.event.pull_request.number }}` | never check out the pull request head in a pull_request_target workflow; use pull_request, or a two-workflow split with workflow_run and no secrets in the untrusted half |
 | crit | CI004 | gha-injection/.github/workflows/triage.yml:31 | untrusted `github.head_ref` is expanded into the script text | pass the value through env: (`env: TITLE: ${{ ... }}`) and use "$TITLE" in the script; never expand it into the script text |
-| crit | CI004 | gha-injection/.github/workflows/triage.yml:33 | untrusted `inputs.target` is expanded into the script text | pass the value through env: (`env: TITLE: ${{ ... }}`) and use "$TITLE" in the script; never expand it into the script text |
+| warn | CI004 | gha-injection/.github/workflows/triage.yml:33 | free-text input `inputs.target` is expanded into the script text | pass the value through env: (`env: TITLE: ${{ ... }}`) and use "$TITLE" in the script; never expand it into the script text |
 | warn | CI005 | gha-injection/.github/workflows/triage.yml:35 | `printenv` dumps every variable, secrets included, to the job log | never print secrets or dump the environment; pass secrets as env variables to the step that needs them |
 | crit | CI004 | gha-injection/.github/workflows/triage.yml:40 | untrusted `github.event.comment.body` is expanded into the github-script code | pass the value through env: (`env: TITLE: ${{ ... }}`) and use "$TITLE" in the script; never expand it into the script text |
 | warn | GHA001 | gha-injection/.github/workflows/triage.yml:42 | action `github/codeql-action/analyze` is pinned to the tag `v3`, which can be moved | pin the full 40-character commit sha and keep the tag as a comment: `uses: OWNER/REPO@<sha> # vX.Y.Z` (/pin-deps resolves it) |

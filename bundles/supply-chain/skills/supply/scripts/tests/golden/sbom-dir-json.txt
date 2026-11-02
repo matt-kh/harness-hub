@@ -1,20 +1,21 @@
 # exit=0
 # stderr:
-supply: dir=clean ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,shell tools=cargo,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+supply: dir=clean ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,shell tools=cargo-audit,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
 # stdout:
 {
   "command": "sbom",
   "data": {
     "note": "summary only: pass --out FILE to write the SBOM",
     "packages": [
+      "authlib 1.3.0",
       "flask 2.0.0",
       "local-helper"
     ],
     "sbom": {
-      "bytes": 985,
+      "bytes": 1529,
       "file": "",
       "format": "spdx-json",
-      "packages": 2,
+      "packages": 3,
       "source": "dir:clean",
       "spec_version": "SPDX-2.3"
     }
@@ -36,7 +37,7 @@ supply: dir=clean ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,sh
       "fix": "regenerate from a lockfile or the built artefact so versions resolve",
       "id": "SBM007",
       "line": 1,
-      "message": "1 of 2 package(s) have no version",
+      "message": "1 of 3 package(s) have no version",
       "severity": "info"
     },
     {
@@ -44,12 +45,12 @@ supply: dir=clean ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,sh
       "fix": "regenerate with purls so scanners can match the packages",
       "id": "SBM008",
       "line": 1,
-      "message": "1 of 2 package(s) have no purl",
+      "message": "1 of 3 package(s) have no purl",
       "severity": "info"
     }
   ],
   "tools": [
-    "cargo",
+    "cargo-audit",
     "cosign",
     "gh",
     "govulncheck",

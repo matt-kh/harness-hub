@@ -120,12 +120,19 @@ prints every one between your applied version and the new one.
   (unpinned actions, images, dependencies and unverified downloads, `GHA*`, `DKR*`, `PIP*`,
   `NPM*`, `GO*`, `CGO*`, `SH001`/`SH002`, `CI006`/`CI008`/`CI009`, `REG001`; findings carry the
   exact `ref` token) with `pins --apply FILE` (exact-token rewrites, all-or-nothing, byte-exact,
-  then a re-scan), `ci FILE...` (GitHub Actions and GitLab CI hardening `CI000`–`CI009`),
-  `audit` (osv-scanner, else `npm audit`, `pip-audit`, `cargo audit`, `govulncheck` when
-  present; "unavailable" is never "clean": `AUD001`, exit 3), `sbom DIR|IMAGE` (syft, never
-  the docker daemon) and `sbom lint FILE` (`SBM001`–`SBM009`), `verify` (cosign keyless, key,
-  attestation and blob-with-bundle; `gh attestation verify`; never an `--insecure-*` flag) and
-  `redact`. Exit 0 clean, 1 findings, 2 access/tool/config error, 3 unsupported; banner
+  then a re-scan; only a finding's `ref`, as a whole token, replaced by a digest or sha pin of
+  the same name; no symlinks or `.git`; staged writes rolled back on a failure part-way),
+  `ci FILE...` (GitHub Actions and GitLab CI hardening `CI000`–`CI009`; shell lines are lexed,
+  so quoted strings, `| python -c` and case patterns are not `SH001`/`SH002`; exit 3 when no
+  file could be scanned), `audit` (osv-scanner, else `npm audit`, `pip-audit` on fully hashed
+  requirements only, `cargo-audit` called directly from an empty directory, `govulncheck` with
+  `GOTOOLCHAIN=local`: never code from the checkout; "unavailable" is never "clean": `AUD001`
+  also for an ecosystem osv-scanner read nothing for, exit 3), `sbom DIR|IMAGE` (syft, never
+  the docker daemon; `--out` written exclusively with token-shape redaction only) and `sbom lint
+  FILE` (`SBM001`–`SBM009`), `verify` (cosign keyless, key, attestation and blob-with-bundle;
+  `gh attestation verify`; the subject after `--`; anchored identity regexps; never an
+  `--insecure-*` flag) and `redact`. Unreadable directories are `SUP002`. Exit 0 clean, 1
+  findings, 2 access/tool/config error (never a traceback), 3 unsupported; banner
   `supply: dir= ecosystems= tools=` on stderr; sorted JSON envelope without timestamps. New keys
   `supply_chain.exclude_re` (`SUPPLY_EXCLUDE_RE`) and `supply_chain.timeout`
   (`SUPPLY_TIMEOUT`); the CLI also reads `SUPPLY_REGISTRIES_RE`, `SUPPLY_REDACT_EXTRA_RE`,

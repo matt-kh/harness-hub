@@ -1,6 +1,6 @@
 # exit=1
 # stderr:
-supply: dir=- ecosystems=gitlab-ci tools=cargo,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+supply: dir=- ecosystems=gitlab-ci tools=cargo-audit,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
 # stdout:
 {
   "command": "ci",
@@ -26,9 +26,9 @@ supply: dir=- ecosystems=gitlab-ci tools=cargo,cosign,gh,govulncheck,npm,osv-sca
       "fix": "pin the include to a full 40-character commit sha (`ref: <sha>`) or a released component version (`@1.2.3`)",
       "id": "CI008",
       "line": 5,
-      "message": "include of project `example-group/ci-templates` follows `main`, not a commit sha",
+      "message": "include of project `example-group/ci-templates` follows the branch `main`",
       "ref": "main",
-      "severity": "warn"
+      "severity": "crit"
     },
     {
       "file": "gitlab-include/.gitlab-ci.yml",
@@ -99,7 +99,7 @@ supply: dir=- ecosystems=gitlab-ci tools=cargo,cosign,gh,govulncheck,npm,osv-sca
     }
   ],
   "tools": [
-    "cargo",
+    "cargo-audit",
     "cosign",
     "gh",
     "govulncheck",

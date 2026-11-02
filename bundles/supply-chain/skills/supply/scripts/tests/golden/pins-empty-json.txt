@@ -1,6 +1,6 @@
 # exit=0
 # stderr:
-supply: dir=empty ecosystems=none tools=cargo,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+supply: dir=empty ecosystems=none tools=cargo-audit,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
 # stdout:
 {
   "command": "pins",
@@ -11,7 +11,7 @@ supply: dir=empty ecosystems=none tools=cargo,cosign,gh,govulncheck,npm,osv-scan
   "ecosystems": [],
   "findings": [],
   "tools": [
-    "cargo",
+    "cargo-audit",
     "cosign",
     "gh",
     "govulncheck",

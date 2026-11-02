@@ -6,7 +6,9 @@ Read-only by construction: it scans a checkout offline, runs pinned scanners and
 (osv-scanner, syft, cosign, `gh attestation verify`) or the ecosystem's own auditor when one is
 already installed, and never installs, signs, attests, pushes or switches verification off.
 The only local writes are `pins --apply FILE` (exact token rewrites a /pin-deps run prepared)
-and `sbom --out FILE`. Every tool output passes through the core redactor.
+and `sbom --out FILE`. Every tool output passes through the core redactor. Nothing from the
+scanned checkout is executed: fallback auditors run from an empty working directory where they
+can (cargo-audit, pip-audit on fully hashed files only) and govulncheck with GOTOOLCHAIN=local.
 
 Output is findings-first: JSON when stdout is not a TTY (or --json), Markdown on a TTY (or --md):
   {"command","dir","ecosystems","tools",
@@ -14,9 +16,10 @@ Output is findings-first: JSON when stdout is not a TTY (or --json), Markdown on
 Findings are sorted by (file, line, id, message); there is no timestamp. Pin findings carry
 "ref": the exact token as written, so /pin-deps can build an apply file.
 Exit codes: 0 clean, 1 a crit or warn finding (or a usage error), 2 access, tool or config error
-(unreadable DIR, a needed tool missing, a tool failing, a bad config regex), 3 unsupported (no
-auditor for any detected ecosystem, `sbom lint` on a non-JSON file, `verify --offline` without
---trusted-root). `detect` exits 0 on any readable DIR.
+(unreadable DIR, a needed tool missing, a tool failing or printing unexpected output, a bad
+config regex, a refused or failed `--apply` write), 3 unsupported (no auditor for any detected
+ecosystem, `ci` with no scannable file, `sbom lint` on a non-JSON file, `verify --offline`
+without --trusted-root, or with --github and no --bundle). `detect` exits 0 on any readable DIR.
 When JSON output exceeds --max-bytes, trailing items of the largest list are dropped until it
 fits and the envelope carries "truncated": {"items_dropped": N, "max_bytes": M}.
 
@@ -30,15 +33,18 @@ Commands (run with no args to print this list):
   pins [DIR] [--apply FILE]
                         Unpinned actions, images, dependencies and downloads without a
                         checksum (GHA*, CI006, CI008, CI009, DKR*, PIP*, NPM*, GO*, CGO*,
-                        SH001, SH002, REG001). --apply FILE rewrites exact tokens from a JSON
-                        list [{"file","line","old","new"}] (each old must occur exactly once on
-                        its line, else nothing is written and the exit is 2), then re-scans.
+                        SH001, SH002, REG001, SUP*). --apply FILE rewrites exact tokens from a
+                        JSON list [{"file","line","old","new"}]: each old must be the ref of a
+                        current finding on that line, occur there exactly once as a whole token,
+                        and new must pin it (digest, 40-hex sha); no symlinks; all files or
+                        none are written (exit 2), then it re-scans.
   ci FILE... [--ignore RULE,...]
                         Workflow hardening for GitHub Actions, GitLab CI, Dockerfiles and
                         shell files: CI*, GHA*, SH*. --ignore is a flag, never a comment.
   audit [DIR] [--lockfile F]... [--sbom F] [--offline]
                         Known vulnerabilities: osv-scanner (OSV001), else npm audit,
-                        pip-audit, cargo audit, govulncheck when present (VUL001).
+                        pip-audit (hashed requirements only), cargo-audit, govulncheck when
+                        present (VUL001).
                         "unavailable" is never "clean": AUD001 per ecosystem with no auditor,
                         exit 3 when none could be audited.
   sbom DIR|IMAGE [--format spdx-json|cyclonedx-json] [--out F] [--force]
@@ -75,16 +81,21 @@ Test hooks (never needed in normal use):
   SUPPLY_DRY_RUN=1       append each tool argv to SUPPLY_DRY_RUN_LOG (stderr when unset);
                          the tool still runs
   SUPPLY_MAX_FILES=N     scan cap (20000; SUP001 when reached)
+  SUPPLY_TEST_FAIL_AFTER=N  `pins --apply` fails after replacing N files (exercises the rollback)
 """
 import argparse
 import base64
+import errno
 import json
 import os
 import re
 import shlex
 import shutil
+import signal
+import stat
 import subprocess
 import sys
+import tempfile
 
 # >>> harness_config
 _HARNESS_CFG = None
@@ -245,6 +256,21 @@ class Unsupported(Exception):
     """Nothing this CLI can do for the input -> exit 3."""
 
 
+def _prime_cfg():
+    """Load the compiled config as UTF-8 before the inlined cfg() opens it with the locale's
+    encoding (the inlined block is shared with other CLIs and stays byte-identical)."""
+    global _HARNESS_CFG
+    try:
+        with open(_harness_cfg_path(), encoding="utf-8") as fh:
+            doc = json.load(fh)
+    except (OSError, ValueError):
+        doc = {}
+    _HARNESS_CFG = doc if isinstance(doc, dict) else {}
+
+
+_prime_cfg()
+
+
 def _env_or_cfg(env, key, default):
     v = os.environ.get(env)
     if v not in (None, ""):
@@ -262,7 +288,7 @@ def _int(v, default):
 
 TIMEOUT = _int(_env_or_cfg("SUPPLY_TIMEOUT", "supply_chain.timeout", 120), 120)
 MAX_BYTES = _int(_env_or_cfg("SUPPLY_MAX_BYTES", "supply_chain.max_bytes", 65536), 65536)
-TOOLS = ("cargo", "cosign", "gh", "govulncheck", "npm", "osv-scanner", "pip-audit", "syft")
+TOOLS = ("cargo-audit", "cosign", "gh", "govulncheck", "npm", "osv-scanner", "pip-audit", "syft")
 SKIP_DIRS = {".git", "node_modules", "vendor", ".venv", "venv", "target", "dist", "build",
              "__pycache__", ".tox"}
 MAX_FILE_BYTES = 2 * 1024 * 1024
@@ -369,12 +395,21 @@ def pin_actions():
 
 
 # --------------------------------------------------------------------------------- tools
+def _abs_dirs(path):
+    """PATH without empty or relative entries: those resolve against the working directory,
+    which may be the scanned checkout."""
+    return os.pathsep.join(d for d in (path or "").split(os.pathsep) if d and os.path.isabs(d))
+
+
 def tool_path(name):
-    """The tool's path: from SUPPLY_PATH only when it is set (test hook), else from PATH."""
+    """The tool's absolute path: from SUPPLY_PATH only when it is set (test hook), else from PATH;
+    empty and relative entries are ignored."""
     sp = os.environ.get("SUPPLY_PATH")
-    if sp is not None:
-        return shutil.which(name, path=sp) if sp else None
-    return shutil.which(name)
+    dirs = _abs_dirs(sp if sp is not None else os.environ.get("PATH", os.defpath))
+    if not dirs:
+        return None
+    exe = shutil.which(name, path=dirs)
+    return exe if exe and os.path.isabs(exe) else None
 
 
 def installed_tools():
@@ -384,36 +419,71 @@ def installed_tools():
 def _dry_log(line):
     path = os.environ.get("SUPPLY_DRY_RUN_LOG")
     if path:
-        with open(path, "a") as fh:
+        with open(path, "a", encoding="utf-8") as fh:
             fh.write(line + "\n")
     else:
         sys.stderr.write("dry-run: %s\n" % line)
 
 
+NEUTRAL = object()  # _run(cwd=NEUTRAL): a fresh empty directory, never the checkout
+
+
 def _run(name, args, cwd=None, timeout=None, env_extra=None):
-    """Run tool NAME with ARGS; -> (rc, stdout, stderr). Never merges stderr into stdout."""
+    """Run tool NAME with ARGS; -> (rc, stdout, stderr). Never merges stderr into stdout.
+    The tool runs in its own process group, killed whole when it outlives the timeout."""
     exe = tool_path(name)
     if not exe:
         raise AccessError("%s is not installed" % name)
     t = timeout or TIMEOUT
-    if os.environ.get("SUPPLY_DRY_RUN") == "1":
-        pre = "".join("%s=%s " % (k, shlex.quote(v)) for k, v in sorted((env_extra or {}).items()))
-        if cwd:
-            pre = "cd %s && %s" % (shlex.quote(cwd), pre)
-        _dry_log(pre + " ".join([name] + [shlex.quote(str(a)) for a in args]))
-    env = dict(os.environ)
-    env.update(env_extra or {})
+    neutral = None
+    if cwd is NEUTRAL:
+        neutral = cwd = tempfile.mkdtemp(prefix="supply-")
     try:
-        p = subprocess.run([exe] + [str(a) for a in args], cwd=cwd or None, capture_output=True,
-                           text=True, errors="replace", timeout=t, env=env,
-                           stdin=subprocess.DEVNULL)
-    except subprocess.TimeoutExpired:
-        raise AccessError("%s timed out after %ds (SUPPLY_TIMEOUT / --timeout)" % (name, t))
-    except FileNotFoundError:
-        raise AccessError("executable file not found: %s" % name)
-    except OSError as e:
-        raise AccessError("%s: %s" % (name, e))
-    return p.returncode, p.stdout, p.stderr
+        if os.environ.get("SUPPLY_DRY_RUN") == "1":
+            pre = "".join("%s=%s " % (k, shlex.quote(v)) for k, v in sorted((env_extra or {}).items()))
+            if cwd:
+                pre = "cd %s && %s" % ("<empty-dir>" if neutral else shlex.quote(cwd), pre)
+            _dry_log(pre + " ".join([name] + [shlex.quote(str(a)) for a in args]))
+        env = dict(os.environ)
+        env.update(env_extra or {})
+        try:
+            p = subprocess.Popen([exe] + [str(a) for a in args], cwd=cwd or None, stdout=subprocess.PIPE,
+                                 stderr=subprocess.PIPE, stdin=subprocess.DEVNULL, env=env,
+                                 universal_newlines=True, errors="replace", start_new_session=True)
+        except OSError as e:
+            raise AccessError("%s could not be started (%s); check the installation" % (name, e.strerror or e))
+        try:
+            out, err = p.communicate(timeout=t)
+        except subprocess.TimeoutExpired:
+            try:
+                os.killpg(p.pid, signal.SIGKILL)
+            except OSError:
+                p.kill()
+            p.communicate()
+            raise AccessError("%s timed out after %ds; raise --timeout (or SUPPLY_TIMEOUT / "
+                              "supply_chain.timeout), or narrow the target" % (name, t))
+        return p.returncode, out, err
+    finally:
+        if neutral:
+            shutil.rmtree(neutral, ignore_errors=True)
+
+
+class tool_output(object):
+    """`with tool_output("npm audit", hint):` turns a malformed but parseable tool answer (a list
+    where an object was expected, ...) into an AccessError instead of a traceback."""
+
+    def __init__(self, tool, hint=""):
+        self.tool, self.hint = tool, hint
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, et, ev, tb):
+        if et is not None and issubclass(et, (AttributeError, TypeError, KeyError, IndexError, ValueError)):
+            raise AccessError("%s printed unexpected output (%s: %s); %s" % (
+                self.tool, et.__name__, snippet(ev, 80),
+                self.hint or "check the tool version against the pinned one (harness install)"))
+        return False
 
 
 def first_line(text, n=300):
@@ -486,6 +556,8 @@ RULES = {
                        "host to the allow-list after review"),
     "SUP001": ("warn", "narrow DIR or exclude generated trees with supply_chain.exclude_re; "
                        "files after the cap were not scanned"),
+    "SUP002": ("warn", "make the path readable and rerun, or exclude it with supply_chain.exclude_re; "
+                       "it was not scanned, so the result is not clean"),
     "OSV001": ("warn", "upgrade to the fixed version (see the message); /audit-deps applies "
                        "patch and minor upgrades"),
     "VUL001": ("warn", "upgrade to the fixed version (see the message); /audit-deps applies "
@@ -510,7 +582,8 @@ RULES = {
 }
 PIN_RULES = {"GHA001", "GHA002", "GHA003", "CI000", "CI006", "CI008", "CI009", "DKR001",
              "DKR002", "DKR003", "PIP001", "PIP002", "PIP003", "PIP004", "NPM001", "NPM002",
-             "GO001", "GO002", "GO003", "CGO001", "CGO002", "SH001", "SH002", "REG001", "SUP001"}
+             "GO001", "GO002", "GO003", "CGO001", "CGO002", "SH001", "SH002", "REG001", "SUP001",
+             "SUP002"}
 CI_RULES = {r for r in RULES if r.startswith(("CI", "GHA", "SH"))} | {"REG001"}
 
 
@@ -528,7 +601,7 @@ class Report(object):
     def add(self, rid, file, line, message, severity=None, fix=None, ref=None):
         sev = severity or RULES[rid][0]
         f = {"id": rid, "severity": sev, "file": file or "", "line": int(line or 0),
-             "message": red_text(message), "fix": fix or RULES[rid][1]}
+             "message": red_text(message), "fix": red_text(fix) if fix else RULES[rid][1]}
         if ref:
             r = red_text(ref)
             if r == ref:  # a ref the redactor changed carries a credential: never echo it
@@ -670,6 +743,9 @@ class Tree(object):
         self.cap = _int(os.environ.get("SUPPLY_MAX_FILES"), 20000)
         self.roles = {}       # rel -> [(ecosystem, role)]
         self.gitlab = []      # .gitlab-ci.yml and its local includes
+        self.unreadable = []  # [(rel, reason)]: directories os.walk could not list
+        self.outside = []     # symlinks whose target leaves DIR (never read)
+        self.realroot = os.path.realpath(root)
         self._walk()
         self._classify()
 
@@ -681,7 +757,13 @@ class Tree(object):
         except OSError as e:
             raise AccessError("%s: not readable (%s)" % (self.root, e.strerror or e))
         excl = exclude_re()
-        for dp, dns, fns in os.walk(self.root):
+
+        def onerror(e):
+            p = getattr(e, "filename", None) or ""
+            rel = os.path.relpath(p, self.root).replace(os.sep, "/") if p else "?"
+            self.unreadable.append((rel + "/", e.strerror or str(e)))
+
+        for dp, dns, fns in os.walk(self.root, onerror=onerror):
             reld = os.path.relpath(dp, self.root).replace(os.sep, "/")
             reld = "" if reld == "." else reld + "/"
             dns[:] = sorted(d for d in dns if d not in SKIP_DIRS
@@ -692,10 +774,13 @@ class Tree(object):
                     continue
                 full = os.path.join(dp, fn)
                 try:
+                    if os.path.islink(full) and not self.inside(os.path.realpath(full)):
+                        self.outside.append(rel)
+                        continue
                     if not os.path.isfile(full):
                         continue
                     size = os.path.getsize(full)
-                except OSError:
+                except (OSError, ValueError):
                     continue
                 if size > MAX_FILE_BYTES:
                     self.large.append(rel)
@@ -704,6 +789,12 @@ class Tree(object):
                     self.truncated = True
                     return
                 self.files.append(rel)
+
+    def inside(self, real):
+        try:
+            return os.path.commonpath([real, self.realroot]) == self.realroot
+        except ValueError:
+            return False
 
     def path(self, rel):
         return os.path.join(self.root, *rel.split("/"))
@@ -767,7 +858,10 @@ def classify(rel):
     base = rel.rsplit("/", 1)[-1]
     low = base.lower()
     out = []
-    if re.match(r"^requirements.*\.txt$", low) or (rel.startswith("requirements/") or "/requirements/" in rel) and low.endswith(".txt"):
+    if re.search(r"(^|/)\.github/workflows/[^/]+\.ya?ml$", rel):
+        # first: a workflow may be named compose.yml, dockerfile.yml or requirements.yml
+        out.append(("github-actions", "workflow"))
+    elif re.match(r"^requirements.*\.txt$", low) or (rel.startswith("requirements/") or "/requirements/" in rel) and low.endswith(".txt"):
         out.append(("pip", "manifest"))
     elif low in ("pyproject.toml", "setup.py", "setup.cfg", "pipfile"):
         out.append(("pip", "manifest"))
@@ -775,7 +869,8 @@ def classify(rel):
         out.append(("pip", "lockfile"))
     elif low == "package.json":
         out.append(("npm", "manifest"))
-    elif low in ("package-lock.json", "npm-shrinkwrap.json", "pnpm-lock.yaml", "yarn.lock", "bun.lockb"):
+    elif low in ("package-lock.json", "npm-shrinkwrap.json", "pnpm-lock.yaml", "yarn.lock", "bun.lock",
+                 "bun.lockb"):
         out.append(("npm", "lockfile"))
     elif low == ".npmrc":
         out.append(("npm", "config"))
@@ -791,8 +886,6 @@ def classify(rel):
         out.append(("docker", "dockerfile"))
     elif re.match(r"^(docker-)?compose([.-][\w.-]+)?\.ya?ml$", low):
         out.append(("docker", "compose"))
-    elif re.search(r"(^|/)\.github/workflows/[^/]+\.ya?ml$", rel):
-        out.append(("github-actions", "workflow"))
     elif low in ("action.yml", "action.yaml"):
         out.append(("github-actions", "action"))
     elif rel == ".gitlab-ci.yml":
@@ -984,16 +1077,10 @@ _SEC_WORDS = (r"(?i)(?:^|[\s:/_.-])(audit|osv[\w-]*|vuln\w*|scan\w*|snyk|trivy|g
               r"sast|dast|secret[-_ ]detection|container[-_ ]scanning|pip-audit|govulncheck|bandit|"
               r"sbom|cosign|attest\w*)(?:$|[\s:/_.@-])")
 SEC_RE = re.compile(_SEC_WORDS)
-_INTERP = r"(?:sh|bash|zsh|ksh|dash|fish|python[0-9.]*|perl|node|ruby|php)"
-SH001_RES = [
-    re.compile(r"\b(?:curl|wget|fetch)\b[^|;&]*\|\s*(?:sudo\s+(?:-\S+\s+)*)?(?:env\s+(?:\S+=\S*\s+)*)?"
-               r"(?:/\S*/)?" + _INTERP + r"(?![\w.-])"),
-    re.compile(r"(?:^|[\s;&|(])(?:sh|bash|zsh|ksh|dash|source|\.)\s+<\(\s*(?:curl|wget|fetch)\b"),
-    re.compile(r"\b(?:sh|bash|zsh|ksh|dash)\s+-c\s+[\"']?\$\(\s*(?:curl|wget|fetch)\b"),
-    re.compile(r"\beval\s+[\"']?\$\(\s*(?:curl|wget|fetch)\b"),
-]
+_INTERP_RE = re.compile(r"^(?:sh|bash|zsh|ksh|dash|fish|python[0-9.]*|perl|node|ruby|php)$")
+_SHELLS = {"sh", "bash", "zsh", "ksh", "dash", "fish"}
+_FETCH = {"curl", "wget", "fetch"}
 _CURL_FILE = re.compile(r"\bcurl\b(?=[^|;]*(?:\s-[A-Za-z]*[oO](?:\s|\S)|\s--output\b|\s--remote-name|\s>\s*[^\s&]))")
-_WGET = re.compile(r"\bwget\b")
 _WGET_STDOUT = re.compile(r"\s-[A-Za-z]*O\s*-(?:\s|$)|--output-document[= ]-(?:\s|$)|-O\s*/dev/stdout")
 _DEVNULL = re.compile(r"(?:-o|--output)\s*/dev/null|>\s*/dev/null")
 SH002_OK = re.compile(r"sha256sum|sha512sum|shasum\s+-a\s*(?:256|512)|hn_sha256|sha256:|--checksum|"
@@ -1003,8 +1090,10 @@ GO002_RE = re.compile(r"\bgo\s+(?:install|run|get)\s+(?:-\S+\s+)*(?P<ref>\S+@(?:
 CGO002_RE = re.compile(r"\bcargo\s+install\s+(?P<rest>.*)$")
 
 
-def logical_lines(pairs):
-    """Join backslash continuations: [(first line number, joined text)]; comments dropped."""
+def logical_lines(pairs, docker=False):
+    """Join backslash continuations: [(first line number, joined text)]. Comment lines are
+    dropped; inside a continuation a Dockerfile skips them (BuildKit strips them first) while a
+    shell ends the command there (the comment itself is never part of the text)."""
     out, buf, start = [], [], None
     for ln, text in pairs:
         t = text.rstrip()
@@ -1012,6 +1101,12 @@ def logical_lines(pairs):
             if not t.strip() or t.strip().startswith("#"):
                 continue
             start = ln
+        elif t.strip().startswith("#") or (docker and not t.strip()):
+            if docker:
+                continue
+            out.append((start, " ".join(x.strip() for x in buf)))
+            buf, start = [], None
+            continue
         if t.endswith("\\"):
             buf.append(t[:-1])
             continue
@@ -1023,20 +1118,280 @@ def logical_lines(pairs):
     return out
 
 
-def scan_shell(rep, rel, pairs):
+# ------------------------------------------------------------------ shell lexer (one line)
+_SH_OPS = ("&&", "||", ";;", "|&", "<(", ">(", "|", ";", "&", "(", ")")
+_SH_REDIR = re.compile(r"&>>?|[<>]{1,3}[&|]?(?:\d+-?|-)?")
+
+
+def _sub_end(text, j):
+    """Index just past the `)` that closes a `$(` whose body starts at J."""
+    depth, n = 1, len(text)
+    while j < n:
+        c = text[j]
+        if c == "\\":
+            j += 2
+            continue
+        if c == "'":
+            k = text.find("'", j + 1)
+            j = n if k < 0 else k + 1
+            continue
+        if c == '"':
+            k = j + 1
+            while k < n and text[k] != '"':
+                k += 2 if text[k] == "\\" else 1
+            j = k + 1
+            continue
+        if c == "(":
+            depth += 1
+        elif c == ")":
+            depth -= 1
+            if depth == 0:
+                return j + 1
+        j += 1
+    return n
+
+
+def sh_tokens(text):
+    """Quote-aware split of one logical shell line: [(kind, value)] with kind 'w' (a word, quotes
+    removed, `$(...)` kept whole), 'r' (a redirection) or 'op'. An unquoted `#` starting a word
+    ends the line."""
+    toks, cur, have, i, n = [], [], False, 0, len(text)
+
+    def flush():
+        if have:
+            toks.append(("w", "".join(cur)))
+        return [], False
+
+    while i < n:
+        c = text[i]
+        if c in " \t\r\n":
+            cur, have = flush()
+            i += 1
+        elif c == "#" and not have:
+            break
+        elif c == "\\":
+            cur.append(text[i + 1:i + 2])
+            have, i = True, i + 2
+        elif c == "'":
+            j = text.find("'", i + 1)
+            j = n if j < 0 else j
+            cur.append(text[i + 1:j])
+            have, i = True, j + 1
+        elif c == '"':
+            j = i + 1
+            while j < n and text[j] != '"':
+                if text[j] == "\\":
+                    j += 2
+                elif text.startswith("$(", j):
+                    j = _sub_end(text, j + 2)
+                else:
+                    j += 1
+            cur.append(text[i + 1:j])
+            have, i = True, j + 1
+        elif text.startswith("$(", i):
+            j = _sub_end(text, i + 2)
+            cur.append(text[i:j])
+            have, i = True, j
+        elif c == "`":
+            j = text.find("`", i + 1)
+            j = n if j < 0 else j
+            cur.append(text[i:j + 1])
+            have, i = True, j + 1
+        elif text.startswith(("<(", ">("), i):
+            cur, have = flush()
+            toks.append(("op", text[i:i + 2]))
+            i += 2
+        elif c in "<>" or text.startswith("&>", i):
+            fd = "".join(cur) if have and "".join(cur).isdigit() else ""
+            if fd:
+                cur, have = [], False
+            else:
+                cur, have = flush()
+            m = _SH_REDIR.match(text, i)
+            toks.append(("r", fd + m.group(0)))
+            i = m.end()
+        else:
+            op = next((o for o in _SH_OPS if text.startswith(o, i)), None)
+            if op:
+                cur, have = flush()
+                toks.append(("op", op))
+                i += len(op)
+            else:
+                cur.append(c)
+                have, i = True, i + 1
+    flush()
+    return toks
+
+
+class ShCmd(object):
+    """One simple command of a logical line: its words (redirections and their targets
+    excluded), its text with redirections, and the operators around it."""
+    __slots__ = ("words", "text", "before", "after")
+
+    def __init__(self, words, text, before, after):
+        self.words, self.text, self.before, self.after = words, text, before, after
+
+
+def sh_commands(text):
+    toks = sh_tokens(text)
+    ops = [v for k, v in toks if k == "op" and v in ("(", ")", "<(", ">(")]
+    if ops and ops[0] == ")":  # a case pattern (`curl|wget) ...`): drop it
+        k = next(i for i, t in enumerate(toks) if t == ("op", ")"))
+        toks = toks[k + 1:]
+    cmds, words, parts, before, redir = [], [], [], None, False
+    for kind, v in toks:
+        if kind == "op":
+            if words or parts:
+                cmds.append(ShCmd(words, " ".join(parts), before, v))
+            words, parts, before, redir = [], [], v, False
+            continue
+        parts.append(v)
+        if kind == "r":
+            redir = not re.search(r"&(?:\d+-?|-)$", v)  # `2>&1` carries its target
+            continue
+        if redir:
+            redir = False
+            continue
+        words.append(v)
+    if words or parts:
+        cmds.append(ShCmd(words, " ".join(parts), before, None))
+    return cmds
+
+
+_WRAPPERS = {"command", "exec", "time", "nohup", "builtin", "then", "do", "else", "if", "elif", "while",
+             "until", "!", "{", "xargs"}
+
+
+def sh_head(words):
+    """-> (index, basename) of the command word after assignments, sudo, env and keywords."""
+    i = 0
+    while i < len(words):
+        w = words[i]
+        b = w.rsplit("/", 1)[-1]
+        if re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", w):
+            i += 1
+        elif b in ("sudo", "doas", "env"):
+            i += 1
+            while i < len(words) and (words[i].startswith("-") or (b == "env" and "=" in words[i])):
+                if words[i] in ("-u", "-g", "-C", "-h", "-p", "-r", "-t", "-U", "-D", "-S"):
+                    i += 1
+                i += 1
+        elif b in _WRAPPERS:
+            i += 1
+            while i < len(words) and words[i].startswith("-"):
+                i += 1
+        else:
+            return i, b
+    return None, ""
+
+
+def reads_stdin(interp, args):
+    """True when INTERP with ARGS takes its program from stdin (`sh`, `sh -s`, `bash -`,
+    `python3 -`), False when the program comes from -c/-e/-m or a script file."""
+    shell = interp in _SHELLS
+    bad = set("cn") if shell else set("cmeEnpr")
+    i = 0
+    while i < len(args):
+        w = args[i]
+        if w == "-":
+            return True
+        if w == "--":
+            return i + 1 == len(args)
+        if w.startswith("--"):
+            if re.match(r"^--(?:command|eval|print|module|exec|check|syntax-check|version|help)\b", w):
+                return False
+            i += 1
+            continue
+        if w.startswith("-") or (shell and w.startswith("+")):
+            letters = set(w[1:])
+            if letters & bad:
+                return False
+            if shell and "s" in letters:
+                return True
+            i += 2 if (shell and letters & set("oO")) or (not shell and letters & set("WXQ")) else 1
+            continue
+        return False  # a script file (or a module path): stdin is its data
+    return True
+
+
+def _substitutions(word):
+    """The bodies of the `$(...)` substitutions inside WORD."""
+    out, i = [], 0
+    while True:
+        i = word.find("$(", i)
+        if i < 0:
+            return out
+        j = _sub_end(word, i + 2)
+        out.append(word[i + 2:j - 1] if word[j - 1:j] == ")" else word[i + 2:j])
+        i = j
+
+
+def _fetch_sub(word):
+    """True when WORD is (or starts with) `$(curl|wget|fetch ...)`."""
+    w = word.lstrip()
+    if not w.startswith("$("):
+        return False
+    subs = _substitutions(w)
+    if not subs:
+        return False
+    cmds = sh_commands(subs[0])
+    return bool(cmds) and sh_head(cmds[0].words)[1] in _FETCH
+
+
+def sh001(text, depth=0):
+    """True when the logical line runs downloaded code unreviewed (quote-aware: a pipe inside a
+    quoted string, an `echo` of install instructions, `| python -c`, `| python -m json.tool` or a
+    pipe into a script file are not findings)."""
+    cmds = sh_commands(text)
+    for k, c in enumerate(cmds):
+        if depth < 3:  # `x=$(curl … | sh)`, `echo "$(curl … | sh)"`
+            for w in c.words:
+                for body in _substitutions(w):
+                    if sh001(body, depth + 1):
+                        return True
+        hi, head = sh_head(c.words)
+        if hi is None:
+            continue
+        args = c.words[hi + 1:]
+        if head in _FETCH and c.after in ("|", "|&") and k + 1 < len(cmds):
+            nxt = cmds[k + 1]
+            ni, nhead = sh_head(nxt.words)
+            if ni is not None and _INTERP_RE.match(nhead) and reads_stdin(nhead, nxt.words[ni + 1:]):
+                return True
+        if (head in _SHELLS or head in ("source", ".")) and c.after == "<(" and k + 1 < len(cmds) \
+                and sh_head(cmds[k + 1].words)[1] in _FETCH:
+            return True
+        if head in _SHELLS and "-c" in args:
+            j = args.index("-c")
+            if j + 1 < len(args) and _fetch_sub(args[j + 1]):
+                return True
+        if head == "eval" and any(_fetch_sub(a) for a in args):
+            return True
+    return False
+
+
+def scan_shell(rep, rel, pairs, docker=False):
     """SH001, SH002, GO002, CGO002 over (line, text) pairs of one script or script block."""
-    logical = logical_lines(pairs)
+    logical = logical_lines(pairs, docker=docker)
     for idx, (ln, text) in enumerate(logical):
-        if any(r.search(text) for r in SH001_RES):
+        text = mask_gha_expr(text)
+        if sh001(text):
             rep.add("SH001", rel, ln, "downloaded code runs unreviewed: `%s`" % snippet(text))
             continue
-        curl_file = _CURL_FILE.search(text) and not _DEVNULL.search(text)
-        wget_file = _WGET.search(text) and not _WGET_STDOUT.search(text) and not re.search(r"\bwget\b[^|]*\|", text)
-        if curl_file or wget_file:
-            window = " ".join(t for _l, t in logical[idx:idx + 9])
-            if not SH002_OK.search(window):
-                rep.add("SH002", rel, ln, "download written to a file with no checksum or signature "
-                        "check within the next 8 lines: `%s`" % snippet(text))
+        for c in sh_commands(text):
+            hi, head = sh_head(c.words)
+            if head == "curl":
+                hit = _CURL_FILE.search(c.text) and not _DEVNULL.search(c.text)
+            elif head == "wget":
+                hit = not _WGET_STDOUT.search(c.text) and c.after not in ("|", "|&")
+            else:
+                continue
+            if hit:
+                window = " ".join(t for _l, t in logical[idx:idx + 9])
+                if not SH002_OK.search(window):
+                    rep.add("SH002", rel, ln, "download written to a file with no checksum or signature "
+                            "check within the next 8 lines: `%s`" % snippet(text))
+                break
         m = GO002_RE.search(text)
         if m:
             rep.add("GO002", rel, ln, "`go %s` installs whatever the ref points at today"
@@ -1048,6 +1403,17 @@ def scan_shell(rep, rel, pairs):
             if not ("--locked" in rest and versioned):
                 rep.add("CGO002", rel, ln, "`cargo install %s` without both --version and --locked "
                         "resolves fresh dependency versions" % snippet(rest, 60))
+
+
+_GHA_EXPR = re.compile(r"\$\{\{(.*?)\}\}")
+
+
+def mask_gha_expr(text):
+    """`${{ a || b }}` -> `${{a__b}}`: an expression is one word to the shell lexer (GitHub
+    substitutes it before the shell runs), so its spaces and operators must not split commands."""
+    if "${{" not in text:
+        return text
+    return _GHA_EXPR.sub(lambda m: "${{" + re.sub(r"[\s|&;()<>'\"`]+", "_", m.group(1)).strip("_") + "}}", text)
 
 
 # ------------------------------------------------------------------------------- images
@@ -1095,7 +1461,7 @@ def check_image(rep, rid, rel, ln, ref, where):
 
 
 # ------------------------------------------------------------------------ GitHub Actions
-UNTRUSTED = (r"(?:github\.head_ref|(?:github\.event\.)?inputs\.[A-Za-z0-9_-]+|github\.event\.(?:"
+UNTRUSTED = (r"(?:github\.head_ref|github\.event\.(?:"
              r"(?:issue|pull_request|discussion)\.(?:title|body)"
              r"|(?:comment|review|review_comment|discussion_comment)\.body"
              r"|pull_request\.head\.(?:ref|label|repo\.default_branch)"
@@ -1104,10 +1470,11 @@ UNTRUSTED = (r"(?:github\.head_ref|(?:github\.event\.)?inputs\.[A-Za-z0-9_-]+|gi
              r"|workflow_run\.head_branch"
              r"|pages(?:\[\d+\]|\.\*)\.page_name))")
 CI004_RE = re.compile(r"\$\{\{[^}]*?(?<![\w.])(" + UNTRUSTED + r")(?![\w-])[^}]*\}\}")
+INPUT_RE = re.compile(r"\$\{\{[^}]*?(?<![\w.])((?:github\.event\.)?inputs\.([A-Za-z0-9_-]+))(?![\w-])[^}]*\}\}")
 HEADREF_RE = re.compile(r"github\.event\.pull_request\.head\.(?:sha|ref)|github\.head_ref|refs/pull/|"
                         r"github\.event\.pull_request\.merge_commit_sha|github\.event\.pull_request\.number")
-PR_CHECKOUT_RE = re.compile(r"\bgh\s+pr\s+checkout\b.*\$\{\{|\bgit\s+(?:fetch|checkout|pull)\b.*"
-                            r"(?:pull/|github\.event\.pull_request\.head|github\.head_ref)")
+PR_HEAD_ARG_RE = re.compile(r"pull/|github\.event\.pull_request\.head|github\.head_ref|"
+                            r"github\.event\.pull_request\.merge_commit_sha")
 GH_SECRET_ECHO = re.compile(r"\b(?:echo|printf|print|cat|tee)\b.*\$\{\{\s*(?:secrets\.|toJSON\(\s*secrets)"
                             r"|\$\{\{\s*toJSON\(\s*secrets\s*\)")
 ENV_DUMP = re.compile(r"^(?:sudo\s+)?(?:env|printenv|export\s+-p|set)\s*(?:\||>|$)")
@@ -1124,6 +1491,31 @@ def gha_triggers(doc):
         fl = flow_list(on.val)
         return fl if fl is not None else [on.val]
     return [c.key for c in on.keys()] + [c.val for c in on.items() if c.val]
+
+
+def string_inputs(doc, action=False):
+    """Names of the free-text inputs: `type: string` under on.workflow_call / on.workflow_dispatch
+    (a dispatch input without a type is a string), or every input of an action."""
+    out = set()
+    if action:
+        ins = doc.get("inputs")
+        return {i.key for i in ins.keys()} if ins is not None else out
+    on = doc.get("on") or doc.get("true") or doc.get('"on"')
+    if on is None or on.val:
+        return out
+    for trig in ("workflow_dispatch", "workflow_call"):
+        t = on.get(trig)
+        ins = t.get("inputs") if t is not None else None
+        for i in (ins.keys() if ins is not None else []):
+            typ = (i.sval("type") or "").strip()
+            if typ == "string" or (not typ and trig == "workflow_dispatch"):
+                out.add(i.key)
+    return out
+
+
+def branchy(ref):
+    """A ref that names a branch for certain: a well-known branch name, or one with a `/`."""
+    return ref.lower() in BRANCH_NAMES or "/" in ref
 
 
 def ref_kind(ref):
@@ -1154,10 +1546,11 @@ def check_uses(rep, rel, node):
     k = ref_kind(ref)
     if k == "sha":
         return
-    if k == "branch":
+    if branchy(ref):
         rep.add("GHA002", rel, ln, "action `%s` follows the branch `%s`" % (name, ref), ref=v)
     elif pin_actions():
-        what = "a short commit" if k == "short" else "the tag `%s`, which can be moved" % ref
+        what = {"short": "a short commit", "tag": "the tag `%s`, which can be moved" % ref}.get(
+            k, "`%s`, a tag or branch that can be moved" % ref)
         rep.add("GHA001", rel, ln, "action `%s` is pinned to %s" % (name, what), ref=v)
 
 
@@ -1176,7 +1569,16 @@ def check_gha_perms(rep, rel, node, top):
                     % ", ".join(writes), severity="warn")
 
 
-def check_run_lines(rep, rel, pairs, gitlab=False):
+def check_inputs(rep, rel, ln, t, strs, where):
+    """CI004 warn: a free-text input expanded into script text (choice, boolean, number: none)."""
+    for m in INPUT_RE.finditer(t):
+        if m.group(2) in strs:
+            rep.add("CI004", rel, ln, "free-text input `%s` is expanded into the %s" % (m.group(1), where),
+                    severity="warn")
+            return
+
+
+def check_run_lines(rep, rel, pairs, gitlab=False, strs=()):
     for ln, text in pairs:
         t = text.strip()
         if not t or t.startswith("#"):
@@ -1186,6 +1588,8 @@ def check_run_lines(rep, rel, pairs, gitlab=False):
             if m:
                 rep.add("CI004", rel, ln, "untrusted `%s` is expanded into the script text"
                         % m.group(1), severity="crit")
+            else:
+                check_inputs(rep, rel, ln, t, strs, "script text")
             if "::add-mask::" not in t and GH_SECRET_ECHO.search(t):
                 rep.add("CI005", rel, ln, "a secret is printed to the job log: `%s`" % snippet(t))
         else:
@@ -1208,8 +1612,9 @@ def scan_github(rep, rel, text, action=False):
     if action:
         runs = doc.get("runs")
         steps = runs.get("steps") if runs is not None else None
+        strs = string_inputs(doc, action=True)
         for st in (steps.items() if steps is not None else []):
-            scan_gha_step(rep, rel, st, False)
+            scan_gha_step(rep, rel, st, False, strs)
         return
     jobs = doc.get("jobs")
     triggers = gha_triggers(doc)
@@ -1224,6 +1629,7 @@ def scan_github(rep, rel, text, action=False):
                     "default for job(s) %s" % ", ".join(loose))
     check_gha_perms(rep, rel, perms, True)
     prt = "pull_request_target" in triggers
+    strs = string_inputs(doc)
     for job in jobs.keys():
         check_gha_perms(rep, rel, job.get("permissions"), False)
         cont = job.get("container")
@@ -1242,10 +1648,27 @@ def scan_github(rep, rel, text, action=False):
                     "security job `%s` cannot fail the workflow (continue-on-error: true)" % job.key)
         steps = job.get("steps")
         for st in (steps.items() if steps is not None else []):
-            scan_gha_step(rep, rel, st, prt)
+            scan_gha_step(rep, rel, st, prt, strs)
 
 
-def scan_gha_step(rep, rel, st, prt):
+def pr_checkout(text):
+    """True when a command of the line checks out the pull request head: `gh pr checkout X`, or
+    `git fetch|checkout|pull|switch` with the head ref among that command's own arguments."""
+    for c in sh_commands(mask_gha_expr(text)):
+        hi, head = sh_head(c.words)
+        if hi is None:
+            continue
+        args = c.words[hi + 1:]
+        if head == "gh" and args[:2] == ["pr", "checkout"] and any(not a.startswith("-") for a in args[2:]):
+            return True
+        if head == "git":
+            sub = next((a for a in args if not a.startswith("-")), "")
+            if sub in ("fetch", "checkout", "pull", "switch") and any(PR_HEAD_ARG_RE.search(a) for a in args):
+                return True
+    return False
+
+
+def scan_gha_step(rep, rel, st, prt, strs=()):
     uses = st.get("uses")
     run = st.get("run")
     if uses is not None:
@@ -1253,7 +1676,7 @@ def scan_gha_step(rep, rel, st, prt):
     pairs = yaml_lines(run)
     with_ = st.get("with")
     if run is not None:
-        check_run_lines(rep, rel, pairs)
+        check_run_lines(rep, rel, pairs, strs=strs)
         scan_shell(rep, rel, pairs)
     if with_ is not None and uses is not None and (uses.val or "").startswith("actions/github-script@"):
         script = with_.get("script")
@@ -1262,14 +1685,16 @@ def scan_gha_step(rep, rel, st, prt):
             if m:
                 rep.add("CI004", rel, ln, "untrusted `%s` is expanded into the github-script code"
                         % m.group(1), severity="crit")
+            else:
+                check_inputs(rep, rel, ln, t, strs, "github-script code")
     if prt:
         if uses is not None and (uses.val or "").startswith("actions/checkout@") and with_ is not None:
             ref = with_.get("ref")
             if ref is not None and HEADREF_RE.search(ref.val or ""):
                 rep.add("CI003", rel, ref.line, "pull_request_target checks out the pull request head "
                         "(`ref: %s`) with the base repository's token and secrets" % snippet(ref.val, 80))
-        for ln, t in pairs:
-            if PR_CHECKOUT_RE.search(t):
+        for ln, t in logical_lines(pairs):
+            if pr_checkout(t):
                 rep.add("CI003", rel, ln, "pull_request_target checks out the pull request head: `%s`"
                         % snippet(t))
     coe = (st.sval("continue-on-error") or "").strip()
@@ -1350,17 +1775,21 @@ def scan_gitlab(rep, rel, text):
             check_registry(rep, rel, ln, re.sub(r"^https?://([^/:]+).*$", r"\1", val), "remote include")
         elif kind == "project":
             ref = node.get("ref") if node is not None else None
-            if ref is None or not (ref.val or "").strip():
+            r = (ref.val or "").strip() if ref is not None else ""
+            if not r:
                 rep.add("CI008", rel, ln, "include of project `%s` has no ref: it follows the default "
                         "branch" % val, severity="crit")
-            elif not HEX40.match(ref.val.strip()):
-                rep.add("CI008", rel, ref.line, "include of project `%s` follows `%s`, not a commit sha"
-                        % (val, ref.val.strip()), severity="warn", ref=ref.val.strip())
+            elif branchy(r):
+                rep.add("CI008", rel, ref.line, "include of project `%s` follows the branch `%s`"
+                        % (val, r), severity="crit", ref=r)
+            elif not HEX40.match(r):
+                rep.add("CI008", rel, ref.line, "include of project `%s` follows `%s`, a tag or branch, "
+                        "not a commit sha" % (val, r), severity="warn", ref=r)
         elif kind == "component":
             ver = val.rsplit("@", 1)[1] if "@" in val else ""
             if not ver or ver.startswith("~") or not (COMPONENT_VER.match(ver) or HEX40.match(ver)):
                 rep.add("CI008", rel, ln, "component `%s` is not pinned to a released version or a "
-                        "commit sha" % val, severity="warn", ref=val)
+                        "commit sha" % val, severity="crit" if ver and branchy(ver) else "warn", ref=val)
     blocks = [("", doc)] + [("default", doc.get("default"))] + \
              [(j.key, j) for j in doc.keys() if j.key not in GL_RESERVED and not j.val]
     for name, node in blocks:
@@ -1401,7 +1830,7 @@ ADD_RE = re.compile(r"^\s*ADD\s+(?P<rest>.*)$", re.I)
 def scan_dockerfile(rep, rel, text):
     stages = set()
     pairs = [(i + 1, t.rstrip("\r")) for i, t in enumerate(text.split("\n"))]
-    for ln, line in logical_lines(pairs):
+    for ln, line in logical_lines(pairs, docker=True):
         m = FROM_RE.match(line)
         if m:
             img = m.group("img")
@@ -1434,8 +1863,13 @@ def scan_compose(rep, rel, text):
     svcs = doc.get("services")
     for s in (svcs.keys() if svcs is not None else []):
         img = s.get("image")
-        if img is not None and img.val:
-            check_image(rep, "DKR003", rel, img.line, img.val, "service `%s` image" % s.key)
+        if img is None or not img.val:
+            continue
+        # with `build:` the image is the name compose tags the local build with, pulled only
+        # when pull_policy says so
+        if s.get("build") is not None and (s.sval("pull_policy") or "").strip() not in ("always", "missing"):
+            continue
+        check_image(rep, "DKR003", rel, img.line, img.val, "service `%s` image" % s.key)
 
 
 # ---------------------------------------------------------------------------- python
@@ -1445,13 +1879,27 @@ ARCHIVE_RE = re.compile(r"https?://\S+\.(?:whl|tar\.gz|tgz|zip)\b\S*")
 PINNED_RE = re.compile(r"^\s*===?\s*[^\s,*;]+\s*$")
 
 
+def vcs_split(token):
+    """-> (url without the ref, ref, #fragment or None) of a pip VCS URL; the ref follows the
+    last `@` of the path (after the host, so `ssh://git@host/` is not a ref)."""
+    t, frag = (token.split("#", 1) + [None])[:2]
+    m = re.match(r"^([a-z]+\+[a-z]+://[^/]*)(.*)$", t)
+    head, path = (m.group(1), m.group(2)) if m else ("", t)
+    if "@" not in path:
+        return t, "", frag
+    base, ref = path.rsplit("@", 1)
+    return head + base, ref, frag
+
+
 def vcs_ref(token):
     """-> (kind, ref) of a pip VCS URL: kind sha|short|tag|branch|none."""
-    t = token.split("#", 1)[0]
-    last = t.rstrip("/").rsplit("/", 1)[-1]
-    if "@" not in last:
+    _base, ref, _frag = vcs_split(token)
+    if not ref:
         return "none", ""
-    ref = last.rsplit("@", 1)[1]
+    if ref.startswith("refs/tags/"):
+        return "tag", ref
+    if ref.startswith("refs/heads/"):
+        return "branch", ref
     return ref_kind(ref), ref
 
 
@@ -1588,6 +2036,9 @@ def npm_line(lines, name, spec):
     return 0
 
 
+NPM_LOCKS = ("package-lock.json", "npm-shrinkwrap.json", "pnpm-lock.yaml", "yarn.lock", "bun.lock", "bun.lockb")
+
+
 def scan_package_json(rep, rel, text, locked):
     try:
         doc = json.loads(text)
@@ -1609,8 +2060,13 @@ def scan_package_json(rep, rel, text, locked):
             ln = npm_line(lines, name, spec)
             if s.startswith(("file:", "link:", "workspace:", "portal:", "patch:")):
                 continue
-            if s.startswith("npm:"):
-                s = s.rsplit("@", 1)[1] if s.count("@") >= 1 and not s.endswith("@") else ""
+            if s.startswith("npm:"):  # an alias (`npm:@scope/pkg@^1`) comes from the registry
+                body = s[4:]
+                at = body.find("@", 1)
+                ver = body[at + 1:] if at > 0 else ""
+                if not NPM_EXACT.match(ver):
+                    ranges.append((ln, "%s %s" % (name, spec)))
+                continue
             if s.startswith(("git+", "git://", "github:", "gitlab:", "bitbucket:", "gist:")) or \
                     re.match(r"^[\w.-]+/[\w.-]+(?:#.*)?$", s):
                 ref = s.split("#", 1)[1] if "#" in s else ""
@@ -1620,8 +2076,9 @@ def scan_package_json(rep, rel, text, locked):
                     kind = ref_kind(ref) if ref else "none"
                 if kind == "sha":
                     continue
-                sev = "crit" if kind in ("none", "branch") else "warn"
-                rep.add("NPM002", rel, ln, "`%s` comes from git (`%s`) without a commit sha" % (name, spec),
+                sev = "crit" if kind in ("none", "branch") and not locked else "warn"
+                rep.add("NPM002", rel, ln, "`%s` comes from git (`%s`) without a commit sha%s"
+                        % (name, spec, "; the lockfile pins the commit it resolved" if locked else ""),
                         severity=sev, ref=spec)
                 continue
             if s.startswith(("http://", "https://")):
@@ -1678,7 +2135,7 @@ CARGO_DEP_SEC = re.compile(r"^(?:workspace\.)?(?:target\..+\.)?(?:dev-|build-)?d
 CARGO_DEP_TABLE = re.compile(r"^(?:workspace\.)?(?:target\..+\.)?(?:dev-|build-)?dependencies\.([\w-]+)$")
 
 
-def scan_cargo(rep, rel, text):
+def scan_cargo(rep, rel, text, locked=False):
     tables = {}
     for ln, sec, raw in toml_sections(text):
         s = strip_comment(raw).strip()
@@ -1686,7 +2143,8 @@ def scan_cargo(rep, rel, text):
             m = re.match(r"^([\w-]+)\s*=\s*\{(.*)\}\s*$", s)
             if m:
                 cargo_git(rep, rel, m.group(1), {k: (ln, v) for k, v in
-                                                 re.findall(r'\b(git|rev|tag|branch)\s*=\s*"([^"]*)"', m.group(2))})
+                                                 re.findall(r'\b(git|rev|tag|branch)\s*=\s*"([^"]*)"', m.group(2))},
+                          locked)
             continue
         m = CARGO_DEP_TABLE.match(sec)
         if m:
@@ -1694,10 +2152,10 @@ def scan_cargo(rep, rel, text):
             if km:
                 tables.setdefault((sec, m.group(1)), {})[km.group(1)] = (ln, km.group(2))
     for (_sec, name), keys in sorted(tables.items()):
-        cargo_git(rep, rel, name, keys)
+        cargo_git(rep, rel, name, keys, locked)
 
 
-def cargo_git(rep, rel, name, keys):
+def cargo_git(rep, rel, name, keys, locked=False):
     if "git" not in keys or "rev" in keys:
         return
     ln, url = keys["git"]
@@ -1706,7 +2164,9 @@ def cargo_git(rep, rel, name, keys):
                 % (name, keys["tag"][1]), severity="warn", ref=url)
     else:
         what = "the branch `%s`" % keys["branch"][1] if "branch" in keys else "the default branch"
-        rep.add("CGO001", rel, ln, "git dependency `%s` follows %s" % (name, what), severity="crit", ref=url)
+        rep.add("CGO001", rel, ln, "git dependency `%s` follows %s%s"
+                % (name, what, "; Cargo.lock pins the commit it resolved" if locked else ""),
+                severity="warn" if locked else "crit", ref=url)
 
 
 # ------------------------------------------------------------------------------- detect
@@ -1718,6 +2178,8 @@ def start_dir(a, command):
     rep = Report(command, d, tree.ecosystems(), tools)
     if tree.truncated:
         rep.add("SUP001", "", 0, "scan stopped at %d files; the rest of %s was not scanned" % (tree.cap, d))
+    for rel, why in tree.unreadable:
+        rep.add("SUP002", rel, 0, "directory not readable (%s): nothing below it was scanned" % why)
     return tree, rep
 
 
@@ -1726,6 +2188,8 @@ def cmd_detect(a):
     rep.data["ecosystems"] = tree.summary()
     rep.data["files_scanned"] = len(tree.files)
     rep.data["skipped_large"] = tree.large
+    if tree.outside:
+        rep.data["skipped_symlinks_outside"] = tree.outside
     rep.forced_exit = 0
     return rep
 
@@ -1750,10 +2214,12 @@ def scan_tree(tree, rep):
     for rel in tree.files:
         roles = tree.roles.get(rel, ())
         text = None
-        for eco, role in roles:
-            text = tree.read(rel) if text is None else text
+        if roles:
+            text = tree.read(rel)
             if text is None:
+                rep.add("SUP002", rel, 0, "file not readable: not scanned")
                 continue
+        for eco, role in roles:
             base = rel.rsplit("/", 1)[-1]
             if eco == "github-actions":
                 scan_github(rep, rel, text, action=(role == "action"))
@@ -1769,15 +2235,14 @@ def scan_tree(tree, rep):
                 locked = any(pdir(r) == pdir(rel) for r in tree.of("lockfile", "pip"))
                 scan_pyproject(rep, rel, text, locked)
             elif eco == "npm" and role == "manifest":
-                scan_package_json(rep, rel, text, has_lock(tree, rel, (
-                    "package-lock.json", "npm-shrinkwrap.json", "pnpm-lock.yaml", "yarn.lock", "bun.lockb")))
+                scan_package_json(rep, rel, text, has_lock(tree, rel, NPM_LOCKS))
             elif eco == "npm" and role == "config":
                 scan_npmrc(rep, rel, text)
             elif eco == "go" and role == "manifest":
                 d = rel.rsplit("/", 1)[0] + "/" if "/" in rel else ""
                 scan_gomod(rep, rel, text, (d + "go.sum") in tree.files)
             elif eco == "cargo" and role == "manifest":
-                scan_cargo(rep, rel, text)
+                scan_cargo(rep, rel, text, has_lock(tree, rel, ("Cargo.lock",)))
             elif eco == "shell":
                 scan_shell(rep, rel, [(i + 1, t.rstrip("\r")) for i, t in enumerate(text.split("\n"))])
 
@@ -1795,31 +2260,171 @@ def cmd_pins(a):
 
 def _load_apply(path):
     try:
-        with open(path) as fh:
+        with open(path, encoding="utf-8") as fh:
             entries = json.load(fh)
     except OSError as e:
         raise AccessError("%s: cannot read the apply file (%s)" % (path, e.strerror or e))
     except ValueError as e:
-        raise AccessError("%s: not JSON (%s); expected [{\"file\", \"line\", \"old\", \"new\"}]" % (path, e))
+        raise AccessError("%s: not UTF-8 JSON (%s); expected [{\"file\", \"line\", \"old\", \"new\"}]" % (path, e))
     if not isinstance(entries, list):
         raise AccessError("%s: expected a JSON list of {\"file\", \"line\", \"old\", \"new\"}" % path)
     return entries
 
 
+IMAGE_PIN_RULES = {"DKR001", "DKR002", "DKR003", "CI006", "GHA003"}
+_SHA40 = r"[0-9a-f]{40}"
+_TOKEN_CH = re.compile(rb"[\w.:@/-]")
+
+
+def pin_problem(rid, old, new):
+    """None when NEW pins OLD (the ref of a RID finding) without renaming it, else what NEW must be."""
+    if rid in IMAGE_PIN_RULES:
+        pre = "docker://" if old.startswith("docker://") else ""
+        repo = image_parts(old[len(pre):])[1]
+        if re.match(r"^%s(?::\w[\w.-]{0,127})?@sha256:[0-9a-f]{64}$" % re.escape(pre + repo), new):
+            return None
+        return "new must be %s[:TAG]@sha256:<64 hex>" % (pre + repo)
+    if rid in ("GHA001", "GHA002"):
+        name = old.rsplit("@", 1)[0]
+        return None if re.match(r"^%s@%s$" % (re.escape(name), _SHA40), new) else \
+            "new must be %s@<40-hex sha>" % name
+    if rid == "PIP002" and VCS_RE.match(old):
+        base, _ref, frag = vcs_split(old)
+        tail = "#" + frag if frag is not None else ""
+        return None if re.match(r"^%s@%s%s$" % (re.escape(base), _SHA40, re.escape(tail)), new) else \
+            "new must be %s@<40-hex sha>%s" % (base, tail)
+    if rid == "NPM002" and not old.startswith(("http://", "https://")):
+        base = old.split("#", 1)[0]
+        return None if re.match(r"^%s#%s$" % (re.escape(base), _SHA40), new) else \
+            "new must be %s#<40-hex sha>" % base
+    if rid == "CI008":
+        if "@" in old:  # a component
+            name = old.rsplit("@", 1)[0]
+            v = new[len(name) + 1:] if new.startswith(name + "@") else ""
+            return None if HEX40.match(v) or COMPONENT_VER.match(v) else \
+                "new must be %s@<40-hex sha> or %s@X.Y.Z" % (name, name)
+        return None if HEX40.match(new) else "new must be a 40-hex commit sha"
+    if rid == "GO002":
+        name = old.rsplit("@", 1)[0]
+        return None if re.match(r"^%s@(?:%s|v\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)$" % (re.escape(name), _SHA40), new) \
+            else "new must be %s@vX.Y.Z or %s@<40-hex sha>" % (name, name)
+    return "%s findings are not rewritten by --apply; edit the file by hand (see the finding's fix)" % rid
+
+
+def token_spans(line, ob):
+    """Start offsets of OB in LINE where it stands as a whole token (no [\\w.:@/-] neighbour)."""
+    out, i = [], line.find(ob)
+    while i >= 0:
+        before = line[i - 1:i]
+        after = line[i + len(ob):i + len(ob) + 1]
+        if not (before and _TOKEN_CH.match(before)) and not (after and _TOKEN_CH.match(after)):
+            out.append(i)
+        i = line.find(ob, i + 1)
+    return out
+
+
+def symlink_in_path(root, rel):
+    """The first component of REL under ROOT that is a symlink, or None."""
+    cur = root
+    for part in rel.split("/"):
+        cur = os.path.join(cur, part)
+        if os.path.islink(cur):
+            return cur
+    return None
+
+
+def _umask():
+    m = os.umask(0)
+    os.umask(m)
+    return m
+
+
+def atomic_write(path, data, mode=None):
+    """Write DATA to a temp file beside PATH and rename it over PATH (mode kept or MODE)."""
+    d = os.path.dirname(os.path.abspath(path))
+    fd, tmp = tempfile.mkstemp(dir=d, prefix="." + os.path.basename(path) + ".", suffix=".supply-tmp")
+    try:
+        with os.fdopen(fd, "wb") as fh:
+            fh.write(data)
+        os.chmod(tmp, mode if mode is not None else 0o666 & ~_umask())
+        os.replace(tmp, path)
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
+
+
+def write_all(changes):
+    """All-or-nothing: CHANGES [(rel, full, original bytes, new bytes)]. Every file is checked
+    writable and staged first; each is re-read and compared just before its rename; a failure
+    part-way restores the files already replaced. -> nothing, or AccessError."""
+    temps, done = {}, []
+    try:
+        for rel, full, _o, _n in changes:
+            if not os.access(full, os.W_OK) or not os.access(os.path.dirname(full) or ".", os.W_OK | os.X_OK):
+                raise AccessError("%s is not writable (or its directory is not)" % rel)
+        for rel, full, _o, new in changes:
+            fd, tmp = tempfile.mkstemp(dir=os.path.dirname(full), prefix="." + os.path.basename(full) + ".",
+                                       suffix=".supply-tmp")
+            temps[rel] = tmp
+            with os.fdopen(fd, "wb") as fh:
+                fh.write(new)
+            shutil.copymode(full, tmp)
+        fail_after = _int(os.environ.get("SUPPLY_TEST_FAIL_AFTER"), -1)
+        for rel, full, orig, _n in changes:
+            if len(done) == fail_after:
+                raise OSError(errno.EIO, "injected failure (SUPPLY_TEST_FAIL_AFTER=%d)" % fail_after, rel)
+            with open(full, "rb") as fh:
+                if fh.read() != orig:
+                    raise AccessError("%s changed while --apply ran" % rel)
+            os.replace(temps.pop(rel), full)
+            done.append((rel, full, orig))
+    except (OSError, AccessError) as e:
+        why = str(e) if isinstance(e, AccessError) else "%s: %s" % (getattr(e, "filename", "") or "write",
+                                                                   e.strerror or e)
+        lost = []
+        for rel, full, orig in reversed(done):
+            try:
+                atomic_write(full, orig, stat.S_IMODE(os.stat(full).st_mode))
+            except OSError:
+                lost.append(rel)
+        for tmp in temps.values():
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+        if lost:
+            raise AccessError("pins --apply: %s; rolling back failed for %s — restore them with `git checkout -- "
+                              "FILE` and rerun" % (why, ", ".join(lost)))
+        raise AccessError("pins --apply: %s; nothing written (%d file(s) rolled back) — fix the cause "
+                          "and rerun" % (why, len(done)))
+
+
 def apply_pins(a):
     root = a.dir
     entries = _load_apply(a.apply)
+    tree = Tree(root)
     tools = installed_tools()
+    banner(root, tree.ecosystems(), tools)
+    current = Report("pins", root)
+    scan_tree(tree, current)
+    refs = {}
+    for f in current.findings:
+        if f.get("ref"):
+            refs.setdefault((f["file"], f["line"]), {})[f["ref"]] = f["id"]
     errors, skipped, applied = [], [], []
-    files = {}
+    files = {}  # rel -> (full, original bytes, [lines])
     for n, e in enumerate(entries):
         where = "entry %d" % n
         if not isinstance(e, dict):
             errors.append("%s: not an object" % where)
             continue
         f, line, old, new = e.get("file"), e.get("line"), e.get("old"), e.get("new")
-        if not isinstance(f, str) or not f or f.startswith("/") or ".." in f.split("/") or "\\" in f:
-            errors.append("%s: file must be a relative path inside DIR" % where)
+        if not isinstance(f, str) or not f or "\x00" in f or f.startswith("/") or ".." in f.split("/") \
+                or "\\" in f or "" in f.split("/"):
+            errors.append("%s: file must be a relative path inside DIR, without `..` or NUL" % where)
             continue
         if not isinstance(line, int) or isinstance(line, bool) or line < 1:
             errors.append("%s (%s): line must be a positive integer" % (where, f))
@@ -1827,41 +2432,70 @@ def apply_pins(a):
         if not isinstance(old, str) or not old or not isinstance(new, str) or not new:
             errors.append("%s (%s:%d): old and new must be non-empty strings" % (where, f, line))
             continue
-        if "\n" in new or "\r" in new or "\n" in old:
-            errors.append("%s (%s:%d): old and new must be single-line" % (where, f, line))
+        if any(ch in x for x in (old, new) for ch in ("\n", "\r", "\x00")):
+            errors.append("%s (%s:%d): old and new must be single-line, without NUL" % (where, f, line))
             continue
         if old == new:
             errors.append("%s (%s:%d): old and new are identical" % (where, f, line))
             continue
+        link = symlink_in_path(root, f)
+        if link:
+            errors.append("%s: %s goes through the symlink %s; --apply writes regular files inside DIR only"
+                          % (where, f, os.path.relpath(link, root).replace(os.sep, "/")))
+            continue
+        if f not in tree.roles:
+            errors.append("%s: %s is not a file `supply pins` scans (workflows, CI files, Dockerfiles, "
+                          "compose, manifests, scripts; never .git); nothing to pin there" % (where, f))
+            continue
         if f not in files:
+            full = tree.path(f)
+            if not tree.inside(os.path.realpath(full)):
+                errors.append("%s: %s resolves outside DIR" % (where, f))
+                continue
             try:
-                with open(os.path.join(root, *f.split("/")), "rb") as fh:
-                    files[f] = fh.read().split(b"\n")
+                with open(full, "rb") as fh:
+                    raw = fh.read()
             except OSError as ex:
                 errors.append("%s: %s: cannot read (%s)" % (where, f, ex.strerror or ex))
                 continue
-        lines = files[f]
+            files[f] = (full, raw, raw.split(b"\n"))
+        lines = files[f][2]
         if line > len(lines):
             errors.append("%s: %s has no line %d" % (where, f, line))
             continue
         cur = lines[line - 1]
         if not pin_actions() and re.search(rb"^\s*-?\s*uses\s*:", cur):
-            skipped.append({"file": f, "line": line, "old": old, "reason": "supply_chain.pin_actions is false"})
+            skipped.append({"file": f, "line": line, "old": red_text(old),
+                            "reason": "supply_chain.pin_actions is false"})
             continue
-        ob, nb = old.encode("utf-8"), new.encode("utf-8")
-        count = cur.count(ob)
-        if count != 1:
-            errors.append("%s: `%s` occurs %d times on %s:%d (must be exactly once)" % (where, old, count, f, line))
+        rid = refs.get((f, line), {}).get(old)
+        if rid is None:
+            errors.append("%s: `%s` is not the ref of a current finding on %s:%d (copy `ref` from "
+                          "`supply pins DIR --json`)" % (where, old, f, line))
             continue
-        lines[line - 1] = cur.replace(ob, nb, 1)
-        applied.append({"file": f, "line": line, "old": old, "new": new})
+        why = pin_problem(rid, old, new)
+        if why:
+            errors.append("%s (%s:%d, %s): %s" % (where, f, line, rid, why))
+            continue
+        ob = old.encode("utf-8")
+        spans = token_spans(cur, ob)
+        if len(spans) != 1:
+            errors.append("%s: `%s` occurs %d times as a whole token on %s:%d (must be exactly once)"
+                          % (where, old, len(spans), f, line))
+            continue
+        lines[line - 1] = cur[:spans[0]] + new.encode("utf-8") + cur[spans[0] + len(ob):]
+        applied.append({"file": f, "line": line, "old": red_text(old), "new": red_text(new)})
     if errors:
-        banner(root, Tree(root).ecosystems(), tools)
         raise AccessError("pins --apply: nothing written —\n  " + "\n  ".join(red_text(x) for x in errors))
-    for f in sorted({x["file"] for x in applied}):
-        with open(os.path.join(root, *f.split("/")), "wb") as fh:
-            fh.write(b"\n".join(files[f]))
-    tree, rep = start_dir(a, "pins")
+    changes = [(rel, files[rel][0], files[rel][1], b"\n".join(files[rel][2]))
+               for rel in sorted({x["file"] for x in applied})]
+    write_all([c for c in changes if c[2] != c[3]])
+    tree = Tree(root)
+    rep = Report("pins", root, tree.ecosystems(), tools)
+    for rel, why in tree.unreadable:
+        rep.add("SUP002", rel, 0, "directory not readable (%s): nothing below it was scanned" % why)
+    if tree.truncated:
+        rep.add("SUP001", "", 0, "scan stopped at %d files; the rest of %s was not scanned" % (tree.cap, root))
     scan_tree(tree, rep)
     rep.keep(PIN_RULES)
     rep.data["applied"] = applied
@@ -1902,7 +2536,8 @@ def cmd_ci(a):
         part = part.strip().upper()
         if part:
             if part not in RULES:
-                die("supply ci: unknown rule id %r in --ignore (known: %s)" % (part, ", ".join(sorted(CI_RULES))), 1)
+                die("supply ci: unknown rule id %r in --ignore; pass ids from this list, comma-separated: %s"
+                    % (part, ", ".join(sorted(RULES))), 1)
             ignore.add(part)
     texts, kinds = {}, []
     for p in a.files:
@@ -1939,6 +2574,12 @@ def cmd_ci(a):
         else:
             rep.add("CI000", p, 0, "not a recognised CI file", fix="pass a GitHub workflow or action, a "
                     ".gitlab-ci.yml (or a file it includes), a Dockerfile, a compose file or a shell script")
+    unscanned = {f["file"] for f in rep.findings if f["id"] == "CI000"}
+    if all(p in unscanned for p in a.files):
+        rep.forced_exit = 3
+        sys.stderr.write("supply ci: no file could be scanned (every one is CI000); pass a workflow, "
+                         ".gitlab-ci.yml, Dockerfile, compose file or shell script, or check it with its "
+                         "own linter\n")
     rep.keep(CI_RULES - ignore)
     rep.data["files"] = kinds
     if ignore:
@@ -2040,8 +2681,15 @@ def parse_osv(rep, out, root, tree):
     except ValueError:
         raise AccessError("osv-scanner printed no JSON; the supported version is 2.7.0 "
                           "(harness install osv-scanner)")
+    with tool_output("osv-scanner", "the supported version is 2.7.0 (harness install osv-scanner)"):
+        return _parse_osv(rep, doc, root, tree)
+
+
+def _parse_osv(rep, doc, root, tree):
     counts = {}
-    for r in (doc.get("results") or []) if isinstance(doc, dict) else []:
+    if not isinstance(doc, dict):
+        raise TypeError("the top level is not an object")
+    for r in doc.get("results") or []:
         rel = rel_to((r.get("source") or {}).get("path", ""), root)
         for p in r.get("packages") or []:
             pk = p.get("package") or {}
@@ -2081,28 +2729,56 @@ def fb_npm(rep, tree, root, dirs, offline):
             rep.add("AUD003", lock, 0, "npm audit failed (exit %d): %s" % (rc, first_line(err) or "no JSON"))
             rows.append(("error", 0))
             continue
-        vulns = doc.get("vulnerabilities") or {}
-        n = 0
-        for name in sorted(vulns):
-            v = vulns[name] or {}
-            advs = [x for x in v.get("via") or [] if isinstance(x, dict)]
-            if not advs:
-                continue
-            n += 1
-            ids = sorted({re.sub(r"^.*/", "", a.get("url") or "") or str(a.get("source", "")) for a in advs})
-            sev = min((sev_word(a.get("severity")) or "warn" for a in advs), key=lambda s: SEV_RANK[s])
-            title = sorted(a.get("title") or "" for a in advs)[0]
-            fa = v.get("fixAvailable")
-            fixed = [str(fa["version"])] if isinstance(fa, dict) and fa.get("version") else []
-            msg = vuln_message("npm", name, v.get("range", ""), ids[0], ids[1:], title, fixed)
-            fix = vuln_fix(name, fixed)
-            if fa is True:
-                msg = msg.replace("no fixed version published", "npm reports a fix within the declared ranges")
-                fix = ("update %s within its declared range (`npm update %s`; /audit-deps applies patch and "
-                       "minor upgrades)" % (name, name))
-            rep.add("VUL001", lock, line_of(tree, lock, name), msg, severity=sev, fix=fix)
-        rows.append(("ok", n))
+        with tool_output("npm audit"):
+            rows.append(_npm_findings(rep, tree, lock, doc))
     return rows
+
+
+def _npm_findings(rep, tree, lock, doc):
+    vulns = doc.get("vulnerabilities") or {}
+    n = 0
+    for name in sorted(vulns):
+        v = vulns[name] or {}
+        advs = [x for x in v.get("via") or [] if isinstance(x, dict)]
+        if not advs:
+            continue
+        n += 1
+        ids = sorted({re.sub(r"^.*/", "", a.get("url") or "") or str(a.get("source", "")) for a in advs})
+        sev = min((sev_word(a.get("severity")) or "warn" for a in advs), key=lambda s: SEV_RANK[s])
+        title = sorted(a.get("title") or "" for a in advs)[0]
+        fa = v.get("fixAvailable")
+        fixed = [str(fa["version"])] if isinstance(fa, dict) and fa.get("version") else []
+        msg = vuln_message("npm", name, v.get("range", ""), ids[0], ids[1:], title, fixed)
+        fix = vuln_fix(name, fixed)
+        if fa is True:
+            msg = msg.replace("no fixed version published", "npm reports a fix within the declared ranges")
+            fix = ("update %s within its declared range (`npm update %s`; /audit-deps applies patch and "
+                   "minor upgrades)" % (name, name))
+        rep.add("VUL001", lock, line_of(tree, lock, name), msg, severity=sev, fix=fix)
+    return ("ok", n)
+
+
+def fully_hashed(text):
+    """True when every requirement of a requirements file is `name==X.Y.Z ... --hash=...` and
+    nothing else (no -e, -r, -c, index options, local paths, URLs or VCS): pip-audit can then
+    audit it with --require-hashes --no-deps --disable-pip, without resolving or building."""
+    pairs = [(i + 1, t.rstrip("\r")) for i, t in enumerate(text.split("\n"))]
+    seen = False
+    for _ln, line in logical_lines(pairs):
+        line = strip_comment(line).strip()
+        if not line:
+            continue
+        if line.startswith("-"):
+            if line.split()[0] == "--require-hashes":
+                continue
+            return False
+        if "://" in line or VCS_RE.search(line) or line.startswith((".", "/", "file:")) or " @ " in line:
+            return False
+        m = REQ_RE.match(line)
+        if not m or "--hash" not in line or not PINNED_RE.match(re.split(r"\s--", m.group("spec"))[0]):
+            return False
+        seen = True
+    return seen
 
 
 def fb_pip(rep, tree, root, files, offline):
@@ -2111,7 +2787,15 @@ def fb_pip(rep, tree, root, files, offline):
         if offline:
             rows.append(("offline", 0))
             continue
-        rc, out, err = _run("pip-audit", ["-f", "json", "-r", rel], cwd=root)
+        if not fully_hashed(tree.read(rel) or ""):
+            rep.add("AUD001", rel, 0, "pip-audit would resolve and build packages from %s (not every line "
+                    "is pinned with --hash); pip unaudited, not clean" % rel,
+                    fix="`harness install osv-scanner` (reads requirements files without building), or "
+                        "audit a hashed requirements file (`uv pip compile --generate-hashes`)")
+            rows.append(("unavailable", 0))
+            continue
+        rc, out, err = _run("pip-audit", ["-f", "json", "--require-hashes", "--no-deps", "--disable-pip",
+                                          "-r", os.path.abspath(tree.path(rel))], cwd=NEUTRAL)
         try:
             doc = json.loads(out)
         except ValueError:
@@ -2121,46 +2805,47 @@ def fb_pip(rep, tree, root, files, offline):
             rep.add("AUD003", rel, 0, "pip-audit failed (exit %d): %s" % (rc, first_line(err) or "no JSON"))
             rows.append(("error", 0))
             continue
-        for d in deps:
-            for v in d.get("vulns") or []:
-                fixed = sorted((str(x) for x in v.get("fix_versions") or []), key=_vkey)
-                rep.add("VUL001", rel, line_of(tree, rel, d.get("name", "")),
-                        vuln_message("pip", d.get("name", ""), d.get("version", ""), v.get("id", ""),
-                                     sorted(v.get("aliases") or []), (v.get("description") or "").split(". ")[0], fixed),
-                        severity="warn", fix=vuln_fix(d.get("name", ""), fixed))
-        rows.append(("ok", len([d for d in deps if d.get("vulns")])))
+        with tool_output("pip-audit"):
+            for d in deps:
+                for v in d.get("vulns") or []:
+                    fixed = sorted((str(x) for x in v.get("fix_versions") or []), key=_vkey)
+                    rep.add("VUL001", rel, line_of(tree, rel, d.get("name", "")),
+                            vuln_message("pip", d.get("name", ""), d.get("version", ""), v.get("id", ""),
+                                         sorted(v.get("aliases") or []), (v.get("description") or "").split(". ")[0],
+                                         fixed),
+                            severity="warn", fix=vuln_fix(d.get("name", ""), fixed))
+            rows.append(("ok", len([d for d in deps if d.get("vulns")])))
     return rows
 
 
 def fb_cargo(rep, tree, root, locks, offline):
+    """cargo-audit, called directly (never `cargo audit`: cargo honours the checkout's
+    .cargo/config.toml aliases and rust-toolchain.toml) from an empty working directory."""
     rows = []
     for lock in locks:
         if offline:
             rows.append(("offline", 0))
             continue
-        d = lock.rsplit("/", 1)[0] if "/" in lock else ""
-        rc, out, err = _run("cargo", ["audit", "--json"], cwd=os.path.join(root, *d.split("/")) if d else root)
-        if "no such command" in (err or "") and "audit" in (err or ""):
-            rep.add("AUD001", lock, 0, "cargo is installed but cargo-audit is not: cargo not audited")
-            rows.append(("unavailable", 0))
-            continue
+        rc, out, err = _run("cargo-audit", ["audit", "--json", "--file", os.path.abspath(tree.path(lock))],
+                            cwd=NEUTRAL)
         try:
             doc = json.loads(out)
         except ValueError:
             doc = None
         if rc not in (0, 1) or not isinstance(doc, dict):
-            rep.add("AUD003", lock, 0, "cargo audit failed (exit %d): %s" % (rc, first_line(err) or "no JSON"))
+            rep.add("AUD003", lock, 0, "cargo-audit failed (exit %d): %s" % (rc, first_line(err) or "no JSON"))
             rows.append(("error", 0))
             continue
-        for v in ((doc.get("vulnerabilities") or {}).get("list") or []):
-            adv, pk = v.get("advisory") or {}, v.get("package") or {}
-            fixed = [str(x) for x in (v.get("versions") or {}).get("patched") or []]
-            rep.add("VUL001", lock, line_of(tree, lock, pk.get("name", "")),
-                    vuln_message("cargo", pk.get("name", ""), pk.get("version", ""), adv.get("id", ""),
-                                 sorted(adv.get("aliases") or []), adv.get("title", ""), fixed),
-                    severity="warn", fix=vuln_fix(pk.get("name", ""), fixed))
-        rows.append(("ok", len({((v.get("package") or {}).get("name")) for v in
-                                ((doc.get("vulnerabilities") or {}).get("list") or [])})))
+        with tool_output("cargo-audit"):
+            vl = (doc.get("vulnerabilities") or {}).get("list") or []
+            for v in vl:
+                adv, pk = v.get("advisory") or {}, v.get("package") or {}
+                fixed = [str(x) for x in (v.get("versions") or {}).get("patched") or []]
+                rep.add("VUL001", lock, line_of(tree, lock, pk.get("name", "")),
+                        vuln_message("cargo", pk.get("name", ""), pk.get("version", ""), adv.get("id", ""),
+                                     sorted(adv.get("aliases") or []), adv.get("title", ""), fixed),
+                        severity="warn", fix=vuln_fix(pk.get("name", ""), fixed))
+            rows.append(("ok", len({((v.get("package") or {}).get("name")) for v in vl})))
     return rows
 
 
@@ -2181,38 +2866,67 @@ def json_stream(text):
 
 
 def fb_go(rep, tree, root, mods, offline):
+    """govulncheck in the module directory (it needs `go list`), with GOTOOLCHAIN=local (a go.mod
+    `toolchain` line never downloads a toolchain) and GOFLAGS=-mod=readonly."""
     rows = []
     for mod in mods:
         if offline:
             rows.append(("offline", 0))
             continue
         d = mod.rsplit("/", 1)[0] if "/" in mod else ""
-        rc, out, err = _run("govulncheck", ["-json", "./..."], cwd=os.path.join(root, *d.split("/")) if d else root)
+        rc, out, err = _run("govulncheck", ["-json", "./..."], cwd=os.path.join(root, *d.split("/")) if d else root,
+                            env_extra={"GOTOOLCHAIN": "local", "GOFLAGS": "-mod=readonly"})
         objs = json_stream(out)
         if rc not in (0, 3) or not objs:
             rep.add("AUD003", mod, 0, "govulncheck failed (exit %d): %s" % (rc, first_line(err) or "no JSON"))
             rows.append(("error", 0))
             continue
-        osvs, found = {}, {}
-        for o in objs:
-            if isinstance(o.get("osv"), dict):
-                osvs[o["osv"].get("id")] = o["osv"]
-            f = o.get("finding")
-            if isinstance(f, dict) and f.get("osv"):
-                tr = (f.get("trace") or [{}])[0] or {}
-                cur = found.setdefault(f["osv"], {"module": tr.get("module", ""), "version": tr.get("version", ""),
-                                                  "fixed": f.get("fixed_version", ""), "called": False})
-                if tr.get("function"):
-                    cur["called"] = True
-        for vid in sorted(found):
-            f, o = found[vid], osvs.get(vid) or {}
-            fixed = [f["fixed"]] if f["fixed"] else []
-            rep.add("VUL001", mod, 0,
-                    vuln_message("go", f["module"], f["version"], vid, sorted(o.get("aliases") or []),
-                                 o.get("summary", ""), fixed) + ("; called" if f["called"] else "; imported, not called"),
-                    severity="warn" if f["called"] else "info", fix=vuln_fix(f["module"], fixed))
-        rows.append(("ok", len({f["module"] for f in found.values()})))
+        with tool_output("govulncheck"):
+            rows.append(_go_findings(rep, mod, objs))
     return rows
+
+
+def _go_findings(rep, mod, objs):
+    osvs, found = {}, {}
+    for o in objs:
+        if isinstance(o.get("osv"), dict):
+            osvs[o["osv"].get("id")] = o["osv"]
+        f = o.get("finding")
+        if isinstance(f, dict) and f.get("osv"):
+            tr = (f.get("trace") or [{}])[0] or {}
+            cur = found.setdefault(f["osv"], {"module": tr.get("module", ""), "version": tr.get("version", ""),
+                                              "fixed": f.get("fixed_version", ""), "called": False})
+            if tr.get("function"):
+                cur["called"] = True
+    for vid in sorted(found):
+        f, o = found[vid], osvs.get(vid) or {}
+        fixed = [f["fixed"]] if f["fixed"] else []
+        rep.add("VUL001", mod, 0,
+                vuln_message("go", f["module"], f["version"], vid, sorted(o.get("aliases") or []),
+                             o.get("summary", ""), fixed) + ("; called" if f["called"] else "; imported, not called"),
+                severity="warn" if f["called"] else "info", fix=vuln_fix(f["module"], fixed))
+    return ("ok", len({f["module"] for f in found.values()}))
+
+
+OSV_NEEDS = {"pip": "requirements*.txt, uv.lock, poetry.lock, pdm.lock or Pipfile.lock",
+             "npm": "package-lock.json, npm-shrinkwrap.json, yarn.lock, pnpm-lock.yaml or bun.lock",
+             "go": "go.mod", "cargo": "Cargo.lock"}
+
+
+def osv_reads(eco, rel):
+    """True when osv-scanner extracts packages of ECO from the file REL (a manifest with ranges
+    only, such as package.json, Cargo.toml or pyproject.toml, is not enough)."""
+    low = rel.rsplit("/", 1)[-1].lower()
+    if eco == "pip":
+        return bool(re.match(r"^requirements.*\.txt$", low)) or low in ("uv.lock", "poetry.lock", "pdm.lock",
+                                                                        "pipfile.lock")
+    if eco == "npm":
+        return low in ("package-lock.json", "npm-shrinkwrap.json", "yarn.lock", "pnpm-lock.yaml", "bun.lock")
+    if eco == "go":
+        return low == "go.mod"
+    if eco == "cargo":
+        return low == "cargo.lock"
+    return False
 
 
 def cmd_audit(a):
@@ -2230,8 +2944,8 @@ def cmd_audit(a):
         args = ["scan", "source", "--format", "json"]
         targets = []
         for f in (a.lockfile or []) + ([a.sbom] if a.sbom else []):
-            targets += ["-L", f]
-        args += targets or ["-r", root]
+            targets += ["-L", os.path.abspath(f)]
+        args += targets or ["-r", os.path.abspath(root)]
         env = {}
         if a.offline:
             args.append("--offline-vulnerabilities")
@@ -2241,7 +2955,8 @@ def cmd_audit(a):
                 # directory from this variable (no command-line flag in the 2.x docs read so far).
                 env["OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY"] = os.path.expanduser(db)
         rc, out, err = _run("osv-scanner", args, env_extra=env)
-        if rc == 128:
+        empty = rc == 128
+        if empty:
             rep.add("AUD002", "", 0, "osv-scanner found no packages to scan in %s" % root)
             counts = {}
         elif rc in (0, 1):
@@ -2253,8 +2968,14 @@ def cmd_audit(a):
         if targets:  # --lockfile / --sbom: only what was named, plus what osv-scanner reported
             scope = {e for t in (a.lockfile or []) for (e, _r) in classify(os.path.basename(t))}
         for eco in sorted(scope | set(counts)):
+            read = eco in counts or (not empty and (targets or any(osv_reads(eco, r) for r in tree.files)))
+            if not read:
+                rep.add("AUD001", "", 0, "%s: osv-scanner read no %s here (%s); %s is unaudited, not clean"
+                        % (eco, "packages" if empty else "file it understands", OSV_NEEDS.get(eco, "a lockfile"), eco),
+                        fix="commit the lockfile (or pass it with --lockfile) so osv-scanner can read it")
             auditors.append({"ecosystem": eco, "tool": "osv-scanner",
-                             "status": "offline" if a.offline else "ok", "packages": counts.get(eco, 0)})
+                             "status": ("offline" if a.offline else "ok") if read else "unavailable",
+                             "packages": counts.get(eco, 0)})
         rep.data["auditors"] = auditors
         return rep
     if a.sbom:
@@ -2266,7 +2987,7 @@ def cmd_audit(a):
                 "npm audit needs package-lock.json or npm-shrinkwrap.json"),
         "pip": ("pip-audit", fb_pip, [r for r in tree.of("manifest", "pip") if r.endswith(".txt")],
                 "pip-audit reads requirements files; osv-scanner also reads uv.lock, poetry.lock and pdm.lock"),
-        "cargo": ("cargo", fb_cargo, tree.of("lockfile", "cargo"), "cargo audit needs Cargo.lock"),
+        "cargo": ("cargo-audit", fb_cargo, tree.of("lockfile", "cargo"), "cargo-audit needs Cargo.lock"),
         "go": ("govulncheck", fb_go, tree.of("manifest", "go"), "govulncheck needs go.mod"),
     }
     audited = 0
@@ -2283,13 +3004,14 @@ def cmd_audit(a):
             auditors.append({"ecosystem": eco, "tool": tool, "status": "unavailable", "packages": 0})
             continue
         rows = fn(rep, tree, root, sel, a.offline)
-        status = "error" if any(s == "error" for s, _n in rows) else (
-            "offline" if all(s == "offline" for s, _n in rows) else (
-                "unavailable" if all(s == "unavailable" for s, _n in rows) else "ok"))
+        kinds = {s for s, _n in rows}
+        status = "error" if "error" in kinds else (
+            "offline" if kinds == {"offline"} else (
+                "unavailable" if kinds == {"unavailable"} else ("partial" if "unavailable" in kinds else "ok")))
         if status == "offline":
             rep.add("AUD001", "", 0, "%s: %s needs the network; `--offline` works with osv-scanner "
                     "and a local database" % (eco, tool))
-        elif status in ("ok", "error"):
+        elif status in ("ok", "error", "partial"):
             audited += 1
         auditors.append({"ecosystem": eco, "tool": tool, "status": status,
                          "packages": sum(n for _s, n in rows)})
@@ -2393,6 +3115,50 @@ def looks_like_image(t):
                 or re.match(r"^[a-z0-9][a-z0-9._-]*(?::[\w.-]+)?(?:@sha256:[0-9a-f]{64})?$", t) and (":" in t or "@" in t))
 
 
+def red_tokens(o):
+    """Token-shape redaction for an artefact written to disk: AWS keys, JWTs, PEM private keys, URL
+    credentials and supply_chain.redact_extra_re in every string value. Unlike red_deep it never
+    masks by key name or `key=value` text, so CPEs, authors and licence texts stay intact."""
+    user = [r for r in extra_redactors().rxs if r is not _AUTH_SCHEME_RE]
+
+    def s(x):
+        x = _PEM_RE.sub(REDACTED, x)
+        x = _AKIA_RE.sub(REDACTED, x)
+        x = _JWT_RE.sub(REDACTED, x)
+        x = _URLCRED_RE.sub("://***:***@", x)
+        for r in user:
+            x = r.sub(REDACTED, x)
+        return x
+
+    def walk(x):
+        if isinstance(x, dict):
+            return {k: walk(v) for k, v in x.items()}
+        if isinstance(x, list):
+            return [walk(v) for v in x]
+        return s(x) if isinstance(x, str) else x
+    return walk(o)
+
+
+def write_new(path, data, force):
+    """Create PATH exclusively (O_EXCL: never through an existing file or symlink), or with FORCE
+    replace it atomically (temp file + rename; the old file's mode is kept)."""
+    try:
+        if not force:
+            try:
+                fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o666)
+            except FileExistsError:
+                die("supply sbom: %s already exists — nothing written; pass --force to overwrite it" % path, 1)
+            with os.fdopen(fd, "wb") as fh:
+                fh.write(data)
+            return
+        mode = None
+        if os.path.isfile(path) and not os.path.islink(path):
+            mode = stat.S_IMODE(os.stat(path).st_mode)
+        atomic_write(path, data, mode)
+    except OSError as e:
+        raise AccessError("--out %s: cannot write (%s); pick a writable path" % (path, e.strerror or e))
+
+
 def cmd_sbom(a):
     if a.args[0] == "lint":
         if len(a.args) != 2:
@@ -2415,9 +3181,18 @@ def cmd_sbom(a):
         raise AccessError("%s: no such directory, and not an image reference" % target)
     banner(dir_, ecos, tools)
     rep = Report("sbom", dir_, ecos, tools)
-    if a.out and os.path.lexists(a.out) and not a.force:
-        die("supply sbom: %s already exists — nothing scanned or written; pass --force to overwrite it, or write to a "
-            "new file and diff the two" % a.out, 1)
+    if a.out:
+        if "\x00" in a.out:
+            raise AccessError("--out contains a NUL byte; pass a plain file path")
+        parent = os.path.dirname(os.path.abspath(a.out))
+        if not os.path.isdir(parent):
+            raise AccessError("--out %s: the directory %s does not exist — nothing scanned or written; create "
+                              "it first or write somewhere else" % (a.out, parent))
+        if os.path.lexists(a.out) and not a.force:
+            die("supply sbom: %s already exists — nothing scanned or written; pass --force to overwrite it, or "
+                "write to a new file and diff the two" % a.out, 1)
+        if os.path.isdir(a.out):
+            raise AccessError("--out %s is a directory; name a file" % a.out)
     if not tool_path("syft"):
         raise AccessError("syft is not installed: harness install syft (the SBOM is unavailable, not empty)")
     rc, out, err = _run("syft", ["scan", src, "-o", a.format, "-q"])
@@ -2427,15 +3202,17 @@ def cmd_sbom(a):
         doc = json.loads(out)
     except ValueError:
         raise AccessError("syft printed no JSON; the supported version is 1.55.0 (harness install syft)")
-    clean = red_deep(doc)
-    txt = json.dumps(clean, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
-    fmt, ver, n = lint_sbom(rep, a.out or "-", txt, clean)
+    written = red_tokens(doc)
+    txt = json.dumps(written, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
+    with tool_output("syft", "the supported version is 1.55.0 (harness install syft)"):
+        fmt, ver, n = lint_sbom(rep, a.out or "-", txt, written)
     rep.data["sbom"] = {"source": src, "format": fmt, "spec_version": ver, "packages": n,
                         "bytes": len(txt.encode("utf-8")), "file": a.out or ""}
     if a.out:
-        with open(a.out, "w") as fh:
-            fh.write(txt)
+        write_new(a.out, txt.encode("utf-8"), a.force)
     else:
+        clean = red_deep(doc)
+        clean = clean if isinstance(clean, dict) else {}
         names = sorted({"%s %s" % (p.get("name", ""), p.get("versionInfo") or p.get("version") or "")
                         for p in (clean.get("packages") or clean.get("components") or []) if isinstance(p, dict)})
         rep.data["packages"] = [x.strip() for x in names]
@@ -2461,8 +3238,22 @@ def load_identities():
                 except re.error as ex:
                     raise AccessError("supply_chain.identities[%d] (%s): %s is not a valid regex (%s)"
                                       % (i, e["name"], k, ex))
+        check_identity_re(e["identity_re"], "supply_chain.identities[%d] (%s) identity_re" % (i, e["name"]))
         out.append(e)
     return out
+
+
+def check_identity_re(rx, where):
+    """A signer identity regexp must be anchored at both ends and must not match the empty string:
+    an unanchored one accepts any certificate whose identity merely contains it."""
+    try:
+        c = re.compile(rx)
+    except re.error as ex:
+        raise AccessError("%s: %r is not a valid regex (%s)" % (where, rx, ex))
+    if not (rx.startswith("^") and rx.endswith("$") and not rx.endswith("\\$")) or c.match("") is not None:
+        raise AccessError("%s: %r must be anchored as ^...$ and must not match the empty string (e.g. "
+                          "^https://github\\.com/OWNER/REPO/\\.github/workflows/release\\.yml@refs/tags/v.*$)"
+                          % (where, rx))
 
 
 def resolve_identity(a, target):
@@ -2475,6 +3266,7 @@ def resolve_identity(a, target):
         if not a.issuer:
             raise AccessError("--identity %s is not a configured identity (configured: %s); as a certificate "
                               "identity regexp it needs --issuer URL" % (a.identity, names))
+        check_identity_re(a.identity, "--identity")
         return a.identity, a.issuer, ""
     for e in ids:
         if e.get("match_re") and re.search(e["match_re"], target):
@@ -2492,6 +3284,9 @@ def norm_repo(ref):
 
 def cmd_verify(a):
     target = a.target
+    if target.startswith("-") or "\x00" in target:
+        die("supply verify: TARGET %r starts with `-` (or holds a NUL), which a verifier would read as an "
+            "option; for a file of that name pass ./%s" % (target, target.replace("\x00", "")), 1)
     if target.startswith("oci://"):
         kind, subject = "image", target[len("oci://"):]
     elif os.path.isfile(target):
@@ -2510,6 +3305,10 @@ def cmd_verify(a):
     if a.offline and not a.trusted_root:
         raise Unsupported("--offline needs --trusted-root FILE (a Sigstore trusted_root.json): without the "
                           "network there is nothing else to verify against")
+    if a.offline and a.github and not a.bundle:
+        raise Unsupported("--github --offline needs --bundle FILE (the attestation, from `gh attestation "
+                          "download`) and --trusted-root FILE (`gh attestation trusted-root`): gh cannot "
+                          "fetch either without the network")
     if a.trusted_root and not os.path.isfile(a.trusted_root):
         raise AccessError("%s: no such file (--trusted-root)" % a.trusted_root)
     if a.github:
@@ -2535,12 +3334,12 @@ def cmd_verify(a):
         args.append("--offline")
     if kind == "blob":
         verb = "verify-blob-attestation" if a.attestation else "verify-blob"
-        cmd = [verb, "--bundle", a.bundle] + (["--type", a.type] if a.type else []) + args + [subject]
+        cmd = [verb, "--bundle", a.bundle] + (["--type", a.type] if a.type else []) + args + ["--", subject]
     elif a.attestation:
         cmd = ["verify-attestation", "--output", "json"] + (["--type", a.type] if a.type else []) + args + \
-              (["--bundle", a.bundle] if a.bundle else []) + [subject]
+              (["--bundle", a.bundle] if a.bundle else []) + ["--", subject]
     else:
-        cmd = ["verify", "--output", "json"] + args + [subject]
+        cmd = ["verify", "--output", "json"] + args + ["--", subject]
     rc, out, err = _run("cosign", cmd)
     if rc != 0:
         raise AccessError("unverifiable: %s" % (first_line(err) or "cosign exited %d" % rc))
@@ -2550,19 +3349,11 @@ def cmd_verify(a):
         rep.add("VER000", subject, 0, "%s verified for %s" % ("attestation" if a.attestation else "signature", subject))
         return rep
     if a.attestation:
-        atts = []
-        for o in json_stream(out):
-            st = {}
-            try:
-                st = json.loads(base64.b64decode(o.get("payload") or "").decode("utf-8", "replace"))
-            except (ValueError, TypeError):
-                pass
-            pred = st.get("predicate") or {}
-            builder = ((pred.get("builder") or {}).get("id") or
-                       (((pred.get("runDetails") or {}).get("builder") or {}).get("id")) or "")
-            for s in st.get("subject") or [{}]:
-                atts.append({"subject": s.get("name", ""), "digest": "sha256:" + ((s.get("digest") or {}).get("sha256") or ""),
-                             "predicateType": st.get("predicateType", ""), "builder": builder})
+        with tool_output("cosign", "the supported version is 3.1.4 (harness install cosign)"):
+            atts = _cosign_attestations(out)
+        if not atts:
+            raise AccessError("cosign verify-attestation exited 0 but printed no attestation; treat %s as "
+                              "unverified and rerun cosign by hand to see why" % subject)
         rep.data["attestations"] = red_deep(sorted(atts, key=lambda x: json.dumps(x, sort_keys=True)))
         rep.add("VER000", subject, 0, "%d attestation(s) verified for %s" % (len(atts), subject))
         for x in atts:
@@ -2573,18 +3364,45 @@ def cmd_verify(a):
         doc = json.loads(out)
     except ValueError:
         raise AccessError("cosign printed no JSON; the supported version is 3.1.4 (harness install cosign)")
-    sigs = []
-    for s in doc if isinstance(doc, list) else []:
-        crit, opt = s.get("critical") or {}, s.get("optional") or {}
-        sigs.append({"reference": (crit.get("identity") or {}).get("docker-reference", ""),
-                     "digest": (crit.get("image") or {}).get("docker-manifest-digest", ""),
-                     "type": crit.get("type", ""), "issuer": opt.get("Issuer", ""), "subject": opt.get("Subject", "")})
+    if not isinstance(doc, list) or not doc:
+        raise AccessError("cosign verify exited 0 but printed no signature list; treat %s as unverified and "
+                          "rerun cosign by hand to see why" % subject)
+    with tool_output("cosign", "the supported version is 3.1.4 (harness install cosign)"):
+        sigs = _cosign_signatures(doc)
     rep.data["signatures"] = red_deep(sorted(sigs, key=lambda x: json.dumps(x, sort_keys=True)))
     rep.add("VER000", subject, 0, "%d signature(s) verified for %s" % (len(sigs), subject))
     for x in sigs:
         if x["reference"] and norm_repo(x["reference"]) != norm_repo(subject):
             rep.add("VER001", subject, 0, "signature was made for %s, not %s" % (x["reference"], norm_repo(subject)))
     return rep
+
+
+def _cosign_signatures(doc):
+    sigs = []
+    for s in doc:
+        crit, opt = s.get("critical") or {}, s.get("optional") or {}
+        sigs.append({"reference": (crit.get("identity") or {}).get("docker-reference", ""),
+                     "digest": (crit.get("image") or {}).get("docker-manifest-digest", ""),
+                     "type": crit.get("type", ""), "issuer": opt.get("Issuer", ""), "subject": opt.get("Subject", "")})
+    return sigs
+
+
+def _cosign_attestations(out):
+    atts = []
+    for o in json_stream(out):
+        st = {}
+        try:
+            st = json.loads(base64.b64decode(o.get("payload") or "").decode("utf-8", "replace"))
+        except (ValueError, TypeError):
+            pass
+        st = st if isinstance(st, dict) else {}
+        pred = st.get("predicate") or {}
+        builder = ((pred.get("builder") or {}).get("id") or
+                   (((pred.get("runDetails") or {}).get("builder") or {}).get("id")) or "")
+        for s in st.get("subject") or [{}]:
+            atts.append({"subject": s.get("name", ""), "digest": "sha256:" + ((s.get("digest") or {}).get("sha256") or ""),
+                         "predicateType": st.get("predicateType", ""), "builder": builder})
+    return atts
 
 
 def verify_github(a, rep, kind, subject):
@@ -2594,7 +3412,7 @@ def verify_github(a, rep, kind, subject):
     owner = a.github.strip("/")
     if not re.match(r"^[\w.-]+(?:/[\w.-]+)?$", owner):
         die("supply verify: --github takes OWNER or OWNER/REPO", 1)
-    cmd = ["attestation", "verify", subject if kind == "blob" else "oci://" + subject]
+    cmd = ["attestation", "verify"]
     cmd += ["-R", owner] if "/" in owner else ["-o", owner]
     cmd += ["--format", "json"]
     if a.type:
@@ -2603,6 +3421,7 @@ def verify_github(a, rep, kind, subject):
         cmd += ["--bundle", a.bundle]
     if a.trusted_root:
         cmd += ["--custom-trusted-root", a.trusted_root]
+    cmd += ["--", subject if kind == "blob" else "oci://" + subject]
     rc, out, err = _run("gh", cmd)
     if rc != 0:
         raise AccessError("unverifiable: %s" % (first_line(err) or "gh attestation verify exited %d" % rc))
@@ -2610,16 +3429,21 @@ def verify_github(a, rep, kind, subject):
         doc = json.loads(out)
     except ValueError:
         raise AccessError("gh attestation verify printed no JSON; gh 2.49 or later is required")
+    if not isinstance(doc, list) or not doc:
+        raise AccessError("gh attestation verify exited 0 but printed no attestation list; treat %s as "
+                          "unverified and rerun gh by hand to see why" % subject)
     atts = []
-    for r in doc if isinstance(doc, list) else []:
-        vr = r.get("verificationResult") or {}
-        st = vr.get("statement") or {}
-        cert = (vr.get("signature") or {}).get("certificate") or {}
-        for s in st.get("subject") or [{}]:
-            atts.append({"subject": s.get("name", ""), "digest": "sha256:" + ((s.get("digest") or {}).get("sha256") or ""),
-                         "predicateType": st.get("predicateType", ""), "issuer": cert.get("issuer", ""),
-                         "identity": cert.get("subjectAlternativeName", ""),
-                         "builder": cert.get("buildSignerURI", "")})
+    with tool_output("gh attestation verify", "gh 2.49 or later is required"):
+        for r in doc:
+            vr = r.get("verificationResult") or {}
+            st = vr.get("statement") or {}
+            cert = (vr.get("signature") or {}).get("certificate") or {}
+            for s in st.get("subject") or [{}]:
+                atts.append({"subject": s.get("name", ""),
+                             "digest": "sha256:" + ((s.get("digest") or {}).get("sha256") or ""),
+                             "predicateType": st.get("predicateType", ""), "issuer": cert.get("issuer", ""),
+                             "identity": cert.get("subjectAlternativeName", ""),
+                             "builder": cert.get("buildSignerURI", "")})
     rep.data["verifier"] = {"tool": "gh", "command": "attestation verify", "owner": owner}
     rep.data["attestations"] = red_deep(sorted(atts, key=lambda x: json.dumps(x, sort_keys=True)))
     rep.add("VER000", subject, 0, "%d attestation(s) verified for %s" % (len(atts), subject))
@@ -2644,8 +3468,8 @@ def cmd_redact(a):
 # ------------------------------------------------------------------------------- parser
 class _Parser(argparse.ArgumentParser):
     def error(self, message):
-        die("supply %s: %s\n\nRun `supply` with no arguments for the command list."
-            % (self.prog.split()[-1] if " " in self.prog else "", message), 1)
+        who = "supply %s" % self.prog.split()[-1] if " " in self.prog else "supply"
+        die("%s: %s\n\nRun `supply` with no arguments for the command list." % (who, message), 1)
 
 
 def common_parser():
@@ -2724,6 +3548,13 @@ def main():
         die("Unknown command %r. Commands: %s\n\nRun `supply` with no arguments for the full usage."
             % (argv[0], ", ".join(names)), 1)
     a = top.parse_args(argv)
+    global TIMEOUT
+    if getattr(a, "timeout", None) is not None:
+        if a.timeout < 1:
+            die("supply %s: --timeout must be a positive number of seconds" % a.cmd, 1)
+        TIMEOUT = a.timeout
+    if getattr(a, "max_bytes", 0) < 0:
+        die("supply %s: --max-bytes must be 0 (no cap) or a positive number" % a.cmd, 1)
     try:
         rep = a.fn(a)
         fmt = "json" if a.json else ("md" if a.md else ("md" if sys.stdout.isatty() else "json"))
@@ -2734,6 +3565,14 @@ def main():
         die("supply %s: %s" % (a.cmd, red_text(str(e))), 3)
     except BrokenPipeError:
         sys.exit(0)
+    except KeyboardInterrupt:
+        die("supply %s: interrupted" % a.cmd, 130)
+    except (OSError, ValueError) as e:
+        die("supply %s: %s (%s) — check the paths and permissions given and rerun"
+            % (a.cmd, red_text(str(e)), type(e).__name__), 2)
+    except Exception as e:  # never a traceback: a bug is reported as an error, exit 2
+        die("supply %s: internal error (%s: %s) — please report it with the "
+            "command line" % (a.cmd, type(e).__name__, red_text(str(e))), 2)
     sys.exit(rep.exit_code())
 
 

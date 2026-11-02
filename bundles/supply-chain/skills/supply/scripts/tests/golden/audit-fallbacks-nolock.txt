@@ -1,6 +1,6 @@
 # exit=1
 # stderr:
-supply: dir=dirty ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,shell tools=cargo,govulncheck,npm,pip-audit
+supply: dir=dirty ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,shell tools=cargo-audit,govulncheck,npm,pip-audit
 # stdout:
 {
   "command": "audit",
@@ -10,7 +10,7 @@ supply: dir=dirty ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,sh
         "ecosystem": "cargo",
         "packages": 0,
         "status": "unavailable",
-        "tool": "cargo"
+        "tool": "cargo-audit"
       },
       {
         "ecosystem": "go",
@@ -26,8 +26,8 @@ supply: dir=dirty ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,sh
       },
       {
         "ecosystem": "pip",
-        "packages": 1,
-        "status": "ok",
+        "packages": 0,
+        "status": "unavailable",
         "tool": "pip-audit"
       }
     ]
@@ -49,7 +49,7 @@ supply: dir=dirty ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,sh
       "fix": "`harness install osv-scanner` (covers every ecosystem), or install the ecosystem's own auditor",
       "id": "AUD001",
       "line": 0,
-      "message": "cargo: cargo audit needs Cargo.lock; cargo is unaudited, not clean",
+      "message": "cargo: cargo-audit needs Cargo.lock; cargo is unaudited, not clean",
       "severity": "info"
     },
     {
@@ -78,15 +78,15 @@ supply: dir=dirty ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,sh
     },
     {
       "file": "requirements.txt",
-      "fix": "upgrade requests to 2.32.4 (/audit-deps applies patch and minor upgrades; a major upgrade is a human decision)",
-      "id": "VUL001",
-      "line": 3,
-      "message": "pip requests 2.32.3: PYSEC-0000-0002 (CVE-2099-0002) \u2014 Synthetic certificate check bypass; fixed in 2.32.4",
-      "severity": "warn"
+      "fix": "`harness install osv-scanner` (reads requirements files without building), or audit a hashed requirements file (`uv pip compile --generate-hashes`)",
+      "id": "AUD001",
+      "line": 0,
+      "message": "pip-audit would resolve and build packages from requirements.txt (not every line is pinned with --hash); pip unaudited, not clean",
+      "severity": "info"
     }
   ],
   "tools": [
-    "cargo",
+    "cargo-audit",
     "govulncheck",
     "npm",
     "pip-audit"

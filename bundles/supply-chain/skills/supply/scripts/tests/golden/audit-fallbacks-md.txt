@@ -1,10 +1,10 @@
 # exit=1
 # stderr:
-supply: dir=clean ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,shell tools=cargo,govulncheck,npm,pip-audit
+supply: dir=clean ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,shell tools=cargo-audit,govulncheck,npm,pip-audit
 # stdout:
 # supply audit — clean
 
-ecosystems: cargo, docker, github-actions, gitlab-ci, go, npm, pip, shell · tools: cargo, govulncheck, npm, pip-audit
+ecosystems: cargo, docker, github-actions, gitlab-ci, go, npm, pip, shell · tools: cargo-audit, govulncheck, npm, pip-audit
 
 ## Findings (6)
 
@@ -21,7 +21,7 @@ ecosystems: cargo, docker, github-actions, gitlab-ci, go, npm, pip, shell · too
 
 | ecosystem | packages | status | tool |
 |---|---|---|---|
-| cargo | 1 | ok | cargo |
+| cargo | 1 | ok | cargo-audit |
 | go | 1 | ok | govulncheck |
 | npm | 2 | ok | npm |
 | pip | 1 | ok | pip-audit |

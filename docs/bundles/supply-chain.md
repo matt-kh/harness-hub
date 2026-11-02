@@ -102,7 +102,7 @@ cosign sign|attest and insecure downloads written to a file. supply_chain.allow_
 allow-lists global tools; venv detection reads the hook's environment and the command text.
 The read-only `supply` CLI and client skill: detect (ecosystems, manifests, lockfiles), pins
 (unpinned actions, images, dependencies and unverified downloads, with an exact-token
---apply), ci (workflow hardening), audit (osv-scanner, else npm audit, pip-audit, cargo audit,
+--apply), ci (workflow hardening), audit (osv-scanner, else npm audit, pip-audit, cargo-audit,
 govulncheck), sbom (syft) and sbom lint, verify (cosign, gh attestation verify) and redact.
 The /pin-deps and /audit-deps skills, the supply-architect, supply-auditor and supply-triage
 agents and the pinned osv-scanner, cosign and syft land in later parts.
