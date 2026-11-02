@@ -487,9 +487,12 @@ class tool_output(object):
 
 
 def error_line(text, n=300):
-    """The last line that reads like an error (tools log progress first), else the first line."""
-    hits = [ln.strip() for ln in (text or "").splitlines()
-            if re.search(r"(?i)\b(error|unable|could not|cannot|failed|fatal)\b", ln)]
+    """The tool's error line: the last `Error: ...` line (cosign and syft print the cause there and
+    a `main.go:NN: error during command execution` trailer after it), else the last line that reads
+    like an error (tools log progress first), else the first line."""
+    lines = [ln.strip() for ln in (text or "").splitlines()]
+    hits = [ln for ln in lines if ln.startswith("Error:")] or \
+           [ln for ln in lines if re.search(r"(?i)\b(error|unable|could not|cannot|failed|fatal)\b", ln)]
     return red_text(hits[-1])[:n] if hits else first_line(text, n)
 
 
@@ -2936,6 +2939,9 @@ def osv_reads(eco, rel):
     return False
 
 
+OSV_NO_OFFLINE_DB = "no offline version of the OSV database is available"  # osv-scanner 2.7.0
+
+
 def cmd_audit(a):
     tree, rep = start_dir(a, "audit")
     root = a.dir
@@ -2972,7 +2978,9 @@ def cmd_audit(a):
             counts = parse_osv(rep, out, root, tree)
         else:
             why = error_line(err) or first_line(out) or "no output"
-            if a.offline and "offline" in why.lower():
+            # only osv-scanner's own "no offline database" error gets the download hint (an older
+            # osv-scanner rejecting --offline-vulnerabilities also says "offline")
+            if a.offline and OSV_NO_OFFLINE_DB in (err or ""):
                 why += ("; the offline database is missing: a human downloads it once (osv-scanner scan "
                         "source --offline-vulnerabilities --download-offline-databases -r DIR, with "
                         "OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY set to supply_chain.osv_offline_db), or "
@@ -3052,20 +3060,24 @@ def key_line(text, key):
     return 1
 
 
-def sbom_packages(doc, fmt):
+def sbom_packages(doc, fmt, syft=False):
     """The package entries of an SBOM: SPDX packages without the document root (syft's
-    SPDXRef-DocumentRoot-*, the scanned directory or image), CycloneDX components without
-    "type": "file" (the manifests syft read, by absolute path)."""
+    SPDXRef-DocumentRoot-*, the scanned directory or image). For syft's own output (``syft``,
+    `supply sbom` only) also CycloneDX components without "type": "file" (the manifests syft read,
+    by absolute path); `sbom lint` of any other SBOM counts every component."""
     if fmt == "spdx-json":
         pkgs = doc.get("packages") if isinstance(doc.get("packages"), list) else []
         return [p for p in pkgs if not (isinstance(p, dict)
                                         and str(p.get("SPDXID", "")).startswith("SPDXRef-DocumentRoot-"))]
     pkgs = doc.get("components") if isinstance(doc.get("components"), list) else []
+    if not syft:
+        return pkgs
     return [p for p in pkgs if not (isinstance(p, dict) and p.get("type") == "file")]
 
 
-def lint_sbom(rep, rel, text, doc):
-    """SBM001-SBM009 on a parsed document; -> (format, spec_version, package count)."""
+def lint_sbom(rep, rel, text, doc, syft=False):
+    """SBM001-SBM009 on a parsed document; -> (format, spec_version, package count). ``syft``: the
+    document is syft's output from `supply sbom` (its file components are not packages)."""
     if not isinstance(doc, dict) or not ("spdxVersion" in doc or doc.get("bomFormat") == "CycloneDX"):
         rep.add("SBM001", rel, 1, "not an SPDX or CycloneDX JSON document (no spdxVersion, no "
                 "bomFormat: CycloneDX)")
@@ -3089,7 +3101,7 @@ def lint_sbom(rep, rel, text, doc):
         fmt, ver = "cyclonedx-json", str(doc.get("specVersion", ""))
         missing = [k for k in CDX_REQUIRED if k not in doc]
         md = doc.get("metadata") if isinstance(doc.get("metadata"), dict) else {}
-        pkgs = sbom_packages(doc, "cyclonedx-json")
+        pkgs = sbom_packages(doc, "cyclonedx-json", syft)
         if not re.match(r"^1\.[4-7]$", ver):
             rep.add("SBM003", rel, key_line(text, "specVersion"), "spec version %s is not CycloneDX 1.4-1.7" % ver)
         created = md.get("timestamp")
@@ -3225,7 +3237,7 @@ def cmd_sbom(a):
     rc, out, err = _run("syft", ["scan", src, "-o", a.format, "-q"],
                         env_extra={"SYFT_CHECK_FOR_APP_UPDATE": "false"})
     if rc != 0:
-        raise AccessError("syft failed (exit %d): %s" % (rc, first_line(err) or "no output"))
+        raise AccessError("syft failed (exit %d): %s" % (rc, error_line(err) or "no output"))
     try:
         doc = json.loads(out)
     except ValueError:
@@ -3233,7 +3245,7 @@ def cmd_sbom(a):
     written = red_tokens(doc)
     txt = json.dumps(written, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
     with tool_output("syft", "the supported version is 1.55.0 (harness install syft)"):
-        fmt, ver, n = lint_sbom(rep, a.out or "-", txt, written)
+        fmt, ver, n = lint_sbom(rep, a.out or "-", txt, written, syft=True)
     rep.data["sbom"] = {"source": src, "format": fmt, "spec_version": ver, "packages": n,
                         "bytes": len(txt.encode("utf-8")), "file": a.out or ""}
     if a.out:
@@ -3242,7 +3254,7 @@ def cmd_sbom(a):
         clean = red_deep(doc)
         clean = clean if isinstance(clean, dict) else {}
         names = sorted({"%s %s" % (p.get("name", ""), p.get("versionInfo") or p.get("version") or "")
-                        for p in sbom_packages(clean, fmt) if isinstance(p, dict)})
+                        for p in sbom_packages(clean, fmt, syft=True) if isinstance(p, dict)})
         rep.data["packages"] = [x.strip() for x in names]
         rep.data["note"] = "summary only: pass --out FILE to write the SBOM"
     return rep
@@ -3341,6 +3353,13 @@ def cmd_verify(a):
         raise AccessError("%s: no such file (--trusted-root)" % a.trusted_root)
     if a.github:
         return verify_github(a, rep, kind, subject)
+    if kind == "image" and a.offline:
+        raise Unsupported("--offline cannot verify an image with cosign: cosign 3.1.4 deprecated --offline, and "
+                          "verify / verify-attestation read the image's signatures and the transparency log "
+                          "over the network. Offline, verify a downloaded file with its Sigstore bundle "
+                          "(supply verify FILE --bundle F --trusted-root F --offline), or an attestation "
+                          "with gh (supply verify TARGET --github OWNER/REPO --bundle F --trusted-root F "
+                          "--offline); else drop --offline")
     if kind == "image" and a.bundle:
         die("supply verify: --bundle is for a file with cosign (cosign verify and verify-attestation read "
             "an image's signatures from its registry); drop --bundle, or use --github OWNER/REPO --bundle F", 1)
@@ -3362,7 +3381,7 @@ def cmd_verify(a):
     if a.trusted_root:
         args += ["--trusted-root", a.trusted_root]
     # no cosign --offline: cosign 3.1.4 deprecates it ("provide a --bundle ... and a --trusted-root");
-    # offline here means a --trusted-root file (required above) and, for a file, its --bundle
+    # offline here means a file, its --bundle and a --trusted-root (images are refused above)
     if kind == "blob":
         verb = "verify-blob-attestation" if a.attestation else "verify-blob"
         cmd = [verb, "--bundle", a.bundle] + (["--type", a.type] if a.type else []) + args + ["--", subject]
@@ -3373,7 +3392,7 @@ def cmd_verify(a):
         cmd = ["verify", "--output", "json"] + args + ["--", subject]
     rc, out, err = _run("cosign", cmd)
     if rc != 0:
-        raise AccessError("unverifiable: %s" % (first_line(err) or "cosign exited %d" % rc))
+        raise AccessError("unverifiable: %s" % (error_line(err) or "cosign exited %d" % rc))
     rep.data["verifier"] = dict(who, tool="cosign", command=cmd[0])
     if kind == "blob":
         rep.data["signatures"] = [{"file": subject, "bundle": a.bundle}]

@@ -14,7 +14,7 @@ GOLD="$here/golden"
 REPOS="$FIX/repos"
 unset SUPPLY_REGISTRIES_RE SUPPLY_REDACT_EXTRA_RE SUPPLY_EXCLUDE_RE SUPPLY_TIMEOUT SUPPLY_OSV_OFFLINE_DB \
       SUPPLY_MAX_BYTES SUPPLY_MAX_FILES SUPPLY_TEST_FAIL_AFTER STUB_FAIL STUB_PIP_AUDIT STUB_SLEEP \
-      STUB_MALFORMED HARNESS_HOME
+      STUB_MALFORMED STUB_OSV_NODB STUB_OSV_OLDFLAG HARNESS_HOME
 tmp=$(mktemp -d); tmp=$(cd "$tmp" && pwd -P)
 [ "${KEEP:-0}" = 1 ] || trap 'rm -rf "$tmp"' EXIT
 export LC_ALL=C PYTHONDONTWRITEBYTECODE=1
@@ -274,6 +274,7 @@ JSON
   t audit-sbom-name      1 audit dirty --sbom ../sbom/not-sbom.json
   SUPPLY_OSV_OFFLINE_DB=/home/u/.cache/osv-db t audit-osv-offline 1 audit dirty --offline --json
   STUB_OSV_NODB=1 t audit-osv-offline-nodb 2 audit dirty --offline --json
+  STUB_OSV_OLDFLAG=1 t audit-osv-offline-oldflag 2 audit dirty --offline --json
   SUPPLY_PATH="$tmp/fallback-path" t audit-fallbacks-json 1 audit clean --json
   SUPPLY_PATH="$tmp/fallback-path" t audit-fallbacks-md   1 audit clean --md
   SUPPLY_PATH="$tmp/fallback-path" STUB_PIP_AUDIT=error t audit-fallback-error 1 audit clean --json
@@ -312,6 +313,7 @@ JSON
   t sbom-lint-good-cdx   0 sbom lint ../sbom/good.cdx.json --md
   t sbom-lint-bad-cdx    1 sbom lint ../sbom/bad.cdx.json --md
   t sbom-lint-not-sbom   1 sbom lint ../sbom/not-sbom.json --json
+  t sbom-lint-file-components 0 sbom lint ../sbom/files.cdx.json --json
   t sbom-lint-not-json   3 sbom lint ../sbom/not-json.txt --json
 
   # ------------------------------------------------------------------ verify
@@ -342,8 +344,10 @@ JSON
   t verify-unsigned      2 verify ghcr.io/octocat/unsigned:1.0 --identity release --json
   t verify-mismatch      1 verify ghcr.io/octocat/mirror:1.0 --identity release --json
   t verify-offline-no-root 3 verify ghcr.io/octocat/hello-world:1.0 --identity release --offline --json
-  t verify-offline-root  0 verify ghcr.io/octocat/hello-world:1.0 --identity release --offline \
-                              --trusted-root ../tools/trusted-root.json --json
+  STUB_LOG="$tmp/offline-image.log" t verify-offline-image 3 verify ghcr.io/octocat/hello-world:1.0 \
+                              --identity release --offline --trusted-root ../tools/trusted-root.json --json
+  t verify-blob-offline  0 verify dirty/deploy.bash --bundle deploy.bash.sigstore.json --identity release \
+                              --offline --trusted-root ../tools/trusted-root.json --json
   t verify-key-and-github 1 verify ghcr.io/octocat/hello-world:1.0 --key cosign.pub --github octocat
   t verify-image-bundle  1 verify ghcr.io/octocat/hello-world:1.0 --attestation --bundle att.sigstore.json \
                               --identity release
@@ -469,6 +473,15 @@ for args in "detect dirty" "pins dirty" "ci dirty/deploy.bash" "sbom lint ../sbo
 done
 "$PY" "$CLI" redact < dirty/deploy.bash > /dev/null 2>&1
 ck "detect, pins, ci, sbom lint and redact never run a tool" [ ! -s "$STUB_LOG" ]
+
+# --offline with an image is refused before cosign runs (pass 1 and 2 share the log)
+ck "verify IMAGE --offline never runs cosign (exit 3, no cosign call)" [ ! -s "$tmp/offline-image.log" ]
+grep -q 'cosign 3.1.4 deprecated --offline' "$out/verify-offline-image.err" && grep -q -- '--github OWNER/REPO --bundle F --trusted-root F' "$out/verify-offline-image.err"
+chk $? "the image --offline refusal names the offline alternatives"
+! grep -q 'offline database is missing' "$out/audit-osv-offline-oldflag.err" && grep -q 'offline database is missing' "$out/audit-osv-offline-nodb.err"
+chk $? "the download hint follows only osv-scanner's no-offline-database error"
+grep -q '"packages": 2' "$out/sbom-lint-file-components.out" && ! grep -q SBM006 "$out/sbom-lint-file-components.out"
+chk $? "sbom lint counts CycloneDX file components of a non-syft SBOM (no SBM006)"
 
 # stub-log invariants (pass 1)
 L="$out/stub.log"

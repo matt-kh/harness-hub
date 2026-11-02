@@ -53,6 +53,40 @@ class InstallMissingToolsTest(HubTestCase):
         self.assertEqual(got, ["fake"])
         self.assertTrue(os.access(os.path.join(self.dest, "fake"), os.X_OK))
 
+    def test_optional_declared_before_required_is_installed_without_note(self):
+        # stack declares gh optional, github requires it: whatever the bundle order, gh is
+        # installed and no "not installed" note is printed for it
+        got = self.run_it([self.bundle("stack", {"fake": {"install": "fake", "optional": True}}),
+                           self.bundle("github", {"fake": {"install": "fake"}})])
+        self.assertEqual(got, ["fake"])
+        self.assertTrue(os.access(os.path.join(self.dest, "fake"), os.X_OK))
+        self.assertFalse(any(ln.startswith("note:") for ln in self.logs), self.logs)
+
+    def test_optional_note_once_per_tool(self):
+        got = self.run_it([self.bundle("a", {"opt": {"install": "opt", "optional": True}}),
+                           self.bundle("b", {"opt": {"install": "opt", "optional": True}})])
+        self.assertEqual(got, [])
+        notes = [ln for ln in self.logs if ln.startswith("note:")]
+        self.assertEqual(len(notes), 1, self.logs)
+        self.assertIn("used by a, b", notes[0])
+
+    def test_install_log_reaches_install_from_lock(self):
+        from harness import tools as T
+
+        seen = {}
+        orig = T.install_from_lock
+
+        def spy(*args, **kw):
+            seen["log"] = kw.get("log")
+            return orig(*args, **kw)
+
+        T.install_from_lock = spy
+        try:
+            self.run_it([self.bundle("a", {"fake": {"install": "fake"}})])
+        finally:
+            T.install_from_lock = orig
+        self.assertEqual(seen.get("log"), self.logs.append)
+
     def test_present_or_lockless_binaries_are_skipped(self):
         got = B.install_missing_tools([self.bundle("a", {"fake": {"install": "fake"}})], self.hub,
                                       dest=self.dest, log=self.logs.append, has=lambda _n: "/usr/bin/fake")

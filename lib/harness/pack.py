@@ -475,6 +475,9 @@ def run_pack(ctx: Any, ns: Any) -> int:
     home = hub_home()
     out = ns.out or os.path.join(home, "build", "release")
     platforms = _csv(ns.tools)
+    if getattr(ns, "tools_optional", False) and not platforms:
+        raise HarnessError("pack: --tools-optional only adds the optional locks to --tools; pass both "
+                           "(harness pack --tools linux/amd64 --tools-optional)", 2)
     if ctx.dry_run:
         root = repo_root(home)
         dirty = dirty_paths(root)

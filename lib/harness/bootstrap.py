@@ -21,7 +21,7 @@ from __future__ import annotations
 import os
 import platform
 import sys
-from typing import Any, List, Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from . import config as C
 from .util import HarnessError, bin_dir, hub_home, read_text, run_argv, tilde, which
@@ -200,36 +200,51 @@ def run(ctx: Any, ns: Any) -> int:
 
 def install_missing_tools(bundles: Sequence[Any], home: str, dest: Optional[str] = None,
                           log=print, has=which) -> List[str]:
-    """Install each missing required binary that declares ``install`` and has a lock.
+    """Install each missing binary that some active bundle requires (not ``optional``), declares
+    ``install`` for and has a lock.
 
-    Binaries declared ``optional`` are skipped with a note naming ``harness install TOOL``
-    (doctor WARNs with the same hint). Returns the tools installed."""
+    Two passes, so the order of the bundles does not matter: first every tool any bundle requires
+    is collected and installed; then a note naming ``harness install TOOL`` is printed once for
+    each optional tool that no bundle requires and that is not present (doctor WARNs with the same
+    hint). Returns the tools installed."""
     from . import state as S
     from . import tools as T
 
-    installed: List[str] = []
+    required: Dict[str, Tuple[str, str]] = {}  # tool -> (binary, first requiring bundle)
+    optional: Dict[str, Tuple[str, List[str]]] = {}  # tool -> (binary, bundles that use it)
     for b in bundles:
         for name, spec in sorted(b.requires_binaries.items()):
             tool = spec.get("install")
-            if not tool or has(name) or tool in installed:
-                continue
-            lock = T.load_lock(home, tool)
-            if lock is None:
+            if not tool:
                 continue
             if spec.get("optional"):
-                log("note: %s (optional, used by %s) is not installed; run `harness install %s` "
-                    "when you want it" % (name, b.name, tool))
-                continue
-            log("install: %s (missing, required by %s)" % (tool, b.name))
-            try:
-                info = T.install_from_lock(lock, tool, dest or bin_dir())
-                st = S.load("_hub", None)
-                st.tools[tool] = info
-                st.save()
-                installed.append(tool)
-                log("installed %s %s" % (tool, info["version"]))
-            except HarnessError as exc:
-                log("WARN  could not install %s: %s" % (tool, exc))
+                optional.setdefault(tool, (name, []))[1].append(b.name)
+            else:
+                required.setdefault(tool, (name, b.name))
+    installed: List[str] = []
+    for tool in sorted(required):
+        name, bname = required[tool]
+        if has(name):
+            continue
+        lock = T.load_lock(home, tool)
+        if lock is None:
+            continue
+        log("install: %s (missing, required by %s)" % (tool, bname))
+        try:
+            info = T.install_from_lock(lock, tool, dest or bin_dir(), log=log)
+            st = S.load("_hub", None)
+            st.tools[tool] = info
+            st.save()
+            installed.append(tool)
+            log("installed %s %s" % (tool, info["version"]))
+        except HarnessError as exc:
+            log("WARN  could not install %s: %s" % (tool, exc))
+    for tool in sorted(optional):
+        name, users = optional[tool]
+        if tool in required or has(name) or T.load_lock(home, tool) is None:
+            continue
+        log("note: %s (optional, used by %s) is not installed; run `harness install %s` "
+            "when you want it" % (name, ", ".join(sorted(set(users))), tool))
     return installed
 
 

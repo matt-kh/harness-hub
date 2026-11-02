@@ -193,12 +193,9 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | [`stack/doctor/stk-cli`](bundles/stack.md#doctor-checks) | sensor | scm | stk CLI on PATH |
 | [`stack/doctor/stk-git-update-refs`](bundles/stack.md#doctor-checks) | sensor | scm | git supports rebase --update-refs (2.38+) |
 | [`stack/doctor/stk-scm-cli`](bundles/stack.md#doctor-checks) | sensor | scm | An SCM CLI is on PATH (glab or gh) |
-| [`supply-chain/doctor/cosign-binary`](bundles/supply-chain.md#doctor-checks) | sensor | security | cosign runs (supply verify) |
-| [`supply-chain/doctor/osv-scanner-binary`](bundles/supply-chain.md#doctor-checks) | sensor | security | osv-scanner runs (supply audit) |
 | [`supply-chain/doctor/supply-cli`](bundles/supply-chain.md#doctor-checks) | sensor | security | supply CLI on PATH |
-| [`supply-chain/doctor/supply-config`](bundles/supply-chain.md#doctor-checks) | sensor | security | supply reads its [supply_chain] config and every signer identity_re is anchored ^...$ |
+| [`supply-chain/doctor/supply-config`](bundles/supply-chain.md#doctor-checks) | sensor | security | every signer identity_re is anchored ^...$ and does not match the empty string |
 | [`supply-chain/doctor/supply-detect`](bundles/supply-chain.md#doctor-checks) | sensor | security | supply detect runs offline on the current directory |
-| [`supply-chain/doctor/syft-binary`](bundles/supply-chain.md#doctor-checks) | sensor | security | syft runs (supply sbom) |
 | [`ticket-workflow/doctor/ticket-workflow-scm`](bundles/ticket-workflow.md#doctor-checks) | sensor | delivery | An SCM CLI is on PATH (glab or gh) |
 | [`ticket-workflow/doctor/ticket-workflow-skills`](bundles/ticket-workflow.md#doctor-checks) | sensor | delivery | work-ticket and create-ticket skills rendered |
 | [`ticket-workflow/doctor/ticket-workflow-tracker`](bundles/ticket-workflow.md#doctor-checks) | sensor | delivery | A tracker CLI is on PATH (jira or gh) |
