@@ -28,6 +28,10 @@ case " $* " in
   *" --format json --all-packages "*) ;;
   *) echo "stub osv-scanner: expected --format json --all-packages (2.7.0 lists only vulnerable packages without it), got: $*" >&2; exit 1 ;;
 esac
+if [ "${STUB_OSV_OLDFLAG:-}" = 1 ]; then  # an osv-scanner without the flag (1.x)
+  case " $* " in *" --offline-vulnerabilities "*)
+    echo "Incorrect Usage: flag provided but not defined: -offline-vulnerabilities" >&2; exit 127 ;; esac
+fi
 if [ "${STUB_OSV_NODB:-}" = 1 ]; then
   case " $* " in *" --offline-vulnerabilities "*) cat "$fix/osv-nodb.txt" >&2; exit 127 ;; esac
 fi

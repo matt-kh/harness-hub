@@ -408,8 +408,8 @@ read-only. Supersedes the P2 `toolchain` row: its asks and `/audit-deps` move he
   true`, `supply_chain.max_bytes = 65536`.
 - Optional pinned tools: `osv-scanner`, `cosign`, `syft` in `tools/<tool>.lock.json`, marked
   `"optional": true` so `harness pack --tools` and bootstrap skip them unless asked.
-- Sensors: guard rows with bypasses and yield rows, doctor (`supply-cli`, `supply-detect`, one
-  check per optional tool, `supply-config`), goldens per verb over fixture checkouts with stub
+- Sensors: guard rows with bypasses and yield rows, doctor (`supply-cli`, `supply-detect`,
+  `supply-config`, and the generic per-binary check for each optional tool), goldens per verb over fixture checkouts with stub
   tools, a dry-run request log that shows reads only.
 - Not implemented: publishing, signing, key generation, registry administration, SBOM upload,
   licence policy (org overlay), reachability analysis.

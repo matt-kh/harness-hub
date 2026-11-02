@@ -249,6 +249,17 @@ class PackTest(unittest.TestCase):
         self.assertTrue(ns.tools_optional)
         self.assertFalse(cli.build_parser().parse_args(["pack"]).tools_optional)
 
+    def test_tools_optional_without_tools_is_refused(self):
+        import types
+
+        from harness import cli
+
+        ns = cli.build_parser().parse_args(["pack", "--tools-optional"])
+        ctx = types.SimpleNamespace(dry_run=True, offline=True, json=False)
+        with self.assertRaises(HarnessError) as cm:
+            P.run_pack(ctx, ns)
+        self.assertIn("--tools linux/amd64 --tools-optional", str(cm.exception))
+
     def test_bad_platform(self):
         with self.assertRaises(HarnessError):
             self.pack(platforms=["windows/amd64"])

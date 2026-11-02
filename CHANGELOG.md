@@ -147,19 +147,24 @@ prints every one between your applied version and the new one.
   digest taken from the upstream checksum file (`osv-scanner_SHA256SUMS`,
   `cosign_checksums.txt`, `syft_1.55.0_checksums.txt`). New lock key `"optional": true`.
   `harness pack --tools-optional` ships optional locks with `--tools`. The manifest declares
-  `osv-scanner`, `cosign` (`cosign version`), `syft` and `gh` ≥ 2.49 as optional with
-  `install`, and `npm`, `pip-audit`, `cargo-audit`, `govulncheck` as optional fallbacks; manual
-  steps `install-supply-tools` and `configure-identities`; doctor checks `osv-scanner-binary`,
-  `cosign-binary`, `syft-binary` and `supply-config` (warn). The `supply` argv was checked
+  `osv-scanner` ≥ 2.7.0, `cosign` ≥ 3.1.4 (`cosign version`), `syft` ≥ 1.55.0 (the versions the
+  argv and output parsing were checked against; older releases lack what supply relies on) and
+  `gh` ≥ 2.49 as optional with `install`, and `npm`, `pip-audit`, `cargo-audit`, `govulncheck` as
+  optional fallbacks (doctor WARNs when one is absent: no manifest field marks a binary
+  fallback-only); manual steps `install-supply-tools` and `configure-identities`; doctor check
+  `supply-config` (warn: every `identity_re` anchored as `supply verify` requires, the same rule
+  as the CLI). The `supply` argv was checked
   against the real binaries: `audit` passes `--all-packages` (without it osv-scanner 2.7.0
   lists only vulnerable packages, so clean lockfiles counted 0), names osv-scanner's error line
   instead of its first progress line and, offline without a database, the human's download
-  command; `verify` no longer passes cosign's deprecated `--offline` (offline = `--trusted-root`,
-  plus `--bundle` for a file) and refuses `--bundle` with an image and cosign (exit 1; cosign
-  3.1.4 `verify`/`verify-attestation` have no such flag); `sbom` runs syft with
+  command; `verify` no longer passes cosign's deprecated `--offline`: offline is a file with `--bundle`
+  and `--trusted-root`, or `--github` with both; `verify IMAGE --offline` with cosign is refused
+  (exit 3) and `--bundle` with an image and cosign too (exit 1; cosign 3.1.4
+  `verify`/`verify-attestation` have no such flag); cosign and syft failures name their `Error:`
+  line; `sbom` runs syft with
   `SYFT_CHECK_FOR_APP_UPDATE=false`, and the summary and package counts leave out syft's SPDX
-  document root and CycloneDX `"type": "file"` components (absolute manifest paths); `sbom
-  lint` accepts CycloneDX 1.7 (syft 1.55.0's default). `[uninstall]` also keeps
+  document root and, for syft's own output only, CycloneDX `"type": "file"` components (absolute
+  manifest paths); `sbom lint` accepts CycloneDX 1.7 (syft 1.55.0's default). `[uninstall]` also keeps
   `~/.cache/osv-scalibr/**`, where osv-scanner 2.7.0 keeps its offline databases.
 - Neutral hook events beyond the guard (ARCHITECTURE §3–§5; roadmap "Provider hooks beyond
   `PreToolUse`"). Bundles register hook scripts with `[[provides.hooks]]` (`event` = `prompt`
@@ -582,7 +587,8 @@ prints every one between your applied version and the new one.
 ### Changed
 
 - `harness pack --tools` skips tool locks marked `"optional": true` (with a note naming
-  `--tools-optional`) unless `--tools-optional` is given, and bootstrap no longer auto-installs a
+  `--tools-optional`) unless `--tools-optional` is given (`--tools-optional` without `--tools`
+  is refused, exit 2), and bootstrap no longer auto-installs a
   binary a bundle declares `optional` (it prints `harness install TOOL`; doctor already WARNs
   with the same hint). A bundle that requires a binary still gets it installed (`gh` for
   `github`); `stack` alone no longer pulls in `gh`.
@@ -720,8 +726,12 @@ prints every one between your applied version and the new one.
   required there and still installed); run `harness install gh`, and `harness install
   osv-scanner|cosign|syft` (or `--from FILE`) for the scanners you use. `supply_chain.osv_offline_db`
   names the directory osv-scanner keeps its databases under (`DIR/osv-scalibr/<Ecosystem>/all.zip`,
-  osv-scanner 2.7.0): if you pointed it at the database files themselves, point it at their
-  parent's parent. Nothing to edit otherwise.
+  osv-scanner 2.7.0): point it at the directory that contains `osv-scalibr/`. Doctor WARNs an
+  osv-scanner older than 2.7.0, cosign older than 3.1.4 or syft older than 1.55.0: `harness
+  install TOOL` puts the pinned version first in `~/.local/bin`. A script running `supply verify
+  IMAGE --offline` with cosign now gets exit 3: verify the image online, or offline a downloaded
+  file with `--bundle F --trusted-root F` or `--github OWNER/REPO --bundle F --trusted-root F`.
+  Nothing to edit otherwise.
 - Per-provider model names: one new optional config key, `[providers.<name>].model_policy`
   (`plan`, `execute`). Claude needs no edit. For Copilot, `harness apply` now writes agents
   and skills without `model:` (session model); to pin models, add

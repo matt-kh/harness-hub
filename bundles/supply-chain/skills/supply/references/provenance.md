@@ -33,8 +33,11 @@ with `--insecure-ignore-tlog`, `--insecure-ignore-sct`, `--allow-insecure-regist
 regexp (the guard denies the flags). `--offline` needs `--trusted-root` (exit 3 otherwise); with
 `--github` it also needs `--bundle` (the attestation from `gh attestation download`), since gh
 cannot fetch it offline. cosign 3 deprecates its own `--offline` ("provide a --bundle … and a
---trusted-root"), so the CLI never passes it: offline means the trusted root from the file (and,
-for a file, its bundle); an image's signatures are still read from its registry. `--bundle` with
+--trusted-root"), so the CLI never passes it: offline means a file verified with its Sigstore
+bundle and the trusted root (`supply verify FILE --bundle F --trusted-root F --offline`), or gh
+with both (`--github OWNER/REPO --bundle F --trusted-root F --offline`). `--offline` with an image
+and cosign is refused (exit 3, cosign never runs): cosign reads an image's signatures from its
+registry, so it cannot be kept offline; drop `--offline`, or use one of the two forms. `--bundle` with
 an image and cosign is a usage error (exit 1): cosign 3.1.4 `verify` and `verify-attestation` have
 no such flag; use it with a file, or with `--github`. A verifier that exits 0 but lists no signature or attestation is exit 2,
 never `VER000`. The subject always follows `--` on the cosign and gh command line, and a TARGET

@@ -191,7 +191,7 @@ def build_parser() -> argparse.ArgumentParser:
                    help="also download tools/*.lock.json assets for these platforms (e.g. linux/amd64,darwin/arm64); "
                         "locks marked optional are skipped unless --tools-optional")
     p.add_argument("--tools-optional", action="store_true",
-                   help="with --tools: also ship the optional locks (tools only some bundles use, e.g. osv-scanner, "
+                   help="with --tools (refused without it): also ship the optional locks (tools only some bundles use, e.g. osv-scanner, "
                         "cosign, syft)")
     p.add_argument("--self-extract", action="store_true",
                    help="also write harness-hub-<version>.run: a POSIX sh header + tar of the bundle, INSTALL.txt, "

@@ -10,6 +10,7 @@ osv-scanner scan source --format json --all-packages -L HERE/fixtures/repos/dirt
 osv-scanner scan source --format json --all-packages -L HERE/fixtures/sbom/good.cdx.json
 OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY=/home/u/.cache/osv-db osv-scanner scan source --format json --all-packages -r HERE/fixtures/repos/dirty --offline-vulnerabilities
 osv-scanner scan source --format json --all-packages -r HERE/fixtures/repos/dirty --offline-vulnerabilities
+osv-scanner scan source --format json --all-packages -r HERE/fixtures/repos/dirty --offline-vulnerabilities
 cd <empty-dir> && cargo-audit audit --json --file HERE/fixtures/repos/clean/Cargo.lock
 cd clean && GOFLAGS=-mod=readonly GOTOOLCHAIN=local govulncheck -json ./...
 cd clean && npm audit --json --audit-level=none
@@ -48,4 +49,4 @@ gh attestation verify -o octocat --format json -- dirty/deploy.bash
 gh attestation verify -R octocat/hello-world --format json -- oci://ghcr.io/octocat/unattested:1.0
 cosign verify --output json --certificate-identity-regexp '^https://github\.com/octocat/hello-world/\.github/workflows/release\.yml@refs/tags/v.*$' --certificate-oidc-issuer https://token.actions.githubusercontent.com -- ghcr.io/octocat/unsigned:1.0
 cosign verify --output json --certificate-identity-regexp '^https://github\.com/octocat/hello-world/\.github/workflows/release\.yml@refs/tags/v.*$' --certificate-oidc-issuer https://token.actions.githubusercontent.com -- ghcr.io/octocat/mirror:1.0
-cosign verify --output json --certificate-identity-regexp '^https://github\.com/octocat/hello-world/\.github/workflows/release\.yml@refs/tags/v.*$' --certificate-oidc-issuer https://token.actions.githubusercontent.com --trusted-root ../tools/trusted-root.json -- ghcr.io/octocat/hello-world:1.0
+cosign verify-blob --bundle deploy.bash.sigstore.json --certificate-identity-regexp '^https://github\.com/octocat/hello-world/\.github/workflows/release\.yml@refs/tags/v.*$' --certificate-oidc-issuer https://token.actions.githubusercontent.com --trusted-root ../tools/trusted-root.json -- dirty/deploy.bash
