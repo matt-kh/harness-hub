@@ -305,6 +305,9 @@ class ClassifyTest(HubTestCase):
             "k8s/agents/k8s-auditor": ("review", "read-only", "execute", "guide"),
             "k8s/agents/infra-architect": ("plan", "read-only", "plan", "guide"),
             "obs/agents/obs-triage": ("investigate", "read-only", "execute", "guide + sensor (inferential)"),
+            "supply-chain/agents/supply-architect": ("plan", "read-only", "plan", "guide"),
+            "supply-chain/agents/supply-auditor": ("review", "read-only", "execute", "guide + sensor (inferential)"),
+            "supply-chain/agents/supply-triage": ("investigate", "read-only", "execute", "guide"),
         })
 
     # ------------------------------------------------------------------ docs

@@ -3,11 +3,34 @@
 The software supply chain for agents: pin what you add, install inside the project, never switch
 verification off. The first bundle of the [security family](../reference/security.md) (domain
 `security`, posture `local`). It lands in parts across #51: the rule, guard section 38, the
-permission list and the read-only `supply` CLI with its client skill (`detect`, `pins`, `ci`,
-`audit`, `sbom`, `verify`, `redact`) and the pinned, optional `osv-scanner`, `cosign` and `syft`
-(`harness install TOOL`; bootstrap never fetches them unasked) are here; the `/pin-deps` and
-`/audit-deps` skills and the `supply-architect`, `supply-auditor` and `supply-triage` agents
-follow.
+permission list, the read-only `supply` CLI with its client skill (`detect`, `pins`, `ci`,
+`audit`, `sbom`, `verify`, `redact`), the pinned, optional `osv-scanner`, `cosign` and `syft`
+(`harness install TOOL`; bootstrap never fetches them unasked), the `/pin-deps` and
+`/audit-deps` workflow skills and the `supply-architect`, `supply-auditor` and `supply-triage`
+agents.
+
+- `/pin-deps [DIR] [--actions|--images|--deps] [--no-apply]` turns `supply pins` findings into
+  pins: a tag is resolved read-only to the commit or digest it points at today (`git
+  ls-remote`, `gh api` GET, `crane digest` or `docker buildx imagetools inspect` when
+  installed), written with `supply pins --apply` and checked by `supply pins` again. A branch,
+  `latest` or a missing ref is a version choice: the latest release is listed as a suggestion,
+  applied only when the user accepts. Unresolved values stay unresolved — a sha, digest or
+  checksum is never guessed. A repository whose Renovate or Dependabot pins is reported first.
+- `/audit-deps [DIR] [--offline] [--fix patch|minor|none]` upgrades each `OSV001`/`VUL001`
+  package to its fixed version with the ecosystem's lockfile tool (`uv lock
+  --upgrade-package`, `npm install --package-lock-only --ignore-scripts`, `pnpm update
+  --lockfile-only`, `cargo update --precise`, `go get`), never across a major (for `0.x`, a
+  `0.MINOR`), and re-runs `supply audit`. The report separates what the diff fixed, what needs
+  a major upgrade or a manual change, what has no fix, and the ecosystems whose auditor was
+  `unavailable`, `offline` or `error`.
+- Agents, all read-only (`Read, Grep, Glob, Bash`, no `permissionMode`): `supply-architect`
+  (plan model; current and target posture, a phased plan with a sensor per change, a decision
+  record), `supply-auditor` (Critical / Warnings / Suggestions / Not verified, severities only
+  from the rubrics; the bundle's review-agent sensor) and `supply-triage` (one vulnerability,
+  failed verification or suspicious dependency to its root cause; stops after three unresolved
+  hypotheses). They never install, edit, sign or push; a command the guard would ask or deny on
+  becomes a finding for the human.
+- Neither skill commits or pushes: the diff is the user's to review.
 
 - Switching TLS or signature verification off is **denied**: `pip|uv --trusted-host` (also a
   unique prefix such as `--trusted`), `uv --allow-insecure-host`, an `http://` index (`-i`,
@@ -93,7 +116,7 @@ and `supply_chain.registries_re`, `supply_chain.identities`, `supply_chain.redac
 <!-- generated:begin source=bundles/supply-chain/bundle.toml -->
 ## Summary
 
-Software supply chain: pin what you add, install inside the project, never switch verification off (guard 38; supply CLI, skills and agents follow)
+Software supply chain: pin what you add, install inside the project, never switch verification off (guard 38, the supply CLI, /pin-deps, /audit-deps and three read-only agents)
 
 Guard section 38 and its rule: switching TLS or signature verification off denies (pip
 --trusted-host, uv --allow-insecure-host or an http:// index or registry, npm strict-ssl
@@ -111,8 +134,11 @@ The read-only `supply` CLI and client skill: detect (ecosystems, manifests, lock
 govulncheck), sbom (syft) and sbom lint, verify (cosign, gh attestation verify) and redact.
 Pinned, sha256-verified osv-scanner, cosign and syft are optional (`harness install TOOL`;
 bootstrap never fetches them unasked; `harness pack --tools-optional` ships them air-gapped).
-The /pin-deps and /audit-deps skills and the supply-architect, supply-auditor and supply-triage
-agents land in later parts.
+Workflow skills /pin-deps (resolve tags to commit shas and digests read-only, apply them with
+supply pins --apply, re-run supply pins) and /audit-deps (upgrade vulnerable dependencies within
+the same major with the ecosystem's lockfile tool, re-run supply audit); neither commits or
+pushes. Read-only agents supply-architect (design, plan model), supply-auditor (review) and
+supply-triage (one finding to its root cause).
 
 - **Depends on:** `core`
 - **Recommends:** `github`
@@ -125,7 +151,15 @@ Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md
 
 **Skills**
 
+- `supply-chain/skills/audit-deps` — control: guide · function: workflow · posture: local · model: execute · yields: declaration
+- `supply-chain/skills/pin-deps` — control: guide · function: workflow · posture: local · model: execute · yields: declaration
 - `supply-chain/skills/supply` — control: guide · function: client · posture: read-only · model: execute · yields: declaration
+
+**Agents**
+
+- `supply-chain/agents/supply-architect` — control: guide · function: plan · posture: read-only · model: plan · yields: name
+- `supply-chain/agents/supply-auditor` — control: guide + sensor (inferential) · function: review · posture: read-only · model: execute · yields: name
+- `supply-chain/agents/supply-triage` — control: guide · function: investigate · posture: read-only · model: execute · yields: name
 
 **Rules**
 
@@ -247,21 +281,30 @@ Anchor every `identity_re` as `^…$`, name the workflow file and restrict the r
 
 ## Guides and sensors
 
-Guides steer the agent before it acts; sensors detect at or after the action. Pairing: **paired**; guides with a declared check: 3 of 3.
+Guides steer the agent before it acts; sensors detect at or after the action. Pairing: **paired**; guides with a declared check: 8 of 8.
 
 | side | kind | ref | note | pairs with |
 |---|---|---|---|---|
 | guide | rule | `rules/38-supply-chain.md` | pin what you add, install inside the project, never switch verification off, signing is a human release step | `guard.d/38-supply-chain.sh` |
 | guide | skill | `skills/supply` | the supply CLI: detect, pins (with --apply), ci, audit, sbom, verify, redact; severities from the reference rubrics; the optional pinned osv-scanner, cosign and syft behind audit, verify and sbom | `skills/supply/scripts/tests/run.sh`, `doctor_checks` |
+| guide | skill | `skills/pin-deps` | pin tags to commit shas and digests resolved read-only, supply pins --apply, supply pins again as the check; never guesses a value, never commits | `skills/supply/scripts/tests/run.sh`, `guard.d/38-supply-chain.sh`, `skill-description`, `yields` |
+| guide | skill | `skills/audit-deps` | in-major upgrades with the ecosystem's lockfile tool, supply audit again as the check; majors, no-fix and unavailable ecosystems go to the human | `skills/supply/scripts/tests/run.sh`, `guard.d/38-supply-chain.sh`, `skill-description`, `yields` |
 | guide | permission | `permissions.toml` | verification and audit tools allowed, cosign signing asks, verification-off config and cosign keys denied | `permissions-vs-guard`, `guard.d/38-supply-chain.sh` |
-| sensor | guard | `guard.d/38-supply-chain.sh` | verification-off denies, global-install and unpinned-dependency asks, cosign signing and insecure-download asks | `rules/38-supply-chain.md`, `permissions.toml` |
+| guide | agent | `agents/supply-architect.md` | design-only supply-chain posture: pinning, update flow, SBOM, provenance and SLSA target, CI hardening, vulnerability SLAs | `guard.d/38-supply-chain.sh`, `agent-tools` |
+| guide | agent | `agents/supply-auditor.md` | read-only posture review in the Critical / Warnings / Suggestions / Not verified contract, severities from the rubrics | `guard.d/38-supply-chain.sh`, `agent-tools` |
+| guide | agent | `agents/supply-triage.md` | read-only investigation of one vulnerability, failed verification or suspicious dependency; stops after three unresolved hypotheses | `guard.d/38-supply-chain.sh`, `agent-tools` |
+| sensor | guard | `guard.d/38-supply-chain.sh` | verification-off denies, global-install and unpinned-dependency asks, cosign signing and insecure-download asks | `rules/38-supply-chain.md`, `skills/pin-deps`, `skills/audit-deps`, `permissions.toml`, `agents/supply-architect.md`, `agents/supply-auditor.md`, `agents/supply-triage.md` |
 | sensor | test | `guard.d/tests.sh` | guard rows incl. bypasses, ordering against later denies and the security yield | — |
 | sensor | test | `tests/run.sh` | this bundle's rows against core + supply-chain only | — |
-| sensor | test | `skills/supply/scripts/tests/run.sh` | the supply CLI against stub tools and fixture checkouts: goldens per verb, byte-exact --apply, redaction, stub-log invariants (verify only, no fix, no docker), a rubric row per rule id, two identical runs | `skills/supply` |
+| sensor | test | `skills/supply/scripts/tests/run.sh` | the supply CLI against stub tools and fixture checkouts: goldens per verb, byte-exact --apply, redaction, stub-log invariants (verify only, no fix, no docker), a rubric row per rule id, two identical runs | `skills/supply`, `skills/pin-deps`, `skills/audit-deps` |
 | sensor | doctor | `doctor_checks` | the supply CLI on PATH, an offline detect, every signer identity_re anchored as supply requires (warn, fix configure-identities); osv-scanner, cosign and syft missing or older than the verified version WARN through the generic per-binary check (fix harness install TOOL) | `skills/supply` |
 | sensor | lint | `permissions-vs-guard` | each Bash allow/deny rule of permissions.toml run through the guard: no allowed command the guard denies or asks, no denied one it allows | `permissions.toml` |
+| sensor | review-agent | `agents/supply-auditor.md` | evidence-cited supply-chain review of a checkout, independent of /pin-deps and /audit-deps | — |
+| sensor | lint | `agent-tools` | read-only agents set no permissionMode, list no write tools and name the model policy | `agents/supply-architect.md`, `agents/supply-auditor.md`, `agents/supply-triage.md` |
+| sensor | lint | `skill-description` | pin-deps and audit-deps: trigger phrase, NOT for scope, argument-hint | `skills/pin-deps`, `skills/audit-deps` |
+| sensor | lint | `yields` | the skills' Step 0, the agents' baseline sentence and the rule's repository sentence | `skills/pin-deps`, `skills/audit-deps` |
 
-**Not covered:** Pipe-to-shell (curl … | sh) as a command is core band 35 and lands in a later part of #51 (supply pins and supply ci already report it in files as SH001). Reachability of a vulnerability, major-upgrade safety and licence policy are judgement or organisation-specific and are not sensed. A venv activated outside the provider's process is invisible to the guard (it reads the hook's environment and the command text). Direct writes to configuration files (>> ~/.npmrc, ~/.gitconfig, pip.conf, .yarnrc.yml) and an empty quoted value (git config http.sslVerify '') are out of scope for the guard. The command lexer is a heuristic, not a shell parser. The CLI's own tool runs are not shell commands and are not guarded; the suite's stub log and dry-run log are the read-only proof. YAML is read with a line model: anchors, multi-document files, reusable workflows and extends are not checked. The real-tool argv is pinned by the stub suite and was checked once against osv-scanner 2.7.0, cosign 3.1.4 and syft 1.55.0 (audit online and --offline, sbom, verify-blob online and --offline); `supply verify IMAGE --offline` with cosign is refused (exit 3), since nothing keeps cosign 3.1.4 offline for an image; the JSON shapes of `cosign verify`/`verify-attestation` on an image and of `gh attestation verify` are checked against fixtures only. Whether a pinned lock is still the latest upstream release is not sensed; bumping a lock is a human PR. The agents and the /pin-deps and /audit-deps workflow skills land in later parts of #51.
+**Not covered:** Pipe-to-shell (curl … | sh) as a command is core band 35 and lands in a later part of #51 (supply pins and supply ci already report it in files as SH001). Reachability of a vulnerability, major-upgrade safety and licence policy are judgement or organisation-specific and are not sensed. A venv activated outside the provider's process is invisible to the guard (it reads the hook's environment and the command text). Direct writes to configuration files (>> ~/.npmrc, ~/.gitconfig, pip.conf, .yarnrc.yml) and an empty quoted value (git config http.sslVerify '') are out of scope for the guard. The command lexer is a heuristic, not a shell parser. The CLI's own tool runs are not shell commands and are not guarded; the suite's stub log and dry-run log are the read-only proof. YAML is read with a line model: anchors, multi-document files, reusable workflows and extends are not checked. The real-tool argv is pinned by the stub suite and was checked once against osv-scanner 2.7.0, cosign 3.1.4 and syft 1.55.0 (audit online and --offline, sbom, verify-blob online and --offline); `supply verify IMAGE --offline` with cosign is refused (exit 3), since nothing keeps cosign 3.1.4 offline for an image; the JSON shapes of `cosign verify`/`verify-attestation` on an image and of `gh attestation verify` are checked against fixtures only. Whether a pinned lock is still the latest upstream release is not sensed; bumping a lock is a human PR. Whether a resolved pin or an in-major upgrade is the right one, and the agents' findings and designs, are judgement: /pin-deps and /audit-deps are checked by re-running supply pins and supply audit, the agents' read-only stance by the guard for shell commands only.
 
 ## Uninstall
 
