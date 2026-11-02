@@ -122,6 +122,36 @@ def split_front_matter(text: str) -> Tuple[Dict[str, str], str]:
     return meta, body.lstrip("\n")
 
 
+MODEL_POLICY_LINE_RE = re.compile(r"^model:[ \t]*\{\{\s*core\.model_policy\.([a-z_]+)\s*\}\}[ \t]*\n", re.M)
+
+
+def resolve_model_lines(text: str, policy: Optional[Dict[str, str]]) -> Tuple[str, int]:
+    """Rewrite front-matter ``model: {{ core.model_policy.<role> }}`` lines for one provider.
+
+    ``policy`` None leaves the text alone (the provider reads the core aliases). Otherwise each
+    line becomes ``model: <policy[role]>``, or is dropped when the role has no value, so the
+    agent or skill runs on the provider's session model instead of a name it does not know.
+    Returns the text and the number of dropped lines.
+    """
+    if policy is None or not text.startswith("---\n"):
+        return text, 0
+    end = text.find("\n---", 4)
+    if end < 0:
+        return text, 0
+    dropped = 0
+
+    def sub(m: "re.Match[str]") -> str:
+        nonlocal dropped
+        val = policy.get(m.group(1))
+        if val:
+            return "model: %s\n" % val
+        dropped += 1
+        return ""
+
+    head = MODEL_POLICY_LINE_RE.sub(sub, text[:end + 1])
+    return head + text[end + 1:], dropped
+
+
 # ================================================================= targets
 
 
@@ -318,6 +348,8 @@ class Renderer:
         self.hub = hub
         self.targets = TargetSet()
         self.notes: List[str] = []
+        self._models: Optional[Dict[str, str]] = None  # front-matter model policy of the provider being rendered
+        self._models_dropped = 0
         self.skill_homes: Dict[str, str] = {}  # skill name -> rendered dir of the primary provider
 
     # ---------------------------------------------------------------- public
@@ -349,7 +381,20 @@ class Renderer:
         return env
 
     # ---------------------------------------------------------------- provider
+    def _model_policy_for(self, p: Provider) -> Optional[Dict[str, str]]:
+        """Front-matter model names for ``p``: ``[providers.<p>].model_policy`` when set, else
+        None for a provider whose capabilities declare ``models = "core"`` (it understands the
+        ``core.model_policy`` aliases), else an empty policy (``model:`` lines are dropped)."""
+        override = self.hub.config.get("providers.%s.model_policy" % p.name)
+        if isinstance(override, dict) and override:
+            return {str(k): str(v) for k, v in override.items() if v}
+        if p.capabilities.get("models") == "core":
+            return None
+        return {}
+
     def _render_provider(self, p: Provider, bundles: Sequence[Bundle]) -> None:
+        self._models = self._model_policy_for(p)
+        self._models_dropped = 0
         tpl = Templater(self.hub.template_context(p))
         self._instructions(p, bundles, tpl)
         self._skills(p, bundles, tpl)
@@ -360,6 +405,11 @@ class Renderer:
         self._provider_settings(p)
         self._mcp(p, bundles, tpl)
         tpl.check()
+        if self._models_dropped:
+            self.notes.append("%s: no [providers.%s].model_policy and the provider does not read the "
+                              "core.model_policy aliases; model: dropped from %d agent/skill file(s), "
+                              "which run on the session model" % (p.name, p.name, self._models_dropped))
+        self._models = None
 
     def _instructions(self, p: Provider, bundles: Sequence[Bundle], tpl: Templater) -> None:
         t = p.target("instructions")
@@ -448,7 +498,9 @@ class Renderer:
         templated = False
         if is_templated_file(src):
             text = data.decode("utf-8")
-            new = tpl.expand(text, where)
+            resolved, dropped = resolve_model_lines(text, self._models)
+            self._models_dropped += dropped
+            new = tpl.expand(resolved, where)
             templated = new != text or bool(TEMPLATE_RE.search(text))
             data = new.encode("utf-8")
         executable = os.access(src, os.X_OK)

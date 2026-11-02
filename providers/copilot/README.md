@@ -8,7 +8,7 @@ before relying on the guard.
 |---|---|---|
 | instructions | `~/.copilot/copilot-instructions.md` | managed blocks |
 | skills | `~/.copilot/skills/<name>/` | copied |
-| agents | `~/.copilot/agents/<name>.md` | copied, templated |
+| agents | `~/.copilot/agents/<name>.md` | copied, templated; `model:` from `[providers.copilot].model_policy`, dropped when unset |
 | guard hook | `~/.copilot/hooks/{guard-bash.sh,guard.env,shim.sh}` + `hooks/harness.json` | `{"version":1,"hooks":{"preToolUse":[{"type":"command","bash":"HARNESS_ASK_AS=<ask_as> bash ~/.copilot/hooks/shim.sh","timeoutSec":10}]}}` |
 | MCP | `~/.copilot/mcp-config.json` `mcpServers.<name>` | json-merge; entries get `type = "local"`, `tools = ["*"]` |
 | permissions | — | use `copilot --allow-tool/--deny-tool`; the guard hook enforces the shell rules |

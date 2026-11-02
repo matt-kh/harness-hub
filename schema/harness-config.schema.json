@@ -407,6 +407,19 @@
           "settings": {
             "type": "object",
             "description": "Extra keys deep-merged into the provider's settings target (only under its owner_keys), e.g. { env = { CLAUDE_CODE_SUBAGENT_MODEL = \"opus\" } }."
+          },
+          "model_policy": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "Model names in this provider's own namespace for agent and skill front matter (plan, execute). Wins over core.model_policy for this provider; a role left out drops its model: line.",
+            "properties": {
+              "plan": {
+                "type": "string"
+              },
+              "execute": {
+                "type": "string"
+              }
+            }
           }
         }
       }

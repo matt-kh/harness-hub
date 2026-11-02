@@ -59,6 +59,7 @@
         "ask": {"type": "boolean", "description": "The hook protocol has an 'ask the user' decision."},
         "skills": {"type": "string", "enum": ["native", "none"]},
         "agents": {"type": "string", "enum": ["native", "inlined", "none"]},
+        "models": {"type": "string", "enum": ["core", "config"], "description": "core: agent and skill front-matter model: lines take the core.model_policy aliases. config (default): only [providers.<name>].model_policy applies; without it the model: line is dropped and the file runs on the session model."},
         "mcp": {"type": "string", "enum": ["native", "none"]},
         "instructions": {"type": "string", "enum": ["native", "none"]},
         "notes": {"type": "string"}

@@ -30,6 +30,7 @@ Config it reads: `identity.email`, `core.default_branch_re`, `core.ticket_exampl
 | A legitimate read of a file under `~/.config/` is denied | the credential rule matches the path | read it yourself; if the path is not a credential, open an issue with the command (redacted) |
 | `plan` shows `CONFLICT` on `settings.json` or `CLAUDE.md` | you edited a hub-owned key or a managed block | `harness sync` → `--adopt` your change into your private bundle, or revert it |
 | Agents use the wrong model for Plan/Auto | `core.model_policy` differs from what you expect | `harness config get core.model_policy`; set it and `harness apply` |
+| A Copilot agent or skill has no `model:` | `core.model_policy` holds Claude aliases, so non-core providers need their own names | set `[providers.copilot].model_policy` and `harness apply` |
 | Guard journal stays empty although `lessons.journal = true` | `guard.env` not re-rendered, `HARNESS_LESSONS_JOURNAL` set to something else in your environment, or only allows so far (allows and passes write nothing) | `harness apply`; `grep HARNESS_LESSONS_JOURNAL ~/.claude/hooks/guard.env` shows `'true'`; check `env \| grep '^HARNESS_LESSONS_JOURNAL='` is unset or `true`; trigger a known deny (`git push origin main`) and look in `~/.local/state/harness/journal/` ([journal](../reference/hook-policy.md#journal)) |
 | Journal lines missing, `Permission denied` on `~/.local/state/harness/` | the state directory (or `$XDG_STATE_HOME`) is not writable by you, e.g. created by another user | `ls -ld ~/.local/state/harness`; fix ownership (`chown -R "$USER" ~/.local/state/harness`); the guard swallows the error and its decisions are unaffected |
 
@@ -99,7 +100,7 @@ Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md
 | `core.agent_label_re` | string | no | `"^agent-"` | Any label / Drive marker matching this regex tags an artefact as agent-owned (WORK_TICKET_AGENT_LABEL_RE). |
 | `core.agent_labels` | object | no | `{"worked": "agent-worked", "created": "agent-created", "drafted": "agent-drafted"}` | Provenance labels: worked = grants promptless writes, created = agent-created sub-tickets, drafted = /create-ticket drafts. |
 | `core.default_branch_re` | string | no | `"^(master\|main)$"` | Default/base branch regex: pushes to it are denied, sub MRs/PRs never target it (WORK_TICKET_BASE_BRANCH_RE). |
-| `core.model_policy` | object | no | `{"plan": "fable", "execute": "opus"}` | Model aliases: `plan` for the Plan / infra-architect agents, `execute` for Auto, reviewers and skills. |
+| `core.model_policy` | object | no | `{"plan": "fable", "execute": "opus"}` | Model aliases: `plan` for the Plan / infra-architect agents, `execute` for Auto, reviewers and skills; read by providers whose capabilities declare models = core (claude), others use [providers.<name>].model_policy. |
 | `core.ticket_example` | string | no | `"PROJ-123"` | Example ticket key used in guard reasons, instructions and skill docs. |
 | `credentials.extra_paths_re` | string | no | `""` | Extra ERE of credential paths the guard denies for readers (cat, grep, jq, cp, ...), on top of the built-in list (HARNESS_CRED_EXTRA_RE). Empty = none. |
 | `identity.email` | string | yes |  | Your work email; shown in the instructions and used as the OAuth account hint. Never used as a commit author by the hub. |

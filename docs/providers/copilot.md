@@ -10,7 +10,7 @@ Copilot can deny but not ask, so ask decisions follow `[providers.copilot].ask_a
 | Home | `~/.copilot` |
 | Instructions | `~/.copilot/copilot-instructions.md`, managed blocks |
 | Skills | `~/.copilot/skills/<name>/` |
-| Sub-agents | `~/.copilot/agents/` |
+| Sub-agents | `~/.copilot/agents/` (front-matter `model:` from `[providers.copilot].model_policy`, dropped when unset) |
 | Hooks | `~/.copilot/hooks/harness.json` → `providers/copilot/shim.sh` → guard |
 | Event `prompt` | `userPromptSubmitted` in `harness.json`, behind `providers/copilot/shim-prompt.sh` (output discarded), timeout in seconds |
 | Event `stop` | `sessionEnd` in `harness.json`, behind `providers/copilot/shim-stop.sh` (output discarded), timeout in seconds |
@@ -44,6 +44,11 @@ to the published spec; verify them on install, as for the guard shim.
   against, and the weekly provider-drift workflow opens an issue when a newer release
   appears.
 - Copilot's own tool approvals still apply on top of the guard.
+- Model names: `core.model_policy` holds Claude aliases (`fable`, `opus`) that Copilot does
+  not know, so they are never written here. Agents and skills take `model:` from
+  `[providers.copilot].model_policy` (Copilot's own names, e.g. `plan = "<copilot model>"`);
+  a role without a value drops the line and the file runs on the session model. `harness
+  plan` notes how many lines were dropped.
 - Repository level: Copilot reads `.github/copilot-instructions.md`, which the hub does not
   manage; hook stacking with project settings is not covered. `.harness.toml` is honoured
   by the guard (via the hook's cwd) and by skills at preflight

@@ -320,7 +320,7 @@ name = "Stop"; entry = '{"hooks": [{"type": "command", "command": "{command}", "
 shim = ""; timeout_unit = "s"; matcher = ""; note = ""   # all optional
 
 [capabilities]
-hook_enforced = true; permissions = "native"; ask = true; skills = "native"; agents = "native"; mcp = "native"
+hook_enforced = true; permissions = "native"; ask = true; skills = "native"; agents = "native"; models = "core"; mcp = "native"
 ```
 
 `[targets.hooks.events.<neutral>]` maps a neutral hook event to the provider's event `name`.

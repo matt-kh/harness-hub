@@ -441,6 +441,14 @@ prints every one between your applied version and the new one.
   "bundle.tags: is deprecated; use taxonomy.domain". Classify the bundle with `[taxonomy]`.
 
 ### Fixed
+- Model names per provider: agent and skill front matter no longer carries the Claude aliases
+  of `core.model_policy` (`fable`, `opus`) into providers that do not know them. Before,
+  Copilot's agents and skills were written with `model: fable` / `model: opus`. A provider
+  now declares `capabilities.models = "core"` to read the core aliases (claude does); any
+  other provider takes `[providers.<name>].model_policy` (its own model names, which also wins
+  for claude), and a role without a value drops the `model:` line, so the file runs on the
+  session model. `harness plan` notes the dropped lines per provider. Prose that names the
+  policy is unchanged.
 - `core` redact block (`redact_text`, so `k8s redact`, `pod`, `workload` and `helm --values`):
   a mid-line `key: value` / `key=value` whose value starts with an HTTP auth scheme word
   (`Bearer`, `Basic`, `Token`, `Digest`, `Negotiate`, `SSWS`, `OAuth`, `ApiKey` or
@@ -578,6 +586,11 @@ prints every one between your applied version and the new one.
 
 ### Migration
 
+- Per-provider model names: one new optional config key, `[providers.<name>].model_policy`
+  (`plan`, `execute`). Claude needs no edit. For Copilot, `harness apply` now writes agents
+  and skills without `model:` (session model); to pin models, add
+  `model_policy = { plan = "<copilot model>", execute = "<copilot model>" }` under
+  `[providers.copilot]` in `local/harness.toml`, then `harness apply`.
 - Declared tracker: nothing to edit. `ticket_workflow.trackers` defaults to `[]` and a
   repository without `[repo] tracker` keeps today's host rule (github.com → GitHub Issues,
   GitLab → Jira). To pin a repository's tracker, add `[repo] tracker = "jira"` (and
