@@ -15,7 +15,7 @@ ecosystems: none · tools: none
 | warn | SBM004 | ../sbom/bad.cdx.json:14 | no creation timestamp | regenerate the SBOM; consumers need the creation time |
 | warn | SBM005 | ../sbom/bad.cdx.json:14 | no generating tool recorded | regenerate the SBOM with a tool that records itself |
 | info | SBM009 | ../sbom/bad.cdx.json:14 | the document does not say what it describes | record what the SBOM describes (SPDX DESCRIBES relationship, CycloneDX metadata.component) |
-| info | SBM003 | ../sbom/bad.cdx.json:15 | spec version 1.2 is not CycloneDX 1.4-1.6 | regenerate with SPDX 2.3 or CycloneDX 1.5/1.6 |
+| info | SBM003 | ../sbom/bad.cdx.json:15 | spec version 1.2 is not CycloneDX 1.4-1.7 | regenerate with SPDX 2.3 or CycloneDX 1.5-1.7 |
 
 ## sbom
 

@@ -8,7 +8,7 @@ advance — never against whatever the artefact claims.
 
 | Target | Mode | Command (read-only) |
 |---|---|---|
-| image (`oci://REF` or a reference not on disk) | keyless | `cosign verify --output json --certificate-identity-regexp RE --certificate-oidc-issuer URL [--trusted-root F] [--offline] -- IMAGE` |
+| image (`oci://REF` or a reference not on disk) | keyless | `cosign verify --output json --certificate-identity-regexp RE --certificate-oidc-issuer URL [--trusted-root F] -- IMAGE` |
 | image | key | `cosign verify --output json --key F -- IMAGE` |
 | image | attestation | `cosign verify-attestation --output json [--type T] … -- IMAGE` |
 | file (blob) | keyless or key | `cosign verify-blob --bundle B … -- FILE` (a Sigstore bundle is required: cosign v3 verifies blobs from bundles) |
@@ -32,7 +32,11 @@ identity or issuer, no attestation, a registry that refused the read. Report it;
 with `--insecure-ignore-tlog`, `--insecure-ignore-sct`, `--allow-insecure-registry` or a looser
 regexp (the guard denies the flags). `--offline` needs `--trusted-root` (exit 3 otherwise); with
 `--github` it also needs `--bundle` (the attestation from `gh attestation download`), since gh
-cannot fetch it offline. A verifier that exits 0 but lists no signature or attestation is exit 2,
+cannot fetch it offline. cosign 3 deprecates its own `--offline` ("provide a --bundle … and a
+--trusted-root"), so the CLI never passes it: offline means the trusted root from the file (and,
+for a file, its bundle); an image's signatures are still read from its registry. `--bundle` with
+an image and cosign is a usage error (exit 1): cosign 3.1.4 `verify` and `verify-attestation` have
+no such flag; use it with a file, or with `--github`. A verifier that exits 0 but lists no signature or attestation is exit 2,
 never `VER000`. The subject always follows `--` on the cosign and gh command line, and a TARGET
 starting with `-` is refused (pass `./-name` for such a file).
 

@@ -12,7 +12,7 @@ supply: dir=clean ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,sh
       "local-helper"
     ],
     "sbom": {
-      "bytes": 1529,
+      "bytes": 1663,
       "file": "",
       "format": "spdx-json",
       "packages": 3,

@@ -1,0 +1,5 @@
+# exit=2
+# stderr:
+supply: dir=dirty ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,shell tools=cargo-audit,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+supply audit: osv-scanner failed (exit 127): Error during extraction: (extracting as vulnmatch/osvlocal) unable to fetch OSV database: no offline version of the OSV database is available; the offline database is missing: a human downloads it once (osv-scanner scan source --offline-vulnerabilities --download-offline-databases -r DIR, with OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY set to supply_chain.osv_offline_db), or drop --offline
+# stdout:
