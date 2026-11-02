@@ -106,6 +106,7 @@ Neutral hook events beyond the guard this adapter registers for bundle `[[provid
 | hook_enforced | true |
 | instructions | native |
 | mcp | native |
+| models | core |
 | permissions | native |
 | skills | native |
 <!-- generated:end -->

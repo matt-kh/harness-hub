@@ -40,6 +40,31 @@ class TemplateTest(unittest.TestCase):
         self.assertEqual(R.template_keys("{{ a.b }} ${{ c.d }} {{ e.f }} {{ a.b }}"), ["a.b", "e.f"])
 
 
+class ResolveModelLinesTest(unittest.TestCase):
+    TEXT = ("---\nname: x\nmodel: {{ core.model_policy.plan }}\n---\n"
+            "Body mentions {{ core.model_policy.plan }}\nmodel: {{ core.model_policy.plan }}\n")
+
+    def test_core_provider_untouched(self):
+        self.assertEqual(R.resolve_model_lines(self.TEXT, None), (self.TEXT, 0))
+
+    def test_override_replaces_front_matter_only(self):
+        out, dropped = R.resolve_model_lines(self.TEXT, {"plan": "claude-opus-4.5"})
+        self.assertEqual(dropped, 0)
+        self.assertTrue(out.startswith("---\nname: x\nmodel: claude-opus-4.5\n---\n"))
+        self.assertTrue(out.endswith("Body mentions {{ core.model_policy.plan }}\nmodel: {{ core.model_policy.plan }}\n"))
+
+    def test_missing_role_drops_the_line(self):
+        out, dropped = R.resolve_model_lines(self.TEXT, {"execute": "gpt-5"})
+        self.assertEqual(dropped, 1)
+        self.assertTrue(out.startswith("---\nname: x\n---\n"))
+
+    def test_no_front_matter_and_literal_models_untouched(self):
+        lit = "---\nmodel: sonnet\n---\nbody\n"
+        self.assertEqual(R.resolve_model_lines(lit, {}), (lit, 0))
+        self.assertEqual(R.resolve_model_lines("model: {{ core.model_policy.plan }}\n", {}),
+                         ("model: {{ core.model_policy.plan }}\n", 0))
+
+
 class ManagedBlockTest(unittest.TestCase):
     B1 = R.Block("core", "rules/10-a.md", "one")
     B2 = R.Block("gh", "rules/40-b.md", "two")
@@ -304,6 +329,32 @@ class RenderHubTest(HubTestCase):
         # bin links
         link = targets[self.h(".local", "bin", "demo")]
         self.assertEqual(link.link, self.h(".claude", "skills", "demo", "scripts", "demo.sh"))
+
+    def test_model_policy_per_provider(self):
+        agent = os.path.join(self.bundles, "core", "agents", "planner.md")
+        self.write(agent, "---\nname: planner\nmodel: {{ core.model_policy.plan }}\n---\n"
+                          "Plans on {{ core.model_policy.plan }}.\n")
+        self.write(self.cfg, open(self.cfg, encoding="utf-8").read().replace(
+            "[alpha]", '[core]\nmodel_policy = { plan = "fable", execute = "opus" }\n\n[alpha]', 1))
+        hub = self.hub()
+        r = R.Renderer(hub)
+        targets = {t.path: t for t in r.render(hub.filter_providers(["claude", "copilot"]))}
+        claude = targets[self.h(".claude", "agents", "planner.md")].content.decode()
+        self.assertIn("\nmodel: fable\n", claude)
+        copilot = targets[self.h(".copilot", "agents", "planner.md")].content.decode()
+        self.assertNotIn("model:", copilot)
+        self.assertIn("Plans on fable.", copilot)
+        self.assertTrue(any(n.startswith("copilot: no [providers.copilot].model_policy") for n in r.notes))
+        self.assertFalse(any(n.startswith("claude:") and "model_policy" in n for n in r.notes))
+        # a provider override wins and is written verbatim
+        self.write(self.cfg, open(self.cfg, encoding="utf-8").read() +
+                   '\n[providers.copilot]\nmodel_policy = { plan = "claude-opus-4.5" }\n')
+        hub = self.hub()
+        r = R.Renderer(hub)
+        targets = {t.path: t for t in r.render(hub.filter_providers(["copilot"]))}
+        copilot = targets[self.h(".copilot", "agents", "planner.md")].content.decode()
+        self.assertIn("\nmodel: claude-opus-4.5\n", copilot)
+        self.assertFalse(any("model_policy" in n for n in r.notes))
 
     def test_missing_template_key_is_a_plan_error(self):
         self.write(os.path.join(self.bundles, "core", "rules", "10-core.md"), "{{ core.nope }}\n")

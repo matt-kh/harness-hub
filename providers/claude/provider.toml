@@ -68,5 +68,6 @@ permissions = "native"
 ask = true
 skills = "native"
 agents = "native"
+models = "core"
 mcp = "native"
 instructions = "native"

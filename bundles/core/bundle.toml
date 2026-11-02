@@ -65,7 +65,7 @@ description = "Example ticket key used in guard reasons, instructions and skill 
 [requires.config."core.model_policy"]
 type = "object"
 default = { plan = "fable", execute = "opus" }
-description = "Model aliases: `plan` for the Plan / infra-architect agents, `execute` for Auto, reviewers and skills."
+description = "Model aliases: `plan` for the Plan / infra-architect agents, `execute` for Auto, reviewers and skills; read by providers whose capabilities declare models = core (claude), others use [providers.<name>].model_policy."
 
 [requires.config."core.agent_labels"]
 type = "object"
