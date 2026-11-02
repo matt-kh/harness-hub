@@ -4,13 +4,15 @@
   reference; `/pin-deps` pins them as a diff for review.
 - **Install inside the project, never into the machine.** `uv sync`, `uv pip install`,
   `.venv/bin/pip install`, `npm ci`, `npm i -D`, `npx`, `cargo run`, `go install m@v1.2.3` pass.
-  `pip install` outside a venv, `--user`, `--break-system-packages` or `sudo`, `npm|pnpm -g`,
+  `pip install` outside a venv (conda `base` counts as outside), `--user`,
+  `--break-system-packages`, `uv pip install --system` or `sudo`, `npm|pnpm -g`,
   `yarn global add`, `cargo install` and `go install …@latest` **ask**; tools you install
   globally on purpose go in `supply_chain.allow_global_re`. The guard sees a venv only when the
   agent was started from it or the command names it.
-- **Never switch verification off.** `pip --trusted-host` or an `http://` index, npm
-  `strict-ssl false`, `git -c http.sslVerify=false`, `GIT_SSL_NO_VERIFY`, `GOINSECURE`,
-  `-insecure`, `go env -w GONOSUMDB` and `cosign verify --insecure-*` are **denied**. Fix the
+- **Never switch verification off.** `pip --trusted-host` or an `http://` index (flag or
+  `pip config`), `uv --allow-insecure-host`, npm `strict-ssl false` or an `http://` registry,
+  `git -c http.sslVerify=false`, `GIT_SSL_NO_VERIFY`, `GOINSECURE`, `-insecure`, `GOSUMDB=off`,
+  `go env -w GONOSUMDB` and `cosign verify --insecure-*` are **denied**. Fix the
   trust root instead: `PIP_CERT` / `REQUESTS_CA_BUNDLE`, `cafile` / `NODE_EXTRA_CA_CERTS`,
   `http.sslCAInfo`, `GOPRIVATE`, `curl --cacert`. A one-shot `GONOSUMDB=` and `curl -k` or
   `wget --no-check-certificate` writing a file **ask**.

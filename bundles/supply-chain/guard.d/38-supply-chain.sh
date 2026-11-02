@@ -8,7 +8,9 @@
 # it to pass; empty = every global install asks.
 # SUPPLY_VENV_MARKERS (guard.env, supply_chain.venv_markers): names of environment variables that
 # mean "inside a venv" when set in the hook's own environment (the provider was started from an
-# activated venv); empty keeps the default list. READER_RE comes from core section 20.
+# activated venv); empty keeps the default list. CONDA_PREFIX counts only when CONDA_DEFAULT_ENV
+# names an env other than base (an auto-activated base is the machine's Python).
+# READER_RE comes from core section 20.
 SUPPLY_GLOBAL_RE="${SUPPLY_ALLOW_GLOBAL_RE:-}"
 SUPPLY_MARKERS="${SUPPLY_VENV_MARKERS:-VIRTUAL_ENV CONDA_PREFIX PIPENV_ACTIVE}"
 # a client word at a clause start or after a separator, bare or path-qualified (/usr/bin/pip3,
@@ -21,13 +23,14 @@ SUPPLY_PIP_RE="${SUPPLY_W}"'(pip[0-9.]*|python[0-9.]*[[:space:]]+-m[[:space:]]+p
 SUPPLY_NPM_RE="${SUPPLY_W}"'(npm|pnpm|yarn)[[:space:]]([^;&|]*[[:space:]])?(install|i|in|add)([[:space:]]|$)'
 SUPPLY_COSIGN_RE="${SUPPLY_W}"'cosign([[:space:]]+-[^[:space:]]+)*[[:space:]]+'
 repo_owns supply-chain/guard.d/38-supply-chain security && return 0   # principle 8: the repository's .harness.toml owns this section or domain security
-# rule: pip --trusted-host | pip -i|--index-url|--extra-index-url http:// | PIP_TRUSTED_HOST= | PIP_INDEX_URL=http:// -> deny : disables TLS verification; use the HTTPS index with PIP_CERT or REQUESTS_CA_BUNDLE pointing at your CA bundle instead, or ask the user
-# rule: npm|pnpm|yarn config set strict-ssl false | --strict-ssl=false | NPM_CONFIG_STRICT_SSL=false | config set registry http:// -> deny : disables TLS verification; use cafile or NODE_EXTRA_CA_CERTS with the HTTPS registry instead, or ask the user
+# rule: pip|uv --trusted-host | uv --allow-insecure-host | pip -i|--index-url|--extra-index-url http:// | pip config set global|install.trusted-host | pip config set global|install.index-url http:// | PIP_TRUSTED_HOST= | PIP_INDEX_URL=http:// | UV_INSECURE_HOST= -> deny : disables TLS verification; use the HTTPS index with PIP_CERT or REQUESTS_CA_BUNDLE pointing at your CA bundle instead, or ask the user
+# rule: npm|pnpm|yarn config set strict-ssl false | --strict-ssl=false | NPM_CONFIG_STRICT_SSL=false | config set registry http:// | --registry[=| ]http:// -> deny : disables TLS verification; use cafile or NODE_EXTRA_CA_CERTS with the HTTPS registry instead, or ask the user
 # rule: git -c http.sslVerify=false | git config ... http.sslVerify false | GIT_SSL_NO_VERIFY= -> deny : disables TLS verification; set http.sslCAInfo to your CA bundle instead, or ask the user
 # rule: GOINSECURE= | GOFLAGS=...-insecure | go get -insecure | go env -w GOINSECURE|GONOSUMDB|GONOSUMCHECK|GOFLAGS=-insecure -> deny : disables module verification; use GOPRIVATE=<prefix> and keep go.sum verification instead
+# rule: GOSUMDB=off | go env -w GOSUMDB=off -> deny : switches the checksum database off for every module; use GOPRIVATE=<prefix> or a one-shot GONOSUMDB=<prefix> for private modules instead
 # rule: cosign verify* --insecure-ignore-tlog|--insecure-ignore-sct|--insecure-skip-verify|--allow-insecure-registry|--allow-http-registry -> deny : skips a verification check; run supply verify or cosign verify without the flag and report exit 2 as a finding instead
 # rule: <reader> cosign.key | .sigstore/**/*.key -> deny : a signing key; use keyless signing (a human release step) or pass --key and let cosign read it instead
-# rule: pip install outside a venv (no venv marker in the environment or the command) | pip install --user|--break-system-packages | sudo pip -> ask : installs into the machine; run it inside the project (uv sync, uv pip install, .venv/bin/pip install) instead; supply_chain.allow_global_re allow-lists tools
+# rule: pip install outside a venv (no venv marker in the environment or the command; conda base is no venv) | pip install --user|--break-system-packages | uv pip install --system|--break-system-packages | sudo pip -> ask : installs into the machine; run it inside the project (uv sync, uv pip install, .venv/bin/pip install) instead; supply_chain.allow_global_re allow-lists tools
 # rule: npm|pnpm install|i|add -g|--global|--location=global | yarn global add -> ask : installs into the machine; add it to the project (npm i -D, npx) instead; supply_chain.allow_global_re allow-lists tools
 # rule: cargo install ... -> ask : installs into ~/.cargo/bin; use cargo run or cargo build in the checkout instead; supply_chain.allow_global_re allow-lists tools
 # rule: go install ...@latest|@master|@main|@HEAD -> ask : unpinned; pin a version (m@v1.2.3) instead
@@ -39,7 +42,11 @@ supply_venv_active() {  # -> rc 0 when any SUPPLY_VENV_MARKERS name is set (non-
   local m
   for m in $SUPPLY_MARKERS; do
     case "$m" in ''|[0-9]*|*[!A-Za-z0-9_]*) continue ;; esac
-    [ -z "${!m:-}" ] || return 0
+    [ -n "${!m:-}" ] || continue
+    if [ "$m" = CONDA_PREFIX ]; then                  # conda base (or no env name) is the machine's Python
+      case "${CONDA_DEFAULT_ENV:-base}" in base) continue ;; esac
+    fi
+    return 0
   done
   return 1
 }
@@ -95,17 +102,18 @@ printf '%s' "$flat" | grep -qE '(^|[^[:alnum:]_])(source|\.)[[:space:]]+[^;&|]*/
 while IFS= read -r clause; do
   [ -n "$clause" ] || continue
   # ---- deny: verification switched off -------------------------------------------------
-  case "$clause" in *[pP][iI][pP]*|*uv*)
-    if printf '%s' "$clause" | grep -qE "${SUPPLY_ENV_RE}(PIP_TRUSTED_HOST=|PIP_(EXTRA_)?INDEX_URL=[\"']?http://)" \
+  case "$clause" in *[pP][iI][pP]*|*uv*|*UV_*)
+    if printf '%s' "$clause" | grep -qE "${SUPPLY_ENV_RE}(PIP_TRUSTED_HOST=|PIP_(EXTRA_)?INDEX_URL=[\"']?http://|UV_INSECURE_HOST=)" \
        || { printf '%s' "$clause" | grep -qE "${SUPPLY_W}(pip[0-9.]*|uv)[[:space:]]" \
-            && printf '%s' "$clause" | grep -qE "[[:space:]](--trusted-host([[:space:]=]|\$)|(-i|--index-url|--extra-index-url)([[:space:]]+|=)[\"']?http://)"; }; then
-      deny "pip --trusted-host / an http:// index / PIP_TRUSTED_HOST switches TLS verification off — use the HTTPS index with PIP_CERT or REQUESTS_CA_BUNDLE pointing at your CA bundle instead, or ask the user"
+            && printf '%s' "$clause" | grep -qE "[[:space:]](--trusted-host([[:space:]=]|\$)|--allow-insecure-host([[:space:]=]|\$)|(-i|--index-url|--extra-index-url)([[:space:]]+|=)[\"']?http://)"; } \
+       || printf '%s' "$clause" | grep -qE "${SUPPLY_W}pip[0-9.]*[[:space:]]+config[[:space:]]([^;&|]*[[:space:]])?set[[:space:]]+[\"']?(global|install)\.((trusted-host)|(extra-)?index-url[\"']?([[:space:]]+|=)[\"']?http://)"; then
+      deny "pip --trusted-host / uv --allow-insecure-host / an http:// index (flag, pip config or PIP_TRUSTED_HOST / UV_INSECURE_HOST) switches TLS verification off — use the HTTPS index with PIP_CERT or REQUESTS_CA_BUNDLE pointing at your CA bundle instead, or ask the user"
     fi
   ;; esac
   case "$clause" in *[nN][pP][mM]*|*yarn*)
     if printf '%s' "$clause" | grep -qiE "${SUPPLY_ENV_RE}npm_config_strict_ssl=[\"']?false" \
        || { printf '%s' "$clause" | grep -qE "${SUPPLY_W}(npm|pnpm|yarn)[[:space:]]" \
-            && printf '%s' "$clause" | grep -qE "([[:space:]]config[[:space:]]+set[[:space:]]+[\"']?(strict-ssl[\"']?([[:space:]]+|=)[\"']?false|([^[:space:]=]*:)?registry[\"']?([[:space:]]+|=)[\"']?http://)|[[:space:]]--strict-ssl([[:space:]]+|=)false([[:space:]]|\$))"; }; then
+            && printf '%s' "$clause" | grep -qE "([[:space:]]config[[:space:]]+set[[:space:]]+[\"']?(strict-ssl[\"']?([[:space:]]+|=)[\"']?false|([^[:space:]=]*:)?registry[\"']?([[:space:]]+|=)[\"']?http://)|[[:space:]]--strict-ssl([[:space:]]+|=)false([[:space:]]|\$)|[[:space:]]--registry([[:space:]]+|=)[\"']?http://)"; }; then
       deny "npm/pnpm/yarn strict-ssl false or an http:// registry switches TLS verification off — set cafile or NODE_EXTRA_CA_CERTS to your CA bundle and keep the HTTPS registry instead, or ask the user"
     fi
   ;; esac
@@ -123,6 +131,12 @@ while IFS= read -r clause; do
       deny "GOINSECURE / -insecure / a persistent GONOSUMDB switches Go module verification off — use GOPRIVATE=<module prefix> for private modules and keep go.sum verification instead"
     fi
   ;; esac
+  case "$clause" in *GOSUMDB*)
+    if printf '%s' "$clause" | grep -qE "${SUPPLY_ENV_RE}GOSUMDB=[\"']?off([\"'[:space:]]|\$)" \
+       || printf '%s' "$clause" | grep -qE "${SUPPLY_W}go[[:space:]]+env[[:space:]]([^;&|]*[[:space:]])?-w[[:space:]][^;&|]*GOSUMDB=[\"']?off([\"'[:space:]]|\$)"; then
+      deny "GOSUMDB=off switches the Go checksum database off for every module — use GOPRIVATE=<module prefix> or a one-shot GONOSUMDB=<module prefix> for private modules instead"
+    fi
+  ;; esac
   case "$clause" in *cosign*)
     if printf '%s' "$clause" | grep -qE "${SUPPLY_COSIGN_RE}verify[a-z-]*[[:space:]]" \
        && printf '%s' "$clause" | grep -qE "[[:space:]]--(insecure-ignore-tlog|insecure-ignore-sct|insecure-skip-verify|allow-insecure-registry|allow-http-registry)(=[\"']?(true|1)|[\"'[:space:]]|\$)"; then
@@ -138,8 +152,8 @@ while IFS= read -r clause; do
   case "$clause" in *pip*)
     if printf '%s' "$clause" | grep -qE "$SUPPLY_PIP_RE"; then
       supply_rest=$(supply_after "$clause" install)
-      if printf '%s' "$clause" | grep -qE "(^|[^[:alnum:]_./-])sudo[[:space:]]|[[:space:]]--break-system-packages([[:space:]=\"']|\$)"; then
-        defer "pip install with sudo or --break-system-packages writes into the system Python — run it inside the project instead (uv sync, uv pip install, .venv/bin/pip install)"
+      if printf '%s' "$clause" | grep -qE "(^|[^[:alnum:]_./-])sudo[[:space:]]|[[:space:]]--(break-system-packages|system)([[:space:]=\"']|\$)"; then
+        defer "pip install with sudo, --system or --break-system-packages writes into the system Python — run it inside the project instead (uv sync, uv pip install, .venv/bin/pip install)"
       elif printf '%s' "$clause" | grep -qE "[[:space:]]--user([[:space:]\"']|\$)"; then
         supply_allowed_global "$supply_rest" \
           || defer "pip install --user installs into your home, outside the project — run it inside the project instead (uv sync, uv pip install, .venv/bin/pip install); $SUPPLY_GLOBAL_HINT"

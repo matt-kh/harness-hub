@@ -4,7 +4,7 @@
 # | tn EXPECTED 'stderr-re' CWD 'cmd').
 # The venv markers and the allow-list come from the hook's environment: they are unset here and
 # again at the end (rows of other bundles share this shell); rows set them per call.
-unset VIRTUAL_ENV CONDA_PREFIX PIPENV_ACTIVE SUPPLY_ALLOW_GLOBAL_RE SUPPLY_VENV_MARKERS
+unset VIRTUAL_ENV CONDA_PREFIX CONDA_DEFAULT_ENV PIPENV_ACTIVE SUPPLY_ALLOW_GLOBAL_RE SUPPLY_VENV_MARKERS
 
 # ---- pass: project installs, verification and audit tools ------------------------------
 t pass  '.venv/bin/pip install requests'
@@ -28,7 +28,8 @@ t pass  'pip list --outdated'
 t pass  'pip-audit -r requirements.txt'
 VIRTUAL_ENV=/home/u/dev/shop/.venv t pass 'pip install requests'                     # provider started from the venv
 VIRTUAL_ENV=/home/u/dev/shop/.venv t pass 'python3 -m pip install requests'
-CONDA_PREFIX=/home/u/miniconda3/envs/shop t pass 'pip install numpy'
+CONDA_PREFIX=/home/u/miniconda3/envs/shop CONDA_DEFAULT_ENV=shop t pass 'pip install numpy'
+CONDA_PREFIX=/home/u/conda/envs/shop CONDA_DEFAULT_ENV=shop t pass 'pip install requests'
 SUPPLY_VENV_MARKERS='MYVENV' MYVENV=1 t pass 'pip install requests'                  # a custom marker
 VIRTUAL_ENV=/home/u/dev/shop/.venv t pass 'pip install --index-url https://pypi.example.com/simple requests'
 VIRTUAL_ENV=/home/u/dev/shop/.venv t pass 'pip install "git+https://github.com/octocat/hello-world@0123456789abcdef0123456789abcdef01234567"'
@@ -96,6 +97,12 @@ t pass  'echo "never set GOINSECURE=x"'
 t pass  'git commit -m "docs: never pass --trusted-host to pip"'
 t pass  'npm config set cafile /etc/ssl/certs/ca.pem'
 t pass  'npm config set registry https://registry.example.com/'
+t pass  'npm ci --registry=https://registry.example.com/'
+t pass  'pip config set global.index-url https://pypi.example.com/simple'
+t pass  'pip config list'
+t pass  'GOSUMDB=sum.golang.org go mod download'
+t pass  'go env GOSUMDB'
+t pass  'uv sync --index-url https://pypi.example.com/simple'
 t pass  'pip config set global.cert /etc/ssl/certs/ca.pem'
 SUPPLY_ALLOW_GLOBAL_RE='^(ripgrep|typescript)$' t pass 'npm i -g typescript'
 SUPPLY_ALLOW_GLOBAL_RE='^(ripgrep|typescript)$' t pass 'cargo install ripgrep'
@@ -129,6 +136,16 @@ SUPPLY_ALLOW_GLOBAL_RE='^(ruff|black)$' t ask 'pip install ruff requests'       
 SUPPLY_ALLOW_GLOBAL_RE='^(ruff|black)$' t ask 'sudo pip install ruff'                 # sudo is never allow-listed
 SUPPLY_ALLOW_GLOBAL_RE='^(ruff|black)$' t ask 'pip install -r requirements.txt'
 SUPPLY_VENV_MARKERS='MYVENV' VIRTUAL_ENV=/home/u/dev/shop/.venv t ask 'pip install requests'   # the list replaces the default
+CONDA_PREFIX=/home/u/conda CONDA_DEFAULT_ENV=base t ask 'pip install requests'      # conda base is the machine's Python
+CONDA_PREFIX=/home/u/conda t ask 'pip install requests'                             # no env name: treated as base
+CONDA_PREFIX=/home/u/conda CONDA_DEFAULT_ENV=base tr 'start the agent from the activated venv' 'pip install requests'
+t ask   'uv pip install --system requests'
+t ask   'uv pip install --break-system-packages requests'
+t ask   'sh -c "uv pip install --system requests"'                                    # bypass: wrapped
+t ask   'env X=1 uv pip install --system ruff'
+t ask   '/home/u/.local/bin/uv pip install --system requests'                         # bypass: path-qualified
+VIRTUAL_ENV=/home/u/dev/shop/.venv t ask 'uv pip install --system requests'          # a venv does not lift --system
+tr 'sudo, --system or --break-system-packages' 'uv pip install --system requests'
 t ask   'npm install -g typescript'
 t ask   'npm i -g typescript'
 t ask   'npm -g install typescript'
@@ -225,6 +242,30 @@ t deny  'PIP_INDEX_URL=http://pypi.example.com/simple pip install requests'
 t deny  'export PIP_TRUSTED_HOST=pypi.example.com'
 VIRTUAL_ENV=/home/u/dev/shop/.venv t deny 'pip install --trusted-host h requests'    # a venv lifts the install ask, never this
 t deny  '.venv/bin/pip install --trusted-host pypi.example.com requests'
+t deny  'pip config set global.trusted-host pypi.example.com'
+t deny  'pip config --global set global.trusted-host pypi.example.com'
+t deny  'pip3 config set install.trusted-host pypi.example.com'
+t deny  'python3 -m pip config set global.index-url http://pypi.example.com/simple'
+t deny  '/usr/bin/pip3 config --user set global.index-url http://pypi.example.com/simple'   # bypass: path-qualified
+t deny  'sh -c "pip config set global.trusted-host pypi.example.com"'                       # bypass: wrapped
+t deny  'uv pip install --allow-insecure-host pypi.example.com requests'
+t deny  'uv sync --allow-insecure-host=pypi.example.com'
+t deny  'uv lock --trusted-host pypi.example.com'
+t deny  'UV_INSECURE_HOST=pypi.example.com uv sync'
+t deny  'env X=1 UV_INSECURE_HOST=pypi.example.com uv lock'
+t deny  'sh -c "uv add --allow-insecure-host pypi.example.com requests"'
+t deny  '/home/u/.local/bin/uv sync --allow-insecure-host pypi.example.com'
+t deny  'npm install --registry=http://registry.example.com/ lodash'
+t deny  'npm ci --registry http://registry.example.com/'
+t deny  'env X=1 yarn add lodash --registry http://registry.example.com/'
+t deny  'sh -c "pnpm add lodash --registry=http://registry.example.com/"'
+t deny  '/usr/local/bin/npm i --registry http://registry.example.com/ lodash'
+t deny  'GOSUMDB=off go mod download'
+t deny  'env GOSUMDB=off go get example.com/mod@v1.2.3'
+t deny  'export GOSUMDB=off'
+t deny  'sh -c "GOSUMDB=off go mod download"'
+t deny  'go env -w GOSUMDB=off'
+t deny  '/usr/local/go/bin/go env -w GOSUMDB=off'
 t deny  'npm config set strict-ssl false'
 t deny  'npm config set strict-ssl=false'
 t deny  'yarn config set strict-ssl false'
@@ -275,6 +316,10 @@ tr 'http.sslCAInfo'              'GIT_SSL_NO_VERIFY=1 git pull'
 tr 'GOPRIVATE'                   'GOINSECURE=example.com go get example.com/mod'
 tr 'without the flag'            'cosign verify --insecure-ignore-tlog --key cosign.pub ghcr.io/octocat/hello-world:1.0'
 tr 'keyless'                     'cat cosign.key'
+tr 'uv --allow-insecure-host'    'UV_INSECURE_HOST=pypi.example.com uv sync'
+tr 'PIP_CERT'                    'pip config set global.trusted-host pypi.example.com'
+tr 'NODE_EXTRA_CA_CERTS'         'npm install --registry=http://registry.example.com/ lodash'
+tr 'GONOSUMDB=<module prefix>'   'GOSUMDB=off go mod download'
 
 # ---- ordering: asks are deferred, so a later (or earlier) deny still wins -----------------
 t deny  'npm i -g typescript && git push origin main'                                 # 30 denies first
@@ -311,4 +356,4 @@ HARNESS_GUARD_ENV=$_sge MYVENV=1 t pass 'pip install requests'
 HARNESS_GUARD_ENV=$_sge VIRTUAL_ENV=/home/u/dev/shop/.venv t ask 'pip install requests'   # guard.env replaced the marker list
 t ask   'npm i -g typescript'                                                         # unset and no guard.env key: every global install asks
 rm -f "$_sge"
-unset VIRTUAL_ENV CONDA_PREFIX PIPENV_ACTIVE SUPPLY_ALLOW_GLOBAL_RE SUPPLY_VENV_MARKERS
+unset VIRTUAL_ENV CONDA_PREFIX CONDA_DEFAULT_ENV PIPENV_ACTIVE SUPPLY_ALLOW_GLOBAL_RE SUPPLY_VENV_MARKERS

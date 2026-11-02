@@ -8,15 +8,18 @@ section 38 and the permission list; the `supply` CLI (`detect`, `pins`, `ci`, `a
 `supply-triage` agents and the pinned `osv-scanner`, `cosign` and `syft` follow.
 
 - Switching TLS or signature verification off is **denied**: `pip --trusted-host` or an
-  `http://` index (`-i`, `--index-url`, `--extra-index-url`, `PIP_TRUSTED_HOST`,
-  `PIP_INDEX_URL=http://`), npm/pnpm/yarn `strict-ssl false` or an `http://` registry,
+  `http://` index (`-i`, `--index-url`, `--extra-index-url`, `pip config set
+  global.trusted-host|index-url`, `PIP_TRUSTED_HOST`, `PIP_INDEX_URL=http://`), `uv
+  --allow-insecure-host` and `UV_INSECURE_HOST`, npm/pnpm/yarn `strict-ssl false` or an
+  `http://` registry (`config set registry`, `--registry`),
   `git -c http.sslVerify=false`, `git config http.sslVerify false`, `GIT_SSL_NO_VERIFY`,
   `GOINSECURE`, `GOFLAGS=-insecure`, `go get -insecure`, `go env -w GOINSECURE|GONOSUMDB|…`,
+  `GOSUMDB=off` (one-shot or `go env -w`),
   `cosign verify* --insecure-*|--allow-*-registry`, and reading `cosign.key` or a key under
   `.sigstore/`. Each reason names the trust-root fix (`PIP_CERT`, `NODE_EXTRA_CA_CERTS`,
   `http.sslCAInfo`, `GOPRIVATE`).
 - Installing into the machine **asks**: `pip install` with no venv marker, `--user`,
-  `--break-system-packages` or `sudo`; `npm|pnpm -g`, `yarn global add`, `cargo install`,
+  `--break-system-packages` or `sudo`; `uv pip install --system|--break-system-packages`; `npm|pnpm -g`, `yarn global add`, `cargo install`,
   `go install …@latest|@main`. Tools you install globally on purpose go in
   `supply_chain.allow_global_re` (every spec on the line must match).
 - Unpinned git and URL dependencies **ask** (`pip install git+URL` without a commit,
@@ -25,7 +28,8 @@ section 38 and the permission list; the `supply` CLI (`detect`, `pins`, `ci`, `a
   sign|attest|upload|copy|generate-key-pair` (a human release step) and `curl -k` or `wget
   --no-check-certificate` writing a file. A bare insecure `curl -k` that writes nothing passes.
 - Venv detection: a name from `supply_chain.venv_markers` set in the guard's own environment
-  (the provider was started from an activated venv), or a marker in the command itself
+  (the provider was started from an activated venv; `CONDA_PREFIX` counts only when
+  `CONDA_DEFAULT_ENV` names an env other than `base`), or a marker in the command itself
   (`uv`, `poetry`, `pipenv`, `pdm`, `hatch`, `pipx`, `.venv/bin/`, `$VIRTUAL_ENV/`,
   `VIRTUAL_ENV=`, `source …/bin/activate &&`, `--target`, `--prefix`, `--dry-run`).
 - A repository that owns the `security` domain in its `.harness.toml` lifts every rule of
@@ -42,13 +46,15 @@ and `supply_chain.registries_re`, `supply_chain.identities`, `supply_chain.redac
 | Symptom | Cause | Fix |
 |---|---|---|
 | `pip install` asks although I work in a venv | the agent was started outside the venv, so the guard's environment has no `VIRTUAL_ENV` | start the agent from the activated venv, or run `.venv/bin/pip install …` / `uv pip install …`; add your tool's variable to `supply_chain.venv_markers` and run `harness apply` |
-| `pip install` passes outside any venv | a marker from `supply_chain.venv_markers` is set anyway, typically `CONDA_PREFIX` from an auto-activated conda `base` | set `supply_chain.venv_markers = "VIRTUAL_ENV PIPENV_ACTIVE"` and run `harness apply` |
+| `pip install` asks in conda's `base` env | an auto-activated `base` is the machine's Python, so `CONDA_PREFIX` with `CONDA_DEFAULT_ENV=base` (or unset) is no venv marker | create and activate a project env (`conda create -n shop`, `conda activate shop`) before starting the agent, or use `uv` / `.venv/bin/pip` |
+| `pip install` passes outside any venv | a marker from `supply_chain.venv_markers` is set in the agent's environment (a leftover `VIRTUAL_ENV`, a custom marker) | unset it before starting the agent, or narrow `supply_chain.venv_markers` and run `harness apply` |
 | A global tool install asks every time (`npm i -g`, `cargo install`, `pip install --user`) | global installs ask by design | add the tool to `supply_chain.allow_global_re` (an ERE every spec on the line must match, e.g. `^(ripgrep\|typescript)$`) and run `harness apply` |
 | `sudo pip install` asks although the tool is allow-listed | `sudo` and `--break-system-packages` are never allow-listed | install into the project, or hand the command to the user |
 | `pip install git+https://…@v1.2.3` passes but `supply pins` flags it | a tag passes the guard; a tag can move, so the pin check still reports it | pin the commit (`@<sha>`) |
-| A command is denied with `switches TLS verification off` | `--trusted-host`, an `http://` index or registry, `strict-ssl false`, `http.sslVerify=false`, `GIT_SSL_NO_VERIFY`, `GOINSECURE` | fix the trust root instead: `PIP_CERT` / `REQUESTS_CA_BUNDLE`, npm `cafile` / `NODE_EXTRA_CA_CERTS`, `git config http.sslCAInfo`, `GOPRIVATE`; or ask the user |
+| A command is denied with `switches TLS verification off` | `--trusted-host`, `--allow-insecure-host`, an `http://` index or registry (flag or config), `strict-ssl false`, `http.sslVerify=false`, `GIT_SSL_NO_VERIFY`, `GOINSECURE` | fix the trust root instead: `PIP_CERT` / `REQUESTS_CA_BUNDLE`, npm `cafile` / `NODE_EXTRA_CA_CERTS`, `git config http.sslCAInfo`, `GOPRIVATE`; or ask the user |
 | `cosign verify … --insecure-ignore-tlog` is denied | skipping the transparency log or SCT check is a verification bypass | run `cosign verify` without the flag; a failure (exit 2) is a finding to report |
 | `curl -k … -o FILE` asks | an unverified download written to disk | `curl --cacert <CA bundle> … -o FILE` |
+| `GOSUMDB=off` is denied | the checksum database is switched off for every module | `GOPRIVATE=<module prefix>`, or a one-shot `GONOSUMDB=<module prefix>` (asks) |
 | `GONOSUMDB=… go mod download` asks | the checksum database is skipped for those modules | set `GOPRIVATE=<module prefix>` for private modules |
 
 <!-- generated:begin source=bundles/supply-chain/bundle.toml -->
@@ -57,9 +63,10 @@ and `supply_chain.registries_re`, `supply_chain.identities`, `supply_chain.redac
 Software supply chain: pin what you add, install inside the project, never switch verification off (guard 38; supply CLI, skills and agents follow)
 
 Guard section 38 and its rule: switching TLS or signature verification off denies (pip
---trusted-host or an http:// index, npm strict-ssl false, git http.sslVerify=false and
-GIT_SSL_NO_VERIFY, GOINSECURE and -insecure, cosign verify --insecure-*, reading cosign.key);
-installs into the machine ask (pip outside a venv, --user, sudo, npm|pnpm -g, yarn global add,
+--trusted-host, uv --allow-insecure-host or an http:// index or registry, npm strict-ssl
+false, git http.sslVerify=false and GIT_SSL_NO_VERIFY, GOINSECURE, -insecure and GOSUMDB=off,
+cosign verify --insecure-*, reading cosign.key); installs into the machine ask (pip outside a
+venv or conda base, --user, sudo, uv pip --system, npm|pnpm -g, yarn global add,
 cargo install, go install @latest), so do unpinned git and URL dependencies, GONOSUMDB,
 cosign sign|attest and insecure downloads written to a file. supply_chain.allow_global_re
 allow-lists global tools; venv detection reads the hook's environment and the command text.
@@ -81,7 +88,7 @@ Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md
 
 **Guard sections**
 
-- `supply-chain/guard.d/38-supply-chain` — control: sensor · function: govern · decisions: deny 6 · ask 8 · yields: declaration
+- `supply-chain/guard.d/38-supply-chain` — control: sensor · function: govern · decisions: deny 7 · ask 8 · yields: declaration
 
 **Permission lists**
 
@@ -107,7 +114,7 @@ Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md
 | `supply_chain.pin_actions` | boolean | no | `true` | Whether `supply pins` reports (and `supply pins --apply` rewrites) GitHub Actions referenced by tag instead of by commit. |
 | `supply_chain.redact_extra_re` | string | no | `""` | Extra Python regex of token shapes every supply output redacts in addition to the built-in list; compiled on its own, so a leading global flag such as (?i) works. |
 | `supply_chain.registries_re` | string | no | `""` | Python regex of allowed registry hosts (no scheme, no port) that `supply pins` and `supply audit` accept for dependencies and images; empty = no registry check. |
-| `supply_chain.venv_markers` | string | no | `"VIRTUAL_ENV CONDA_PREFIX PIPENV_ACTIVE"` | Space-separated environment variable names that mean "inside a virtual environment" when set in the guard's own environment (the provider was started from an activated venv); pip install then passes. Empty keeps the default. SUPPLY_VENV_MARKERS. |
+| `supply_chain.venv_markers` | string | no | `"VIRTUAL_ENV CONDA_PREFIX PIPENV_ACTIVE"` | Space-separated environment variable names that mean "inside a virtual environment" when set in the guard's own environment (the provider was started from an activated venv); pip install then passes. CONDA_PREFIX counts only when CONDA_DEFAULT_ENV names an env other than base (an auto-activated base is the machine's Python). Empty keeps the default. SUPPLY_VENV_MARKERS. |
 
 ### Secrets (never in harness.toml)
 

@@ -78,14 +78,16 @@ prints every one between your applied version and the new one.
 
 - `supply-chain` bundle, part 1 of #51 (experimental; domain `security`, posture `local`):
   rule `rules/38-supply-chain.md`, guard section `38-supply-chain` and a permission list.
-  Denies switching verification off: `pip --trusted-host` or an `http://` index
-  (`PIP_TRUSTED_HOST`, `PIP_INDEX_URL=http://`), npm/pnpm/yarn `strict-ssl false` or an
-  `http://` registry, `git -c http.sslVerify=false`, `git config http.sslVerify false`,
-  `GIT_SSL_NO_VERIFY`, `GOINSECURE`, `GOFLAGS=-insecure`, `go get -insecure`, `go env -w
-  GOINSECURE|GONOSUMDB|GONOSUMCHECK`, `cosign verify* --insecure-*|--allow-*-registry` and
+  Denies switching verification off: `pip --trusted-host` or an `http://` index (flag,
+  `pip config set`, `PIP_TRUSTED_HOST`, `PIP_INDEX_URL=http://`), `uv --allow-insecure-host`
+  and `UV_INSECURE_HOST`, npm/pnpm/yarn `strict-ssl false` or an `http://` registry (config or
+  `--registry`), `git -c http.sslVerify=false`, `git config http.sslVerify false`,
+  `GIT_SSL_NO_VERIFY`, `GOINSECURE`, `GOFLAGS=-insecure`, `go get -insecure`, `GOSUMDB=off`,
+  `go env -w GOINSECURE|GONOSUMDB|GONOSUMCHECK|GOSUMDB=off`, `cosign verify* --insecure-*|--allow-*-registry` and
   reading `cosign.key` or `.sigstore/**/*.key`. Asks (deferred, so a later deny still wins) on
-  `pip install` outside a venv (markers from the hook's environment and the command text),
-  with `--user`, `--break-system-packages` or `sudo`; `npm|pnpm -g`, `yarn global add`,
+  `pip install` outside a venv (markers from the hook's environment and the command text;
+  `CONDA_PREFIX` only outside conda `base`), with `--user`, `--break-system-packages` or
+  `sudo`, and `uv pip install --system|--break-system-packages`; `npm|pnpm -g`, `yarn global add`,
   `cargo install`, `go install …@latest|@main|@master|@HEAD`; unpinned git and URL
   dependencies (pip, npm/pnpm/yarn, cargo); a one-shot `GONOSUMDB=`/`GONOSUMCHECK=`;
   `cosign sign|attest|upload|copy|generate-key-pair|import-key-pair`; and `curl -k` or `wget
@@ -637,8 +639,9 @@ prints every one between your applied version and the new one.
   `supply_chain.pin_actions`, `supply_chain.max_bytes`. The guard's `guard.env` parser now also
   accepts `SUPPLY_` keys (core engine and the `env-provides` lint list); nothing to edit for
   existing setups. With the bundle enabled, `pip install` outside a venv, global npm/cargo
-  installs and unpinned git dependencies ask; if your shell auto-activates conda `base`,
-  `CONDA_PREFIX` counts as a venv: set `supply_chain.venv_markers` to taste.
+  installs and unpinned git dependencies ask. An auto-activated conda `base` is not a venv
+  (`CONDA_PREFIX` counts only when `CONDA_DEFAULT_ENV` names another env): activate a project
+  env or use `uv` before starting the agent.
 - Per-provider model names: one new optional config key, `[providers.<name>].model_policy`
   (`plan`, `execute`). Claude needs no edit. For Copilot, `harness apply` now writes agents
   and skills without `model:` (session model); to pin models, add

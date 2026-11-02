@@ -175,8 +175,8 @@ the list in front of you; the [hook policy](reference/hook-policy.md) shows each
   kubeconfig-mutation denies (`kubectl config use-context`, `set-*`).
 - **`workspace`** (`gdoc/guard.d/80-gdoc`): the Drive provenance gate and the mail-send ask.
 - **`security`** (`supply-chain/guard.d/38-supply-chain`): the verification-off denies (`pip
-  --trusted-host`, `strict-ssl false`, `http.sslVerify=false`, `GIT_SSL_NO_VERIFY`,
-  `GOINSECURE`, `cosign verify --insecure-*`), the `cosign.key` read deny, and the
+  --trusted-host`, `uv --allow-insecure-host`, `strict-ssl false`, `http.sslVerify=false`,
+  `GIT_SSL_NO_VERIFY`, `GOINSECURE`, `GOSUMDB=off`, `cosign verify --insecure-*`), the `cosign.key` read deny, and the
   global-install, unpinned-dependency, signing and insecure-download asks. Developer
   credentials stay with `core/guard.d/20-credentials`.
 
