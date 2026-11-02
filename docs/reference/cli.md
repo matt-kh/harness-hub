@@ -477,7 +477,8 @@ options:
 
 ```text
 usage: harness pack [-h] [--config PATH] [--home DIR] [--json] [--offline] [--yes] [--dry-run]
-                    [--out DIR] [--tag TAG] [--tools OS/ARCH,...] [--self-extract]
+                    [--out DIR] [--tag TAG] [--tools OS/ARCH,...] [--tools-optional]
+                    [--self-extract]
 
 write the hub as a release artifact: git bundle + SHA256SUMS + INSTALL.txt (+ tools, + .run)
 
@@ -493,7 +494,10 @@ options:
   --tag TAG            release this existing tag (bundle carries every tag; default: branches +
                        tags + HEAD)
   --tools OS/ARCH,...  also download tools/*.lock.json assets for these platforms (e.g.
-                       linux/amd64,darwin/arm64)
+                       linux/amd64,darwin/arm64); locks marked optional are skipped unless
+                       --tools-optional
+  --tools-optional     with --tools: also ship the optional locks (tools only some bundles use,
+                       e.g. osv-scanner, cosign, syft)
   --self-extract       also write harness-hub-<version>.run: a POSIX sh header + tar of the
                        bundle, INSTALL.txt, SHA256SUMS and tools (sh FILE.run --check | --list |
                        --extract DIR, or run it to install)

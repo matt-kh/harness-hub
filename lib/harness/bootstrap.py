@@ -10,7 +10,8 @@
                non-interactive keeps them (or takes over --adopt PATH)
 4. plan        printed; --dry-run stops here
 5. apply       backups + atomic writes + state; missing tools with a lock are installed
-               unless --no-install-tools / --offline
+               unless --no-install-tools / --offline; binaries a bundle declares
+               ``optional`` are never installed here (a note names `harness install TOOL`)
 6. doctor      offline-aware
 7. handoff     pending manual steps grouped by what they need (none / browser / admin), then
                "≈ N minutes of manual steps remain" summed from their ``minutes``
@@ -182,24 +183,7 @@ def run(ctx: Any, ns: Any) -> int:
     print(A.summary_line(report))
     # tools ---------------------------------------------------------------------
     if not ns.no_install_tools and not ctx.offline:
-        from . import tools as T
-
-        for b in hub.active_bundles:
-            for name, spec in sorted(b.requires_binaries.items()):
-                tool = spec.get("install")
-                if not tool or which(name) or T.load_lock(home, tool) is None:
-                    continue
-                print("install: %s (missing, required by %s)" % (tool, b.name))
-                try:
-                    info = T.install_from_lock(T.load_lock(home, tool) or {}, tool, bin_dir())
-                    from . import state as S
-
-                    st = S.load("_hub", None)
-                    st.tools[tool] = info
-                    st.save()
-                    print("installed %s %s" % (tool, info["version"]))
-                except HarnessError as exc:
-                    print("WARN  could not install %s: %s" % (tool, exc))
+        install_missing_tools(hub.active_bundles, home)
     # 6 doctor ------------------------------------------------------------------
     print("\n== doctor ==")
     D.run(hub, offline=ctx.offline)
@@ -212,6 +196,41 @@ def run(ctx: Any, ns: Any) -> int:
     # principle 2's time-to-first-useful-session proxy: the human minutes still ahead
     print(remaining_line(rows))
     return 0
+
+
+def install_missing_tools(bundles: Sequence[Any], home: str, dest: Optional[str] = None,
+                          log=print, has=which) -> List[str]:
+    """Install each missing required binary that declares ``install`` and has a lock.
+
+    Binaries declared ``optional`` are skipped with a note naming ``harness install TOOL``
+    (doctor WARNs with the same hint). Returns the tools installed."""
+    from . import state as S
+    from . import tools as T
+
+    installed: List[str] = []
+    for b in bundles:
+        for name, spec in sorted(b.requires_binaries.items()):
+            tool = spec.get("install")
+            if not tool or has(name) or tool in installed:
+                continue
+            lock = T.load_lock(home, tool)
+            if lock is None:
+                continue
+            if spec.get("optional"):
+                log("note: %s (optional, used by %s) is not installed; run `harness install %s` "
+                    "when you want it" % (name, b.name, tool))
+                continue
+            log("install: %s (missing, required by %s)" % (tool, b.name))
+            try:
+                info = T.install_from_lock(lock, tool, dest or bin_dir())
+                st = S.load("_hub", None)
+                st.tools[tool] = info
+                st.save()
+                installed.append(tool)
+                log("installed %s %s" % (tool, info["version"]))
+            except HarnessError as exc:
+                log("WARN  could not install %s: %s" % (tool, exc))
+    return installed
 
 
 def remaining_line(rows: Sequence[Any]) -> str:

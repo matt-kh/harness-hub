@@ -179,13 +179,15 @@ class PackTest(unittest.TestCase):
         self.assertIn("history:local/harness.toml", str(cm.exception))
 
     # ------------------------------------------------------------------ tools
-    def _lock(self, data, verified=True, digest=None):
+    def _lock(self, data, verified=True, digest=None, optional=None):
         asset = os.path.join(self.tmp, "fake_1.0_linux_amd64.tar.gz")
         with open(asset, "wb") as fh:
             fh.write(data)
         lock = {"tool": "fake", "version": "1.0", "verified": verified,
                 "assets": {"linux/amd64": {"url": "file://" + asset, "archive": "tar.gz", "binary": "fake",
                                            "sha256": digest if digest is not None else hashlib.sha256(data).hexdigest()}}}
+        if optional is not None:
+            lock["optional"] = optional
         self.write("tools/fake.lock.json", json.dumps(lock))
         self.git("add", "-A")
         self.git("commit", "-q", "-m", "lock")
@@ -223,6 +225,29 @@ class PackTest(unittest.TestCase):
         self._lock(self._targz(), verified=False)
         res = self.pack(platforms=["linux/amd64"])
         self.assertIn("not verified", res["problems"][0])
+
+    def test_optional_lock_needs_tools_optional(self):
+        self._lock(self._targz(), optional=True)
+        res = self.pack(platforms=["linux/amd64"])
+        self.assertEqual(res["problems"], [])
+        self.assertNotIn("tools/fake_1.0_linux_amd64.tar.gz", res["files"])
+        self.assertFalse(os.path.exists(os.path.join(self.out, "tools")))
+        self.assertTrue(any("optional tool; skipped (add --tools-optional" in ln for ln in self.logs))
+        res = self.pack(platforms=["linux/amd64"], tools_optional=True)
+        self.assertEqual(res["problems"], [])
+        self.assertIn("tools/fake_1.0_linux_amd64.tar.gz", res["files"])
+
+    def test_optional_false_is_shipped(self):
+        self._lock(self._targz(), optional=False)
+        res = self.pack(platforms=["linux/amd64"])
+        self.assertIn("tools/fake_1.0_linux_amd64.tar.gz", res["files"])
+
+    def test_cli_tools_optional_flag(self):
+        from harness import cli
+
+        ns = cli.build_parser().parse_args(["pack", "--tools", "linux/amd64", "--tools-optional"])
+        self.assertTrue(ns.tools_optional)
+        self.assertFalse(cli.build_parser().parse_args(["pack"]).tools_optional)
 
     def test_bad_platform(self):
         with self.assertRaises(HarnessError):
