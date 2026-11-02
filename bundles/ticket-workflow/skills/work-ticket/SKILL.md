@@ -220,7 +220,7 @@ glab label list --per-page 100 | grep -qw agent-worked || \
 glab mr create --source-branch "$BR" --target-branch "$BASE" \
   --title "KEY <summary>" --description-file "$SCRATCH/KEY-mr.md" \
   --label agent-worked --squash-before-merge --remove-source-branch --yes \
-  ${MILESTONE:+--milestone "$MILESTONE"} ${DRAFT:+--draft}                  # hook: allow (--label agent-worked)   → §6a (gh pr create -H -B -F -l; Draft fallback)
+  ${MILESTONE:+"--milestone=$MILESTONE"} ${DRAFT:+--draft}                  # hook: allow (--label agent-worked)   → §6a (gh pr create -H -B -F -l; Draft fallback)
 IID=$(glab mr list --source-branch "$BR" -F json | jq -r '.[0].iid')      # → §6a
 glab mr view "$IID" -F json | jq '{title,draft,labels,squash,force_remove_source_branch,milestone:.milestone.title,target_branch}'   # → §6a (gh pr view --json)
 # closing-keyword read-back — Jira keys AND GitHub forms (#N, owner/repo#N, issues URL); GitHub: grep title + body (→ §6a)
@@ -243,7 +243,7 @@ git push -u origin "$BR"                                             # push 1: s
 for s in <sub branches in decomposition order>; do git push -u origin "$s"; done   # one push per sub branch
 glab label list --per-page 100 | grep -qw agent-worked || glab label create -n agent-worked -c "#7057ff" -d "Worked by an AI agent (work-ticket skill)"   # → github.md §3 bootstrap
 # main MR first — Draft until every part is merged
-glab mr create -s "$BR" -b "$BASE" --draft --title "KEY <summary>" --description-file "$SCRATCH/KEY-mr.md"   --label agent-worked --squash-before-merge --remove-source-branch -y ${MILESTONE:+--milestone "$MILESTONE"}   # → github.md §6b
+glab mr create -s "$BR" -b "$BASE" --draft --title "KEY <summary>" --description-file "$SCRATCH/KEY-mr.md"   --label agent-worked --squash-before-merge --remove-source-branch -y ${MILESTONE:+"--milestone=$MILESTONE"}   # → github.md §6b
 # sub MRs in decomposition order; TARGET = "$BR" (fan-in) or the blocker's sub branch (chain)
 git rev-list --count "$TARGET..$BR-sub-01-<task>"                     # must be ≥ 1 before every create (empty-diff MRs misbehave)
 glab mr create -s "$BR-sub-01-<task>" -b "$TARGET" ${UNFINISHED:+--draft}   --title "KEY [part 1/M] <task>" --description-file "$SCRATCH/KEY-sub-01.md"   --label agent-worked --squash-before-merge -y                       # NO --remove-source-branch on sub MRs (disables retargeting; branch needed until merged)   → github.md §6b
@@ -310,7 +310,7 @@ silently.
 ```bash
 hb="${HARNESS_HOME:-$HOME/harness-hub}/bin/harness"; [ -f "$hb" ] || hb=harness
 cfg=$(jq -r '._harness.config // empty' "${HARNESS_CONFIG_JSON:-${HARNESS_HOME:-$HOME/harness-hub}/build/config.json}" 2>/dev/null)
-bash "$hb" lessons review ${cfg:+--config "$cfg"}   # no --session: reads <state>/retro/current
+HARNESS_CONFIG="${cfg:-${HARNESS_CONFIG:-}}" bash "$hb" lessons review   # no --session: reads <state>/retro/current; config via env (one word in zsh too)
 ```
 rc 0 → invoke the `retro` skill once with `--workflow work-ticket --arg 'KEY'` (GitHub:
 `--arg '#N'`, quoted: an unquoted `#N` is a shell comment); rc 1 → print exactly one line

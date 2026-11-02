@@ -441,6 +441,13 @@ prints every one between your applied version and the new one.
   "bundle.tags: is deprecated; use taxonomy.domain". Classify the bundle with `[taxonomy]`.
 
 ### Fixed
+- `ticket-workflow`: the retro check of `/create-ticket` (Step 9) and `/work-ticket` (Step 8)
+  failed with "unrecognized arguments: --config …" (rc 2, so the retro was silently skipped)
+  when the agent's shell is zsh, which does not word-split `${cfg:+--config "$cfg"}`; the
+  config now goes through `HARNESS_CONFIG`. The milestone flags of `glab mr create`,
+  `gh issue create` and `gh pr create` in `/work-ticket` had the same flaw and are now one
+  quoted `--milestone=…` word. CONTRIBUTING states the rule for snippets in skill Markdown and
+  a unit test (`test_skill_snippets`) fails on a multi-word `${VAR:+…}` alternate (#55).
 - `core` redact block (`redact_text`, so `k8s redact`, `pod`, `workload` and `helm --values`):
   a mid-line `key: value` / `key=value` whose value starts with an HTTP auth scheme word
   (`Bearer`, `Basic`, `Token`, `Digest`, `Negotiate`, `SSWS`, `OAuth`, `ApiKey` or
