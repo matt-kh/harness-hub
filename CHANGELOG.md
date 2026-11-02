@@ -76,6 +76,27 @@ prints every one between your applied version and the new one.
 
 ### Added
 
+- `supply-chain` bundle, part 1 of #51 (experimental; domain `security`, posture `local`):
+  rule `rules/38-supply-chain.md`, guard section `38-supply-chain` and a permission list.
+  Denies switching verification off: `pip --trusted-host` or an `http://` index
+  (`PIP_TRUSTED_HOST`, `PIP_INDEX_URL=http://`), npm/pnpm/yarn `strict-ssl false` or an
+  `http://` registry, `git -c http.sslVerify=false`, `git config http.sslVerify false`,
+  `GIT_SSL_NO_VERIFY`, `GOINSECURE`, `GOFLAGS=-insecure`, `go get -insecure`, `go env -w
+  GOINSECURE|GONOSUMDB|GONOSUMCHECK`, `cosign verify* --insecure-*|--allow-*-registry` and
+  reading `cosign.key` or `.sigstore/**/*.key`. Asks (deferred, so a later deny still wins) on
+  `pip install` outside a venv (markers from the hook's environment and the command text),
+  with `--user`, `--break-system-packages` or `sudo`; `npm|pnpm -g`, `yarn global add`,
+  `cargo install`, `go install …@latest|@main|@master|@HEAD`; unpinned git and URL
+  dependencies (pip, npm/pnpm/yarn, cargo); a one-shot `GONOSUMDB=`/`GONOSUMCHECK=`;
+  `cosign sign|attest|upload|copy|generate-key-pair|import-key-pair`; and `curl -k` or `wget
+  --no-check-certificate` writing a file. Keys `supply_chain.allow_global_re`
+  (`SUPPLY_ALLOW_GLOBAL_RE`), `supply_chain.venv_markers` (`SUPPLY_VENV_MARKERS`),
+  `supply_chain.registries_re`, `supply_chain.identities`, `supply_chain.redact_extra_re`,
+  `supply_chain.osv_offline_db`, `supply_chain.pin_actions`, `supply_chain.max_bytes` (the last
+  six for the `supply` CLI of a later part). Guard rows incl. bypasses, ordering against later
+  denies, the `security` yield and `guard.env`; docs page [supply-chain](docs/bundles/supply-chain.md).
+  The guard's `guard.env` parser and the `env-provides` lint accept the `SUPPLY_` prefix; band
+  `38` is listed in ARCHITECTURE §3.
 - Neutral hook events beyond the guard (ARCHITECTURE §3–§5; roadmap "Provider hooks beyond
   `PreToolUse`"). Bundles register hook scripts with `[[provides.hooks]]` (`event` = `prompt`
   or `stop`, with `session-start` and `session-end` reserved; `script` = `hooks/<name>.sh`;
@@ -609,6 +630,15 @@ prints every one between your applied version and the new one.
 
 ### Migration
 
+- `supply-chain` bundle: new keys only when you enable it (`supply-chain` in `[hub] bundles`):
+  `supply_chain.allow_global_re` (`SUPPLY_ALLOW_GLOBAL_RE`), `supply_chain.venv_markers`
+  (`SUPPLY_VENV_MARKERS`), `supply_chain.registries_re`, `supply_chain.identities` (array of
+  tables), `supply_chain.redact_extra_re`, `supply_chain.osv_offline_db`,
+  `supply_chain.pin_actions`, `supply_chain.max_bytes`. The guard's `guard.env` parser now also
+  accepts `SUPPLY_` keys (core engine and the `env-provides` lint list); nothing to edit for
+  existing setups. With the bundle enabled, `pip install` outside a venv, global npm/cargo
+  installs and unpinned git dependencies ask; if your shell auto-activates conda `base`,
+  `CONDA_PREFIX` counts as a venv: set `supply_chain.venv_markers` to taste.
 - Per-provider model names: one new optional config key, `[providers.<name>].model_policy`
   (`plan`, `execute`). Claude needs no edit. For Copilot, `harness apply` now writes agents
   and skills without `model:` (session model); to pin models, add

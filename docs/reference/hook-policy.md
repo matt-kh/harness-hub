@@ -5,8 +5,8 @@ the **repo overrides** a repository may set in `.harness.toml` `[overrides]` or 
 (which wins per key). Both tables are generated, from the `# rule:` and `# repo-override:`
 comments in `bundles/*/guard.d/*.sh`; do not edit inside the regions.
 
-Decisions are evaluated section by section in numeric order (`10` k8s … `60` github, `65` stack, `70` jira … `90+` private); a deny
-anywhere wins over an earlier ask, and an allow never overrides a pending ask. On providers without
+Decisions are evaluated section by section in numeric order (`10` k8s … `32` obs, `38` supply chain, `40`/`41` closing keywords … `60` github, `65` stack,
+`70` jira … `90+` private); a deny anywhere wins over an earlier ask, and an allow never overrides a pending ask. On providers without
 an ask prompt, `ask` is mapped by `[providers.<name>].ask_as`. Model and rationale:
 [governance](../governance.md). The `yields` column says whether a repository's
 `.harness.toml` can lift the rule ([repository-level harnesses](../repo-level.md)): `never`
@@ -48,6 +48,20 @@ marks the developer's own credentials and the ask on writing `.harness.toml`.
 | 32-obs.sh | obs | `amtool silence add\|expire\|import \| amtool alert add` | ask | changes alert state; hand the command to the user, or change the alert rule in the repo instead | owns operations |
 | 32-obs.sh | obs | `logcli query --tail\|-f` | ask | never returns; pass --since and --limit instead | owns operations |
 | 32-obs.sh | obs | `grafana-cli admin\|plugins install\|remove` | ask | Grafana admin mutation; hand the command to the user, or change the chart values instead | owns operations |
+| 38-supply-chain.sh | supply-chain | `pip --trusted-host \| pip -i\|--index-url\|--extra-index-url http:// \| PIP_TRUSTED_HOST= \| PIP_INDEX_URL=http://` | deny | disables TLS verification; use the HTTPS index with PIP_CERT or REQUESTS_CA_BUNDLE pointing at your CA bundle instead, or ask the user | owns security |
+| 38-supply-chain.sh | supply-chain | `npm\|pnpm\|yarn config set strict-ssl false \| --strict-ssl=false \| NPM_CONFIG_STRICT_SSL=false \| config set registry http://` | deny | disables TLS verification; use cafile or NODE_EXTRA_CA_CERTS with the HTTPS registry instead, or ask the user | owns security |
+| 38-supply-chain.sh | supply-chain | `git -c http.sslVerify=false \| git config ... http.sslVerify false \| GIT_SSL_NO_VERIFY=` | deny | disables TLS verification; set http.sslCAInfo to your CA bundle instead, or ask the user | owns security |
+| 38-supply-chain.sh | supply-chain | `GOINSECURE= \| GOFLAGS=...-insecure \| go get -insecure \| go env -w GOINSECURE\|GONOSUMDB\|GONOSUMCHECK\|GOFLAGS=-insecure` | deny | disables module verification; use GOPRIVATE=<prefix> and keep go.sum verification instead | owns security |
+| 38-supply-chain.sh | supply-chain | `cosign verify* --insecure-ignore-tlog\|--insecure-ignore-sct\|--insecure-skip-verify\|--allow-insecure-registry\|--allow-http-registry` | deny | skips a verification check; run supply verify or cosign verify without the flag and report exit 2 as a finding instead | owns security |
+| 38-supply-chain.sh | supply-chain | `<reader> cosign.key \| .sigstore/**/*.key` | deny | a signing key; use keyless signing (a human release step) or pass --key and let cosign read it instead | owns security |
+| 38-supply-chain.sh | supply-chain | `pip install outside a venv (no venv marker in the environment or the command) \| pip install --user\|--break-system-packages \| sudo pip` | ask | installs into the machine; run it inside the project (uv sync, uv pip install, .venv/bin/pip install) instead; supply_chain.allow_global_re allow-lists tools | owns security |
+| 38-supply-chain.sh | supply-chain | `npm\|pnpm install\|i\|add -g\|--global\|--location=global \| yarn global add` | ask | installs into the machine; add it to the project (npm i -D, npx) instead; supply_chain.allow_global_re allow-lists tools | owns security |
+| 38-supply-chain.sh | supply-chain | `cargo install ...` | ask | installs into ~/.cargo/bin; use cargo run or cargo build in the checkout instead; supply_chain.allow_global_re allow-lists tools | owns security |
+| 38-supply-chain.sh | supply-chain | `go install ...@latest\|@master\|@main\|@HEAD` | ask | unpinned; pin a version (m@v1.2.3) instead | owns security |
+| 38-supply-chain.sh | supply-chain | `pip install git+URL without @<sha> (or @main\|master\|develop\|HEAD\|latest) \| pip install https://...whl\|.tar.gz\|.zip without --hash \| npm\|pnpm\|yarn install\|add github:O/R\|O/R\|git+URL\|git://\|https://...tgz without #<sha> \| cargo install\|add --git with --branch or without --rev\|--tag` | ask | unpinned dependency; pin a commit or a released version instead; run supply pins to list every unpinned reference | owns security |
+| 38-supply-chain.sh | supply-chain | `GONOSUMDB=\|GONOSUMCHECK= one-shot env prefix` | ask | skips go.sum verification; use GOPRIVATE=<prefix> instead | owns security |
+| 38-supply-chain.sh | supply-chain | `cosign sign\|sign-blob\|attest\|attest-blob\|upload\|copy\|generate-key-pair\|import-key-pair` | ask | a human release step; hand the command to the user (supply verify and cosign verify stay available) | owns security |
+| 38-supply-chain.sh | supply-chain | `curl -k\|--insecure ... -o\|-O\|--output\|--remote-name\|> FILE \| wget --no-check-certificate (not to stdout)` | ask | an unverified file; use the HTTPS URL with --cacert (wget --ca-certificate) instead | owns security |
 | 40-gitlab-closing.sh | gitlab | `(close\|fix\|resolve\|implement) KEY-123 in git commit \| glab mr create\|update \| glab api` | deny | ticket state is human-only; mention the key instead (KEY-123 fix parser) | owns tracker |
 | 41-github-closing.sh | github | `(close\|fix\|resolve) #N \| owner/repo#N \| issue URL in git commit \| gh pr create\|edit\|merge \| gh api` | deny | issue state is human-only; mention #N instead (see #N, refs #N) | owns tracker |
 | 50-gitlab.sh | gitlab | `glab api -X POST\|PUT\|PATCH\|DELETE \| payload flag` | ask | API write; ask the user, or use the matching glab subcommand | owns scm |

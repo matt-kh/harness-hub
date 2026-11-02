@@ -149,13 +149,13 @@ A value exists only while a component uses it. To add one:
 | `kubernetes` | clusters, Helm, GitOps, IaC targeting them | 18 (k8s) |
 | `workspace` | docs, drive, sheets, mail | 15 (gdoc) |
 | `operations` | running systems: signals, incidents, reliability targets | 13 (obs) |
-| `security` | security posture of code, dependencies, artefacts and credentials: supply chain, appsec, vulnerabilities | 0 |
+| `security` | security posture of code, dependencies, artefacts and credentials: supply chain, appsec, vulnerabilities | 3 (supply-chain) |
 
 ### function
 
 | value | meaning | components using it |
 |---|---|---|
-| `govern` | constrains the agent and says what to do instead | 36 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, stack, ticket-workflow) |
+| `govern` | constrains the agent and says what to do instead | 39 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, stack, supply-chain, ticket-workflow) |
 | `client` | thin interface to one system | 11 (gdoc, jira, k8s, obs, stack) |
 | `workflow` | multi-step governed procedure | 3 (lessons, ticket-workflow) |
 | `investigate` | diagnoses to a root cause, never applies the fix | 2 (k8s, obs) |
@@ -176,10 +176,10 @@ A value exists only while a component uses it. To add one:
 
 | value | meaning | components using it |
 |---|---|---|
-| `declaration` | returns early when the repository's .harness.toml owns its id or domain | 20 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, stack, ticket-workflow) |
+| `declaration` | returns early when the repository's .harness.toml owns its id or domain | 21 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, stack, supply-chain, ticket-workflow) |
 | `name` | the provider shadows it with a repository component of the same name | 7 (core, k8s, obs) |
-| `text` | concatenated with the repository's instructions, which come last and win | 10 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, stack, ticket-workflow) |
-| `config` | merged by the provider's permission system; a repository can add rules, never lift a deny | 9 (gdoc, github, gitlab, jira, k8s, lessons, obs, stack, ticket-workflow) |
+| `text` | concatenated with the repository's instructions, which come last and win | 11 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, stack, supply-chain, ticket-workflow) |
+| `config` | merged by the provider's permission system; a repository can add rules, never lift a deny | 10 (gdoc, github, gitlab, jira, k8s, lessons, obs, stack, supply-chain, ticket-workflow) |
 | `never` | the developer's own credentials: no repository setting lifts it | 2 (core) |
 | `n/a` | no repository-level equivalent | 84 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, stack, ticket-workflow) |
 

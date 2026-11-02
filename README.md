@@ -28,6 +28,7 @@ Pick the bundles you need; each one is a capability with its own docs page.
 | [lessons](docs/bundles/lessons.md) | base / local | experimental | The lessons loop: a /retro skill that turns a session's journal signals into at most two evidence-backed candidate lessons, a rule that has agents consult them, and hooks that record user corrections and nudge for a retro | [2 steps](docs/bundles/lessons.md#manual-steps) |
 | [obs](docs/bundles/obs.md) | operations / read-only | experimental | Read-only observability client (obs CLI + skill) for SigNoz, Prometheus and Grafana, an obs-triage agent, and API-key and raw-backend guards | [2 steps](docs/bundles/obs.md#manual-steps) |
 | [stack](docs/bundles/stack.md) | scm / label-gated | experimental | Stacked MRs/PRs on free tiers: the `stk` CLI (plan, status, check, sync) keeps a chain of dependent parts retargeted, rebased and pushed | [3 steps](docs/bundles/stack.md#manual-steps) |
+| [supply-chain](docs/bundles/supply-chain.md) | security / local | experimental | Software supply chain: pin what you add, install inside the project, never switch verification off (guard 38; supply CLI, skills and agents follow) | none |
 | [ticket-workflow](docs/bundles/ticket-workflow.md) | delivery / label-gated | beta | /work-ticket (ticket → governed MR/PR, stacked delivery) and /create-ticket (one drafted ticket or issue) | [1 step](docs/bundles/ticket-workflow.md#manual-steps) |
 <!-- generated:end -->
 
@@ -130,7 +131,10 @@ Ten principles govern every change to the hub; each links to its document (check
 - The guard **denies** reading credential files, pushing to a default branch, closing
   tickets by keyword and changing ticket state. It **asks** before merges, cluster mutations
   and writes to human-owned tickets. Every reason names what to do instead
-  ([hook policy](docs/reference/hook-policy.md)).
+  ([hook policy](docs/reference/hook-policy.md)). With the experimental
+  [`supply-chain`](docs/bundles/supply-chain.md) bundle it also denies switching TLS or
+  signature verification off and asks before installs into the machine and unpinned
+  dependencies.
 - Agents write without a prompt only to artefacts they own, marked by an `agent-*` label
   ([governance](docs/governance.md)).
 - **User-level by design.** Everything the hub installs is a baseline that yields wholesale

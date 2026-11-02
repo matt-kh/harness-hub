@@ -174,6 +174,11 @@ the list in front of you; the [hook policy](reference/hook-policy.md) shows each
   `helm get values` ask, the Secret-value deny (`kubectl get secret … -o yaml`) and the
   kubeconfig-mutation denies (`kubectl config use-context`, `set-*`).
 - **`workspace`** (`gdoc/guard.d/80-gdoc`): the Drive provenance gate and the mail-send ask.
+- **`security`** (`supply-chain/guard.d/38-supply-chain`): the verification-off denies (`pip
+  --trusted-host`, `strict-ssl false`, `http.sslVerify=false`, `GIT_SSL_NO_VERIFY`,
+  `GOINSECURE`, `cosign verify --insecure-*`), the `cosign.key` read deny, and the
+  global-install, unpinned-dependency, signing and insecure-download asks. Developer
+  credentials stay with `core/guard.d/20-credentials`.
 
 To keep one of them, own single components instead of the domain, or set an override
 (`WORK_TICKET_ALLOW_TRANSITION = "1"` turns the transition deny into an ask and keeps the rest
@@ -237,7 +242,7 @@ Components that yield by declaration: listing a domain in `[owns] domains` cover
 | `kubernetes` | `k8s/guard.d/25-k8s-rules` | `k8s/skills/k8s` |
 | `workspace` | `gdoc/guard.d/80-gdoc` | `gdoc/skills/gdoc` |
 | `operations` | `obs/guard.d/32-obs` | `obs/skills/obs` |
-| `security` | — | — |
+| `security` | `supply-chain/guard.d/38-supply-chain` | — |
 
 | id | kind | domain | bundle |
 |---|---|---|---|
@@ -258,6 +263,7 @@ Components that yield by declaration: listing a domain in `[owns] domains` cover
 | `obs/skills/obs` | skill | operations | obs |
 | `stack/guard.d/65-stack` | guard | scm | stack |
 | `stack/skills/stk` | skill | scm | stack |
+| `supply-chain/guard.d/38-supply-chain` | guard | security | supply-chain |
 | `ticket-workflow/guard.d/75-ticket-workflow` | guard | delivery | ticket-workflow |
 | `ticket-workflow/skills/create-ticket` | skill | delivery | ticket-workflow |
 | `ticket-workflow/skills/work-ticket` | skill | delivery | ticket-workflow |

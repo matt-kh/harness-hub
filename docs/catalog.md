@@ -20,6 +20,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | [`lessons`](bundles/lessons.md#components) | base | local | govern, workflow, setup | experimental | The lessons loop: a /retro skill that turns a session's journal signals into at most two evidence-backed candidate lessons, a rule that has agents consult them, and hooks that record user corrections and nudge for a retro |
 | [`obs`](bundles/obs.md#components) | operations | read-only | govern, client, investigate, setup | experimental | Read-only observability client (obs CLI + skill) for SigNoz, Prometheus and Grafana, an obs-triage agent, and API-key and raw-backend guards |
 | [`stack`](bundles/stack.md#components) | scm | label-gated | govern, client, setup | experimental | Stacked MRs/PRs on free tiers: the `stk` CLI (plan, status, check, sync) keeps a chain of dependent parts retargeted, rebased and pushed |
+| [`supply-chain`](bundles/supply-chain.md#components) | security | local | govern | experimental | Software supply chain: pin what you add, install inside the project, never switch verification off (guard 38; supply CLI, skills and agents follow) |
 | [`ticket-workflow`](bundles/ticket-workflow.md#components) | delivery | label-gated | govern, workflow, setup | beta | /work-ticket (ticket → governed MR/PR, stacked delivery) and /create-ticket (one drafted ticket or issue) |
 
 ## Skills
@@ -61,6 +62,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | `k8s/rules/10-k8s` | guide | kubernetes | text | Kubernetes |
 | `lessons/rules/15-lessons` | guide | base | text | Lessons (lessons loop) |
 | `obs/rules/32-obs` | guide | operations | text | Observability |
+| `supply-chain/rules/38-supply-chain` | guide | security | text | Software supply chain |
 | `gitlab/rules/50-gitlab` | guide | scm | text | GitLab ({{ gitlab.host }}) |
 | `github/rules/60-github` | guide | scm | text | GitHub ({{ github.host }}) |
 | `stack/rules/65-stack` | guide | scm | text | Stacked MRs/PRs (stk) |
@@ -80,6 +82,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | [`k8s/guard.d/25-k8s-rules`](reference/hook-policy.md) | sensor | kubernetes | deny 4 · ask 7 | declaration | kubeconfig, Secret data, cluster, release, GitOps and IaC mutations |
 | [`core/guard.d/30-git`](reference/hook-policy.md) | sensor | scm | deny 1 · ask 6 · allow 1 | declaration | denies default-branch pushes; asks on force-push and destructive git |
 | [`obs/guard.d/32-obs`](reference/hook-policy.md) | sensor | operations | deny 2 · ask 4 | declaration | key files, literal API keys, raw backend requests, amtool/logcli/grafana-cli |
+| [`supply-chain/guard.d/38-supply-chain`](reference/hook-policy.md) | sensor | security | deny 6 · ask 8 | declaration | verification-off denies, global-install and unpinned-dependency asks, cosign signing and insecure-download asks |
 | [`gitlab/guard.d/40-gitlab-closing`](reference/hook-policy.md) | sensor | tracker | deny 1 | declaration | denies closing keywords with a ticket key |
 | [`github/guard.d/41-github-closing`](reference/hook-policy.md) | sensor | tracker | deny 1 | declaration | denies closing keywords that would change issue state |
 | [`gitlab/guard.d/50-gitlab`](reference/hook-policy.md) | sensor | scm | ask 6 · allow 3 | declaration | API writes, merges/approvals, stacked MR targets, label-gated edits; MR creates with --fill or --related-issue, or a -t title not matching gitlab.mr_title_re, ask |
@@ -113,6 +116,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | `lessons/permissions` | guide | base | ask 2 · allow 1 | config | harness lessons allowed; hand edits of the library ask |
 | `obs/permissions` | guide | operations | deny 1 · ask 3 · allow 5 | config | obs and read-only rule tooling allowed, alert-state changes ask, key files denied to Read |
 | `stack/permissions` | guide | scm | allow 4 | config | stk plan\|status\|check\|sync allowed; never Bash(stk:*) |
+| `supply-chain/permissions` | guide | security | deny 4 · ask 6 · allow 21 | config | verification and audit tools allowed, cosign signing asks, verification-off config and cosign keys denied |
 | `ticket-workflow/permissions` |  | delivery | empty (no rules) | config |  |
 
 ## MCP servers
