@@ -61,7 +61,7 @@ project = "PROJ"
 
 [owns]
 # Domains this repository's own harness covers: every hub component in them yields here.
-# Values: base, scm, tracker, delivery, kubernetes, workspace, operations (docs/reference/taxonomy.md).
+# Values: base, scm, tracker, delivery, kubernetes, workspace, operations, security (docs/reference/taxonomy.md).
 domains = ["delivery"]
 # Single components by id (`harness catalog`) when a whole domain is too much.
 components = ["core/guard.d/30-git"]
@@ -89,7 +89,7 @@ WORK_TICKET_LABELED_DECISION = "allow"
   argument that does not fit (a Jira key in a `github-issues` repository, `#N` in a `jira` one)
   stops the skill, and an unknown value stops it too instead of falling back to the host.
 - **`[owns] domains`** takes the taxonomy domains (`base`, `scm`, `tracker`, `delivery`,
-  `kubernetes`, `workspace`, `operations`; [taxonomy](reference/taxonomy.md)). Every hub component in an
+  `kubernetes`, `workspace`, `operations`, `security`; [taxonomy](reference/taxonomy.md)). Every hub component in an
   owned domain yields here.
 - **`[owns] components`** takes component ids as `harness catalog` prints them
   (`core/guard.d/30-git`, `ticket-workflow/skills/work-ticket`), for when a whole domain is
@@ -237,6 +237,7 @@ Components that yield by declaration: listing a domain in `[owns] domains` cover
 | `kubernetes` | `k8s/guard.d/25-k8s-rules` | `k8s/skills/k8s` |
 | `workspace` | `gdoc/guard.d/80-gdoc` | `gdoc/skills/gdoc` |
 | `operations` | `obs/guard.d/32-obs` | `obs/skills/obs` |
+| `security` | — | — |
 
 | id | kind | domain | bundle |
 |---|---|---|---|

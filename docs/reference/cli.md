@@ -151,7 +151,7 @@ options:
 usage: harness catalog [-h] [--config PATH] [--home DIR] [--json] [--offline] [--yes] [--dry-run]
                        [--kind {bundle,skill,agent,rule,guard,hook,permission,mcp,bin,installer,doctor,step,provider,profile}]
                        [--bundle NAME]
-                       [--domain {base,scm,tracker,delivery,kubernetes,workspace,operations}]
+                       [--domain {base,scm,tracker,delivery,kubernetes,workspace,operations,security}]
 
 list every component with its id, kind, domain, function and posture
 
@@ -166,7 +166,7 @@ options:
   --kind {bundle,skill,agent,rule,guard,hook,permission,mcp,bin,installer,doctor,step,provider,profile}
                         only this kind of component
   --bundle NAME         only this bundle's components (and the bundle itself)
-  --domain {base,scm,tracker,delivery,kubernetes,workspace,operations}
+  --domain {base,scm,tracker,delivery,kubernetes,workspace,operations,security}
                         only this domain
 ```
 
@@ -749,7 +749,7 @@ options:
 usage: harness lessons list [-h] [--config PATH] [--home DIR] [--json] [--offline] [--yes]
                             [--dry-run]
                             [--status {candidate,confirmed,recurring,proposed,retired,all}]
-                            [--domain {base,scm,tracker,delivery,kubernetes,workspace,operations}]
+                            [--domain {base,scm,tracker,delivery,kubernetes,workspace,operations,security}]
                             [--stale]
 
 list lessons (default: every status but retired)
@@ -764,7 +764,7 @@ options:
   --dry-run             show what would happen, write nothing
   --status {candidate,confirmed,recurring,proposed,retired,all}
                         only this status (all: retired too)
-  --domain {base,scm,tracker,delivery,kubernetes,workspace,operations}
+  --domain {base,scm,tracker,delivery,kubernetes,workspace,operations,security}
                         only this taxonomy domain
   --stale               only lessons without an update in lessons.max_age_days
 ```
@@ -796,9 +796,9 @@ options:
 ```text
 usage: harness lessons new [-h] [--config PATH] [--home DIR] [--json] [--offline] [--yes]
                            [--dry-run] --domain
-                           {base,scm,tracker,delivery,kubernetes,workspace,operations} --scope
-                           {invariant,domain} --situation TEXT --guide-ref R --sensor-ref R
-                           [--bundles B,...] [--source {journal,retro,user}] --evidence REF
+                           {base,scm,tracker,delivery,kubernetes,workspace,operations,security}
+                           --scope {invariant,domain} --situation TEXT --guide-ref R --sensor-ref
+                           R [--bundles B,...] [--source {journal,retro,user}] --evidence REF
                            [REF ...] [--lesson TEXT] [--edit FILE.diff] [--date YYYY-MM-DD]
 
 record a candidate lesson (the only way a record is created); prints its id
@@ -811,7 +811,7 @@ options:
   --offline             skip network checks (HARNESS_OFFLINE=1)
   --yes, -y             assume yes; never prompt
   --dry-run             show what would happen, write nothing
-  --domain {base,scm,tracker,delivery,kubernetes,workspace,operations}
+  --domain {base,scm,tracker,delivery,kubernetes,workspace,operations,security}
                         taxonomy domain (base applies everywhere)
   --scope {invariant,domain}
                         invariant needs --domain base
@@ -932,7 +932,7 @@ options:
 ```text
 usage: harness lessons stats [-h] [--config PATH] [--home DIR] [--json] [--offline] [--yes]
                              [--dry-run]
-                             [--domain {base,scm,tracker,delivery,kubernetes,workspace,operations}]
+                             [--domain {base,scm,tracker,delivery,kubernetes,workspace,operations,security}]
                              [--since DATE]
 
 asks, denies and corrections per session before and after each lesson (one table)
@@ -945,7 +945,7 @@ options:
   --offline             skip network checks (HARNESS_OFFLINE=1)
   --yes, -y             assume yes; never prompt
   --dry-run             show what would happen, write nothing
-  --domain {base,scm,tracker,delivery,kubernetes,workspace,operations}
+  --domain {base,scm,tracker,delivery,kubernetes,workspace,operations,security}
                         only lessons of this domain
   --since DATE          ignore journal lines before DATE
 ```

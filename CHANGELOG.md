@@ -10,6 +10,19 @@ prints every one between your applied version and the new one.
 
 ### Docs
 
+- [docs/roadmap.md](docs/roadmap.md): the Security track. `supply-chain` (#51) is its first
+  bundle and supersedes the planned `toolchain` (guard band `38`; the P2 row becomes a pointer,
+  the proposed `code` domain is dropped, `toolchain.*` keys become `supply_chain.*`, env prefix
+  `SUPPLY_`); candidates `appsec`, `vuln`, `iam`, `privacy` and `compliance` reserve bands `39`,
+  `42`–`44` and `46`; the SAST and SBOM rows of the rejected table say what replaces them.
+- [docs/reference/security.md](docs/reference/security.md): the framing for the security bundle
+  family. Nine disciplines mapped to domain, function and posture with their architect /
+  develop / operate components and what is out of scope for a user-level harness; the rule for
+  `security` versus a system's own domain (`secrets` stays `base`, Kubernetes posture review
+  stays `kubernetes`); a NIST CSF crosswalk to the `function` facet (no new values); the
+  invariants every security bundle keeps; the family with guard bands `38`, `39`, `42`–`44`,
+  `46` and config and env prefixes; and author guidance for verification-bypass denies and their
+  test rows. Linked from the README reference row and from `SECURITY.md`.
 - [docs/bundles/lessons.md](docs/bundles/lessons.md): the lessons loop (signals, review,
   reflect and record, reuse, human promotion), the lifecycle of a record, the per-provider
   matrix (claude and gemini enforce both hooks, copilot the prompt hook only, codex and
@@ -426,6 +439,16 @@ prints every one between your applied version and the new one.
 
 ### Taxonomy
 
+- New domain value `security` ("security posture of code, dependencies, artefacts and
+  credentials: supply chain, appsec, vulnerabilities"): `schema/bundle.schema.json`,
+  `lib/harness/taxonomy.py` `FACETS`, the `[owns] domains` enum of `schema/repo.schema.json` and
+  the `--domain` choices of `harness catalog` and `harness lessons`. It lands one PR ahead of its
+  first user, the `supply-chain` bundle (#51), as the roadmap's Security track names it; the
+  vocabulary row reads `0` until that bundle ships. "Adding a value" in
+  [taxonomy](docs/reference/taxonomy.md) now names `schema/repo.schema.json`, the hand-written
+  domain lists in `ARCHITECTURE.md`, `docs/concepts.md` and `docs/repo-level.md`, and the
+  one-PR-ahead allowance; a unit test (`test_handwritten_domain_lists`) keeps those lists equal
+  to `FACETS`.
 - New component kind `hook` (hook scripts of `[[provides.hooks]]`): id `<bundle>/hooks/<name>`,
   function fixed to `govern`, no posture, yields `n/a`; listed by `harness catalog` and
   `docs/catalog.md` ("Hook scripts"), and `[taxonomy.components]` accepts `hooks/<name>` keys.

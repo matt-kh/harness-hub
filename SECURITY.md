@@ -19,6 +19,10 @@ logs), or simply over-eager. The harness reduces what such an agent can do *with
 noticing*. It does not defend against a malicious local user, a compromised provider binary,
 or a compromised machine.
 
+What the bundles do for the security of *your* code (supply chain, application security,
+posture reviews) is framed separately in [docs/reference/security.md](docs/reference/security.md);
+this page is the hub's own threat model.
+
 | Risk | Mitigation | Bundle |
 |---|---|---|
 | Agent reads secrets (tokens, kubeconfig, SSH keys, `.env`) and echoes them into a transcript, a commit or a ticket | guard denies reads of credential paths and secret-bearing env dumps; permission deny lists; Kubernetes Secret values only through `k8s redact` | core, k8s |

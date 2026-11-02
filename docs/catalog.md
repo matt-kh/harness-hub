@@ -269,6 +269,7 @@ Skills, agents, CLIs and MCP servers by domain and posture (the strongest effect
 | kubernetes | `k8s/agents/infra-architect`, `k8s/agents/k8s-auditor`, `k8s/agents/k8s-triage`, `k8s/bin/k8s`, `k8s/skills/k8s` | — | — |
 | workspace | — | — | `gdoc/bin/gdoc`, `gdoc/skills/gdoc` |
 | operations | `obs/agents/obs-triage`, `obs/bin/obs`, `obs/skills/obs` | — | — |
+| security | — | — | — |
 <!-- generated:end -->
 
 Posture says what a component does without a prompt; which writes stay with a human whatever

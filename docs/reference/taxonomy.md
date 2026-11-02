@@ -124,8 +124,14 @@ Nothing existing is renamed; new components follow these forms.
 A value exists only while a component uses it. To add one:
 
 1. Add it to the enum in `schema/bundle.schema.json` and to `FACETS` in
-   `lib/harness/taxonomy.py` with a one-line meaning (a unit test keeps the two equal).
-2. Classify at least one component with it in its bundle's `[taxonomy]`.
+   `lib/harness/taxonomy.py` with a one-line meaning (a unit test keeps the two equal). A
+   **domain** value also goes into the `[owns] domains` enum of `schema/repo.schema.json` and
+   into the hand-written domain lists in `ARCHITECTURE.md` (`[owns] domains`),
+   `docs/concepts.md` and `docs/repo-level.md`; unit tests keep all of them equal to `FACETS`.
+2. Classify at least one component with it in its bundle's `[taxonomy]`. A value may land
+   one PR ahead of its first component when the [roadmap](../roadmap.md) names that
+   component and its issue is open; the vocabulary table shows `0` until the component lands,
+   and the CHANGELOG entry names it.
 3. Run `bin/harness docs generate` and `bin/harness lint`.
 4. Add a CHANGELOG `[Unreleased]` entry under a `### Taxonomy` heading.
 
@@ -143,6 +149,7 @@ A value exists only while a component uses it. To add one:
 | `kubernetes` | clusters, Helm, GitOps, IaC targeting them | 18 (k8s) |
 | `workspace` | docs, drive, sheets, mail | 15 (gdoc) |
 | `operations` | running systems: signals, incidents, reliability targets | 13 (obs) |
+| `security` | security posture of code, dependencies, artefacts and credentials: supply chain, appsec, vulnerabilities | 0 |
 
 ### function
 
