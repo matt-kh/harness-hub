@@ -4,7 +4,7 @@
 # | tn EXPECTED 'stderr-re' CWD 'cmd').
 # The venv markers and the allow-list come from the hook's environment: they are unset here and
 # again at the end (rows of other bundles share this shell); rows set them per call.
-unset VIRTUAL_ENV CONDA_PREFIX CONDA_DEFAULT_ENV PIPENV_ACTIVE SUPPLY_ALLOW_GLOBAL_RE SUPPLY_VENV_MARKERS
+unset VIRTUAL_ENV CONDA_PREFIX CONDA_DEFAULT_ENV CONDA_EXE MAMBA_ROOT_PREFIX PIPENV_ACTIVE SUPPLY_ALLOW_GLOBAL_RE SUPPLY_VENV_MARKERS
 
 # ---- pass: project installs, verification and audit tools ------------------------------
 t pass  '.venv/bin/pip install requests'
@@ -20,7 +20,6 @@ t pass  'pipx install ruff'
 t pass  'pipx run ruff check .'
 t pass  'source .venv/bin/activate && pip install requests'
 t pass  '. .venv/bin/activate; pip install -e .'
-t pass  'VIRTUAL_ENV=/home/u/dev/shop/.venv pip install requests'                   # marker in the command text
 t pass  'pip install --target ./vendor requests'
 t pass  'pip install --dry-run requests'
 t pass  'pip download requests'
@@ -321,6 +320,195 @@ tr 'PIP_CERT'                    'pip config set global.trusted-host pypi.exampl
 tr 'NODE_EXTRA_CA_CERTS'         'npm install --registry=http://registry.example.com/ lodash'
 tr 'GONOSUMDB=<module prefix>'   'GOSUMDB=off go mod download'
 
+# ---- review fixes: compound and multi-line commands (C1) ----------------------------------
+t deny  $'cd /tmp\nGIT_SSL_NO_VERIFY=1 git clone https://git.example.com/x.git'
+t deny  $'cd /tmp\nexport GIT_SSL_NO_VERIFY=1\ngit clone https://git.example.com/x.git'
+t deny  'if true; then GIT_SSL_NO_VERIFY=1 git clone x; fi'
+t deny  '{ GIT_SSL_NO_VERIFY=1 git clone x; }'
+t deny  '( GIT_SSL_NO_VERIFY=1 git clone x )'
+t deny  'for r in a; do GIT_SSL_NO_VERIFY=1 git clone x; done'
+t deny  '! GIT_SSL_NO_VERIFY=1 git clone x'
+t deny  'nice GIT_SSL_NO_VERIFY=1 git clone x'
+t deny  'nice -n 5 env GIT_SSL_NO_VERIFY=1 git clone x'
+t deny  'timeout 5 env GIT_SSL_NO_VERIFY=1 git clone x'
+t deny  'exec env GIT_SSL_NO_VERIFY=1 git clone x'
+t deny  'eval GIT_SSL_NO_VERIFY=1 git clone x'
+t deny  'stdbuf -oL env GIT_SSL_NO_VERIFY=1 git clone x'
+t deny  'setsid env GIT_SSL_NO_VERIFY=1 git clone x'
+t deny  'doas env GIT_SSL_NO_VERIFY=1 git clone x'
+t deny  'declare -x GIT_SSL_NO_VERIFY=1'
+t deny  'typeset -x GIT_SSL_NO_VERIFY=1'
+t deny  'readonly GIT_SSL_NO_VERIFY=1'
+t deny  'f() { local GIT_SSL_NO_VERIFY=1; git clone x; }; f'
+t deny  'A="x y" GIT_SSL_NO_VERIFY=1 git clone x'                                     # a quoted earlier assignment
+t deny  'echo $(GIT_SSL_NO_VERIFY=1 git ls-remote x)'
+t deny  'echo `GOINSECURE=example.com go get example.com/mod`'
+t deny  $'sh -c "cd /tmp\nGIT_SSL_NO_VERIFY=1 git pull"'
+t ask   $'cd /tmp\npip install requests'
+t ask   '( cd /tmp && pip install requests )'
+# ---- review fixes: quoted or escaped command words and flags (C2) -------------------------
+t deny  "'pip' install --trusted-host h requests"
+t deny  '"npm" config set strict-ssl false'
+t deny  'g\it -c http.sslVerify=false clone x'
+t deny  'c\osign verify --insecure-ignore-tlog --key cosign.pub ghcr.io/octocat/x'
+t deny  "pip install '--trusted-host' h requests"
+t deny  'pip install --trusted-host"=h" requests'
+t deny  'pip install --trus\ted-host h requests'
+t ask   "'cosign' sign ghcr.io/octocat/x@sha256:0123"
+t ask   'cargo "install" ripgrep'
+t ask   'p\ip install requests'
+# ---- review fixes: alternative spellings (C3) ---------------------------------------------
+t deny  'pip install --trusted h requests'
+t deny  'pip install --trusted=h requests'
+t deny  'pip install --index http://pypi.example.com/simple requests'
+t deny  'pip install --extra-index http://pypi.example.com/simple requests'
+t deny  'pip install -ihttp://pypi.example.com/simple requests'
+t deny  'npm install --no-strict-ssl'
+t deny  'npm set strict-ssl false'
+t deny  'npm install --reg http://registry.example.com/ lodash'
+t deny  'git clone --config http.sslVerify=false https://git.example.com/x.git'
+t deny  'git clone --config=http.sslVerify=false https://git.example.com/x.git'
+t deny  'git -c http.sslVerify= fetch'
+t deny  'git -c http.sslverify=OFF fetch'
+t deny  'git -c http.https://git.example.com/.sslVerify=no fetch'
+t deny  'GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=http.sslVerify GIT_CONFIG_VALUE_0=false git fetch'
+t deny  'git --config-env=http.sslVerify=NOVERIFY fetch'
+t ask   'npm i -gD typescript'
+t ask   'npm i -dg typescript'
+t pass  'git -c http.sslVerify fetch'                                                  # no value = true
+t pass  'git -c http.sslVerify=true fetch'
+t pass  'npm install --strict-peer-deps'
+# ---- review fixes: allow-list specs from the first verb, redirections dropped (C4) --------
+SUPPLY_ALLOW_GLOBAL_RE='^(black|ruff|typescript)$' t ask  'pip install evil install black'
+SUPPLY_ALLOW_GLOBAL_RE='^(black|ruff|typescript)$' t ask  'npm i -g evil i typescript'
+SUPPLY_ALLOW_GLOBAL_RE='^(black|ruff|typescript)$' t ask  'npm i -g evil add typescript'
+SUPPLY_ALLOW_GLOBAL_RE='^(black|ruff|typescript)$' t ask  'yarn global add evil add typescript'
+SUPPLY_ALLOW_GLOBAL_RE='^(black|ruff|typescript)$' t ask  'cargo install evil install black'
+SUPPLY_ALLOW_GLOBAL_RE='^(black|ruff|typescript)$' t pass 'pip install black 2>&1'
+SUPPLY_ALLOW_GLOBAL_RE='^(black|ruff|typescript)$' t pass 'pip install black > /tmp/pip.log'
+SUPPLY_ALLOW_GLOBAL_RE='^(black|ruff|typescript)$' t pass 'npm i -g typescript 2>/dev/null'
+# ---- review fixes: text that only mentions a command (W1) ---------------------------------
+t pass  'echo "run: pip install --trusted-host h x"'
+t pass  'printf "%s\n" "GIT_SSL_NO_VERIFY=1 git clone x"'
+t pass  'grep -rn "npm config set strict-ssl false" docs/'
+t pass  'rg -n "cosign sign" docs/'
+t pass  'sed -n "/GOINSECURE=/p" docs/notes.md'
+t pass  'git log -S "GIT_SSL_NO_VERIFY=1" --oneline'
+t pass  'git commit -m "docs: never run pip install --trusted-host; GIT_SSL_NO_VERIFY=1 is denied"'
+t pass  $'git commit -m "docs: guard notes\n\nGIT_SSL_NO_VERIFY=1 git clone is denied"'
+t pass  'man pip'
+t pass  'help export'
+t pass  'pip install --help'
+t pass  'pip help install'
+t pass  'npm help install'
+t pass  'cargo install -h'
+t pass  'grep -rn "cosign.key" docs/'
+t pass  'rg -l cosign.key .'
+t pass  $'cat > notes.md <<EOF\nGIT_SSL_NO_VERIFY=1 git clone x\npip install --trusted-host h x\nEOF'
+t pass  $'cat <<"EOF"\nnpm i -g typescript\nEOF'
+t deny  $'cat <<EOF\nnotes\nEOF\nGIT_SSL_NO_VERIFY=1 git clone x'                     # after the heredoc body
+t deny  $'bash <<EOF\nGIT_SSL_NO_VERIFY=1 git clone x\nEOF'                            # a shell reads the heredoc
+t deny  'echo "GIT_SSL_NO_VERIFY=1 git clone x" | sh'                                  # pipe into a shell: no exemption ...
+t deny  'eval "$(echo GIT_SSL_NO_VERIFY=1) git clone x"'
+t deny  'cat cosign.key'
+t deny  'grep -e x keys/cosign.key'                                                    # a file operand of grep
+t deny  'rg pattern ~/.sigstore/keys/release.key'
+t deny  'cat < cosign.key'
+t deny  'sudo cat cosign.key'
+t ask   'echo requests | xargs pip install'                                            # xargs runs pip: not a text tool
+tr 'keyless'                     'grep -e x keys/cosign.key'
+# ---- review fixes: curl/wget output (W2) --------------------------------------------------
+t pass  'curl -k https://localhost:8443/healthz -o /dev/null'
+t pass  'curl -k https://localhost:8443/healthz -o -'
+t pass  'curl -k https://localhost:8443/healthz -o-'
+t pass  'curl -k https://localhost:8443/healthz --output /dev/null'
+t pass  'curl -k https://localhost:8443/healthz > /dev/null 2>&1'
+t pass  'curl -sk -w "%{http_code}" -o /dev/null https://localhost:8443/healthz'
+t pass  'wget --no-check-certificate -O /dev/null https://localhost:8443/healthz'
+t pass  'curl -k https://localhost:8443/healthz | jq .'
+t ask   'curl -k https://downloads.example.com/t.tgz | tar xz'
+t ask   'curl -sk https://downloads.example.com/t.tgz | sudo tar -xzf - -C /opt'
+t ask   'curl -k https://downloads.example.com/t.txt | tee t.txt'
+t ask   'wget --no-check-certificate -qO- https://downloads.example.com/t.tgz | tar xz'
+t ask   'curl -k https://downloads.example.com/t.tgz &> t.tgz'
+tr 'use the HTTPS URL'           'curl -k https://downloads.example.com/t.tgz | tar xz'
+# ---- review fixes: venv markers (W4) ------------------------------------------------------
+t ask   'VIRTUAL_ENV=/home/u/dev/shop/.venv pip install requests'                     # an assignment is no venv
+t ask   'pip install --target venv/bin/ requests --prefix /usr'                        # text after the command word is no marker
+t ask   'pip install --target /usr/lib/python3/dist-packages requests'
+t ask   'pip install --prefix ~/.local requests'
+t ask   'pip install --target ../../outside requests'
+t pass  'pip install --target ./vendor requests'
+t pass  'pip install --prefix=build/prefix requests'
+tc pass /home/u/dev/shop 'pip install --target /home/u/dev/shop/vendor requests'      # inside the cwd
+t ask   'pip install requests; source .venv/bin/activate'                              # activate counts only for later clauses
+t ask   'source .venv/bin/activate && deactivate && pip install requests'              # deactivate cancels it
+t ask   'echo .venv/bin/pip; pip install requests'
+t ask   'pip install requests .venv/bin/pip'
+t pass  '$VIRTUAL_ENV/bin/pip install requests'
+t pass  '/home/u/dev/shop/.venv/bin/python3 -m pip install requests'
+t ask   '/usr/local/bin/pip3 install requests'
+# shellcheck disable=SC2088  # the tilde is part of the command under test
+t ask   '~/.local/bin/pip install requests'
+# ---- review fixes: conda base (W5) --------------------------------------------------------
+CONDA_PREFIX=/home/u/conda CONDA_DEFAULT_ENV=root t ask 'pip install requests'
+CONDA_PREFIX=/home/u/conda CONDA_DEFAULT_ENV=/home/u/conda t ask 'pip install requests'   # base activated by path
+CONDA_PREFIX=/home/u/conda CONDA_DEFAULT_ENV=tools CONDA_EXE=/home/u/conda/bin/conda t ask 'pip install requests'
+CONDA_PREFIX=/home/u/mamba CONDA_DEFAULT_ENV=tools MAMBA_ROOT_PREFIX=/home/u/mamba t ask 'pip install requests'
+CONDA_PREFIX=/home/u/conda/envs/shop CONDA_DEFAULT_ENV=shop CONDA_EXE=/home/u/conda/bin/conda t pass 'pip install requests'
+# ---- review fixes: verification gaps (W6) -------------------------------------------------
+t deny  'NODE_TLS_REJECT_UNAUTHORIZED=0 npm ci'
+t deny  'env X=1 NODE_TLS_REJECT_UNAUTHORIZED=0 node build.js'
+t deny  'export NODE_TLS_REJECT_UNAUTHORIZED=0'
+t pass  'NODE_TLS_REJECT_UNAUTHORIZED=1 npm ci'
+tr 'NODE_EXTRA_CA_CERTS'         'NODE_TLS_REJECT_UNAUTHORIZED=0 npm ci'
+t deny  'cosign verify --insecure-ignore-tlog=True --key cosign.pub ghcr.io/octocat/x'
+t deny  'cosign verify --insecure-ignore-tlog=t --key cosign.pub ghcr.io/octocat/x'
+t deny  'cosign verify --private-infrastructure --key cosign.pub ghcr.io/octocat/x'
+t deny  '/usr/local/bin/cosign verify-blob --private-infrastructure=true --bundle b.json x'
+t pass  'cosign verify --private-infrastructure=false --key cosign.pub ghcr.io/octocat/x'
+t ask   'cosign attach signature --signature sig ghcr.io/octocat/x'
+t ask   'cosign attach sbom --sbom sbom.json ghcr.io/octocat/x'
+t ask   'sh -c "cosign attach attestation --attestation a.json ghcr.io/octocat/x"'
+t ask   'cosign clean ghcr.io/octocat/x'
+t deny  'pip config set install.index-url http://pypi.example.com/simple'
+t deny  'pip config set download.trusted-host pypi.example.com'
+t deny  'pip config --user set global.extra-index-url http://pypi.example.com/simple'
+t deny  'yarn config set enableStrictSsl false'
+t deny  'yarn config set npmRegistryServer http://registry.example.com'
+t deny  'yarn config set unsafeHttpWhitelist registry.example.com'
+t deny  'YARN_ENABLE_STRICT_SSL=false yarn install'
+t deny  'sh -c "yarn config set enableStrictSsl false"'
+t deny  'uv pip install --index http://pypi.example.com/simple requests'
+t deny  'uv sync --default-index http://pypi.example.com/simple'
+t deny  'uv add --index internal=http://pypi.example.com/simple requests'
+t deny  'uv lock --index-url http://pypi.example.com/simple'
+t deny  'uv pip install --extra-index-url http://pypi.example.com/simple requests'
+t deny  'UV_INDEX_URL=http://pypi.example.com/simple uv sync'
+t deny  'UV_DEFAULT_INDEX=http://pypi.example.com/simple uv sync'
+t deny  'env UV_INDEX=internal=http://pypi.example.com/simple uv lock'
+t deny  'UV_EXTRA_INDEX_URL=http://pypi.example.com/simple uv sync'
+t pass  'uv sync --default-index https://pypi.example.com/simple'
+t ask   'UV_SYSTEM_PYTHON=1 uv pip install requests'
+t ask   'env UV_SYSTEM_PYTHON=true uv pip install requests'
+VIRTUAL_ENV=/home/u/dev/shop/.venv t ask 'UV_SYSTEM_PYTHON=1 uv pip install requests'
+# ---- review fixes: isolated or pinned tool installs pass (S1), empty values (S2) ----------
+t pass  'uv tool install ruff'
+t pass  'pipx install ruff==0.6.9'
+t pass  'cargo install ripgrep --locked --version 14.1.0'
+t pass  'cargo install --locked --version=14.1.0 ripgrep'
+t pass  'cargo install --vers 14.1.0 --locked ripgrep'
+t ask   'cargo install ripgrep --version 14.1.0'                                       # without --locked
+t ask   'cargo install ripgrep --locked'                                               # without --version
+tr 'pass --locked --version V'   'cargo install ripgrep --locked'
+t pass  'GOINSECURE= go build ./...'
+t pass  'go env -w GOINSECURE='
+t pass  'GONOSUMDB= go mod download'
+t pass  'go env -w GONOSUMDB='
+# ---- review fixes: tarball URLs are never pinned by a fragment (S6) -----------------------
+t ask   'npm install https://downloads.example.com/hello-1.0.0.tgz#0123456789abcdef0123456789abcdef01234567'
+t ask   'npm install github:octocat/hello-world#0123abc'                              # a short sha is no pin
+t pass  'npm install git+https://github.com/octocat/hello-world.git#0123456789abcdef0123456789abcdef01234567'
 # ---- ordering: asks are deferred, so a later (or earlier) deny still wins -----------------
 t deny  'npm i -g typescript && git push origin main'                                 # 30 denies first
 if grep -q '^guard_section_github_41_github_closing()' "$H"; then                     # only when the github bundle is built in
@@ -356,4 +544,4 @@ HARNESS_GUARD_ENV=$_sge MYVENV=1 t pass 'pip install requests'
 HARNESS_GUARD_ENV=$_sge VIRTUAL_ENV=/home/u/dev/shop/.venv t ask 'pip install requests'   # guard.env replaced the marker list
 t ask   'npm i -g typescript'                                                         # unset and no guard.env key: every global install asks
 rm -f "$_sge"
-unset VIRTUAL_ENV CONDA_PREFIX CONDA_DEFAULT_ENV PIPENV_ACTIVE SUPPLY_ALLOW_GLOBAL_RE SUPPLY_VENV_MARKERS
+unset VIRTUAL_ENV CONDA_PREFIX CONDA_DEFAULT_ENV CONDA_EXE MAMBA_ROOT_PREFIX PIPENV_ACTIVE SUPPLY_ALLOW_GLOBAL_RE SUPPLY_VENV_MARKERS
