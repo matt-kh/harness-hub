@@ -1,0 +1,132 @@
+[bundle]
+name = "supply-chain"
+schema_version = "1"
+summary = "Software supply chain: pin what you add, install inside the project, never switch verification off (guard 38; supply CLI, skills and agents follow)"
+description = """
+Guard section 38 and its rule: switching TLS or signature verification off denies (pip
+--trusted-host or an http:// index, npm strict-ssl false, git http.sslVerify=false and
+GIT_SSL_NO_VERIFY, GOINSECURE and -insecure, cosign verify --insecure-*, reading cosign.key);
+installs into the machine ask (pip outside a venv, --user, sudo, npm|pnpm -g, yarn global add,
+cargo install, go install @latest), so do unpinned git and URL dependencies, GONOSUMDB,
+cosign sign|attest and insecure downloads written to a file. supply_chain.allow_global_re
+allow-lists global tools; venv detection reads the hook's environment and the command text.
+The `supply` CLI (detect, pins, ci, audit, sbom, verify), the /pin-deps and /audit-deps
+skills and the supply-architect, supply-auditor and supply-triage agents land in later parts.
+"""
+depends_on = ["core"]
+recommends = ["github"]
+conflicts_with = []
+any_of = []
+owners = []
+docs = "docs/bundles/supply-chain.md"
+stability = "experimental"
+
+[requires.binaries.python3]
+min_version = "3.9"
+version_cmd = "python3 --version"
+version_regex = 'Python ([0-9]+\.[0-9]+)'
+why = "The supply CLI is stdlib python."
+
+[requires.binaries.git]
+min_version = "2.30"
+version_cmd = "git --version"
+version_regex = 'git version ([0-9]+\.[0-9]+)'
+why = "Pin resolution and history lookups (`git ls-remote`, `git log -S`) run read-only git."
+
+[requires.config."supply_chain.allow_global_re"]
+type = "string"
+default = ""
+description = "POSIX ERE (the guard applies it with grep -E) that every spec of a global install must match for it to pass without a prompt: pip outside a venv or with --user, npm|pnpm -g, yarn global add, cargo install. Matched against each spec as typed (name and any version). Use [0-9] and [[:space:]], never \\d or \\s. Empty = every global install asks. SUPPLY_ALLOW_GLOBAL_RE."
+example = '^(ripgrep|typescript)$'
+
+[requires.config."supply_chain.venv_markers"]
+type = "string"
+default = "VIRTUAL_ENV CONDA_PREFIX PIPENV_ACTIVE"
+description = "Space-separated environment variable names that mean \"inside a virtual environment\" when set in the guard's own environment (the provider was started from an activated venv); pip install then passes. Empty keeps the default. SUPPLY_VENV_MARKERS."
+example = "VIRTUAL_ENV CONDA_PREFIX PIPENV_ACTIVE POETRY_ACTIVE"
+
+[requires.config."supply_chain.registries_re"]
+type = "string"
+default = ""
+description = "Python regex of allowed registry hosts (no scheme, no port) that `supply pins` and `supply audit` accept for dependencies and images; empty = no registry check."
+example = '^(registry\.npmjs\.org|pypi\.org|ghcr\.io|registry\.example\.com)$'
+
+[requires.config."supply_chain.identities"]
+type = "array"
+default = []
+description = "Signer identities `supply verify --identity NAME` resolves, as [[supply_chain.identities]] tables: name, identity_re (certificate identity regexp), issuer (OIDC issuer URL), match_re (optional regex on the target that selects this entry without --identity). Public values only; never a key."
+example = [{ name = "release", identity_re = '^https://github\.com/octocat/hello-world/\.github/workflows/release\.yml@refs/tags/v.*$', issuer = "https://token.actions.githubusercontent.com", match_re = '^ghcr\.io/octocat/' }]
+[requires.config."supply_chain.identities".items]
+type = "object"
+required = ["name", "identity_re", "issuer"]
+additionalProperties = false
+[requires.config."supply_chain.identities".items.properties.name]
+type = "string"
+pattern = '^[a-z0-9][a-z0-9-]*$'
+[requires.config."supply_chain.identities".items.properties.identity_re]
+type = "string"
+[requires.config."supply_chain.identities".items.properties.issuer]
+type = "string"
+pattern = '^https://[^/\s]+'
+[requires.config."supply_chain.identities".items.properties.match_re]
+type = "string"
+
+[requires.config."supply_chain.redact_extra_re"]
+type = "string"
+default = ""
+description = "Extra Python regex of token shapes every supply output redacts in addition to the built-in list; compiled on its own, so a leading global flag such as (?i) works."
+example = "(?i)x-internal-token=[^ ]+"
+
+[requires.config."supply_chain.osv_offline_db"]
+type = "string"
+default = ""
+description = "Directory of a local OSV vulnerability database that `supply audit --offline` passes to osv-scanner; empty = osv-scanner's own cache."
+example = "~/.cache/osv-scanner"
+
+[requires.config."supply_chain.pin_actions"]
+type = "boolean"
+default = true
+description = "Whether `supply pins` reports (and `supply pins --apply` rewrites) GitHub Actions referenced by tag instead of by commit."
+
+[requires.config."supply_chain.max_bytes"]
+type = "integer"
+default = 65536
+minimum = 1024
+description = "Default output cap in bytes for the supply CLI (--max-bytes overrides)."
+
+[provides]
+rules = ["rules/38-supply-chain.md"]
+skills = []
+skill_fragments = []
+agents = []
+guard_rules = ["guard.d/38-supply-chain.sh"]
+permissions = "permissions.toml"
+mcp = ""
+
+[provides.env]
+SUPPLY_ALLOW_GLOBAL_RE = "{{ supply_chain.allow_global_re }}"
+SUPPLY_VENV_MARKERS = "{{ supply_chain.venv_markers }}"
+
+[uninstall]
+keeps = ["~/.sigstore/**", "~/.cache/osv-scanner/**", "~/.cache/syft/**"]
+notes = "Sigstore's trust root and the scanners' caches are the tools' own; uninstall removes only the rendered rule, permissions and guard section."
+
+# Component taxonomy (docs/reference/taxonomy.md): bundle defaults, then per-component overrides.
+[taxonomy]
+domain = "security"
+posture = "local"
+function = "client"
+
+# Guides steer the agent before it acts; sensors detect at or after the action (principle 6).
+[harness]
+coverage_note = "Pipe-to-shell (curl … | sh) is core band 35 and lands in a later part of #51. Reachability of a vulnerability and licence policy are judgement or organisation-specific and are not sensed. A venv activated outside the provider's process is invisible to the guard (it reads the hook's environment and the command text). The supply CLI, its doctor checks, the agents and the /pin-deps and /audit-deps workflow skills land in later parts of #51."
+guides = [
+  { kind = "rule", ref = "rules/38-supply-chain.md", checks = ["guard.d/38-supply-chain.sh"], note = "pin what you add, install inside the project, never switch verification off, signing is a human release step" },
+  { kind = "permission", ref = "permissions.toml", checks = ["permissions-vs-guard", "guard.d/38-supply-chain.sh"], note = "verification and audit tools allowed, cosign signing asks, verification-off config and cosign keys denied" },
+]
+sensors = [
+  { kind = "guard", ref = "guard.d/38-supply-chain.sh", note = "verification-off denies, global-install and unpinned-dependency asks, cosign signing and insecure-download asks" },
+  { kind = "test", ref = "guard.d/tests.sh", note = "guard rows incl. bypasses, ordering against later denies and the security yield" },
+  { kind = "test", ref = "tests/run.sh", note = "this bundle's rows against core + supply-chain only" },
+  { kind = "lint", ref = "permissions-vs-guard", note = "each Bash allow/deny rule of permissions.toml run through the guard: no allowed command the guard denies or asks, no denied one it allows" },
+]
