@@ -141,6 +141,26 @@ prints every one between your applied version and the new one.
   (`SUPPLY_PATH`): every verb in JSON and Markdown, the unavailable and fallback-only paths,
   byte-exact `--apply` (CRLF and comments kept), redaction, stub-log invariants (verify only,
   no `fix`, no docker), one rubric row per rule id, and two identical runs.
+- `supply-chain` bundle, part 3 of #51: pinned, sha256-verified, **optional** lock files
+  `tools/osv-scanner.lock.json` (2.7.0, bare binaries), `tools/cosign.lock.json` (3.1.4, bare
+  binaries) and `tools/syft.lock.json` (1.55.0, tar.gz) for linux/darwin × amd64/arm64, each
+  digest taken from the upstream checksum file (`osv-scanner_SHA256SUMS`,
+  `cosign_checksums.txt`, `syft_1.55.0_checksums.txt`). New lock key `"optional": true`.
+  `harness pack --tools-optional` ships optional locks with `--tools`. The manifest declares
+  `osv-scanner`, `cosign` (`cosign version`), `syft` and `gh` ≥ 2.49 as optional with
+  `install`, and `npm`, `pip-audit`, `cargo-audit`, `govulncheck` as optional fallbacks; manual
+  steps `install-supply-tools` and `configure-identities`; doctor checks `osv-scanner-binary`,
+  `cosign-binary`, `syft-binary` and `supply-config` (warn). The `supply` argv was checked
+  against the real binaries: `audit` passes `--all-packages` (without it osv-scanner 2.7.0
+  lists only vulnerable packages, so clean lockfiles counted 0), names osv-scanner's error line
+  instead of its first progress line and, offline without a database, the human's download
+  command; `verify` no longer passes cosign's deprecated `--offline` (offline = `--trusted-root`,
+  plus `--bundle` for a file) and refuses `--bundle` with an image and cosign (exit 1; cosign
+  3.1.4 `verify`/`verify-attestation` have no such flag); `sbom` runs syft with
+  `SYFT_CHECK_FOR_APP_UPDATE=false`, and the summary and package counts leave out syft's SPDX
+  document root and CycloneDX `"type": "file"` components (absolute manifest paths); `sbom
+  lint` accepts CycloneDX 1.7 (syft 1.55.0's default). `[uninstall]` also keeps
+  `~/.cache/osv-scalibr/**`, where osv-scanner 2.7.0 keeps its offline databases.
 - Neutral hook events beyond the guard (ARCHITECTURE §3–§5; roadmap "Provider hooks beyond
   `PreToolUse`"). Bundles register hook scripts with `[[provides.hooks]]` (`event` = `prompt`
   or `stop`, with `session-start` and `session-end` reserved; `script` = `hooks/<name>.sh`;
@@ -561,6 +581,11 @@ prints every one between your applied version and the new one.
 
 ### Changed
 
+- `harness pack --tools` skips tool locks marked `"optional": true` (with a note naming
+  `--tools-optional`) unless `--tools-optional` is given, and bootstrap no longer auto-installs a
+  binary a bundle declares `optional` (it prints `harness install TOOL`; doctor already WARNs
+  with the same hint). A bundle that requires a binary still gets it installed (`gh` for
+  `github`); `stack` alone no longer pulls in `gh`.
 - `harness lint` rule `stability` now checks `beta` bundles as well as `stable` ones: a skill
   or CLI without a `tests/run.sh`, or a `coverage_note` admitting a missing suite, warns with
   the level to move to (`beta` → `experimental`, `stable` → `beta`). CONTRIBUTING "Stability
@@ -687,6 +712,16 @@ prints every one between your applied version and the new one.
   the conda or mamba root), and a `VIRTUAL_ENV=` assignment on the command line is no marker:
   activate a project env, or use `uv` or `.venv/bin/pip`. Write `supply_chain.allow_global_re`
   anchored (`^(ruff|black)$`).
+- Optional tool locks (`supply-chain` part 3): a `tools/*.lock.json` may carry `"optional": true`.
+  `harness pack --tools …` leaves such locks out unless you add `--tools-optional`; an
+  air-gapped site that wants osv-scanner, cosign or syft adds the flag to its pack command.
+  Bootstrap no longer installs a missing binary that a bundle declares `optional`: the one
+  existing case is `gh` for `stack` without the `github` bundle (with `github` enabled, gh is
+  required there and still installed); run `harness install gh`, and `harness install
+  osv-scanner|cosign|syft` (or `--from FILE`) for the scanners you use. `supply_chain.osv_offline_db`
+  names the directory osv-scanner keeps its databases under (`DIR/osv-scalibr/<Ecosystem>/all.zip`,
+  osv-scanner 2.7.0): if you pointed it at the database files themselves, point it at their
+  parent's parent. Nothing to edit otherwise.
 - Per-provider model names: one new optional config key, `[providers.<name>].model_policy`
   (`plan`, `execute`). Claude needs no edit. For Copilot, `harness apply` now writes agents
   and skills without `model:` (session model); to pin models, add
