@@ -22,7 +22,9 @@ never leaves the workstation). The ``local/`` check runs twice: on the refs befo
 is written and on the heads the finished bundle lists.
 
 ``--tools linux/amd64,darwin/arm64`` downloads every ``tools/*.lock.json`` asset for those
-platforms with the same code and sha256 check as ``harness install``. Offline (``--offline``)
+platforms with the same code and sha256 check as ``harness install``; a lock marked
+``"optional": true`` (a tool only some bundles use, e.g. osv-scanner, cosign, syft) is skipped
+unless ``--tools-optional`` is given as well. Offline (``--offline``)
 or on a network failure the bundle is still written, the missing assets are listed and the
 exit status is 1; without ``--tools`` nothing is downloaded and the exit status is 0.
 
@@ -198,8 +200,10 @@ def install_text(name: str, version: str, tag: Optional[str], tool_files: Sequen
 
 
 def fetch_tools(root: str, out_dir: str, platforms: Sequence[str], offline: bool,
-                log=print) -> Tuple[List[str], List[str]]:
-    """Download lock-file assets. Returns (written relative paths, problems)."""
+                log=print, include_optional: bool = False) -> Tuple[List[str], List[str]]:
+    """Download lock-file assets. Returns (written relative paths, problems).
+
+    Locks with ``"optional": true`` are skipped (with a note) unless ``include_optional``."""
     from . import tools as T
 
     written: List[str] = []
@@ -209,6 +213,10 @@ def fetch_tools(root: str, out_dir: str, platforms: Sequence[str], offline: bool
     mirror = os.environ.get("HARNESS_TOOLS_MIRROR")
     for tool in locks:
         lock = T.load_lock(root, tool) or {}
+        if lock.get("optional") and not include_optional:
+            log("note  %s %s is an optional tool; skipped (add --tools-optional to ship it)"
+                % (tool, lock.get("version", "")))
+            continue
         for key in platforms:
             asset = (lock.get("assets") or {}).get(key)
             if not asset:
@@ -337,7 +345,8 @@ def write_sums(out_dir: str, files: Sequence[str]) -> str:
 
 
 def pack(home: str, out_dir: str, tag: Optional[str] = None, platforms: Sequence[str] = (),
-         offline: bool = False, log=print, self_extract: bool = False) -> Dict[str, Any]:
+         offline: bool = False, log=print, self_extract: bool = False,
+         tools_optional: bool = False) -> Dict[str, Any]:
     root = repo_root(home)
     for p in platforms:
         if not PLATFORM_RE.match(p):
@@ -388,7 +397,8 @@ def pack(home: str, out_dir: str, tag: Optional[str] = None, platforms: Sequence
     tool_files: List[str] = []
     problems: List[str] = []
     if platforms:
-        tool_files, problems = fetch_tools(root, out_dir, platforms, offline, log=log)
+        tool_files, problems = fetch_tools(root, out_dir, platforms, offline, log=log,
+                                           include_optional=tools_optional)
     else:
         log("note  no --tools given: tool archives not included (harness pack --tools linux/amd64,...)")
     atomic_write(os.path.join(out_dir, "INSTALL.txt"),
@@ -471,7 +481,8 @@ def run_pack(ctx: Any, ns: Any) -> int:
         print("would pack %s into %s%s" % (tilde(root), tilde(out), " (refused: dirty tree)" if dirty else ""))
         return 1 if dirty else 0
     res = pack(home, out, tag=ns.tag, platforms=platforms, offline=ctx.offline,
-               self_extract=bool(getattr(ns, "self_extract", False)))
+               self_extract=bool(getattr(ns, "self_extract", False)),
+               tools_optional=bool(getattr(ns, "tools_optional", False)))
     for p in res["problems"]:
         print("WARN  %s" % p)
     if ctx.json:
