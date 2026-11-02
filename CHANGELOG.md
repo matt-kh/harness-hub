@@ -166,6 +166,19 @@ prints every one between your applied version and the new one.
   document root and, for syft's own output only, CycloneDX `"type": "file"` components (absolute
   manifest paths); `sbom lint` accepts CycloneDX 1.7 (syft 1.55.0's default). `[uninstall]` also keeps
   `~/.cache/osv-scalibr/**`, where osv-scanner 2.7.0 keeps its offline databases.
+- `supply-chain` bundle, part 4 of #51: workflow skills `/pin-deps` (`supply pins` findings →
+  values resolved read-only with `git ls-remote`, `gh api` or `glab api` GETs and an installed
+  `crane`/`docker buildx imagetools` → `supply pins --apply` → `supply pins` again; tags keep
+  today's target, branches and `latest` are suggestions the user accepts; never guesses a sha,
+  digest or checksum) and `/audit-deps` (`supply audit` → in-major upgrades with `uv lock
+  --upgrade-package`, `npm install --package-lock-only --ignore-scripts`, `pnpm update
+  --lockfile-only`, `cargo update --precise`, `go get` → `supply audit` again; majors, no-fix,
+  manual changes and `unavailable`/`offline`/`error` auditors go to the human); neither commits
+  or pushes. Read-only agents `supply-architect` (plan model, design and decision record),
+  `supply-auditor` (review; Critical / Warnings / Suggestions / Not verified with severities
+  from the rubrics; declared as the bundle's review-agent sensor) and `supply-triage`
+  (investigate one finding, stop after three unresolved hypotheses). Taxonomy overrides
+  (`workflow`; `plan`, `review`, `investigate` at `read-only`) and their guides and sensors.
 - Neutral hook events beyond the guard (ARCHITECTURE §3–§5; roadmap "Provider hooks beyond
   `PreToolUse`"). Bundles register hook scripts with `[[provides.hooks]]` (`event` = `prompt`
   or `stop`, with `session-start` and `session-end` reserved; `script` = `hooks/<name>.sh`;
