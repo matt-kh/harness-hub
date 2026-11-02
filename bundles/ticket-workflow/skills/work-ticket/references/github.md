@@ -96,7 +96,7 @@ triage lives in the PR body instead.
 ```bash
 bash ~/.claude/skills/work-ticket/scripts/issue-facts.sh 12     # sub_tickets_available = has_issues && can_label
 gh issue create -R OWNER/REPO -t "[#12] <imperative task title>" -F "$SCRATCH/12-sub-01.md" \
-  -l agent-created,agent-worked -a @me ${MILESTONE:+-m "$MILESTONE"}                         # hook: allow (provenance label)
+  -l agent-created,agent-worked -a @me ${MILESTONE:+"--milestone=$MILESTONE"}                         # hook: allow (provenance label)
 gh issue create -R OWNER/REPO -t "[#12] <…>" -F "$SCRATCH/12-sub-02.md" -l agent-created,agent-worked -a @me
 gh issue edit 12 -R OWNER/REPO --add-sub-issue 41 --add-sub-issue 42                        # hook: allow (parent agent-labelled)
 bash ~/.claude/skills/work-ticket/scripts/issue-facts.sh 12 | jq '.existing_children'        # read-back: [41,42]
@@ -171,7 +171,7 @@ Never edit `.github/workflows/*` from this skill.
 git push -u origin "$BR"                                                       # the ONLY push
 # label bootstrap as in §3 (agent-worked; agent-wip too when the Draft fallback applies)
 gh pr create -R OWNER/REPO -H "$BR" -B "$BASE" -t "<title>" -F "$SCRATCH/12-pr.md" \
-  -l agent-worked ${MILESTONE:+-m "$MILESTONE"} ${DRAFT:+--draft}               # hook: allow
+  -l agent-worked ${MILESTONE:+"--milestone=$MILESTONE"} ${DRAFT:+--draft}               # hook: allow
 gh pr view "$BR" -R OWNER/REPO --json number,title,isDraft,labels,baseRefName,milestone,url
 gh pr view "$BR" -R OWNER/REPO --json title,body | jq -r '.title, .body' | \
   grep -nEi '\b(clos(e|es|ed|ing)|fix(es|ed|ing)?|resolv(e|es|ed|ing)|implement(s|ed|ing)?):?\s+[A-Z]+-[0-9]+|\b(close[sd]?|fix(e[sd])?|resolve[sd]?):?\s+(([[:alnum:]_.-]+/[[:alnum:]_.-]+)?#[0-9]+|https?://github\.com/[^/ ]+/[^/ ]+/issues/[0-9]+)' \

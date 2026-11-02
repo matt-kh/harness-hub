@@ -155,7 +155,7 @@ found; otherwise skip silently.
 ```bash
 hb="${HARNESS_HOME:-$HOME/harness-hub}/bin/harness"; [ -f "$hb" ] || hb=harness
 cfg=$(jq -r '._harness.config // empty' "${HARNESS_CONFIG_JSON:-${HARNESS_HOME:-$HOME/harness-hub}/build/config.json}" 2>/dev/null)
-bash "$hb" lessons review ${cfg:+--config "$cfg"}   # no --session: reads <state>/retro/current
+HARNESS_CONFIG="${cfg:-${HARNESS_CONFIG:-}}" bash "$hb" lessons review   # no --session: reads <state>/retro/current; config via env (one word in zsh too)
 ```
 rc 0 → invoke the `retro` skill once with `--workflow create-ticket --arg 'NEW'` (GitHub:
 `--arg '#N'`, quoted: an unquoted `#N` is a shell comment); rc 1 → print exactly one line

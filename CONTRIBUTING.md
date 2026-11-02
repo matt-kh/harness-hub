@@ -248,6 +248,11 @@ macOS ships bash 3.2 and BSD userland; CI parses every script with `/bin/bash -n
 - No GNU-only tools or flags: `timeout`, `readlink -f`, `sed -i`, `stat -c`, `sha256sum`,
   `grep -P`, `date -d`, `xargs -r`. Use `hn_timeout`, `hn_realpath`, `hn_sha256` from
   `bundles/core/lib/compat.sh`, or python.
+- Shell snippets in skill and reference Markdown are run by the agent in the user's login
+  shell, often zsh, which does not word-split unquoted expansions: never put several words in
+  a `${VAR:+…}` alternate (`${cfg:+--config "$cfg"}` arrives as one argument). Write one
+  quoted word (`${M:+"--milestone=$M"}`) or pass the value through the environment
+  (`HARNESS_CONFIG="$cfg" harness …`). A unit test (`test_skill_snippets`) enforces it.
 - Python is stdlib only and must run on 3.9 (no `match`, no `X | Y` type unions at runtime,
   `tomllib` only through the vendored fallback).
 
