@@ -6,7 +6,7 @@ supply: dir=clean ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,sh
   "command": "sbom",
   "data": {
     "sbom": {
-      "bytes": 1529,
+      "bytes": 1663,
       "file": "OUT/clean.spdx.json",
       "format": "spdx-json",
       "packages": 3,

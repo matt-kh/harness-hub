@@ -273,6 +273,7 @@ JSON
   t audit-osv-sbom       1 audit dirty --sbom ../sbom/good.cdx.json --json
   t audit-sbom-name      1 audit dirty --sbom ../sbom/not-sbom.json
   SUPPLY_OSV_OFFLINE_DB=/home/u/.cache/osv-db t audit-osv-offline 1 audit dirty --offline --json
+  STUB_OSV_NODB=1 t audit-osv-offline-nodb 2 audit dirty --offline --json
   SUPPLY_PATH="$tmp/fallback-path" t audit-fallbacks-json 1 audit clean --json
   SUPPLY_PATH="$tmp/fallback-path" t audit-fallbacks-md   1 audit clean --md
   SUPPLY_PATH="$tmp/fallback-path" STUB_PIP_AUDIT=error t audit-fallback-error 1 audit clean --json
@@ -344,6 +345,8 @@ JSON
   t verify-offline-root  0 verify ghcr.io/octocat/hello-world:1.0 --identity release --offline \
                               --trusted-root ../tools/trusted-root.json --json
   t verify-key-and-github 1 verify ghcr.io/octocat/hello-world:1.0 --key cosign.pub --github octocat
+  t verify-image-bundle  1 verify ghcr.io/octocat/hello-world:1.0 --attestation --bundle att.sigstore.json \
+                              --identity release
   SUPPLY_PATH="$tmp/empty-path" t verify-unavailable 2 verify ghcr.io/octocat/hello-world:1.0 --identity release --json
   SUPPLY_PATH="$tmp/empty-path" t verify-gh-unavailable 2 verify dirty/deploy.bash --github octocat --json
 
@@ -469,8 +472,8 @@ ck "detect, pins, ci, sbom lint and redact never run a tool" [ ! -s "$STUB_LOG" 
 
 # stub-log invariants (pass 1)
 L="$out/stub.log"
-bad=$(grep '^osv-scanner ' "$L" | grep -v '^osv-scanner scan source --format json' | head -3)
-ck "every osv-scanner call is 'scan source --format json'" [ -z "$bad" ]
+bad=$(grep '^osv-scanner ' "$L" | grep -v '^osv-scanner scan source --format json --all-packages ' | head -3)
+ck "every osv-scanner call is 'scan source --format json --all-packages'" [ -z "$bad" ]
 ! grep -qE '^osv-scanner .*(\bfix\b|--download-offline-databases)' "$L"; chk $? "osv-scanner never runs fix or downloads databases"
 grep -q '^osv-scanner .*--offline-vulnerabilities' "$L"; chk $? "--offline maps to --offline-vulnerabilities"
 bad=$(grep '^cosign ' "$L" | grep -vE '^cosign verify(-attestation|-blob|-blob-attestation)? ' | head -3)
@@ -478,6 +481,10 @@ ck "every cosign call is verify*" [ -z "$bad" ]
 bad=$(grep -E '^cosign verify(-attestation)? ' "$L" | grep -v -- '--output json' | head -3)
 ck "every cosign image verification asks for --output json" [ -z "$bad" ]
 ! grep -qE '^cosign .*(--insecure|--allow-)' "$L"; chk $? "no cosign call carries --insecure-* or --allow-*-registry"
+! grep -qE '^cosign .* --offline( |$)' "$L"; chk $? "no cosign call carries the deprecated --offline (cosign 3: --trusted-root and --bundle)"
+! grep -qE '^cosign verify(-attestation)? .*--bundle' "$L"; chk $? "cosign image verification never gets --bundle (unknown flag in cosign 3.1.4)"
+bad=$(grep -E '(^| )syft ' "$out/dry-run.log" | grep -v '^SYFT_CHECK_FOR_APP_UPDATE=false syft ' | head -3)
+ck "every syft run switches its update check off" [ -z "$bad" ]
 bad=$(grep '^syft ' "$L" | grep -vE '^syft scan (dir|registry):[^ ]+ -o (spdx|cyclonedx)-json -q$' | head -3)
 ck "every syft call is 'scan dir:|registry: -o FORMAT -q'" [ -z "$bad" ]
 bad=$(grep '^gh ' "$L" | grep -v '^gh attestation verify .*--format json' | head -3)

@@ -1,0 +1,5 @@
+# exit=1
+# stderr:
+supply: dir=- ecosystems=none tools=cargo-audit,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+supply verify: --bundle is for a file with cosign (cosign verify and verify-attestation read an image's signatures from its registry); drop --bundle, or use --github OWNER/REPO --bundle F
+# stdout:

@@ -56,7 +56,7 @@
     },
     {
       "file": "../sbom/bad.spdx.json",
-      "fix": "regenerate with SPDX 2.3 or CycloneDX 1.5/1.6",
+      "fix": "regenerate with SPDX 2.3 or CycloneDX 1.5-1.7",
       "id": "SBM003",
       "line": 11,
       "message": "spec version SPDX-2.1 is not SPDX-2.2 or SPDX-2.3",
