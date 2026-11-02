@@ -1,10 +1,10 @@
 # exit=0
 # stderr:
-supply: dir=- ecosystems=none tools=cargo,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+supply: dir=- ecosystems=none tools=cargo-audit,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
 # stdout:
 # supply sbom — -
 
-ecosystems: none · tools: cargo, cosign, gh, govulncheck, npm, osv-scanner, pip-audit, syft
+ecosystems: none · tools: cargo-audit, cosign, gh, govulncheck, npm, osv-scanner, pip-audit, syft
 
 ## Findings (0)
 
@@ -22,7 +22,7 @@ summary only: pass --out FILE to write the SBOM
 
 | key | value |
 |---|---|
-| bytes | 745 |
+| bytes | 738 |
 | file |  |
 | format | cyclonedx-json |
 | packages | 1 |

@@ -50,7 +50,7 @@ supply audit: no auditor for cargo, go, npm, pip — harness install osv-scanner
       "fix": "`harness install osv-scanner` (covers every ecosystem), or install the ecosystem's own auditor",
       "id": "AUD001",
       "line": 0,
-      "message": "cargo: no auditor (osv-scanner and cargo are not installed); cargo is unaudited, not clean",
+      "message": "cargo: no auditor (osv-scanner and cargo-audit are not installed); cargo is unaudited, not clean",
       "severity": "info"
     },
     {

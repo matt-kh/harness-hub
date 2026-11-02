@@ -1,0 +1,30 @@
+name: inputs
+on:
+  workflow_dispatch:
+    inputs:
+      name:
+        type: string
+      environment:
+        type: choice
+        options: [staging, production]
+      count:
+        type: number
+      note:
+        description: no type, so a string
+  workflow_call:
+    inputs:
+      tag:
+        type: string
+      dry:
+        type: boolean
+permissions:
+  contents: read
+jobs:
+  show:
+    runs-on: ubuntu-24.04
+    steps:
+      - run: echo "${{ inputs.name }}"
+      - run: echo "${{ inputs.environment }}"
+      - run: echo "${{ github.event.inputs.count }}"
+      - run: echo "${{ inputs.note }}"
+      - run: echo "${{ inputs.tag }} ${{ inputs.dry }}"

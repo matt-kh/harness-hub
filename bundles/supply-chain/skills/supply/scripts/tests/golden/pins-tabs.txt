@@ -1,6 +1,6 @@
 # exit=0
 # stderr:
-supply: dir=tabs ecosystems=github-actions tools=cargo,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+supply: dir=tabs ecosystems=github-actions tools=cargo-audit,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
 # stdout:
 {
   "command": "pins",
@@ -22,7 +22,7 @@ supply: dir=tabs ecosystems=github-actions tools=cargo,cosign,gh,govulncheck,npm
     }
   ],
   "tools": [
-    "cargo",
+    "cargo-audit",
     "cosign",
     "gh",
     "govulncheck",

@@ -1,0 +1,30 @@
+# exit=0
+# stderr:
+supply: dir=- ecosystems=none tools=cargo-audit,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+# stdout:
+{
+  "command": "sbom",
+  "data": {
+    "sbom": {
+      "bytes": 738,
+      "file": "OUT/image.cdx.json",
+      "format": "cyclonedx-json",
+      "packages": 1,
+      "source": "registry:ghcr.io/octocat/hello-world:1.0",
+      "spec_version": "1.6"
+    }
+  },
+  "dir": "-",
+  "ecosystems": [],
+  "findings": [],
+  "tools": [
+    "cargo-audit",
+    "cosign",
+    "gh",
+    "govulncheck",
+    "npm",
+    "osv-scanner",
+    "pip-audit",
+    "syft"
+  ]
+}

@@ -1,0 +1,10 @@
+services:
+  app:
+    build: .
+    image: example/app:dev
+  worker:
+    build: ./worker
+    image: redis
+    pull_policy: always
+  cache:
+    image: redis:7.4@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef

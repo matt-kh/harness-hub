@@ -13,8 +13,11 @@ done
 if [ "${STUB_FAIL:-}" = "$name" ]; then
   echo "stub $name: failing on request (STUB_FAIL)" >&2; exit 2
 fi
-[ "$1 $2 $3" = "-f json -r" ] || { echo "stub pip-audit: expected -f json -r FILE, got: $*" >&2; exit 1; }
-[ -f "$4" ] || { echo "stub pip-audit: no such requirements file: $4" >&2; exit 1; }
+[ "$*" = "-f json --require-hashes --no-deps --disable-pip -r $7" ] || {
+  echo "stub pip-audit: expected -f json --require-hashes --no-deps --disable-pip -r FILE, got: $*" >&2; exit 1; }
+case "$7" in /*) ;; *) echo "stub pip-audit: -r must be absolute, got: $7" >&2; exit 1 ;; esac
+[ -f "$7" ] || { echo "stub pip-audit: no such requirements file: $7" >&2; exit 1; }
+[ -z "$(ls -A .)" ] || { echo "stub pip-audit: working directory is not empty: $(pwd)" >&2; exit 1; }
 if [ "${STUB_PIP_AUDIT:-}" = error ]; then cat "$fix/pip-audit-error.txt" >&2; exit 2; fi
 cat "$fix/pip-audit.json"
 exit 1

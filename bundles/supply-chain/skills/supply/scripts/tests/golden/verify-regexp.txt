@@ -1,6 +1,6 @@
 # exit=0
 # stderr:
-supply: dir=- ecosystems=none tools=cargo,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+supply: dir=- ecosystems=none tools=cargo-audit,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
 # stdout:
 {
   "command": "verify",
@@ -17,7 +17,7 @@ supply: dir=- ecosystems=none tools=cargo,cosign,gh,govulncheck,npm,osv-scanner,
     "verifier": {
       "command": "verify",
       "identity": "",
-      "identity_re": "^https://github\\.com/octocat/",
+      "identity_re": "^https://github\\.com/octocat/.*$",
       "issuer": "https://token.actions.githubusercontent.com",
       "tool": "cosign"
     }
@@ -35,7 +35,7 @@ supply: dir=- ecosystems=none tools=cargo,cosign,gh,govulncheck,npm,osv-scanner,
     }
   ],
   "tools": [
-    "cargo",
+    "cargo-audit",
     "cosign",
     "gh",
     "govulncheck",

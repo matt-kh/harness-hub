@@ -1,0 +1,12 @@
+# exit=2
+# stderr:
+supply: dir=sym ecosystems=cargo,docker,gitlab-ci,go,npm,pip,shell tools=cargo-audit,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+supply pins: pins --apply: nothing written —
+  entry 0: Dockerfile goes through the symlink Dockerfile; --apply writes regular files inside DIR only
+  entry 1: .github/workflows/build.yml goes through the symlink .github/workflows; --apply writes regular files inside DIR only
+  entry 2: .git/config is not a file `supply pins` scans (workflows, CI files, Dockerfiles, compose, manifests, scripts; never .git); nothing to pin there
+  entry 3: file must be a relative path inside DIR, without `..` or NUL
+  entry 4 (requirements.txt:2, PIP002): new must be git+https://github.com/octocat/hello-world@<40-hex sha>
+  entry 5 (package.json:5, NPM002): new must be github:octocat/hello-world#<40-hex sha>
+  entry 6 (docker-compose.yml:3, DKR003): new must be redis[:TAG]@sha256:<64 hex>
+# stdout:

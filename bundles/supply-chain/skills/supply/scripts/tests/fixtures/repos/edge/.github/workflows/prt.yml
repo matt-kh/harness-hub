@@ -1,0 +1,11 @@
+name: prt
+on: pull_request_target
+permissions:
+  contents: read
+jobs:
+  label:
+    runs-on: ubuntu-24.04
+    steps:
+      - run: git fetch origin main && echo "labelling pull/${{ github.event.number }}"
+      - run: gh pr view ${{ github.event.number }} --json title
+      - run: git fetch origin pull/${{ github.event.number }}/head:pr && git checkout pr

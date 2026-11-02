@@ -1,6 +1,7 @@
-# exit=0
+# exit=3
 # stderr:
-supply: dir=- ecosystems=none tools=cargo,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+supply: dir=- ecosystems=none tools=cargo-audit,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+supply ci: no file could be scanned (every one is CI000); pass a workflow, .gitlab-ci.yml, Dockerfile, compose file or shell script, or check it with its own linter
 # stdout:
 {
   "command": "ci",
@@ -25,7 +26,7 @@ supply: dir=- ecosystems=none tools=cargo,cosign,gh,govulncheck,npm,osv-scanner,
     }
   ],
   "tools": [
-    "cargo",
+    "cargo-audit",
     "cosign",
     "gh",
     "govulncheck",

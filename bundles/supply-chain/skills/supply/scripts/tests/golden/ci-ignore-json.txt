@@ -1,6 +1,6 @@
 # exit=1
 # stderr:
-supply: dir=- ecosystems=github-actions tools=cargo,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+supply: dir=- ecosystems=github-actions tools=cargo-audit,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
 # stdout:
 {
   "command": "ci",
@@ -74,7 +74,7 @@ supply: dir=- ecosystems=github-actions tools=cargo,cosign,gh,govulncheck,npm,os
     }
   ],
   "tools": [
-    "cargo",
+    "cargo-audit",
     "cosign",
     "gh",
     "govulncheck",

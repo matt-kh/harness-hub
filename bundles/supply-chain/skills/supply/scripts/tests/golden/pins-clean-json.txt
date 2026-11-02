@@ -1,6 +1,6 @@
 # exit=0
 # stderr:
-supply: dir=clean ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,shell tools=cargo,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+supply: dir=clean ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,shell tools=cargo-audit,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
 # stdout:
 {
   "command": "pins",
@@ -20,7 +20,7 @@ supply: dir=clean ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,sh
   ],
   "findings": [],
   "tools": [
-    "cargo",
+    "cargo-audit",
     "cosign",
     "gh",
     "govulncheck",

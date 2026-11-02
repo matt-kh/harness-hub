@@ -8,11 +8,11 @@ advance — never against whatever the artefact claims.
 
 | Target | Mode | Command (read-only) |
 |---|---|---|
-| image (`oci://REF` or a reference not on disk) | keyless | `cosign verify --output json --certificate-identity-regexp RE --certificate-oidc-issuer URL [--trusted-root F] [--offline] IMAGE` |
-| image | key | `cosign verify --output json --key F IMAGE` |
-| image | attestation | `cosign verify-attestation --output json [--type T] … IMAGE` |
-| file (blob) | keyless or key | `cosign verify-blob --bundle B … FILE` (a Sigstore bundle is required: cosign v3 verifies blobs from bundles) |
-| image or file | GitHub | `gh attestation verify FILE\|oci://IMAGE (-R OWNER/REPO \| -o OWNER) --format json [--predicate-type URI] [--custom-trusted-root F]` |
+| image (`oci://REF` or a reference not on disk) | keyless | `cosign verify --output json --certificate-identity-regexp RE --certificate-oidc-issuer URL [--trusted-root F] [--offline] -- IMAGE` |
+| image | key | `cosign verify --output json --key F -- IMAGE` |
+| image | attestation | `cosign verify-attestation --output json [--type T] … -- IMAGE` |
+| file (blob) | keyless or key | `cosign verify-blob --bundle B … -- FILE` (a Sigstore bundle is required: cosign v3 verifies blobs from bundles) |
+| image or file | GitHub | `gh attestation verify (-R OWNER/REPO \| -o OWNER) --format json [--predicate-type URI] [--bundle B] [--custom-trusted-root F] -- FILE\|oci://IMAGE` |
 
 The identity comes from `--identity NAME` (a `[[supply_chain.identities]]` entry: `name`,
 `identity_re`, `issuer`, optional `match_re`), from `--identity RE --issuer URL`, or — without
@@ -30,7 +30,15 @@ name the workflow file, and restrict the ref.
 Exit 2 `unverifiable: <first stderr line>` is a finding: no matching signature, a wrong
 identity or issuer, no attestation, a registry that refused the read. Report it; never retry
 with `--insecure-ignore-tlog`, `--insecure-ignore-sct`, `--allow-insecure-registry` or a looser
-regexp (the guard denies the flags). `--offline` needs `--trusted-root` (exit 3 otherwise).
+regexp (the guard denies the flags). `--offline` needs `--trusted-root` (exit 3 otherwise); with
+`--github` it also needs `--bundle` (the attestation from `gh attestation download`), since gh
+cannot fetch it offline. A verifier that exits 0 but lists no signature or attestation is exit 2,
+never `VER000`. The subject always follows `--` on the cosign and gh command line, and a TARGET
+starting with `-` is refused (pass `./-name` for such a file).
+
+Signer identity regexps — `identity_re` in config and `--identity RE` — must be anchored as
+`^…$` and must not match the empty string (exit 2 otherwise): an unanchored pattern accepts any
+certificate whose identity merely contains it.
 
 ## SLSA in one table
 

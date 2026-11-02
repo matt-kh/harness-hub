@@ -1,6 +1,6 @@
 # exit=1
 # stderr:
-supply: dir=clean ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,shell tools=cargo,govulncheck,npm,pip-audit
+supply: dir=clean ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,shell tools=cargo-audit,govulncheck,npm,pip-audit
 # stdout:
 {
   "command": "audit",
@@ -10,7 +10,7 @@ supply: dir=clean ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,sh
         "ecosystem": "cargo",
         "packages": 1,
         "status": "ok",
-        "tool": "cargo"
+        "tool": "cargo-audit"
       },
       {
         "ecosystem": "go",
@@ -94,7 +94,7 @@ supply: dir=clean ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,sh
     }
   ],
   "tools": [
-    "cargo",
+    "cargo-audit",
     "govulncheck",
     "npm",
     "pip-audit"

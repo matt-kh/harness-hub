@@ -1,6 +1,6 @@
 # exit=3
 # stderr:
-supply: dir=clean ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,shell tools=cargo,govulncheck,npm,pip-audit
+supply: dir=clean ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,shell tools=cargo-audit,govulncheck,npm,pip-audit
 supply audit: no auditor for cargo, go, npm, pip — harness install osv-scanner (or the ecosystem's own auditor); unaudited is not clean
 # stdout:
 {
@@ -11,7 +11,7 @@ supply audit: no auditor for cargo, go, npm, pip — harness install osv-scanner
         "ecosystem": "cargo",
         "packages": 0,
         "status": "offline",
-        "tool": "cargo"
+        "tool": "cargo-audit"
       },
       {
         "ecosystem": "go",
@@ -50,7 +50,7 @@ supply audit: no auditor for cargo, go, npm, pip — harness install osv-scanner
       "fix": "`harness install osv-scanner` (covers every ecosystem), or install the ecosystem's own auditor",
       "id": "AUD001",
       "line": 0,
-      "message": "cargo: cargo needs the network; `--offline` works with osv-scanner and a local database",
+      "message": "cargo: cargo-audit needs the network; `--offline` works with osv-scanner and a local database",
       "severity": "info"
     },
     {
@@ -79,7 +79,7 @@ supply audit: no auditor for cargo, go, npm, pip — harness install osv-scanner
     }
   ],
   "tools": [
-    "cargo",
+    "cargo-audit",
     "govulncheck",
     "npm",
     "pip-audit"

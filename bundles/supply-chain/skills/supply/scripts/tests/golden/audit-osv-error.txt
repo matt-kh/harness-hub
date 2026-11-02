@@ -1,5 +1,5 @@
 # exit=2
 # stderr:
-supply: dir=gitlab-include ecosystems=gitlab-ci tools=cargo,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+supply: dir=gitlab-include ecosystems=gitlab-ci tools=cargo-audit,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
 supply audit: osv-scanner failed (exit 127): Error: fetching https://***:***@osv.example.com/v1/querybatch: connection refused
 # stdout:

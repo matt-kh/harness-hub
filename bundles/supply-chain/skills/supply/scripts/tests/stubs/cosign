@@ -20,7 +20,11 @@ case "$1" in
   *) echo "stub cosign: only verify* is supported, got: $1" >&2; exit 1 ;;
 esac
 case "$target" in
+  -*) echo "stub cosign: the subject looks like an option: $target" >&2; exit 1 ;;
+esac
+case "$target" in
   *unsigned*) cat "$fix/cosign-fail.txt" >&2; exit 1 ;;
+  *nosig*) echo "[]"; exit 0 ;;
 esac
 case "$1" in
   verify) echo "Verification for $target --" >&2; cat "$fix/cosign-verify.json" ;;

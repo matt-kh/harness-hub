@@ -1,0 +1,5 @@
+# exit=2
+# stderr:
+supply: dir=- ecosystems=none tools=cargo-audit,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+supply verify: cosign verify exited 0 but printed no signature list; treat ghcr.io/octocat/nosig:1.0 as unverified and rerun cosign by hand to see why
+# stdout:
