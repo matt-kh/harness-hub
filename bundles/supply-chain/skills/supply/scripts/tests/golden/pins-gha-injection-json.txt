@@ -1,0 +1,53 @@
+# exit=1
+# stderr:
+supply: dir=gha-injection ecosystems=github-actions tools=cargo,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+# stdout:
+{
+  "command": "pins",
+  "data": {
+    "files_scanned": 1
+  },
+  "dir": "gha-injection",
+  "ecosystems": [
+    "github-actions"
+  ],
+  "findings": [
+    {
+      "file": ".github/workflows/triage.yml",
+      "fix": "pin the image digest: `IMAGE:TAG@sha256:<digest>` (resolve with `docker buildx imagetools inspect` or `crane digest`)",
+      "id": "CI006",
+      "line": 17,
+      "message": "job container `node` has no tag or uses :latest",
+      "ref": "node",
+      "severity": "crit"
+    },
+    {
+      "file": ".github/workflows/triage.yml",
+      "fix": "pin the image digest: `IMAGE:TAG@sha256:<digest>` (resolve with `docker buildx imagetools inspect` or `crane digest`)",
+      "id": "CI006",
+      "line": 20,
+      "message": "service `cache` image `redis:latest` has no tag or uses :latest",
+      "ref": "redis:latest",
+      "severity": "crit"
+    },
+    {
+      "file": ".github/workflows/triage.yml",
+      "fix": "pin the full 40-character commit sha and keep the tag as a comment: `uses: OWNER/REPO@<sha> # vX.Y.Z` (/pin-deps resolves it)",
+      "id": "GHA001",
+      "line": 42,
+      "message": "action `github/codeql-action/analyze` is pinned to the tag `v3`, which can be moved",
+      "ref": "github/codeql-action/analyze@v3",
+      "severity": "warn"
+    }
+  ],
+  "tools": [
+    "cargo",
+    "cosign",
+    "gh",
+    "govulncheck",
+    "npm",
+    "osv-scanner",
+    "pip-audit",
+    "syft"
+  ]
+}

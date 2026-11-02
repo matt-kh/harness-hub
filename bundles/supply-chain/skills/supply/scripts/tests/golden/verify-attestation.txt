@@ -1,0 +1,46 @@
+# exit=0
+# stderr:
+supply: dir=- ecosystems=none tools=cargo,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+# stdout:
+{
+  "command": "verify",
+  "data": {
+    "attestations": [
+      {
+        "builder": "https://github.com/actions/runner/github-hosted",
+        "digest": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "predicateType": "https://slsa.dev/provenance/v1",
+        "subject": "ghcr.io/octocat/hello-world"
+      }
+    ],
+    "verifier": {
+      "command": "verify-attestation",
+      "identity": "release",
+      "identity_re": "^https://github\\.com/octocat/hello-world/\\.github/workflows/release\\.yml@refs/tags/v.*$",
+      "issuer": "https://token.actions.githubusercontent.com",
+      "tool": "cosign"
+    }
+  },
+  "dir": "-",
+  "ecosystems": [],
+  "findings": [
+    {
+      "file": "ghcr.io/octocat/hello-world:1.0",
+      "fix": "none: verified",
+      "id": "VER000",
+      "line": 0,
+      "message": "1 attestation(s) verified for ghcr.io/octocat/hello-world:1.0",
+      "severity": "info"
+    }
+  ],
+  "tools": [
+    "cargo",
+    "cosign",
+    "gh",
+    "govulncheck",
+    "npm",
+    "osv-scanner",
+    "pip-audit",
+    "syft"
+  ]
+}

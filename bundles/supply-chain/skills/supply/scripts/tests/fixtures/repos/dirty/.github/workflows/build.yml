@@ -1,0 +1,19 @@
+name: build
+on: [push]
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    container: node:20
+    steps:
+      - uses: actions/checkout@v4   # keep this comment
+      - uses: octocat/hello-world-action@main
+      - uses: docker://alpine:3.20
+      - name: greet
+        run: echo "${{ github.event.issue.title }}"
+      - name: publish
+        run: |
+          echo ${{ secrets.NPM_TOKEN }}
+          npm publish
+      - name: audit
+        run: npm audit
+        continue-on-error: true

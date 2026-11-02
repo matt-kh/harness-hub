@@ -1,0 +1,130 @@
+# exit=1
+# stderr:
+supply: dir=- ecosystems=github-actions tools=cargo,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+# stdout:
+{
+  "command": "ci",
+  "data": {
+    "files": [
+      {
+        "file": "gha-injection/.github/workflows/triage.yml",
+        "kind": "github-workflow"
+      }
+    ]
+  },
+  "dir": "-",
+  "ecosystems": [
+    "github-actions"
+  ],
+  "findings": [
+    {
+      "file": "gha-injection/.github/workflows/triage.yml",
+      "fix": "grant only the scopes a job needs, at job level (`permissions: contents: read` at the top)",
+      "id": "CI002",
+      "line": 9,
+      "message": "top-level permissions grant write to contents, pull-requests for every job",
+      "severity": "warn"
+    },
+    {
+      "file": "gha-injection/.github/workflows/triage.yml",
+      "fix": "grant only the scopes a job needs, at job level (`permissions: contents: read` at the top)",
+      "id": "CI002",
+      "line": 15,
+      "message": "job permissions: write-all grants every scope",
+      "severity": "crit"
+    },
+    {
+      "file": "gha-injection/.github/workflows/triage.yml",
+      "fix": "pin the image digest: `IMAGE:TAG@sha256:<digest>` (resolve with `docker buildx imagetools inspect` or `crane digest`)",
+      "id": "CI006",
+      "line": 17,
+      "message": "job container `node` has no tag or uses :latest",
+      "ref": "node",
+      "severity": "crit"
+    },
+    {
+      "file": "gha-injection/.github/workflows/triage.yml",
+      "fix": "pin the image digest: `IMAGE:TAG@sha256:<digest>` (resolve with `docker buildx imagetools inspect` or `crane digest`)",
+      "id": "CI006",
+      "line": 20,
+      "message": "service `cache` image `redis:latest` has no tag or uses :latest",
+      "ref": "redis:latest",
+      "severity": "crit"
+    },
+    {
+      "file": "gha-injection/.github/workflows/triage.yml",
+      "fix": "never check out the pull request head in a pull_request_target workflow; use pull_request, or a two-workflow split with workflow_run and no secrets in the untrusted half",
+      "id": "CI003",
+      "line": 24,
+      "message": "pull_request_target checks out the pull request head: `gh pr checkout ${{ github.event.pull_request.number }}`",
+      "severity": "crit"
+    },
+    {
+      "file": "gha-injection/.github/workflows/triage.yml",
+      "fix": "pass the value through env: (`env: TITLE: ${{ ... }}`) and use \"$TITLE\" in the script; never expand it into the script text",
+      "id": "CI004",
+      "line": 31,
+      "message": "untrusted `github.head_ref` is expanded into the script text",
+      "severity": "crit"
+    },
+    {
+      "file": "gha-injection/.github/workflows/triage.yml",
+      "fix": "pass the value through env: (`env: TITLE: ${{ ... }}`) and use \"$TITLE\" in the script; never expand it into the script text",
+      "id": "CI004",
+      "line": 33,
+      "message": "untrusted `inputs.target` is expanded into the script text",
+      "severity": "crit"
+    },
+    {
+      "file": "gha-injection/.github/workflows/triage.yml",
+      "fix": "never print secrets or dump the environment; pass secrets as env variables to the step that needs them",
+      "id": "CI005",
+      "line": 35,
+      "message": "`printenv` dumps every variable, secrets included, to the job log",
+      "severity": "warn"
+    },
+    {
+      "file": "gha-injection/.github/workflows/triage.yml",
+      "fix": "pass the value through env: (`env: TITLE: ${{ ... }}`) and use \"$TITLE\" in the script; never expand it into the script text",
+      "id": "CI004",
+      "line": 40,
+      "message": "untrusted `github.event.comment.body` is expanded into the github-script code",
+      "severity": "crit"
+    },
+    {
+      "file": "gha-injection/.github/workflows/triage.yml",
+      "fix": "pin the full 40-character commit sha and keep the tag as a comment: `uses: OWNER/REPO@<sha> # vX.Y.Z` (/pin-deps resolves it)",
+      "id": "GHA001",
+      "line": 42,
+      "message": "action `github/codeql-action/analyze` is pinned to the tag `v3`, which can be moved",
+      "ref": "github/codeql-action/analyze@v3",
+      "severity": "warn"
+    },
+    {
+      "file": "gha-injection/.github/workflows/triage.yml",
+      "fix": "let the security job fail the pipeline; triage findings instead of `allow_failure`/`continue-on-error`",
+      "id": "CI007",
+      "line": 43,
+      "message": "security step `codeql scan` cannot fail the job (continue-on-error: true)",
+      "severity": "warn"
+    },
+    {
+      "file": "gha-injection/.github/workflows/triage.yml",
+      "fix": "never print secrets or dump the environment; pass secrets as env variables to the step that needs them",
+      "id": "CI005",
+      "line": 47,
+      "message": "`env | sort` dumps every variable, secrets included, to the job log",
+      "severity": "warn"
+    }
+  ],
+  "tools": [
+    "cargo",
+    "cosign",
+    "gh",
+    "govulncheck",
+    "npm",
+    "osv-scanner",
+    "pip-audit",
+    "syft"
+  ]
+}

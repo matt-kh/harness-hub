@@ -1,0 +1,32 @@
+# exit=0
+# stderr:
+supply: dir=clean ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,shell tools=cargo,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+# stdout:
+# supply detect — clean
+
+ecosystems: cargo, docker, github-actions, gitlab-ci, go, npm, pip, shell · tools: cargo, cosign, gh, govulncheck, npm, osv-scanner, pip-audit, syft
+
+## Findings (0)
+
+none
+
+## ecosystems
+
+| ecosystem | files | lockfiles |
+|---|---|---|
+| cargo | ["Cargo.toml"] | ["Cargo.lock"] |
+| docker | ["Dockerfile", "docker-compose.yml"] | [] |
+| github-actions | [".github/workflows/ci.yml"] | [] |
+| gitlab-ci | [".gitlab-ci.yml"] | [] |
+| go | ["go.mod"] | ["go.sum"] |
+| npm | ["package.json"] | ["package-lock.json"] |
+| pip | ["requirements.txt"] | ["requirements.txt"] |
+| shell | ["scripts/install.bash"] | [] |
+
+## files_scanned
+
+12
+
+## skipped_large
+
+_none_

@@ -1,0 +1,73 @@
+# exit=1
+# stderr:
+supply: dir=dirty ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,shell tools=cargo,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+# stdout:
+{
+  "command": "pins",
+  "data": {
+    "files_scanned": 12
+  },
+  "dir": "dirty",
+  "ecosystems": [
+    "cargo",
+    "docker",
+    "github-actions",
+    "gitlab-ci",
+    "go",
+    "npm",
+    "pip",
+    "shell"
+  ],
+  "findings": [
+    {
+      "file": ".github/workflows/build.yml",
+      "fix": "pin the image digest: `IMAGE:TAG@sha256:<digest>` (resolve with `docker buildx imagetools inspect` or `crane digest`)",
+      "id": "CI006",
+      "line": 6,
+      "message": "job container `node:20` is pinned to a tag, not a digest",
+      "ref": "node:20",
+      "severity": "warn"
+    },
+    {
+      "file": ".github/workflows/build.yml",
+      "fix": "pin the full 40-character commit sha and keep the tag as a comment: `uses: OWNER/REPO@<sha> # vX.Y.Z` (/pin-deps resolves it)",
+      "id": "GHA001",
+      "line": 8,
+      "message": "action `actions/checkout` is pinned to the tag `v4`, which can be moved",
+      "ref": "actions/checkout@v4",
+      "severity": "warn"
+    },
+    {
+      "file": ".github/workflows/build.yml",
+      "fix": "pin the full 40-character commit sha of a released tag: `uses: OWNER/REPO@<sha> # vX.Y.Z`",
+      "id": "GHA002",
+      "line": 9,
+      "message": "action `octocat/hello-world-action` follows the branch `main`",
+      "ref": "octocat/hello-world-action@main",
+      "severity": "crit"
+    },
+    {
+      "file": ".github/workflows/build.yml",
+      "fix": "pin the image digest: `docker://IMAGE@sha256:<digest>` (keep the tag in a comment)",
+      "id": "GHA003",
+      "line": 10,
+      "message": "action image `docker://alpine:3.20` has no digest",
+      "ref": "docker://alpine:3.20",
+      "severity": "warn"
+    }
+  ],
+  "tools": [
+    "cargo",
+    "cosign",
+    "gh",
+    "govulncheck",
+    "npm",
+    "osv-scanner",
+    "pip-audit",
+    "syft"
+  ],
+  "truncated": {
+    "items_dropped": 18,
+    "max_bytes": 2000
+  }
+}

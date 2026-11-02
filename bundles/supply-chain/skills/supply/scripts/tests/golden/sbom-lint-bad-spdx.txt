@@ -1,0 +1,67 @@
+# exit=1
+# stderr:
+# stdout:
+{
+  "command": "sbom lint",
+  "data": {
+    "sbom": {
+      "file": "../sbom/bad.spdx.json",
+      "format": "spdx-json",
+      "packages": 0,
+      "spec_version": "SPDX-2.1"
+    }
+  },
+  "dir": "-",
+  "ecosystems": [],
+  "findings": [
+    {
+      "file": "../sbom/bad.spdx.json",
+      "fix": "regenerate the SBOM; the format's required fields are missing",
+      "id": "SBM002",
+      "line": 1,
+      "message": "missing required top-level field(s): documentNamespace",
+      "severity": "warn"
+    },
+    {
+      "file": "../sbom/bad.spdx.json",
+      "fix": "record what the SBOM describes (SPDX DESCRIBES relationship, CycloneDX metadata.component)",
+      "id": "SBM009",
+      "line": 1,
+      "message": "the document does not say what it describes",
+      "severity": "info"
+    },
+    {
+      "file": "../sbom/bad.spdx.json",
+      "fix": "regenerate the SBOM; consumers need the creation time",
+      "id": "SBM004",
+      "line": 3,
+      "message": "no creation timestamp",
+      "severity": "warn"
+    },
+    {
+      "file": "../sbom/bad.spdx.json",
+      "fix": "regenerate the SBOM with a tool that records itself",
+      "id": "SBM005",
+      "line": 3,
+      "message": "no generating tool recorded",
+      "severity": "warn"
+    },
+    {
+      "file": "../sbom/bad.spdx.json",
+      "fix": "check the scan target; an SBOM without packages describes nothing",
+      "id": "SBM006",
+      "line": 10,
+      "message": "zero packages",
+      "severity": "warn"
+    },
+    {
+      "file": "../sbom/bad.spdx.json",
+      "fix": "regenerate with SPDX 2.3 or CycloneDX 1.5/1.6",
+      "id": "SBM003",
+      "line": 11,
+      "message": "spec version SPDX-2.1 is not SPDX-2.2 or SPDX-2.3",
+      "severity": "info"
+    }
+  ],
+  "tools": []
+}

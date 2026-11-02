@@ -114,6 +114,26 @@ prints every one between your applied version and the new one.
   denies, the `security` yield and `guard.env`; docs page [supply-chain](docs/bundles/supply-chain.md).
   The guard's `guard.env` parser and the `env-provides` lint accept the `SUPPLY_` prefix; band
   `38` is listed in ARCHITECTURE §3.
+- `supply-chain` bundle, part 2 of #51: the read-only `supply` CLI (stdlib python 3.9, inlining
+  the core `harness_config` and `redact` blocks) and its client skill with six reference
+  rubrics. Verbs: `detect` (ecosystems, manifests, lockfiles; never runs a tool), `pins`
+  (unpinned actions, images, dependencies and unverified downloads, `GHA*`, `DKR*`, `PIP*`,
+  `NPM*`, `GO*`, `CGO*`, `SH001`/`SH002`, `CI006`/`CI008`/`CI009`, `REG001`; findings carry the
+  exact `ref` token) with `pins --apply FILE` (exact-token rewrites, all-or-nothing, byte-exact,
+  then a re-scan), `ci FILE...` (GitHub Actions and GitLab CI hardening `CI000`–`CI009`),
+  `audit` (osv-scanner, else `npm audit`, `pip-audit`, `cargo audit`, `govulncheck` when
+  present; "unavailable" is never "clean": `AUD001`, exit 3), `sbom DIR|IMAGE` (syft, never
+  the docker daemon) and `sbom lint FILE` (`SBM001`–`SBM009`), `verify` (cosign keyless, key,
+  attestation and blob-with-bundle; `gh attestation verify`; never an `--insecure-*` flag) and
+  `redact`. Exit 0 clean, 1 findings, 2 access/tool/config error, 3 unsupported; banner
+  `supply: dir= ecosystems= tools=` on stderr; sorted JSON envelope without timestamps. New keys
+  `supply_chain.exclude_re` (`SUPPLY_EXCLUDE_RE`) and `supply_chain.timeout`
+  (`SUPPLY_TIMEOUT`); the CLI also reads `SUPPLY_REGISTRIES_RE`, `SUPPLY_REDACT_EXTRA_RE`,
+  `SUPPLY_OSV_OFFLINE_DB` and `SUPPLY_MAX_BYTES` from the environment. Doctor checks
+  `supply-cli` and `supply-detect`. A golden suite over fixture checkouts with stub tools
+  (`SUPPLY_PATH`): every verb in JSON and Markdown, the unavailable and fallback-only paths,
+  byte-exact `--apply` (CRLF and comments kept), redaction, stub-log invariants (verify only,
+  no `fix`, no docker), one rubric row per rule id, and two identical runs.
 - Neutral hook events beyond the guard (ARCHITECTURE §3–§5; roadmap "Provider hooks beyond
   `PreToolUse`"). Bundles register hook scripts with `[[provides.hooks]]` (`event` = `prompt`
   or `stop`, with `session-start` and `session-end` reserved; `script` = `hooks/<name>.sh`;
@@ -651,7 +671,8 @@ prints every one between your applied version and the new one.
   `supply_chain.allow_global_re` (`SUPPLY_ALLOW_GLOBAL_RE`), `supply_chain.venv_markers`
   (`SUPPLY_VENV_MARKERS`), `supply_chain.registries_re`, `supply_chain.identities` (array of
   tables), `supply_chain.redact_extra_re`, `supply_chain.osv_offline_db`,
-  `supply_chain.pin_actions`, `supply_chain.max_bytes`. The guard's `guard.env` parser now also
+  `supply_chain.pin_actions`, `supply_chain.max_bytes`, and for the `supply` CLI (part 2)
+  `supply_chain.exclude_re` (default `""`) and `supply_chain.timeout` (default `120`). The guard's `guard.env` parser now also
   accepts `SUPPLY_` keys (core engine and the `env-provides` lint list); nothing to edit for
   existing setups. With the bundle enabled, `pip install` outside a venv, global npm/cargo
   installs and unpinned git dependencies ask. An auto-activated conda `base` is not a venv

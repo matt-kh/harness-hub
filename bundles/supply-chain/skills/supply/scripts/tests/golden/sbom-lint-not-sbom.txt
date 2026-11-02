@@ -1,0 +1,27 @@
+# exit=1
+# stderr:
+# stdout:
+{
+  "command": "sbom lint",
+  "data": {
+    "sbom": {
+      "file": "../sbom/not-sbom.json",
+      "format": "unknown",
+      "packages": 0,
+      "spec_version": ""
+    }
+  },
+  "dir": "-",
+  "ecosystems": [],
+  "findings": [
+    {
+      "file": "../sbom/not-sbom.json",
+      "fix": "generate the SBOM with a real tool (`supply sbom DIR --out F`)",
+      "id": "SBM001",
+      "line": 1,
+      "message": "not an SPDX or CycloneDX JSON document (no spdxVersion, no bomFormat: CycloneDX)",
+      "severity": "crit"
+    }
+  ],
+  "tools": []
+}

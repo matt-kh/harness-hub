@@ -1,0 +1,37 @@
+# exit=0
+# stderr:
+supply: dir=- ecosystems=none tools=cargo,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+# stdout:
+{
+  "command": "ci",
+  "data": {
+    "files": [
+      {
+        "file": "clean/package.json",
+        "kind": "unknown"
+      }
+    ]
+  },
+  "dir": "-",
+  "ecosystems": [],
+  "findings": [
+    {
+      "file": "clean/package.json",
+      "fix": "pass a GitHub workflow or action, a .gitlab-ci.yml (or a file it includes), a Dockerfile, a compose file or a shell script",
+      "id": "CI000",
+      "line": 0,
+      "message": "not a recognised CI file",
+      "severity": "info"
+    }
+  ],
+  "tools": [
+    "cargo",
+    "cosign",
+    "gh",
+    "govulncheck",
+    "npm",
+    "osv-scanner",
+    "pip-audit",
+    "syft"
+  ]
+}
