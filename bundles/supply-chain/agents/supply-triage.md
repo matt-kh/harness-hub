@@ -23,18 +23,25 @@ say so.
 
 ## Procedure
 
-1. **Orient** — `supply detect DIR --json`; quote the banner.
-2. **Locate** — vulnerability: `supply audit DIR --json > "$SCRATCH/audit.json"` and select the
-   findings whose message names the id or package (`OSV001`/`VUL001`); read `data.auditors` —
-   if the ecosystem is `unavailable`, `offline` or `error`, say so and continue from the
-   lockfile alone. Verification: `supply verify TARGET --identity NAME` (or the exact flags the
+1. **Orient** — `SCRATCH=$(mktemp -d) && echo "SCRATCH=$SCRATCH"`, then `supply detect DIR
+   --json`; quote the banner.
+2. **Locate** — vulnerability: `supply audit DIR --json > "${SCRATCH:?}/audit.json"` and select
+   the findings whose message names the id or package (`OSV001`/`VUL001`); read
+   `data.auditors` — if the ecosystem is `unavailable`, `offline` or `error`, say so and
+   continue from the lockfile alone (`ok` with `"offline": true` was audited against a local
+   database: name its age as a caveat). Verification: `supply verify TARGET --identity NAME` (or the exact flags the
    user ran) and keep the `unverifiable: …` line. Suspicious dependency: Grep the manifests and
    lockfiles for the name.
 3. **Path** — which manifest pulls it in, directly or transitively (read-only, never
-   installing): `npm ls NAME --all --package-lock-only`, `uv tree --frozen --invert --package
-   NAME`, `cargo tree --locked --offline -i NAME`, `GOTOOLCHAIN=local go mod why -m MODULE`; or
-   read the lockfile. If a tool would need to download a toolchain or resolve the tree anew,
-   skip it, read the lockfile and list the tool under Not verified.
+   installing): `npm ls NAME --all --package-lock-only`, `UV_PYTHON_DOWNLOADS=never uv tree
+   --frozen --invert --package NAME`, `cargo tree --locked --offline -i NAME`,
+   `GOTOOLCHAIN=local go mod why -m MODULE`; or read the lockfile. `cargo tree` only when no
+   `rust-toolchain`/`rust-toolchain.toml` and no `.cargo/config*` setting `rustc`,
+   `rustc-wrapper`, `rustc-workspace-wrapper` or a credential provider exists in the
+   lockfile's directory or a parent (rustup could download a toolchain, cargo could run a
+   program the checkout names) — else read `Cargo.lock`. If a tool would need to download a
+   toolchain or an interpreter or resolve the tree anew, skip it, read the lockfile and list
+   the tool under Not verified.
 4. **History** — `git log -S 'NAME' --oneline -- LOCKFILE` (and the manifest): when it
    arrived and in which commit.
 5. **Fix** — the fixed versions from the advisory in the finding's message; whether one exists
@@ -59,8 +66,10 @@ say so.
   run in the main session), no `--trusted-host`, `strict-ssl false`, `http.sslVerify=false`,
   `GOINSECURE`, `GONOSUMDB=`, no `cosign … --insecure-*` or `--allow-*-registry`, no
   `cosign sign|attest`. A diagnosis that needs one is a **finding to hand to the human**.
-- **Read-only.** Never edit files, write only to `$SCRATCH/`, never `git commit`, `git push`
-  or `supply pins --apply`.
+- **Read-only.** Never edit files, write only to `"${SCRATCH:?}"` (outside the checkout; start
+  each later command with `SCRATCH=<that path>`, since shell variables may not survive between
+  tool calls), never `git commit`, `git push`, `supply pins --apply` or `supply sbom --out`.
+  Never run the project's tests, build or scripts.
 - Never retry `supply verify` with a looser identity, another issuer or an insecure flag to
   "see if it passes": that proves nothing about the artefact.
 - Never read `cosign.key`, `~/.sigstore/**/*.key` or any credential file.

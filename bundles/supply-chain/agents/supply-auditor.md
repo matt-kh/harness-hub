@@ -23,9 +23,10 @@ files it touches, but run the scans on the whole checkout and say so.
 
 ## Procedure
 
-1. **Orient** — `supply detect DIR --json`. Quote the banner
-   (`supply: dir=… ecosystems=… tools=…`): it says what could and could not be checked.
-2. **Pins** — `supply pins DIR --json > "$SCRATCH/pins.json"`; count by rule id, then read the
+1. **Orient** — `SCRATCH=$(mktemp -d) && echo "SCRATCH=$SCRATCH"`, then `supply detect DIR
+   --json`. Quote the banner (`supply: dir=… ecosystems=… tools=…`): it says what could and
+   could not be checked.
+2. **Pins** — `supply pins DIR --json > "${SCRATCH:?}/pins.json"`; count by rule id, then read the
    worst findings. `SUP001` (scan stopped) and `SUP002` (unreadable path) mean the result is not
    complete: list them under Not verified.
 3. **CI** — `supply ci FILE… --json` on every workflow file detect lists (GitHub workflows and
@@ -33,13 +34,20 @@ files it touches, but run the scans on the whole checkout and say so.
    were not scanned.
 4. **Vulnerabilities** — `supply audit DIR --json` (add `--offline` only when the user asks or
    the network is unavailable). Read `data.auditors[]` first: `ok` and `partial` ecosystems were
-   audited (partial: only some files); `unavailable`, `offline` and `error` were not —
-   `AUD001`/`AUD003` go under Not verified, never under a clean verdict.
+   audited (partial: only some files; `ok` with `"offline": true` against osv-scanner's local
+   database, as current as its last download — say so under Scope); `unavailable`, `offline`
+   (a fallback auditor that needs the network) and `error` were not — `AUD001`/`AUD003` go
+   under Not verified, never under a clean verdict.
 5. **SBOM** — `supply sbom lint FILE` for each SBOM the repository ships (`*.spdx.json`,
    `*.cdx.json`, `bom.json`); `supply audit DIR --sbom FILE` when the user asks about it.
-6. **Artefacts** — only when an image or file and a signer are given: `supply verify TARGET
-   --identity NAME` (or `--github OWNER/REPO`, `--attestation --type slsaprovenance1`). Exit 2
-   `unverifiable: …` is a Critical finding with its first line quoted; `VER001` is a Warning.
+6. **Artefacts** — only when an image or file and a signer are given. Signature: `supply verify
+   TARGET --identity NAME`. Provenance through cosign (`--type` is cosign's short predicate
+   name): `supply verify IMAGE --attestation --type slsaprovenance1 --identity NAME`. Provenance
+   through GitHub (`--type` is passed as `gh attestation verify --predicate-type`, a full URI):
+   `supply verify TARGET --github OWNER/REPO [--type https://slsa.dev/provenance/v1]`. Exit 2
+   with an `unverifiable: …` line is a Critical finding with that line quoted; any other exit 2
+   (cosign or gh missing, a config or identity error, no signer configured) is **Not
+   verified**, with the human's fix; `VER001` is a Warning.
 7. **Deduplicate** — one finding per rule id and file line; a rule that fires on twenty lines
    of one file is one item with the count and the first three lines.
 
@@ -51,14 +59,18 @@ files it touches, but run the scans on the whole checkout and say so.
   `cosign … --insecure-*` or `--allow-*-registry`, no `cosign sign|attest`. A check that needs
   one goes under **Not verified** with the command for the human.
 - **Read-only.** Never edit files, never run `supply pins --apply`, `supply sbom --out`, a
-  lockfile update, `git commit` or `git push`. Scratch files go to `$SCRATCH/` only.
+  lockfile update, `git commit` or `git push`, and never the project's tests, build or
+  scripts. Scratch files go to `"${SCRATCH:?}"` only (created in step 1, outside the checkout;
+  shell variables may not survive between tool calls, so start each later command with
+  `SCRATCH=<that path>` — `${SCRATCH:?}` stops a command when it is unset).
 - Never retry a failed `supply verify` with a looser identity regexp, another issuer or an
   insecure flag; the failure is the finding.
 - Never read `cosign.key`, `~/.sigstore/**/*.key` or any credential file.
 - "Unavailable" is not "clean": a missing tool, `AUD001`, `AUD003`, `CI000`, `SUP002`, exit 2 or
   exit 3 is reported as a gap, with `harness install <tool>` for the human where it applies.
 - Severity mapping, fixed: `crit` → Critical, `warn` → Warnings, `info` → Suggestions;
-  `supply verify` exit 2 → Critical. Whether a vulnerability is reachable is judgement: say
+  `supply verify` exit 2 with an `unverifiable:` line → Critical, any other exit 2 → Not
+  verified. Whether a vulnerability is reachable is judgement: say
   what was and was not verified, and hand hard cases to `supply-triage`.
 - Cite evidence as the command plus the finding's `id`, `file:line` and message; never paste
   the JSON envelope.
@@ -80,7 +92,9 @@ their status, the image and identity verified).
 **Suggestions (consider improving)** — same shape.
 
 **Not verified** — every check that could not run or was incomplete: tools missing, auditors
-`unavailable`/`offline`/`error`, `CI000` files, `SUP001`/`SUP002`, exit 3, no signer configured,
+`unavailable`/`offline`/`error` (and the database date caveat of an `"offline": true` row),
+`CI000` files, `SUP001`/`SUP002`, exit 3, a `supply verify` exit 2 without an `unverifiable:`
+line, no signer configured,
 a command the hook would have asked or denied on. Say which, and what the user could run to
 close it.
 

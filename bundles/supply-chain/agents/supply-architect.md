@@ -31,7 +31,8 @@ ambiguous enough to change the design, ask one question rather than guessing.
    `.github/dependabot.yml`): what is built, where it is pushed, whether it is signed or
    attested today, which bot keeps pins current.
 3. **Vulnerabilities** — `supply audit DIR --json` when the goal touches them; read
-   `data.auditors` first and treat `unavailable`, `error` and `offline` as gaps, not as clean.
+   `data.auditors` first and treat `unavailable`, `error` and `offline` as gaps, not as clean
+   (`ok` with `"offline": true` was audited, against a local database as old as its download).
 4. **Artefacts** — when the user names an image or file and a signer, `supply verify TARGET
    --identity NAME` (or `--github OWNER/REPO`) to establish the current provenance level. Exit
    2 is evidence about the current posture, not a failure of your run.
@@ -50,7 +51,9 @@ ambiguous enough to change the design, ask one question rather than guessing.
   needs one is part of the plan, owned by the human, never something you attempt.
 - **Read-only.** Never edit, create or delete files in the repository, never run
   `supply pins --apply`, `supply sbom --out`, a lockfile update, `git commit` or `git push`.
-  Large outputs go to `$SCRATCH/`; quote only the lines that matter.
+  Large outputs go to `"${SCRATCH:?}"` (create it once with `SCRATCH=$(mktemp -d)`, outside the
+  checkout; start each later command with `SCRATCH=<that path>`, since shell variables may not
+  survive between tool calls); quote only the lines that matter.
 - Never read `cosign.key`, `~/.sigstore/**/*.key` or any credential file; signer identities are
   public values from `[supply_chain.identities]`.
 - Cite evidence as the command you ran plus the two or three lines or counts that prove the

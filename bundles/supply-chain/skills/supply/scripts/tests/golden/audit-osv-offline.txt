@@ -14,8 +14,9 @@ supply: dir=dirty ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,sh
       },
       {
         "ecosystem": "go",
+        "offline": true,
         "packages": 1,
-        "status": "offline",
+        "status": "ok",
         "tool": "osv-scanner"
       },
       {
@@ -26,8 +27,9 @@ supply: dir=dirty ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,sh
       },
       {
         "ecosystem": "pip",
+        "offline": true,
         "packages": 2,
-        "status": "offline",
+        "status": "ok",
         "tool": "osv-scanner"
       }
     ]

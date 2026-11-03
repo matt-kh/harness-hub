@@ -169,12 +169,25 @@ prints every one between your applied version and the new one.
 - `supply-chain` bundle, part 4 of #51: workflow skills `/pin-deps` (`supply pins` findings →
   values resolved read-only with `git ls-remote`, `gh api` or `glab api` GETs and an installed
   `crane`/`docker buildx imagetools` → `supply pins --apply` → `supply pins` again; tags keep
-  today's target, branches and `latest` are suggestions the user accepts; never guesses a sha,
-  digest or checksum) and `/audit-deps` (`supply audit` → in-major upgrades with `uv lock
-  --upgrade-package`, `npm install --package-lock-only --ignore-scripts`, `pnpm update
-  --lockfile-only`, `cargo update --precise`, `go get` → `supply audit` again; majors, no-fix,
-  manual changes and `unavailable`/`offline`/`error` auditors go to the human); neither commits
-  or pushes. Read-only agents `supply-architect` (plan model, design and decision record),
+  today's target, branches and `latest` are suggestions the user accepts, a `CI008` include
+  with no `ref:` goes to the human; never guesses a sha, digest or checksum) and `/audit-deps`
+  (`supply audit` → in-major upgrades to the lowest fixed release that is not a pre-release,
+  never for a `0.0.x` package, with `UV_PYTHON_DOWNLOADS=never uv lock --upgrade-package
+  NAME==X.Y.Z --no-build`, `npm install NAME@SPEC --package-lock-only --ignore-scripts` keeping
+  the manifest's range prefix, `pnpm update --lockfile-only --ignore-pnpmfile --ignore-scripts`
+  with package-manager switching off, `cargo update --precise` unless a `rust-toolchain` file
+  or a `.cargo/config*` program setting is present, `GOTOOLCHAIN=local go get`, poetry always a
+  manual change → `supply audit` again and each locked version checked against the `--fix`
+  limit, an overshoot reverted; majors, no-fix, manual changes and `unavailable`/`offline`/
+  `error` auditors go to the human). Neither
+  runs the checkout's code or tests (the test command is named for the human), downloads a
+  toolchain or interpreter, commits or pushes; both keep intermediate files in a
+  `mktemp -d` scratch directory used as `"${SCRATCH:?}"`. `supply pins --apply` now keeps the
+  tag of an action pinned from a tag as its comment, in the same atomic write (` # TAG`
+  appended, or `# TAG - <old comment>`; `data.applied[].comment`), so no hand edit remains.
+  `supply audit --offline` through osv-scanner reports an audited ecosystem as status `ok` with
+  `"offline": true` (it was `offline`, which now only means a fallback auditor that needs the
+  network did not run). Read-only agents `supply-architect` (plan model, design and decision record),
   `supply-auditor` (review; Critical / Warnings / Suggestions / Not verified with severities
   from the rubrics; declared as the bundle's review-agent sensor) and `supply-triage`
   (investigate one finding, stop after three unresolved hypotheses). Taxonomy overrides
