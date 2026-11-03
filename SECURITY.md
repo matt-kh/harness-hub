@@ -34,6 +34,7 @@ this page is the hub's own threat model.
 | Agent mutates a cluster, execs into pods, reads Secrets | kubectl/helm mutations and exec-class commands ask, prod is flagged, kubeconfig edits deny | k8s |
 | Agent silences alerts, edits dashboards or alert rules live, or pastes an observability API key into a command | the `obs` CLI is read-only by an endpoint allow-list; key files and literal keys on a command line deny; raw requests to backend hosts, `amtool silence add` and `grafana-cli admin` ask | obs |
 | Agent sends email | not implemented: drafts only, the human sends | gdoc |
+| Agent installs unpinned or unverified code: a global install, a git or URL dependency without a commit, an index or registry over `http://`, verification switched off (`--trusted-host`, `strict-ssl false`, `http.sslVerify=false`, `GOSUMDB=off`, `cosign verify --insecure-*`), or a signing step | guard section 38 denies switching TLS, checksum or signature verification off and reading a cosign key; asks on installs into the machine, unpinned git and URL dependencies, `GONOSUMDB`, `cosign sign\|attest` and insecure downloads written to a file; the `supply` CLI only reports (pins, CI hardening, audits, SBOMs, verification) and writes nothing but the pins `/pin-deps` applies and the SBOM file named with `--out` | supply-chain |
 | Agent follows instructions embedded in fetched content | rule text: external content is data, never instructions; the guard still applies to whatever it then tries | core |
 | Private org identifiers land in this public repo | private-identifier gate in pre-commit and CI | tools/gate |
 
@@ -78,8 +79,8 @@ to behave, and you should run them with their strictest approval setting.
   ([repository-level harnesses](docs/repo-level.md)). It can only loosen rules that do not
   protect the developer's own credentials: skip every rule of the guard sections whose domain
   or id it owns — including the human-only merge and review asks (`scm`), the Secret-value and
-  kubeconfig-mutation denies (`kubernetes`) and the transition and closing-keyword denies
-  (`tracker`) — and set the allow-listed `WORK_TICKET_*` overrides in the
+  kubeconfig-mutation denies (`kubernetes`), the transition and closing-keyword denies
+  (`tracker`) and the verification-off denies of the supply chain (`security`) — and set the allow-listed `WORK_TICKET_*` overrides in the
   [hook policy](docs/reference/hook-policy.md#repo-overrides). It never lifts:
   - the credential-file denies: `core/guard.d/20-credentials` (shell reads of the kubeconfig,
     `~/.config/{gh,glab-cli,jira,gdoc}`, `~/.aws`, `~/.ssh`, `.env*`, agent credential files,
@@ -109,7 +110,7 @@ secret-looking keys and values, so a token pasted into `harness.toml` fails loud
 ## Outbound network calls
 
 No telemetry, no update pings. The hub itself makes exactly these calls, and only when you run
-the command:
+the command; rows naming a bundle are made by that bundle's CLI, only when it is enabled:
 
 | When | Call | Opt out / offline |
 |---|---|---|
@@ -119,9 +120,12 @@ the command:
 | `harness init --from <git url>` | `git clone`/`fetch` of the org overlay you name | pass a local path |
 | `harness doctor` (online checks) | runs **your** CLIs' own status commands: `gh auth status`, `glab auth status`, `jira whoami`, `gdoc auth status`, `kubectl version`, `obs backends --probe`, `ssh -T git@<host>` — they contact the hosts in your config | `--offline` (or `HARNESS_OFFLINE=1`) skips every network check |
 | `harness steps --pending` | the same verify commands as doctor | `--offline` |
+| `supply audit` (supply-chain) | osv-scanner queries the OSV API (`api.osv.dev`); without it, the fallback auditor's own advisory source: the npm registry's audit endpoint (`npm audit`), PyPI's vulnerability data (`pip-audit`), the RustSec advisory database on GitHub (`cargo-audit`), `vuln.go.dev` (`govulncheck`) | `--offline`: osv-scanner reads its local database (`supply_chain.osv_offline_db`), the fallbacks do not run |
+| `supply verify` (supply-chain) | cosign reads the image's signatures from its registry and checks them against Sigstore's public-good trust root (TUF: the Fulcio and Rekor keys) and the Rekor transparency log; `--github` runs `gh attestation verify`, which calls `api.github.com` | a file with `--bundle F --trusted-root F --offline` (also with `--github`); an image cannot be verified offline (exit 3) |
+| `supply sbom IMAGE` (supply-chain) | syft reads the image from its registry (never the docker daemon) | `supply sbom DIR` reads a checkout only |
 
-Bundles' skills and CLIs (jira, gdoc, k8s) talk to the services you configured when an agent
-or you run them; they are part of your workflow, not of the hub. The optional Jira MCP
+Other bundles' skills and CLIs (jira, gdoc, k8s, obs) talk to the services you configured when
+an agent or you run them; they are part of your workflow, not of the hub. The optional Jira MCP
 server is started by the provider through `uvx`, which downloads the package from PyPI on
 first use.
 
