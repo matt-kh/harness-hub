@@ -8,9 +8,9 @@ osv-scanner scan source --format json --all-packages -r HERE/fixtures/repos/empt
 osv-scanner scan source --format json --all-packages -r HERE/fixtures/repos/gitlab-include
 osv-scanner scan source --format json --all-packages -L HERE/fixtures/repos/dirty/requirements.txt
 osv-scanner scan source --format json --all-packages -L HERE/fixtures/sbom/good.cdx.json
-OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY=/home/u/.cache/osv-db osv-scanner scan source --format json --all-packages -r HERE/fixtures/repos/dirty --offline-vulnerabilities
-osv-scanner scan source --format json --all-packages -r HERE/fixtures/repos/dirty --offline-vulnerabilities
-osv-scanner scan source --format json --all-packages -r HERE/fixtures/repos/dirty --offline-vulnerabilities
+OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY=/home/u/.cache/osv-db osv-scanner scan source --format json --all-packages -r HERE/fixtures/repos/dirty --offline-vulnerabilities --no-resolve
+osv-scanner scan source --format json --all-packages -r HERE/fixtures/repos/dirty --offline-vulnerabilities --no-resolve
+osv-scanner scan source --format json --all-packages -r HERE/fixtures/repos/dirty --offline-vulnerabilities --no-resolve
 osv-scanner scan source --format json --all-packages -r OUT/work/pip-only
 cd <empty-dir> && cargo-audit audit --json --file HERE/fixtures/repos/clean/Cargo.lock
 cd clean && GOFLAGS=-mod=readonly GOTOOLCHAIN=local govulncheck -json ./...

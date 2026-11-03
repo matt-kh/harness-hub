@@ -4,7 +4,9 @@
 `-L /ABS/F` per `--lockfile`/`--sbom`; `--all-packages` makes the JSON list clean packages too, so
 `packages` counts every package read, not only the vulnerable ones; a fallback auditor's
 `packages` counts only the packages with a reported vulnerability). `--offline` adds
-`--offline-vulnerabilities` and reads the databases osv-scanner keeps under
+`--offline-vulnerabilities --no-resolve`, so osv-scanner uses no network: the vulnerability
+lookup is local and a manifest's transitive dependencies are not resolved (osv-scanner 2.7.0
+otherwise resolves them through deps.dev and the registries); it reads the databases osv-scanner keeps under
 `supply_chain.osv_offline_db` (passed as `OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY`; osv-scanner 2.7.0
 reads `DIR/osv-scalibr/<Ecosystem>/all.zip`, default DIR the user cache directory). The CLI never
 downloads them: a missing database is exit 2 with the human's download command. An ecosystem it was given

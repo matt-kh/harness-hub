@@ -522,6 +522,8 @@ bad=$(grep '^osv-scanner ' "$L" | grep -v '^osv-scanner scan source --format jso
 ck "every osv-scanner call is 'scan source --format json --all-packages'" [ -z "$bad" ]
 ! grep -qE '^osv-scanner .*(\bfix\b|--download-offline-databases)' "$L"; chk $? "osv-scanner never runs fix or downloads databases"
 grep -q '^osv-scanner .*--offline-vulnerabilities' "$L"; chk $? "--offline maps to --offline-vulnerabilities"
+bad=$(grep '^osv-scanner .*--offline-vulnerabilities' "$L" | grep -v -- ' --no-resolve' | head -3)
+ck "every offline osv-scanner call also carries --no-resolve (no transitive resolution over the network)" [ -z "$bad" ]
 bad=$(grep '^cosign ' "$L" | grep -vE '^cosign verify(-attestation|-blob|-blob-attestation)? ' | head -3)
 ck "every cosign call is verify*" [ -z "$bad" ]
 bad=$(grep -E '^cosign verify(-attestation)? ' "$L" | grep -v -- '--output json' | head -3)
