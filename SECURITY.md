@@ -80,8 +80,10 @@ to behave, and you should run them with their strictest approval setting.
   protect the developer's own credentials: skip every rule of the guard sections whose domain
   or id it owns — including the human-only merge and review asks (`scm`), the Secret-value and
   kubeconfig-mutation denies (`kubernetes`), the transition and closing-keyword denies
-  (`tracker`) and the verification-off denies of the supply chain (`security`) — and set the allow-listed `WORK_TICKET_*` overrides in the
-  [hook policy](docs/reference/hook-policy.md#repo-overrides). It never lifts:
+  (`tracker`) and every rule of supply-chain section 38, its verification-off denies and the
+  read deny on the checkout's own `cosign.key` included (`security`) — and set the allow-listed
+  `WORK_TICKET_*` overrides in the [hook policy](docs/reference/hook-policy.md#repo-overrides).
+  It never lifts:
   - the credential-file denies: `core/guard.d/20-credentials` (shell reads of the kubeconfig,
     `~/.config/{gh,glab-cli,jira,gdoc}`, `~/.aws`, `~/.ssh`, `.env*`, agent credential files,
     secret environment dumps) and `core/permissions` (the matching `Read(...)` denies);
@@ -89,6 +91,8 @@ to behave, and you should run them with their strictest approval setting.
     `gh auth status --show-token`, `gh config get oauth_token`, `kubectl config view --raw`,
     shell reads of `~/.config/obs/*` (the `# never-yields:` preludes of
     `github/guard.d/60-github`, `k8s/guard.d/25-k8s-rules` and `obs/guard.d/32-obs`);
+  - the read deny on the developer's Sigstore signing keys under `~/.sigstore/` (any
+    `.sigstore/**/*.key`; the `# never-yields:` prelude of `supply-chain/guard.d/38-supply-chain`);
   - the asks on writing `.harness.toml` itself: `Write`/`Edit` of `**/.harness.toml`
     (`core/permissions`) and shell writes to it (`>`, `tee`, `cp`, `mv`, `sed -i`,
     `harness repo init --write`; the prelude of `core/guard.d/30-git`). The declaration lifts
@@ -120,8 +124,8 @@ the command; rows naming a bundle are made by that bundle's CLI, only when it is
 | `harness init --from <git url>` | `git clone`/`fetch` of the org overlay you name | pass a local path |
 | `harness doctor` (online checks) | runs **your** CLIs' own status commands: `gh auth status`, `glab auth status`, `jira whoami`, `gdoc auth status`, `kubectl version`, `obs backends --probe`, `ssh -T git@<host>` — they contact the hosts in your config | `--offline` (or `HARNESS_OFFLINE=1`) skips every network check |
 | `harness steps --pending` | the same verify commands as doctor | `--offline` |
-| `supply audit` (supply-chain) | osv-scanner queries the OSV API (`api.osv.dev`); without it, the fallback auditor's own advisory source: the npm registry's audit endpoint (`npm audit`), PyPI's vulnerability data (`pip-audit`), the RustSec advisory database on GitHub (`cargo-audit`), `vuln.go.dev` (`govulncheck`) | `--offline`: osv-scanner reads its local database (`supply_chain.osv_offline_db`), the fallbacks do not run |
-| `supply verify` (supply-chain) | cosign reads the image's signatures from its registry and checks them against Sigstore's public-good trust root (TUF: the Fulcio and Rekor keys) and the Rekor transparency log; `--github` runs `gh attestation verify`, which calls `api.github.com` | a file with `--bundle F --trusted-root F --offline` (also with `--github`); an image cannot be verified offline (exit 3) |
+| `supply audit` (supply-chain) | osv-scanner queries the OSV API (`api.osv.dev`) and may resolve the dependencies of a manifest without a lockfile over the network (deps.dev, the package registries); without it, the fallback auditor's own advisory source: the configured registry's audit endpoint (`npm audit`; `registry.npmjs.org` unless the project's `.npmrc` names another), PyPI's vulnerability data (`pip-audit`), the RustSec advisory database on GitHub (`cargo-audit`), `vuln.go.dev` plus `GOPROXY` for modules not in the module cache (`govulncheck`) | `--offline`: osv-scanner reads its local vulnerability database (`supply_chain.osv_offline_db`; commit lockfiles so it has nothing to resolve), the fallbacks do not run |
+| `supply verify` (supply-chain) | cosign reads the image's signatures from its registry and checks them against Sigstore's public-good trust root (TUF: the Fulcio and Rekor keys) and the Rekor transparency log; `--github` runs `gh attestation verify`, which calls `api.github.com` | a file with `--bundle F --trusted-root F --offline`; with cosign an image cannot be verified offline (exit 3); `--github OWNER/REPO --bundle F --trusted-root F --offline` uses a downloaded attestation and trust root, but gh may still read an image's digest from its registry |
 | `supply sbom IMAGE` (supply-chain) | syft reads the image from its registry (never the docker daemon) | `supply sbom DIR` reads a checkout only |
 
 Other bundles' skills and CLIs (jira, gdoc, k8s, obs) talk to the services you configured when
