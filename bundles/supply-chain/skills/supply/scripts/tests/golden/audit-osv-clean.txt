@@ -8,25 +8,25 @@ supply: dir=clean ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,sh
     "auditors": [
       {
         "ecosystem": "cargo",
-        "packages": 0,
+        "packages": 1,
         "status": "ok",
         "tool": "osv-scanner"
       },
       {
         "ecosystem": "go",
-        "packages": 0,
+        "packages": 1,
         "status": "ok",
         "tool": "osv-scanner"
       },
       {
         "ecosystem": "npm",
-        "packages": 0,
+        "packages": 1,
         "status": "ok",
         "tool": "osv-scanner"
       },
       {
         "ecosystem": "pip",
-        "packages": 0,
+        "packages": 2,
         "status": "ok",
         "tool": "osv-scanner"
       }

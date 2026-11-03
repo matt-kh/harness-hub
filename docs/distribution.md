@@ -39,6 +39,7 @@ release contains. Governed by [principle 4](../principles/04-install-as-a-platfo
 ```text
 harness-hub-X.Y.Z.bundle    the repository: branches, tags, history (git bundle)
 tools/<asset>               optional: the tools/*.lock.json assets for each --tools platform
+                            (locks marked "optional": true only with --tools-optional)
 INSTALL.txt                 verify, clone, bootstrap
 SHA256SUMS                  sha256 of every file above (plus the .run line when it is written)
 harness-hub-X.Y.Z.run       optional envelope (--self-extract): a POSIX sh header + an uncompressed
@@ -92,7 +93,7 @@ harness install gh --from tools/gh_<version>_linux_amd64.tar.gz      # per sidec
 
 | Command | What it does |
 |---|---|
-| `harness pack [--out DIR] [--tag TAG] [--tools os/arch,...] [--self-extract]` | creates the bundle (branches and tags; with `--tag TAG` every tag and no branches, cloned with `git clone -b TAG`), runs `git bundle verify`, downloads and hash-checks sidecar tools for the listed platforms, writes `SHA256SUMS` and `INSTALL.txt`; `--self-extract` adds the `.run` |
+| `harness pack [--out DIR] [--tag TAG] [--tools os/arch,...] [--tools-optional] [--self-extract]` | creates the bundle (branches and tags; with `--tag TAG` every tag and no branches, cloned with `git clone -b TAG`), runs `git bundle verify`, downloads and hash-checks sidecar tools for the listed platforms (a lock marked `"optional": true`, such as osv-scanner, cosign and syft, only with `--tools-optional`), writes `SHA256SUMS` and `INSTALL.txt`; `--self-extract` adds the `.run` |
 | `harness verify FILE.bundle` / `FILE.run` | `git bundle verify` and the heads and tags, or `sh FILE.run --check`; then `SHA256SUMS` beside the file |
 | `harness bootstrap --from FILE.bundle [--dest DIR] [--origin URL]` | verifies and clones the bundle (default destination `~/harness-hub`, which must be empty), checks out the newest tag if the bundle has no `HEAD`, sets `origin` to `URL` (default: the bundle file), then runs the clone's bootstrap with the remaining arguments |
 | `harness upgrade [--to latest\|TAG\|BRANCH] [--no-apply]` | fetches tags from `origin` and checks out the newest release tag (default; pre-releases skipped), the given tag, or fast-forwards the given branch; prints Migration notes, re-plans, applies and runs `doctor` |

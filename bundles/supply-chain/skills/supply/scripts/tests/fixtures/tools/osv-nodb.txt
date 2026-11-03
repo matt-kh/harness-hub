@@ -1,0 +1,4 @@
+Scanning dir dirty
+Scanned dirty/requirements.txt file and found 2 packages
+could not load db for PyPI ecosystem: unable to fetch OSV database: no offline version of the OSV database is available
+Error during extraction: (extracting as vulnmatch/osvlocal) unable to fetch OSV database: no offline version of the OSV database is available

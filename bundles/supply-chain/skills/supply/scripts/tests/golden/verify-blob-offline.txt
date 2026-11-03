@@ -7,15 +7,12 @@ supply: dir=- ecosystems=none tools=cargo-audit,cosign,gh,govulncheck,npm,osv-sc
   "data": {
     "signatures": [
       {
-        "digest": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-        "issuer": "https://token.actions.githubusercontent.com",
-        "reference": "ghcr.io/octocat/hello-world",
-        "subject": "https://github.com/octocat/hello-world/.github/workflows/release.yml@refs/tags/v1.0.0",
-        "type": "cosign container image signature"
+        "bundle": "deploy.bash.sigstore.json",
+        "file": "dirty/deploy.bash"
       }
     ],
     "verifier": {
-      "command": "verify",
+      "command": "verify-blob",
       "identity": "release",
       "identity_re": "^https://github\\.com/octocat/hello-world/\\.github/workflows/release\\.yml@refs/tags/v.*$",
       "issuer": "https://token.actions.githubusercontent.com",
@@ -26,11 +23,11 @@ supply: dir=- ecosystems=none tools=cargo-audit,cosign,gh,govulncheck,npm,osv-sc
   "ecosystems": [],
   "findings": [
     {
-      "file": "ghcr.io/octocat/hello-world:1.0",
+      "file": "dirty/deploy.bash",
       "fix": "none: verified",
       "id": "VER000",
       "line": 0,
-      "message": "1 signature(s) verified for ghcr.io/octocat/hello-world:1.0",
+      "message": "signature verified for dirty/deploy.bash",
       "severity": "info"
     }
   ],

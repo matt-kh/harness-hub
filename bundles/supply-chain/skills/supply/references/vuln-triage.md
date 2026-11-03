@@ -1,7 +1,12 @@
 # Vulnerability triage (`supply audit`)
 
-`supply audit DIR` runs `osv-scanner scan source --format json -r /ABS/DIR` (or `-L /ABS/F` per
-`--lockfile`/`--sbom`; `--offline` adds `--offline-vulnerabilities`). An ecosystem it was given
+`supply audit DIR` runs `osv-scanner scan source --format json --all-packages -r /ABS/DIR` (or
+`-L /ABS/F` per `--lockfile`/`--sbom`; `--all-packages` makes the JSON list clean packages too, so
+`packages` counts what was read, not only what is vulnerable). `--offline` adds
+`--offline-vulnerabilities` and reads the databases osv-scanner keeps under
+`supply_chain.osv_offline_db` (passed as `OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY`; osv-scanner 2.7.0
+reads `DIR/osv-scalibr/<Ecosystem>/all.zip`, default DIR the user cache directory). The CLI never
+downloads them: a missing database is exit 2 with the human's download command. An ecosystem it was given
 nothing to read for (only `package.json`, `Cargo.toml` or `pyproject.toml`, no lockfile) is
 `unavailable` with `AUD001`, never `ok`. Without osv-scanner it uses the ecosystem's own auditor
 when one is installed, and never lets it run code from the checkout:
