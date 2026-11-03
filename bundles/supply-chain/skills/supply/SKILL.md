@@ -83,7 +83,8 @@ FILE`: a directory named `lint` is passed as `./lint`; a `verify` TARGET startin
   or printing JSON of an unexpected shape, `verify` failing — reported as `unverifiable: <first
   stderr line>` — or listing nothing, a bad config regex or an unanchored identity regexp, a
   refused or failed `pins --apply`) · `3` unsupported (no auditor for any detected ecosystem,
-  `ci` with no scannable file, `sbom lint` on a non-JSON file, `verify --offline` without
+  `audit --sbom F` without osv-scanner, `ci` with no scannable file, `sbom` on a file (lint it
+  with `sbom lint`), `sbom lint` on a non-JSON file, `verify --offline` without
   `--trusted-root`, `verify IMAGE --offline` with cosign (offline is a FILE with `--bundle`, or
   `--github … --bundle F --trusted-root F`), or `--github --offline` without `--bundle`). `detect` exits 0 on any
   readable DIR. No command prints a Python traceback.
@@ -109,7 +110,9 @@ FILE`: a directory named `lint` is passed as `./lint`; a `verify` TARGET startin
   severity and fix. `data.auditors[]` is `{ecosystem, tool, status
   ok|partial|unavailable|error|offline, packages}` plus `"offline": true` on an osv-scanner
   row audited with `--offline` (status `ok`: audited against the local database, as current as
-  its last download). Status `offline` is only a fallback auditor that needs the network: not
+  its last download). `--offline` means no network for osv-scanner: it runs with
+  `--offline-vulnerabilities --no-resolve`, so a manifest's transitive dependencies are not
+  resolved either. Status `offline` is only a fallback auditor that needs the network: not
   audited. `partial` = some files audited, the rest `AUD001`. `packages` = every package
   osv-scanner read (it runs with `--all-packages`); for a fallback auditor, the packages with
   at least one reported vulnerability.
