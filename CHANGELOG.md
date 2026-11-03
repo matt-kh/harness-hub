@@ -99,9 +99,19 @@ prints every one between your applied version and the new one.
   **ask** (deferred, so a later deny still wins): download to a file, check its sha256, read
   it, then run it instead. A small quote-aware matcher reads the raw command: quoted text in
   `echo`, `printf`, `grep` or a commit message is not a command, while `sh -c '…'`,
-  `cd … &&`, `/usr/bin/curl`, `env X=1 curl`, subshells and quoted command words still are.
-  `| tar xz`, `| jq .`, `| sha256sum`, `| python3 -c '…'` and `-o file && sh file` pass. The
-  rest of band `35` (`sudo`/`doas`, recursive removal, `chmod -R 777`) stays planned.
+  `cd … &&`, `/usr/bin/curl`, `env X=1 curl`, subshells and quoted command words still are,
+  and so are `{ …; } | sh`, `curl … | (sh)`, `if`/`for`/`while`/`case` bodies, a pipeline
+  continued after a trailing `|`, `tee >(sh)`, the wrappers `timeout`, `busybox`, `exec -a`,
+  `sudo -s|-i`, `su`, `xargs … sh -c`, `bash -euo pipefail`, `bash -o pipefail -c "$(curl …)"`,
+  `python3 -c|perl -e|node -e|ruby -e "$(curl …)"`, `source /dev/stdin <<< "$(curl …)"`, an
+  interpreter's heredoc expanding `$(curl …)`, `ash`/`mksh`/`fish`/`$SHELL` and HTTPie / `xh`
+  as downloaders. `| tar xz`, `| jq .`, `| sha256sum`, `| python3 -c '…'`, `| bash -n`,
+  `| bash -s < file`, `| xargs sh` and `-o file && sh file` pass. The matcher runs in the C
+  locale in linear time and on any POSIX awk (the core tests rerun its rows under mawk,
+  busybox awk or BSD awk when installed); what it does not see (other downloaders,
+  interpreters and wrappers, remote and container shells, a download kept in a variable) is
+  listed in the bundle's coverage note. The rest of band `35` (`sudo`/`doas`, recursive
+  removal, `chmod -R 777`) stays planned.
 - `supply-chain` bundle (#51; experimental; domain `security`, posture `local`), the first
   bundle of the security track: pin what you add, install inside the project, never switch
   verification off. Guard section 38 with its rule and permission list, the read-only `supply`
@@ -768,7 +778,9 @@ prints every one between your applied version and the new one.
 ### Migration
 
 - Guard decision change (core, every install): `curl … | sh` and the other pipe-to-shell forms
-  of core section `35-shell-hygiene` used to pass and now **ask**. Download the script to a
+  of core section `35-shell-hygiene` (also inside `{ }` / `( )` groups, compound bodies, a
+  continued line, `tee >(sh)`, `python3 -c "$(curl …)"` and an interpreter's heredoc) used to
+  pass and now **ask**. Download the script to a
   file, check its sha256, read it, then run it. A repository whose `.harness.toml` owns domain
   `base` (`[owns] domains = ["base"]`) or the component (`components =
   ["core/guard.d/35-shell-hygiene"]`) lifts the section there; nothing else changes. No config

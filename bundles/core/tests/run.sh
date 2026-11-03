@@ -19,6 +19,27 @@ tail -1 "$tmp/guard.log"
 ck "guard rows ($(tail -1 "$tmp/guard.log"))" [ "$rc" = 0 ]
 [ "$rc" = 0 ] || grep -A1 '^FAIL' "$tmp/guard.log" | head -40
 
+# 1b. section 35 (an awk lexer) must run on every POSIX awk: rerun its rows with each other awk
+#     found on PATH (mawk, busybox awk, original-awk / nawk when not gawk) first on PATH as `awk`.
+#     None installed: nothing to run.
+sed -n '/^# ---- shell hygiene (35)/,/^# ---- end shell hygiene (35)/p' "$core/guard.d/tests.sh" > "$tmp/rows35.sh"
+for alt in mawk "busybox awk" original-awk nawk; do
+  a1=${alt%% *}
+  command -v "$a1" >/dev/null 2>&1 || continue
+  # shellcheck disable=SC2086  # "busybox awk" is two words on purpose
+  $alt 'BEGIN { exit 0 }' </dev/null >/dev/null 2>&1 || continue
+  # shellcheck disable=SC2086
+  ! $alt --version 2>/dev/null | grep -q 'GNU Awk' || continue  # nawk is often gawk
+  shim="$tmp/awk-$a1"; mkdir -p "$shim"
+  printf '#!/bin/sh\nexec %s "$@"\n' "$alt" > "$shim/awk"; chmod +x "$shim/awk"
+  PATH="$shim:$PATH" GUARD_BASH="$GUARD_BASH" HARNESS_GUARD_ENV=/dev/null bash -c '
+    pass=0; fail=0; . "$1/guard/tests/lib.sh"; . "$2"
+    rm -rf "$ghd" "$rpd" "$tjd"; echo "passed=$pass failed=$fail"; [ "$fail" -eq 0 ]' _ "$core" "$tmp/rows35.sh" \
+    > "$tmp/rows35-$a1.log" 2>&1; rc=$?
+  ck "section 35 rows under $alt ($(tail -1 "$tmp/rows35-$a1.log"))" [ "$rc" = 0 ]
+  [ "$rc" = 0 ] || grep -A1 '^FAIL' "$tmp/rows35-$a1.log" | head -20
+done
+
 # 2. build determinism + ordering contract
 bash "$core/guard/build.sh" "$tmp/b2.sh"
 cmp -s "$GUARD_BASH" "$tmp/b2.sh"; chk $? "build.sh output is deterministic"

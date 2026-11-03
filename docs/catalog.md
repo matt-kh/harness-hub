@@ -89,7 +89,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | [`k8s/guard.d/25-k8s-rules`](reference/hook-policy.md) | sensor | kubernetes | deny 4 · ask 7 | declaration | kubeconfig, Secret data, cluster, release, GitOps and IaC mutations |
 | [`core/guard.d/30-git`](reference/hook-policy.md) | sensor | scm | deny 1 · ask 6 · allow 1 | declaration | denies default-branch pushes; asks on force-push and destructive git |
 | [`obs/guard.d/32-obs`](reference/hook-policy.md) | sensor | operations | deny 2 · ask 4 | declaration | key files, literal API keys, raw backend requests, amtool/logcli/grafana-cli |
-| [`core/guard.d/35-shell-hygiene`](reference/hook-policy.md) | sensor | base | ask 1 | declaration | asks before a download is piped into an interpreter, run through <( ), or run as the string of sh -c / eval |
+| [`core/guard.d/35-shell-hygiene`](reference/hook-policy.md) | sensor | base | ask 1 | declaration | asks before a download is piped into an interpreter (also through groups, compound bodies and >( )), run through <( ), or run as the string of sh -c / eval or the program of python -c / perl -e |
 | [`supply-chain/guard.d/38-supply-chain`](reference/hook-policy.md) | sensor | security | deny 8 · ask 8 | declaration | verification-off denies, global-install and unpinned-dependency asks, cosign signing and insecure-download asks |
 | [`gitlab/guard.d/40-gitlab-closing`](reference/hook-policy.md) | sensor | tracker | deny 1 | declaration | denies closing keywords with a ticket key |
 | [`github/guard.d/41-github-closing`](reference/hook-policy.md) | sensor | tracker | deny 1 | declaration | denies closing keywords that would change issue state |
