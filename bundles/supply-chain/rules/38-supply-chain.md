@@ -27,7 +27,8 @@
 - **Verify before you trust**: `supply verify` or `cosign verify` / `gh attestation verify`.
   A failed verification (exit 2) is a finding to report, never a reason for an `--insecure-*`
   flag. Signing (`cosign sign|attest|attach`, key generation) is a human release step: hand the
-  command to the user; never read `cosign.key`.
+  command to the user; never read `cosign.key` or a key under `~/.sigstore/` (pass `--key` and
+  let cosign read it).
 - **CI workflows are code**: check them with `supply ci FILE…` (permissions,
   `pull_request_target`, script injection, unpinned actions) before proposing a change.
 - **Vulnerabilities**: `supply audit`; `/audit-deps` applies patch and minor upgrades with the

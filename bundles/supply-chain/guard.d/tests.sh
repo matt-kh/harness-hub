@@ -417,6 +417,7 @@ t deny  'cat < cosign.key'
 t deny  'sudo cat cosign.key'
 t ask   'echo requests | xargs pip install'                                            # xargs runs pip: not a text tool
 tr 'keyless'                     'grep -e x keys/cosign.key'
+tr 'no repository declaration lifts this.*pass --key and let cosign read the key itself' 'cat /home/u/.sigstore/keys/release.key'
 # ---- review fixes: curl/wget output (W2) --------------------------------------------------
 t pass  'curl -k https://localhost:8443/healthz -o /dev/null'
 t pass  'curl -k https://localhost:8443/healthz -o -'
@@ -523,6 +524,20 @@ r pass  'pip install requests'                                                  
 r pass  'cosign sign ghcr.io/octocat/hello-world@sha256:0123'
 r pass  'git -c http.sslVerify=false fetch'                                           # documented: owning security lifts the denies
 r pass  'cat cosign.key'                                                              # a repository artefact, not a developer credential
+r pass  'cat ./cosign.key'                                                            # the checkout's key yields with the domain
+r pass  'grep -rn ".sigstore/keys/release.key" docs/'                                 # a grep pattern, not a file operand
+r pass  'cosign public-key --key ~/.sigstore/keys/release.key'                        # cosign reads the key itself
+r deny  'cat /home/u/.sigstore/keys/release.key'                                      # never yields: the ~/.sigstore prelude
+r deny  'cp ~/.sigstore/keys/release.key /tmp/k'
+r deny  'base64 $HOME/.sigstore/keys/release.key'
+r deny  'sudo cat ${HOME}/.sigstore/keys/release.key'
+r deny  'cat < ~/.sigstore/keys/release.key'
+r deny  'rg pattern ~/.sigstore/keys/release.key'                                     # a file operand of rg
+r deny  'sh -c "head -c 64 ~/.sigstore/keys/release.key"'
+r deny  'cat ~/.sig""store/keys/release.key'                                          # bypass: quotes inside the word
+r deny  'cat ~/.sig\store/keys/release.key'                                            # bypass: a backslash inside the word
+r deny  'cd ~ && cat .sigstore/keys/release.key'                                      # bypass: relative to the home
+r deny  'echo ok; python3 /home/u/.sigstore/x.key'
 r deny  'cat ~/.ssh/id_rsa'                                                           # never yields: core 20
 decl '[owns]' 'components = ["supply-chain/guard.d/38-supply-chain"]'
 r pass  'npm i -g typescript'

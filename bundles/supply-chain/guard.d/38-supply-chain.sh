@@ -30,6 +30,124 @@ SUPPLY_PIP_RE="${SUPPLY_W}"'(pip[0-9.]*|python[0-9.]*[[:space:]]+-m[[:space:]]+p
 SUPPLY_NPM_RE="${SUPPLY_W}"'(npm|pnpm|yarn)[[:space:]]([^[:space:]]+[[:space:]]+)*(install|i|in|add)([[:space:]]|$)'
 SUPPLY_COSIGN_RE="${SUPPLY_W}"'cosign([[:space:]]+-[^[:space:]]+)*[[:space:]]+'
 SUPPLY_TAB='	'
+# never-yields: reads the developer's own Sigstore signing key (principle 8 exemption; runs even when the repository owns security)
+# rule: <reader> ~/.sigstore/**/*.key (any .sigstore/**/*.key, so cd ~ is no bypass) as a file operand (a grep|rg pattern is not) -> deny : the developer's signing key; pass --key and let cosign read it, or leave keyless signing to the human release step, instead
+local supply_lex supply_pn supply_psf supply_pl supply_c0="" supply_c1=""
+supply_cmd0() {  # CLAUSE -> supply_c0 = base name of the command word after keywords, wrappers and assignments; supply_c1 = the next word
+  local w wrap=false
+  supply_c0=""; supply_c1=""
+  for w in $1; do
+    if [ -n "$supply_c0" ]; then supply_c1=$w; return 0; fi
+    case "$w" in
+      '!'|then|do|else|elif|if|while|until|time) continue ;;
+      env|export|declare|typeset|readonly|local|sudo|doas|command|builtin|nohup|xargs|nice|timeout|exec|stdbuf|setsid|ionice|chrt|unbuffer)
+        wrap=true; continue ;;
+      [A-Za-z_]*=*) continue ;;
+      -*|[0-9]*) if $wrap; then continue; fi ;;
+    esac
+    supply_c0=${w##*/}
+  done
+  return 0
+}
+supply_reads_key() {  # KIND CLAUSE -> rc 0 when a reader takes a key file of KIND as a file operand: sigstore = .sigstore/**/*.key, cosign = cosign.key
+  local w started=false pattern=false want=false kind=$1
+  shift
+  supply_cmd0 "$1"
+  case "$supply_c0" in
+    cat|tac|less|more|bat|head|tail|nl|yq|jq|sed|awk|cut|python|python3|perl|ruby|node|base64|xxd|od|strings|cp|scp|rsync|tee|vi|vim|nvim|nano|code|source|.) ;;
+    grep|egrep|fgrep|rg|ag) pattern=true ;;
+    *) return 1 ;;
+  esac
+  for w in $1; do
+    if ! $started; then [ "${w##*/}" = "$supply_c0" ] && started=true; continue; fi
+    if $want; then want=false; continue; fi            # the -e|-f value of grep: the pattern
+    case "$w" in
+      -e|-f|--regexp|--file) if $pattern; then pattern=false; want=true; fi; continue ;;
+      -e*|--regexp=*) pattern=false; continue ;;
+      -*) continue ;;
+    esac
+    if $pattern; then pattern=false; continue; fi      # the first operand of grep|rg is the pattern
+    w=${w#<}
+    case "$kind:$w" in sigstore:.sigstore/*.key|sigstore:*/.sigstore/*.key|cosign:cosign.key|cosign:*/cosign.key) return 0 ;; esac
+  done
+  return 1
+}
+# The lexer (see the header). POSIX awk only (BSD awk, mawk, gawk); one call per command.
+supply_lex='
+function emit(nk) { sub(/^[ \t]+/, "", cur); sub(/[ \t]+$/, "", cur); if (cur != "") print kind "\t" cur; cur = ""; kind = nk }
+function shellctx() { return (cur ~ /(^|[ \/])(sh|bash|zsh|dash|ksh)( +-[A-Za-z]+)* +-[A-Za-z]*c +$/ || cur ~ /(^| )eval +$/) }
+function isshell(  t) { t = cur; sub(/^[ \t]+/, "", t); return (t ~ /^([^ ]*\/)?(sh|bash|zsh|dash|ksh)( |$)/) }
+BEGIN { RS = "\001" }
+{
+  s = $0; n = length(s); cur = ""; kind = "T"; q = ""; data = 0; bt = 0; hp = 0; i = 1
+  while (i <= n) {
+    c = substr(s, i, 1); d = substr(s, i + 1, 1); p = (i > 1) ? substr(s, i - 1, 1) : ""
+    if (c == "\\") {
+      if (q == sq) { i++; continue }
+      if (d == "\n") { i += 2; continue }
+      cur = cur d; i += 2; continue
+    }
+    if (q != "") {
+      if (c == q) { q = ""; i++; continue }
+      if (c == "\n" || c == ";" || c == "|" || (c == "&" && p != ">" && p != "<" && d != ">")) { emit(data ? "Q" : "T"); i++; continue }
+      if (q == "\"" && c == "$" && d == "(") { emit("T"); i += 2; continue }
+      if (q == "\"" && c == ")") { emit(data ? "Q" : "T"); i++; continue }
+      if (q == "\"" && c == "`") { bt = !bt; emit((bt || !data) ? "T" : "Q"); i++; continue }
+      if (c == "\t") c = " "
+      cur = cur c; i++; continue
+    }
+    if (c == sq || c == "\"") {
+      if (shellctx()) { emit("T"); data = 0 } else data = 1
+      q = c; i++; continue
+    }
+    if (c == "#" && (cur == "" || cur ~ /[ \t]$/)) { while (i <= n && substr(s, i, 1) != "\n") i++; continue }
+    if (c == "<" && d == "<") {
+      if (substr(s, i + 2, 1) == "<") { cur = cur " <<< "; i += 3; continue }
+      j = i + 2; hs = 0
+      if (substr(s, j, 1) == "-") { hs = 1; j++ }
+      while (substr(s, j, 1) == " " || substr(s, j, 1) == "\t") j++
+      w = ""
+      while (j <= n) { e = substr(s, j, 1); if (e ~ /[ \t\n;&|<>()]/) break; if (e != "\"" && e != sq && e != "\\") w = w e; j++ }
+      if (w != "") { hp = 1; hw = w; hx = isshell() }
+      i = j; continue
+    }
+    if (c == "\n") {
+      emit("T"); i++
+      if (hp) {
+        hp = 0
+        if (!hx) {
+          while (i <= n) {
+            k = index(substr(s, i), "\n")
+            if (k == 0) { line = substr(s, i); i = n + 1 } else { line = substr(s, i, k - 1); i += k }
+            if (hs) sub(/^\t+/, "", line)
+            if (line == hw) break
+          }
+        }
+      }
+      continue
+    }
+    if (c == ";" || c == "(" || c == ")" || c == "`") { emit("T"); i++; continue }
+    if (c == "|") { if (p == ">") { cur = cur c; i++; continue } emit("T"); i++; continue }
+    if (c == "&") { if (p == ">" || p == "<" || d == ">") { cur = cur c; i++; continue } emit("T"); i++; continue }
+    if ((c == "{" || c == "}") && (cur == "" || cur ~ /[ \t]$/) && (d == "" || d ~ /[ \t\n;]/)) { emit("T"); i++; continue }
+    if (c == "\t") c = " "
+    cur = cur c; i++
+  }
+  emit("T")
+}'
+supply_pn=${cmd//\\/}; supply_pn=${supply_pn//\"/}; supply_pn=${supply_pn//\'/}
+case "$supply_pn" in *.sigstore/*)
+  supply_psf=$-
+  set -f
+  while IFS= read -r supply_pl; do
+    case "$supply_pl" in T"$SUPPLY_TAB"*.sigstore/*) ;; *) continue ;; esac
+    supply_reads_key sigstore "${supply_pl#*"$SUPPLY_TAB"}" \
+      && deny "reading a Sigstore signing key under ~/.sigstore (the developer's own credential; no repository declaration lifts this) — pass --key and let cosign read the key itself, or leave keyless signing to the human release step, instead"
+  done <<EOF
+$(printf '%s' "$cmd" | awk -v sq="'" "$supply_lex")
+EOF
+  case "$supply_psf" in *f*) ;; *) set +f ;; esac
+;; esac
 repo_owns supply-chain/guard.d/38-supply-chain security && return 0   # principle 8: the repository's .harness.toml owns this section or domain security
 # rule: pip|uv --trusted-host (or a unique prefix such as --trusted) | uv --allow-insecure-host | pip|uv -i|--index[-url]|--extra-index[-url]|--default-index http:// | pip config set <section>.trusted-host | pip config set <section>.[extra-]index-url http:// | PIP_TRUSTED_HOST= | PIP_[EXTRA_]INDEX_URL=http:// | UV_INSECURE_HOST= | UV_[DEFAULT_|EXTRA_]INDEX[_URL]=http:// -> deny : disables TLS verification; use the HTTPS index with PIP_CERT or REQUESTS_CA_BUNDLE (uv: SSL_CERT_FILE) pointing at your CA bundle instead, or ask the user
 # rule: npm|pnpm|yarn [config] set strict-ssl false | --strict-ssl=false | --no-strict-ssl | NPM_CONFIG_STRICT_SSL=false | [config] set registry http:// | --registry (or --reg) http:// | yarn config set enableStrictSsl false|npmRegistryServer http://|unsafeHttpWhitelist | YARN_ENABLE_STRICT_SSL=false | NODE_TLS_REJECT_UNAUTHORIZED=0 -> deny : disables TLS verification; use cafile or NODE_EXTRA_CA_CERTS with the HTTPS registry instead, or ask the user
@@ -37,7 +155,7 @@ repo_owns supply-chain/guard.d/38-supply-chain security && return 0   # principl
 # rule: GOINSECURE=<value> | GOFLAGS=...-insecure | go get -insecure | go env -w GONOSUMDB|GONOSUMCHECK=<value> -> deny : disables module verification; use GOPRIVATE=<prefix> and keep go.sum verification instead
 # rule: GOSUMDB=off | go env -w GOSUMDB=off -> deny : switches the checksum database off for every module; use GOPRIVATE=<prefix> or a one-shot GONOSUMDB=<prefix> for private modules instead
 # rule: cosign verify* --insecure-ignore-tlog|--insecure-ignore-sct|--insecure-skip-verify|--allow-insecure-registry|--allow-http-registry|--private-infrastructure[=true|t|1] -> deny : skips a verification check; run supply verify or cosign verify without the flag and report exit 2 as a finding instead
-# rule: <reader> cosign.key | .sigstore/**/*.key as a file operand (a grep|rg pattern is not) -> deny : a signing key; use keyless signing (a human release step) or pass --key and let cosign read it instead
+# rule: <reader> cosign.key as a file operand (a grep|rg pattern is not) -> deny : a signing key; use keyless signing (a human release step) or pass --key and let cosign read it instead
 # rule: pip install outside a venv (no venv marker in the environment, no earlier activate clause, no runner, no venv pip as the command word; conda base is no venv) | --target|--prefix outside the checkout | --user | --break-system-packages | uv pip install --system | UV_SYSTEM_PYTHON=1 | sudo pip -> ask : installs into the machine; run it inside the project (uv sync, uv pip install, .venv/bin/pip install) instead; supply_chain.allow_global_re allow-lists tools
 # rule: npm|pnpm install|i|add -g|--global|--location=global|-<flags with g> | yarn global add -> ask : installs into the machine; add it to the project (npm i -D, npx) instead; supply_chain.allow_global_re allow-lists tools
 # rule: cargo install ... without both --locked and --version -> ask : an unpinned machine install; use cargo run or cargo build in the checkout, or pass --locked --version V, instead; supply_chain.allow_global_re allow-lists tools
@@ -46,7 +164,7 @@ repo_owns supply-chain/guard.d/38-supply-chain security && return 0   # principl
 # rule: GONOSUMDB=<value>|GONOSUMCHECK=<value> one-shot env prefix -> ask : skips go.sum verification; use GOPRIVATE=<prefix> instead
 # rule: cosign sign|sign-blob|attest|attest-blob|attach signature|sbom|attestation|upload|copy|clean|generate-key-pair|import-key-pair -> ask : a human release step (registry writes, keys); hand the command to the user (supply verify and cosign verify stay available)
 # rule: curl -k|--insecure ... -o|-O|--output|--remote-name|--output-dir FILE (not - or /dev/null) | > FILE | ... piped into tar|unzip|tee|dd|cpio | wget --no-check-certificate (not to stdout) -> ask : an unverified file; use the HTTPS URL with --cacert (wget --ca-certificate) instead
-local supply_n supply_lex supply_clauses supply_line supply_kind clause supply_exempt=false supply_noexempt=false
+local supply_n supply_clauses supply_line supply_kind clause supply_exempt=false supply_noexempt=false
 local supply_read=false supply_c0="" supply_c1="" supply_rest supply_w supply_v supply_out supply_venv=false supply_activated=false
 local supply_sf=$-
 # ---- whole-command precheck (builtins only): most commands never reach the lexer ------------
@@ -72,22 +190,6 @@ supply_venv_active() {  # -> rc 0 when any SUPPLY_VENV_MARKERS name is set (non-
     return 0
   done
   return 1
-}
-supply_cmd0() {  # CLAUSE -> supply_c0 = base name of the command word after keywords, wrappers and assignments; supply_c1 = the next word
-  local w wrap=false
-  supply_c0=""; supply_c1=""
-  for w in $1; do
-    if [ -n "$supply_c0" ]; then supply_c1=$w; return 0; fi
-    case "$w" in
-      '!'|then|do|else|elif|if|while|until|time) continue ;;
-      env|export|declare|typeset|readonly|local|sudo|doas|command|builtin|nohup|xargs|nice|timeout|exec|stdbuf|setsid|ionice|chrt|unbuffer)
-        wrap=true; continue ;;
-      [A-Za-z_]*=*) continue ;;
-      -*|[0-9]*) if $wrap; then continue; fi ;;
-    esac
-    supply_c0=${w##*/}
-  done
-  return 0
 }
 supply_specs() {  # CLAUSE VERBS (|-separated) -> the words after the FIRST verb word, one per line, without redirections
   local w found=false skip=false
@@ -223,91 +325,6 @@ supply_venv_pip() {  # CLAUSE -> rc 0 when the command word is a venv's pip|pyth
   done
   return 1
 }
-supply_reads_key() {  # CLAUSE -> rc 0 when a reader takes cosign.key or a .sigstore/**/*.key as a file operand
-  local w started=false pattern=false want=false
-  supply_cmd0 "$1"
-  case "$supply_c0" in
-    cat|tac|less|more|bat|head|tail|nl|yq|jq|sed|awk|cut|python|python3|perl|ruby|node|base64|xxd|od|strings|cp|scp|rsync|tee|vi|vim|nvim|nano|code|source|.) ;;
-    grep|egrep|fgrep|rg|ag) pattern=true ;;
-    *) return 1 ;;
-  esac
-  for w in $1; do
-    if ! $started; then [ "${w##*/}" = "$supply_c0" ] && started=true; continue; fi
-    if $want; then want=false; continue; fi            # the -e|-f value of grep: the pattern
-    case "$w" in
-      -e|-f|--regexp|--file) if $pattern; then pattern=false; want=true; fi; continue ;;
-      -e*|--regexp=*) pattern=false; continue ;;
-      -*) continue ;;
-    esac
-    if $pattern; then pattern=false; continue; fi      # the first operand of grep|rg is the pattern
-    w=${w#<}
-    case "$w" in cosign.key|*/cosign.key|.sigstore/*.key|*/.sigstore/*.key) return 0 ;; esac
-  done
-  return 1
-}
-# The lexer (see the header). POSIX awk only (BSD awk, mawk, gawk); one call per command.
-supply_lex='
-function emit(nk) { sub(/^[ \t]+/, "", cur); sub(/[ \t]+$/, "", cur); if (cur != "") print kind "\t" cur; cur = ""; kind = nk }
-function shellctx() { return (cur ~ /(^|[ \/])(sh|bash|zsh|dash|ksh)( +-[A-Za-z]+)* +-[A-Za-z]*c +$/ || cur ~ /(^| )eval +$/) }
-function isshell(  t) { t = cur; sub(/^[ \t]+/, "", t); return (t ~ /^([^ ]*\/)?(sh|bash|zsh|dash|ksh)( |$)/) }
-BEGIN { RS = "\001" }
-{
-  s = $0; n = length(s); cur = ""; kind = "T"; q = ""; data = 0; bt = 0; hp = 0; i = 1
-  while (i <= n) {
-    c = substr(s, i, 1); d = substr(s, i + 1, 1); p = (i > 1) ? substr(s, i - 1, 1) : ""
-    if (c == "\\") {
-      if (q == sq) { i++; continue }
-      if (d == "\n") { i += 2; continue }
-      cur = cur d; i += 2; continue
-    }
-    if (q != "") {
-      if (c == q) { q = ""; i++; continue }
-      if (c == "\n" || c == ";" || c == "|" || (c == "&" && p != ">" && p != "<" && d != ">")) { emit(data ? "Q" : "T"); i++; continue }
-      if (q == "\"" && c == "$" && d == "(") { emit("T"); i += 2; continue }
-      if (q == "\"" && c == ")") { emit(data ? "Q" : "T"); i++; continue }
-      if (q == "\"" && c == "`") { bt = !bt; emit((bt || !data) ? "T" : "Q"); i++; continue }
-      if (c == "\t") c = " "
-      cur = cur c; i++; continue
-    }
-    if (c == sq || c == "\"") {
-      if (shellctx()) { emit("T"); data = 0 } else data = 1
-      q = c; i++; continue
-    }
-    if (c == "#" && (cur == "" || cur ~ /[ \t]$/)) { while (i <= n && substr(s, i, 1) != "\n") i++; continue }
-    if (c == "<" && d == "<") {
-      if (substr(s, i + 2, 1) == "<") { cur = cur " <<< "; i += 3; continue }
-      j = i + 2; hs = 0
-      if (substr(s, j, 1) == "-") { hs = 1; j++ }
-      while (substr(s, j, 1) == " " || substr(s, j, 1) == "\t") j++
-      w = ""
-      while (j <= n) { e = substr(s, j, 1); if (e ~ /[ \t\n;&|<>()]/) break; if (e != "\"" && e != sq && e != "\\") w = w e; j++ }
-      if (w != "") { hp = 1; hw = w; hx = isshell() }
-      i = j; continue
-    }
-    if (c == "\n") {
-      emit("T"); i++
-      if (hp) {
-        hp = 0
-        if (!hx) {
-          while (i <= n) {
-            k = index(substr(s, i), "\n")
-            if (k == 0) { line = substr(s, i); i = n + 1 } else { line = substr(s, i, k - 1); i += k }
-            if (hs) sub(/^\t+/, "", line)
-            if (line == hw) break
-          }
-        }
-      }
-      continue
-    }
-    if (c == ";" || c == "(" || c == ")" || c == "`") { emit("T"); i++; continue }
-    if (c == "|") { if (p == ">") { cur = cur c; i++; continue } emit("T"); i++; continue }
-    if (c == "&") { if (p == ">" || p == "<" || d == ">") { cur = cur c; i++; continue } emit("T"); i++; continue }
-    if ((c == "{" || c == "}") && (cur == "" || cur ~ /[ \t]$/) && (d == "" || d ~ /[ \t\n;]/)) { emit("T"); i++; continue }
-    if (c == "\t") c = " "
-    cur = cur c; i++
-  }
-  emit("T")
-}'
 supply_clauses=$(printf '%s' "$cmd" | awk -v sq="'" "$supply_lex")
 # no text-tool exemption when the line can run text as code
 printf '%s' "$supply_n" | grep -qE '\$\(|`|(^|[^[:alnum:]_])eval([[:space:]]|$)|(^|[[:space:]/])(sh|bash|zsh|dash|ksh)([[:space:]]+-[A-Za-z]+)*[[:space:]]+-[A-Za-z]*c([[:space:]]|$)|\|[[:space:]]*(sudo[[:space:]]+)?([^[:space:]]*/)?(sh|bash|zsh|dash|ksh)([[:space:]]|$)' \
@@ -333,10 +350,10 @@ while IFS= read -r supply_line; do
       source|.) case "$clause" in */bin/activate|*/bin/activate' '*) supply_activated=true; continue ;; esac ;;
       deactivate) supply_activated=false; continue ;;
     esac
-    # ---- deny: a signing key read (cat is a reader even though it is a text tool) -----------
-    case "$clause" in *cosign.key*|*.sigstore/*)
-      if supply_reads_key "$clause"; then
-        deny "reading a cosign private key (cosign.key, ~/.sigstore/**/*.key) — use keyless signing in the human release step, or pass --key and let cosign read the key itself instead"
+    # ---- deny: a cosign.key read (cat is a reader even though it is a text tool; ~/.sigstore keys: prelude)
+    case "$clause" in *cosign.key*)
+      if supply_reads_key cosign "$clause"; then
+        deny "reading a cosign private key (cosign.key) — use keyless signing in the human release step, or pass --key and let cosign read the key itself instead"
       fi
     ;; esac
   fi

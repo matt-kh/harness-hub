@@ -92,7 +92,9 @@ prints every one between your applied version and the new one.
   `GOINSECURE=<value>`, `GOFLAGS=-insecure`, `go get -insecure`, `GOSUMDB=off`, `go env -w
   GONOSUMDB|GONOSUMCHECK=<value>`, `cosign verify* --insecure-*|--allow-*-registry|
   --private-infrastructure` (any true value), and a reader taking `cosign.key` or
-  `.sigstore/**/*.key` as a file operand. Asks (deferred, so a later deny still wins) on
+  `.sigstore/**/*.key` as a file operand. The `~/.sigstore/**/*.key` read deny is a
+  `# never-yields:` prelude, so owning `security` does not lift it (a repository's own
+  `cosign.key` still yields with the domain); unreleased, so no migration. Asks (deferred, so a later deny still wins) on
   `pip install` outside a venv (markers: the hook's environment with `CONDA_PREFIX` only outside
   conda base, an earlier `activate` clause, a runner, a venv's `…/bin/pip` as the command word,
   `--target|--prefix` inside the checkout; a `VIRTUAL_ENV=` assignment is no marker), with

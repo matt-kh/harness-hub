@@ -20,7 +20,7 @@ section 38 and the permission list; the `supply` CLI (`detect`, `pins`, `ci`, `a
   `GOINSECURE=<value>`, `GOFLAGS=-insecure`, `go get -insecure`, `go env -w
   GONOSUMDB|GONOSUMCHECK=<value>`, `GOSUMDB=off`, `cosign verify* --insecure-*|--allow-*-registry|
   --private-infrastructure` (any true value), and a reader taking `cosign.key` or a key under
-  `.sigstore/` as a file operand. Each reason names the trust-root fix (`PIP_CERT`,
+  `~/.sigstore/` (any `.sigstore/**/*.key`, so `cd ~` is no bypass) as a file operand. Each reason names the trust-root fix (`PIP_CERT`,
   `NODE_EXTRA_CA_CERTS`, `http.sslCAInfo`, `GOPRIVATE`).
 - Installing into the machine **asks**: `pip install` outside a venv, with `--user`,
   `--break-system-packages`, `sudo`, or `--target|--prefix` outside the checkout; `uv pip
@@ -55,8 +55,11 @@ section 38 and the permission list; the `supply` CLI (`detect`, `pins`, `ci`, `a
   `--dry-run`, or `--target|--prefix` inside the checkout. A `VIRTUAL_ENV=` assignment on the
   command line is not a marker.
 - A repository that owns the `security` domain in its `.harness.toml` lifts every rule of
-  section 38, the verification denies included; the credential denies of core section 20
-  stay ([repository-level harnesses](../repo-level.md#what-owning-a-domain-lifts)).
+  section 38, the verification denies and the read deny on its own `cosign.key` included,
+  except the read deny on keys under `~/.sigstore/`: that is the developer's own signing key
+  and sits in a `# never-yields:` prelude above the `repo_owns` line, like the credential
+  denies of core section 20 ([repository-level
+  harnesses](../repo-level.md#what-owning-a-domain-lifts)).
 
 Config: `supply_chain.allow_global_re`, `supply_chain.venv_markers` (both read by the guard),
 and `supply_chain.registries_re`, `supply_chain.identities`, `supply_chain.redact_extra_re`,
@@ -89,7 +92,8 @@ Software supply chain: pin what you add, install inside the project, never switc
 Guard section 38 and its rule: switching TLS or signature verification off denies (pip
 --trusted-host, uv --allow-insecure-host or an http:// index or registry, npm strict-ssl
 false, git http.sslVerify=false and GIT_SSL_NO_VERIFY, GOINSECURE, -insecure and GOSUMDB=off,
-cosign verify --insecure-*, reading cosign.key); installs into the machine ask (pip outside a
+cosign verify --insecure-*, reading cosign.key or ~/.sigstore keys, the latter never lifted by a
+repository declaration); installs into the machine ask (pip outside a
 venv or conda base, --user, sudo, uv pip --system, npm|pnpm -g, yarn global add,
 cargo install without --locked --version, go install @latest; pipx, uv tool install and
 pinned installs pass), so do unpinned git and URL dependencies, GONOSUMDB,
@@ -113,7 +117,7 @@ Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md
 
 **Guard sections**
 
-- `supply-chain/guard.d/38-supply-chain` — control: sensor · function: govern · decisions: deny 7 · ask 8 · yields: declaration
+- `supply-chain/guard.d/38-supply-chain` — control: sensor · function: govern · decisions: deny 8 · ask 8 · yields: declaration
 
 **Permission lists**
 

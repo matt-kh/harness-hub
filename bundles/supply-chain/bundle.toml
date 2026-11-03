@@ -6,7 +6,8 @@ description = """
 Guard section 38 and its rule: switching TLS or signature verification off denies (pip
 --trusted-host, uv --allow-insecure-host or an http:// index or registry, npm strict-ssl
 false, git http.sslVerify=false and GIT_SSL_NO_VERIFY, GOINSECURE, -insecure and GOSUMDB=off,
-cosign verify --insecure-*, reading cosign.key); installs into the machine ask (pip outside a
+cosign verify --insecure-*, reading cosign.key or ~/.sigstore keys, the latter never lifted by a
+repository declaration); installs into the machine ask (pip outside a
 venv or conda base, --user, sudo, uv pip --system, npm|pnpm -g, yarn global add,
 cargo install without --locked --version, go install @latest; pipx, uv tool install and
 pinned installs pass), so do unpinned git and URL dependencies, GONOSUMDB,

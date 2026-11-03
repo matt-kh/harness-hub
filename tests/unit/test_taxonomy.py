@@ -543,7 +543,8 @@ class YieldsTest(HubTestCase):
                 else:
                     self.assertIsNone(head["owns"], c.id)
         self.assertEqual(preludes, {"core/guard.d/30-git": 1, "github/guard.d/60-github": 1,
-                                    "k8s/guard.d/25-k8s-rules": 1, "obs/guard.d/32-obs": 1})
+                                    "k8s/guard.d/25-k8s-rules": 1, "obs/guard.d/32-obs": 1,
+                                    "supply-chain/guard.d/38-supply-chain": 1})
 
     def test_conflicting_defaults(self):
         head = "# rule: fixture-deny ... -> deny : fixture deny rule\n"
