@@ -244,6 +244,7 @@ $1
 EOF
   return 1
 }
+# shellcheck disable=SC2194  # case WORD in "$n"*): a unique-prefix match of the typed flag
 supply_pip_tls() {  # CLAUSE -> rc 0 when a pip|uv option switches TLS verification off
   local w n v want=false
   for w in $1; do
@@ -266,6 +267,7 @@ supply_pip_tls() {  # CLAUSE -> rc 0 when a pip|uv option switches TLS verificat
   done
   return 1
 }
+# shellcheck disable=SC2194  # case WORD in "$n"*): a unique-prefix match of the typed flag
 supply_npm_tls() {  # CLAUSE -> rc 0 when an npm|pnpm|yarn flag switches TLS verification off
   local w n v want=""
   for w in $1; do
