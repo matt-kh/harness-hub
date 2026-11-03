@@ -105,15 +105,23 @@ FILE`: a directory named `lint` is passed as `./lint`; a `verify` TARGET startin
 - **Severities come from the rubrics**, never from your judgement:
   `references/pinning.md` and `references/ci-hardening.md` list every rule id with its
   severity and fix. `data.auditors[]` is `{ecosystem, tool, status
-  ok|partial|unavailable|error|offline, packages}` (`packages` = packages with at least one
-  reported vulnerability; `partial` = some files audited, the rest `AUD001`).
+  ok|partial|unavailable|error|offline, packages}` plus `"offline": true` on an osv-scanner
+  row audited with `--offline` (status `ok`: audited against the local database, as current as
+  its last download). Status `offline` is only a fallback auditor that needs the network: not
+  audited. `partial` = some files audited, the rest `AUD001`. `packages` = every package
+  osv-scanner read (it runs with `--all-packages`); for a fallback auditor, the packages with
+  at least one reported vulnerability.
 - **`pins --apply FILE`**: FILE is `[{"file", "line", "old", "new"}]` (paths relative to DIR,
   `old` = the `ref` of a current finding on that line, `new` = the same name pinned by digest
   or 40-hex sha). Every `old` must occur exactly once on its line as a whole token, files must
   be regular files `supply pins` scans (no symlink, no `.git`), or nothing is written (exit 2,
   one reason per entry). Writes are all-or-nothing (staged, re-read before the rename, rolled
   back on a failure part-way); the rest of each line — comments, spacing, line endings — is
-  kept byte for byte; then it re-scans and exits like `pins`. With
+  kept byte for byte, except that an action pinned from a tag (`GHA001`/`GHA002`) keeps the
+  tag as its comment in the same write, for Renovate and Dependabot: ` # TAG` appended when the
+  line has no comment, `# TAG - <old comment>` when it has one, nothing when the comment
+  already starts with TAG (`data.applied[].comment` names it); then it re-scans and exits like
+  `pins`. With
   `supply_chain.pin_actions = false`, action pins are skipped and listed in `data.skipped`.
   The rules are in `references/pinning.md`.
 - **`supply ci --ignore RULE,…`** is the only way to silence a rule, and the reason goes in the
