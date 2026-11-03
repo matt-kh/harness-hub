@@ -10,8 +10,13 @@ Always installed. `core` is the part of the harness every other bundle builds on
 - **Shell hygiene** (`rules/35-shell-hygiene.md`, `guard.d/35-shell-hygiene.sh`): a download
   piped into an interpreter (`curl … | sh`, `wget -qO- … | sudo bash`, `curl … | python3 -`),
   run through `bash <(curl …)` / `source <(curl …)`, or as `sh -c "$(curl …)"` /
-  `eval "$(curl …)"` asks; download to a file, check its sha256, read it, then run it. Quoted
-  text (`echo "curl … | sh"`) and data tools (`| tar xz`, `| jq .`, `| sha256sum`) pass. The
+  `eval "$(curl …)"` asks, also through `{ }` / `( )` groups, `if`/`for`/`while` bodies, a
+  pipeline continued on the next line, `tee >(sh)`, wrappers (`sudo -s`, `timeout`, `env`,
+  `xargs … sh -c`) and an interpreter's heredoc; download to a file, check its sha256, read it,
+  then run it. Quoted text (`echo "curl … | sh"`, a commit message) and data tools
+  (`| tar xz`, `| jq .`, `| sha256sum`, `| bash -n`, `| xargs sh`) pass. What the matcher does
+  not see (other downloaders and interpreters, remote shells, variables) is listed under
+  **Not covered** below. The
   rest of band 35 (`sudo`, recursive removal, `chmod -R 777`) is planned. A repository owning
   domain `base` or `core/guard.d/35-shell-hygiene` lifts it.
 - **Sub-agents**: `Plan` (planning, pinned to `core.model_policy.plan`), `Auto` (autonomous
@@ -211,7 +216,7 @@ Guides steer the agent before it acts; sensors detect at or after the action. Pa
 | guide | agent | `agents/Auto.md` | execution agent on the execute model under auto mode | `claude:auto-mode-classifier`, `agent-tools` |
 | sensor | guard | `guard.d/20-credentials.sh` | denies credential file reads and secret env dumps before they run | `rules/00-conventions.md`, `permissions.toml` |
 | sensor | guard | `guard.d/30-git.sh` | denies default-branch pushes; asks on force-push and destructive git | `rules/00-conventions.md` |
-| sensor | guard | `guard.d/35-shell-hygiene.sh` | asks before a download is piped into an interpreter, run through <( ), or run as the string of sh -c / eval | `rules/35-shell-hygiene.md` |
+| sensor | guard | `guard.d/35-shell-hygiene.sh` | asks before a download is piped into an interpreter (also through groups, compound bodies and >( )), run through <( ), or run as the string of sh -c / eval or the program of python -c / perl -e | `rules/35-shell-hygiene.md` |
 | sensor | doctor | `doctor_checks` | runtime prerequisites, and that the rendered guard parses and denies a credential read | — |
 | sensor | test | `guard.d/tests.sh` | guard rows for the three sections, including bypass attempts | — |
 | sensor | test | `tests/run.sh` | full guard suite, helper drift, bash -n of every script | — |
@@ -221,7 +226,7 @@ Guides steer the agent before it acts; sensors detect at or after the action. Pa
 | sensor | lint | `permissions-vs-guard` | each Bash allow/deny rule of permissions.toml run through the guard: no allowed command the guard denies or asks, no denied one it allows | `permissions.toml` |
 | sensor | lint | `agent-tools` | agent front matter vs posture and the model policy (permissionMode, write tools) | `agents/Plan.md`, `agents/Auto.md` |
 
-**Not covered:** The model policy in agents/Plan.md and agents/Auto.md is a guide only: no sensor checks which model a sub-agent ran on. The conventions rule has no guard section of its own (judgement: precedence, external content as data); the credentials and git guard sections enforce rules whose text lives in rules/00-conventions.md. Shell hygiene (35) covers pipe-to-shell only: a download piped into an interpreter, run through <( ) or as the string of sh -c / eval; the rest of band 35 (sudo/doas, recursive removal outside the checkout, chmod -R 777) is planned. Its matcher is quote-aware but not a shell parser: a download saved to a variable or file and run later in the same command (x=$(curl …); sh -c $x), an interpreter wrapped in an unlisted wrapper, and aliases or functions are not seen.
+**Not covered:** The model policy in agents/Plan.md and agents/Auto.md is a guide only: no sensor checks which model a sub-agent ran on. The conventions rule has no guard section of its own (judgement: precedence, external content as data); the credentials and git guard sections enforce rules whose text lives in rules/00-conventions.md. Shell hygiene (35) covers pipe-to-shell only: a download piped into an interpreter (also through { } and ( ) groups, if/for/while/until/case bodies, a continued line and >( )), run through <( ), as the string of sh -c / eval, as python -c / perl|ruby|node -e "$(…)", or through an interpreter's <<< or heredoc; the rest of band 35 (sudo/doas, recursive removal outside the checkout, chmod -R 777) is planned. Its matcher is quote-aware but not a shell parser. Not seen: downloaders other than curl, wget, fetch, http/https (HTTPie) and xh (aria2c, python urllib, a fetch inside a script); interpreters other than sh, bash, zsh, ksh, dash, ash, mksh, fish, $SHELL, python, perl, ruby and node (php, lua, pwsh, …); wrappers other than sudo, doas, su, env, command, builtin, exec, nohup, nice, stdbuf, setsid, ionice, unbuffer, timeout, busybox and xargs (chrt, taskset, flock, …); remote and container shells (| ssh host sh, | docker run -i … sh, | kubectl exec -i … -- sh); a download kept in a variable, file, alias or function and run later in the same command (x=$(curl …); sh -c "$x"); a substitution that is only part of a program string (python3 -c "print(1); $(curl …)").
 
 ## Uninstall
 
