@@ -24,11 +24,12 @@ its whole process group.
 |---|---|---|---|
 | OSV001 | crit / warn / info | one osv-scanner vulnerability group: CVSS `max_severity` ≥ 7 crit, ≥ 4 warn, lower info; else the advisory's `database_specific.severity` (CRITICAL/HIGH crit, MODERATE/MEDIUM warn, LOW info); else warn | the fixed version in the message |
 | VUL001 | crit / warn / info | one fallback auditor finding: npm severity (critical/high crit, moderate warn, low info); pip-audit and cargo-audit warn (no severity in their output); govulncheck warn when the vulnerable symbol is called, info when only imported | the fixed version in the message |
-| AUD001 | info | an ecosystem with no auditor (tool missing, no lockfile it can read, offline without osv-scanner, a requirements file pip-audit would have to build): **unaudited, not clean** | `harness install osv-scanner`, or the ecosystem's auditor |
+| AUD001 | warn | an ecosystem, or a file of one (status `partial`), with no auditor (tool missing, no lockfile it can read, offline without osv-scanner, a requirements file pip-audit would have to build): **unaudited, not clean**, so the run exits 1 even when every other ecosystem is clean | `harness install osv-scanner`, or the ecosystem's auditor |
 | AUD002 | info | nothing to audit (osv-scanner exit 128, or no pip, npm, go or cargo manifest) | none |
 | AUD003 | warn | an auditor failed; its first stderr line (redacted) is in the message | run it by hand to see why; an errored audit is not clean |
 
-When no detected ecosystem could be audited the command exits 3; an osv-scanner failure exits
+When no detected ecosystem could be audited the command exits 3; when some were and another (or
+some files of one) was not, `AUD001` makes it exit 1, never 0; an osv-scanner failure exits
 2, as does an auditor printing JSON of an unexpected shape. `data.auditors[]` says per ecosystem
 which tool ran and with what status: `ok`, `partial` (some files audited, the rest `AUD001`),
 `unavailable`, `error` or `offline`. An osv-scanner run with `--offline` that read an ecosystem

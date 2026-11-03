@@ -80,8 +80,8 @@ supply audit DIR --json [--offline] > "${SCRATCH:?}/audit-before.json"; echo "rc
 
 | rc | Meaning | Next |
 |---|---|---|
-| 0 | no finding in what was audited | still read `data.auditors` — then report and stop |
-| 1 | findings: `OSV001`/`VUL001`, and also `AUD003` (a fallback auditor failed; status `error`) — or a usage error (no JSON on stdout) | a usage error: fix the command; else Step 3, with every `AUD003` under Unavailable ecosystems |
+| 0 | every detected ecosystem was audited, with no finding | still read `data.auditors` — then report and stop |
+| 1 | findings: `OSV001`/`VUL001`, and also `AUD001` (an ecosystem, or some files of one, not audited — even when everything else is clean) and `AUD003` (a fallback auditor failed; status `error`) — or a usage error (no JSON on stdout) | a usage error: fix the command; else Step 3, with every `AUD001`/`AUD003` under Unavailable ecosystems |
 | 2 | access, tool or config error: osv-scanner failed or printed JSON of an unexpected shape, the offline database is missing, DIR or a `--lockfile` unreadable | report the error line (and the human's download command); stop |
 | 3 | no detected ecosystem could be audited | report "unavailable" with `harness install osv-scanner` for the human; stop |
 

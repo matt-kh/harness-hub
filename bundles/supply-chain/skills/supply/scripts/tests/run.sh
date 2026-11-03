@@ -303,6 +303,11 @@ JSON
   SUPPLY_OSV_OFFLINE_DB=/home/u/.cache/osv-db t audit-osv-offline 1 audit dirty --offline --json
   STUB_OSV_NODB=1 t audit-osv-offline-nodb 2 audit dirty --offline --json
   STUB_OSV_OLDFLAG=1 t audit-osv-offline-oldflag 2 audit dirty --offline --json
+  # one ecosystem audited clean, another detected but unaudited (npm without a lockfile): AUD001 is
+  # a warn, so the run exits 1, never 0 (unaudited is not clean)
+  rm -rf "$out/work/pip-only"; mkdir -p "$out/work/pip-only"
+  cp clean/requirements.txt clean/package.json "$out/work/pip-only/"
+  t audit-osv-partial    1 audit "$out/work/pip-only" --json
   SUPPLY_PATH="$tmp/fallback-path" t audit-fallbacks-json 1 audit clean --json
   SUPPLY_PATH="$tmp/fallback-path" t audit-fallbacks-md   1 audit clean --md
   SUPPLY_PATH="$tmp/fallback-path" STUB_PIP_AUDIT=error t audit-fallback-error 1 audit clean --json

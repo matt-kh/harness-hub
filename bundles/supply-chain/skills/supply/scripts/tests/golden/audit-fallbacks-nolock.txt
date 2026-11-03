@@ -50,7 +50,7 @@ supply: dir=dirty ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,sh
       "id": "AUD001",
       "line": 0,
       "message": "cargo: cargo-audit needs Cargo.lock; cargo is unaudited, not clean",
-      "severity": "info"
+      "severity": "warn"
     },
     {
       "file": "",
@@ -58,7 +58,7 @@ supply: dir=dirty ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,sh
       "id": "AUD001",
       "line": 0,
       "message": "npm: npm audit needs package-lock.json or npm-shrinkwrap.json; npm is unaudited, not clean",
-      "severity": "info"
+      "severity": "warn"
     },
     {
       "file": "go.mod",
@@ -82,7 +82,7 @@ supply: dir=dirty ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,sh
       "id": "AUD001",
       "line": 0,
       "message": "pip-audit would resolve and build packages from requirements.txt (not every line is pinned with --hash); pip unaudited, not clean",
-      "severity": "info"
+      "severity": "warn"
     }
   ],
   "tools": [

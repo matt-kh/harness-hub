@@ -127,9 +127,10 @@ prints every one between your applied version and the new one.
   file could be scanned), `audit` (osv-scanner, else `npm audit`, `pip-audit` on fully hashed
   requirements only, `cargo-audit` called directly from an empty directory, `govulncheck` with
   `GOTOOLCHAIN=local`: never code from the checkout; "unavailable" is never "clean": `AUD001`
-  also for an ecosystem osv-scanner read nothing for, exit 3), `sbom DIR|IMAGE` (syft, never
-  the docker daemon; `--out` written exclusively with token-shape redaction only) and `sbom lint
-  FILE` (`SBM001`–`SBM009`), `verify` (cosign keyless, key, attestation and blob-with-bundle;
+  (warn, so exit 1) for every ecosystem or file left unaudited, also one osv-scanner read
+  nothing for, even when the rest audited clean; exit 3 when none could be audited),
+  `sbom DIR|IMAGE` (syft, never the docker daemon; `--out` written exclusively with token-shape
+  redaction only) and `sbom lint FILE` (`SBM001`–`SBM009`), `verify` (cosign keyless, key, attestation and blob-with-bundle;
   `gh attestation verify`; the subject after `--`; anchored identity regexps; never an
   `--insecure-*` flag) and `redact`. Unreadable directories are `SUP002`. Exit 0 clean, 1
   findings, 2 access/tool/config error (never a traceback), 3 unsupported; banner

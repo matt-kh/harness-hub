@@ -51,7 +51,7 @@ supply audit: no auditor for cargo, go, npm, pip — harness install osv-scanner
       "id": "AUD001",
       "line": 0,
       "message": "cargo: cargo-audit needs the network; `--offline` works with osv-scanner and a local database",
-      "severity": "info"
+      "severity": "warn"
     },
     {
       "file": "",
@@ -59,7 +59,7 @@ supply audit: no auditor for cargo, go, npm, pip — harness install osv-scanner
       "id": "AUD001",
       "line": 0,
       "message": "go: govulncheck needs the network; `--offline` works with osv-scanner and a local database",
-      "severity": "info"
+      "severity": "warn"
     },
     {
       "file": "",
@@ -67,7 +67,7 @@ supply audit: no auditor for cargo, go, npm, pip — harness install osv-scanner
       "id": "AUD001",
       "line": 0,
       "message": "npm: npm needs the network; `--offline` works with osv-scanner and a local database",
-      "severity": "info"
+      "severity": "warn"
     },
     {
       "file": "",
@@ -75,7 +75,7 @@ supply audit: no auditor for cargo, go, npm, pip — harness install osv-scanner
       "id": "AUD001",
       "line": 0,
       "message": "pip: pip-audit needs the network; `--offline` works with osv-scanner and a local database",
-      "severity": "info"
+      "severity": "warn"
     }
   ],
   "tools": [
