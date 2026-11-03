@@ -12,16 +12,16 @@ Status legend: **planned** (nothing built), **in progress** (a branch exists), *
 
 ## What exists today
 
-Ten public bundles cover source control (`github`, `gitlab`), one tracker (`jira`), the
+Eleven public bundles cover source control (`github`, `gitlab`), one tracker (`jira`), the
 ticket-to-merge workflow (`ticket-workflow`), stacked MRs/PRs on free tiers (`stack`),
 Kubernetes (`k8s`), observability backends (`obs`), Google Workspace (`gdoc`), the lessons
-loop (`lessons`)
+loop (`lessons`), the software supply chain (`supply-chain`, experimental)
 and the conventions, credentials and git rules every developer needs (`core`). That is the
 surface of a platform engineer. Application, data, QA, security and release engineers also
-run containers, package managers, databases, cloud CLIs, infrastructure-as-code, pipelines
-and remote hosts from the same terminal, and the agent sees none of it today. The
-[Security track](#security-track) plans the security engineer's surface, starting with the
-software supply chain.
+run containers, databases, cloud CLIs, infrastructure-as-code, pipelines and remote hosts
+from the same terminal, and the agent sees none of it today (package managers: `supply-chain`). The
+[Security track](#security-track) plans the security engineer's surface; its first bundle,
+`supply-chain`, has shipped.
 
 Site reliability work has the same gap: `k8s` reads the Kubernetes API only, so the agent sees
 no signals outside the cluster (metrics, logs, traces and alerts in an observability backend),
@@ -49,10 +49,10 @@ ARCHITECTURE §3 is updated when a band is first used.
 | `32` | `32-obs` | obs | observability backends: after `25`–`27` so the k8s, iac and cloud credential denies win |
 | `33` | `33-slo` | slo | reserved; no section in v1 (nothing it wraps mutates) |
 | `34` | `34-incident` | incident | reserved; no section in v1 (its writes are sensed by gdoc `80`, jira `70`, k8s `25` and the closing-keyword sections) |
-| `35` | `35-shell-hygiene` | core | shell-level hazards (pipe to shell, privilege escalation, destructive removal outside the checkout) |
+| `35` | `35-shell-hygiene` | core | shell-level hazards (pipe to shell, privilege escalation, destructive removal outside the checkout); the pipe-to-shell rows land in a later part of #51 |
 | `36` | `36-containers` | containers | local-workstation tooling |
 | `37` | `37-db` | db | local and remote data tooling |
-| `38` | `38-supply-chain` | supply-chain | package managers, lockfiles, signatures and SBOMs; supersedes the planned `38-toolchain` ([Security track](#security-track)) |
+| `38` | `38-supply-chain` | supply-chain | in use: verification-off denies, global-install, unpinned-dependency, signing and insecure-download asks; supersedes the planned `38-toolchain` ([Security track](#security-track)) |
 | `39` | `39-appsec` | appsec | reserved ([Security track](#security-track)); next to `38` |
 | `42` | `42-vuln` | vuln | reserved ([Security track](#security-track)); after the closing-keyword sections, before `45` release and `50` gitlab |
 | `43` | `43-iam` | iam | reserved ([Security track](#security-track)) |
@@ -137,7 +137,7 @@ extensions to `k8s` and `core`. **Status: in progress.**
 | **`obs`** | new bundle | operations / read-only / client (+ `obs-triage` investigate) | `32` | S2 (**shipped**) |
 | `k8s` v2a: `backups`, `audit` PDB/HPA + `--manifests`, `chart-reviewer`, auditor steps | extension | kubernetes | — | S3 |
 | `/draft-adr` + `render-adr.py` | core skill | base / local / workflow | — | S4a |
-| `infra-architect` ends with an ADR JSON block | k8s text | kubernetes / plan | — | S4b |
+| `infra-architect` and `supply-architect` end with an ADR JSON block | k8s and supply-chain text | kubernetes, security / plan | — | S4b |
 | `ci` (P1 spec + `--json` UTC timestamps + shared contract) | pull-forward | scm / read-only | `55` | S1 |
 | **`incident`** | new bundle | operations / label-gated / workflow | `34` (reserved) | S5 |
 | **`slo`** | new bundle | operations / read-only / client (+ `sre-reviewer`, `dr-auditor` review) | `33` (reserved) | S6 |
@@ -294,7 +294,8 @@ membership and specifications above are unchanged, the track only adds:
   used as input or yielded to). No bin link. The `code-reviewer` output contract (P1) lands
   first or with `chart-reviewer`.
 - **`k8s`** (S4b): `infra-architect` ends with a fenced `adr` JSON block in the `/draft-adr`
-  model shape and offers `/draft-adr`.
+  model shape and offers `/draft-adr`; `supply-architect` (`supply-chain`) adopts the same
+  shape in the same slice.
 - **`profiles/sre.toml`** (S9): `bundles = ["core", "gitlab", "github", "jira",
   "ticket-workflow", "k8s", "gdoc", "ci", "obs", "incident", "slo", "iac", "cloud"]`,
   `providers = ["claude"]`.
@@ -320,7 +321,7 @@ data store. The org notes rule gains a short SRE subsection pointing at them.
 | S1 | `ci-bundle` | the P1 `ci` spec plus the additions above | rows (`55`); CHANGELOG; docs page; README; ARCHITECTURE §3 | S0a |
 | S3 | `k8s-v2a-backups-audit` | `k8s` v2a | CHANGELOG; goldens; docs regen | S0a |
 | S4a | `core-draft-adr` | `/draft-adr` | CHANGELOG; docs page; this page | — |
-| S4b | `k8s-architect-adr-shape` | `infra-architect` text | CHANGELOG | S4a |
+| S4b | `k8s-architect-adr-shape` | `infra-architect` and `supply-architect` text | CHANGELOG | S4a |
 | S5 | `incident-bundle` | the `incident` bundle | CHANGELOG; docs page; README; this page (`34`) | S1, S2 |
 | S6 | `slo-bundle` | the `slo` bundle | CHANGELOG; docs page; README; this page (`33`) | S2 (S3 for the k8s source) |
 | S7 | `iac-bundle` | the P3 `iac` spec plus the additions above | rows (`26`); CHANGELOG `### Taxonomy`; docs page; README | S0a |
@@ -347,13 +348,13 @@ off (deny, with the trust-root fix as the alternative), findings in the `code-re
 contract, output through the shared `redact` block, optional scanners pinned by
 `tools/<tool>.lock.json`, organisation policy as config. The reference page maps nine
 disciplines onto the taxonomy and says what stays out of scope for a user-level harness.
-**Status: planned.**
+**Status: in progress** (`supply-chain` shipped, experimental; core `35` and the candidates planned).
 
 | Item | Kind | Domain / posture / function | Prefix | Slice |
 |---|---|---|---|---|
 | [security](reference/security.md), this section, domain `security` | docs + taxonomy | security | — | A (#50) |
-| **`supply-chain`** | new bundle, supersedes `toolchain` | security / local / client (+ `supply-architect` plan, `supply-auditor` review, `supply-triage` investigate, `/pin-deps` and `/audit-deps` workflow) | `38` | S1 (#51) |
-| core `35-shell-hygiene`, pipe-to-shell rows only | core extension (optional part of S1) | base | `35` | S1 |
+| **`supply-chain`** | new bundle, supersedes `toolchain` | security / local / client (+ `supply-architect` plan, `supply-auditor` review, `supply-triage` investigate, `/pin-deps` and `/audit-deps` workflow) | `38` | S1 (#51, **shipped**, experimental) |
+| core `35-shell-hygiene`, pipe-to-shell rows only | core extension (a later part of S1) | base | `35` | S1 |
 | **`appsec`** | candidate bundle | security / read-only (`appsec-architect` plan, `/draft-threat-model` workflow, `appsec-reviewer` review) | `39` | S2 |
 | **`vuln`** | candidate bundle, after `containers` | security / read-only / client (+ `vuln-triage` investigate) | `42` | S3 |
 | **`iam`** | candidate bundle | security / read-only / client (+ `iam-auditor` review) | `43` | S4 |
@@ -365,6 +366,7 @@ disciplines onto the taxonomy and says what stays out of scope for a user-level 
 
 ### `supply-chain` bundle
 
+**Shipped** (experimental; see CHANGELOG and the [bundle page](bundles/supply-chain.md)).
 `depends_on = ["core"]`, `recommends = ["github"]` (`gh attestation verify`, tag lookups),
 stability `experimental`; taxonomy security / local / client, the CLI and client skill
 read-only. Supersedes the P2 `toolchain` row: its asks and `/audit-deps` move here unchanged.
@@ -385,7 +387,7 @@ read-only. Supersedes the P2 `toolchain` row: its asks and `/audit-deps` move he
   ```
 
 - Agents `supply-architect` (plan, design only, ends with a decision record; adopts the
-  `/draft-adr` model shape when S4a lands), `supply-auditor` (review, `code-reviewer`
+  `/draft-adr` model shape in S4b), `supply-auditor` (review, `code-reviewer`
   contract), `supply-triage` (investigate, `k8s-triage` contract). Workflow skills `/pin-deps`
   (`supply pins --json`, read-only resolution, `supply pins --apply`, `supply pins` exits `0`;
   never commits or pushes) and `/audit-deps` (patch and minor upgrades with the ecosystem's own
@@ -403,14 +405,15 @@ read-only. Supersedes the P2 `toolchain` row: its asks and `/audit-deps` move he
   Pipe-to-shell is core `35-shell-hygiene`, not this band.
 - Config (`SUPPLY_`): `supply_chain.allow_global_re = ""`, `supply_chain.venv_markers =
   "VIRTUAL_ENV CONDA_PREFIX PIPENV_ACTIVE"`, `supply_chain.registries_re = ""`,
-  `supply_chain.identities = []` (`{ name, identity_re, issuer }`, documentation values),
-  `supply_chain.redact_extra_re`, `supply_chain.osv_offline_db`, `supply_chain.pin_actions =
-  true`, `supply_chain.max_bytes = 65536`.
+  `supply_chain.identities = []` (`{ name, identity_re, issuer, match_re }`, documentation
+  values), `supply_chain.redact_extra_re`, `supply_chain.osv_offline_db`,
+  `supply_chain.pin_actions = true`, `supply_chain.max_bytes = 65536`, and (shipped with the
+  CLI) `supply_chain.exclude_re = ""`, `supply_chain.timeout = 120`.
 - Optional pinned tools: `osv-scanner`, `cosign`, `syft` in `tools/<tool>.lock.json`, marked
   `"optional": true` so `harness pack --tools` and bootstrap skip them unless asked.
 - Sensors: guard rows with bypasses and yield rows, doctor (`supply-cli`, `supply-detect`,
   `supply-config`, and the generic per-binary check for each optional tool), goldens per verb over fixture checkouts with stub
-  tools, a dry-run request log that shows reads only.
+  tools, a stub-tool log that shows reads only.
 - Not implemented: publishing, signing, key generation, registry administration, SBOM upload,
   licence policy (org overlay), reachability analysis.
 - Seams: image scanning is `containers`; tags and publication are `release`; credential
@@ -438,7 +441,7 @@ only dependency is a tool the developer already has. **Status: planned.**
 | Provider verification | `docs/runbooks/verify-provider.md`, lint `provider-verified`, smoke `provider-render.sh` | a human protocol per provider (install, render into a temp home, try one deny and one ask), a render-and-parse smoke, a lint warning when a profile ships a provider whose README says "not yet verified" | S code, M human time | multi-provider orgs |
 | Stack status | `stack` | shipped as `stk status` (part, target, state, behind, worktree, merged parts whose worktree still exists) | S | stacked-MR users |
 | **`secrets` bundle** | `bundles/secrets` (`base`, read-only; guard `22`) | deny `sops -d`, `age -d`, `gpg -d` to stdout and `vault kv get`, `op read`, `pass show`; ask plaintext written to disk and Vault mutations; deny reading key material; `secrets keys FILE` (names and lengths), `secrets redact`, `secrets scan [--staged] [--deep]` (optional pinned `gitleaks`), `secrets status`; `exec-env`/`op run` forms stay allowed | S/M | all |
-| **`toolchain` bundle** | superseded | replaced by `supply-chain` ([Security track](#security-track)); its asks (`pip install` outside a venv, global installs, unpinned git or URL dependencies) and `/audit-deps` move there unchanged | — | — |
+| **`toolchain` bundle** | superseded | shipped as `supply-chain` (experimental; [Security track](#security-track), [bundle page](bundles/supply-chain.md)); its asks (`pip install` outside a venv, global installs, unpinned git or URL dependencies) and `/audit-deps` move there unchanged | — | — |
 | **`containers` bundle** | `bundles/containers` (`infrastructure`, local; guard `36`) | ask registry pushes, `system prune`, `volume rm`, `compose down -v`, `--privileged`, `--pid=host`, docker-socket mounts, remote engines matching `containers.remote_re`; deny `inspect` of env, `exec … env` and passwords on the `docker login` command line; `containers ps|inspect|env|logs|images|disk|compose status` (redacted); local build/run/exec/logs stay promptless | S/M | app, data, platform |
 | **`release` bundle** | `bundles/release` (`scm`, local; guard `45`) | ask tag pushes and `npm|twine|cargo|gem|poetry publish`; deny moving or deleting a tag; `/cut-release [patch|minor|major]` stops at the release PR and prints the tag commands; CLI `release next|notes|check|changelog lint|tags`; first use of the `template` guide kind; flips the core row `git push --tags` from pass to ask, stated in the PR | M | release engineers, maintainers |
 
@@ -493,10 +496,7 @@ Cross-tranche items that make the hub easier to maintain and to extend.
   `core.review.max_diff_kb`, `core.checks.extra_patterns`, `core.worktree_path_tmpl`,
   `core.session_banner`, `core.report_max_age_days`, `providers.claude.status_line`,
   `ci.log_tail`, `ci.redact_extra_re`, `ci.flaky_re`, `k8s.registries_allow_re`,
-  `secrets.extra_token_shapes_re`, `secrets.scan_exclude_re`, `supply_chain.venv_markers`,
-  `supply_chain.allow_global_re`, `supply_chain.registries_re`, `supply_chain.identities`,
-  `supply_chain.redact_extra_re`, `supply_chain.osv_offline_db`, `supply_chain.pin_actions`,
-  `supply_chain.max_bytes`, `containers.remote_re`, `containers.prod_re`,
+  `secrets.extra_token_shapes_re`, `secrets.scan_exclude_re`, `containers.remote_re`, `containers.prod_re`,
   `containers.registries_re`, `release.changelog`, `release.version_file`,
   `release.tag_prefix`, `release.tag_re`, `release.conventional_commits`, `cloud.prod_re`,
   `cloud.accounts`, `iac.prod_re`, `iac.stateful_types_re`, `db.prod_re`, `db.targets`,
@@ -507,7 +507,10 @@ Cross-tranche items that make the hub easier to maintain and to extend.
   `incident.postmortem_dir`, `incident.postmortem_folder`, `incident.severity_levels`,
   `incident.timeline_since`, `incident.tracker`, `slo.dir`, `slo.default_window`,
   `slo.burn_windows`, `slo.page_threshold`, `slo.ticket_threshold`, and (shipped) `stack.label`, `stack.push`,
-  `stack.update_method`, `stack.leaf_refresh`. Every env name a guard section reads must carry a prefix the
+  `stack.update_method`, `stack.leaf_refresh`, `supply_chain.allow_global_re`,
+  `supply_chain.venv_markers`, `supply_chain.registries_re`, `supply_chain.identities`,
+  `supply_chain.redact_extra_re`, `supply_chain.exclude_re`, `supply_chain.osv_offline_db`,
+  `supply_chain.pin_actions`, `supply_chain.timeout`, `supply_chain.max_bytes`. Every env name a guard section reads must carry a prefix the
   guard accepts (`HARNESS_`, `K8S_`, `OBS_`, `INCIDENT_`, `SLO_`, `SUPPLY_`, …; lint `env-provides` enforces this).
 
 ## Rejected or deferred

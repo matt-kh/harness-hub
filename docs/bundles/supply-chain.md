@@ -2,12 +2,41 @@
 
 The software supply chain for agents: pin what you add, install inside the project, never switch
 verification off. The first bundle of the [security family](../reference/security.md) (domain
-`security`, posture `local`). It lands in parts across #51: the rule, guard section 38, the
-permission list, the read-only `supply` CLI with its client skill (`detect`, `pins`, `ci`,
-`audit`, `sbom`, `verify`, `redact`), the pinned, optional `osv-scanner`, `cosign` and `syft`
-(`harness install TOOL`; bootstrap never fetches them unasked), the `/pin-deps` and
-`/audit-deps` workflow skills and the `supply-architect`, `supply-auditor` and `supply-triage`
-agents.
+`security`, posture `local`, stability `experimental`): guard section 38 with its rule and
+permission list, the read-only `supply` CLI and its client skill, the workflow skills
+`/pin-deps` and `/audit-deps`, the read-only agents `supply-architect`, `supply-auditor` and
+`supply-triage`, and the pinned, optional `osv-scanner`, `cosign` and `syft`. Pipe-to-shell
+(`curl … | sh`) as a command is core band 35, which lands in a later part of #51; `supply pins`
+and `supply ci` already report it in files (`SH001`).
+
+**The `supply` CLI** reads a checkout, an image or a file and changes nothing but the files
+`pins --apply` and `sbom --out` name. Banner on stderr `supply: dir=<DIR> ecosystems=<list>
+tools=<installed list>`; exit `0` clean, `1` findings (also a usage error), `2` access, tool or
+config error (a failed `verify` included), `3` unsupported input. Every tool output passes
+through the core redactor; severities come from the rubrics in
+`bundles/supply-chain/skills/supply/references/`.
+
+- `supply detect [DIR]`: ecosystems (pip, npm, go, cargo, docker, GitHub Actions, GitLab CI,
+  shell), their manifests and lockfiles; never runs a tool.
+- `supply pins [DIR] [--apply FILE]`: actions by tag, images without a digest, unpinned
+  dependencies and downloads without a checksum, each finding carrying the exact `ref` token;
+  `--apply` rewrites those tokens to a digest or commit sha, all files or none, byte-exact, then
+  re-scans.
+- `supply ci FILE... [--ignore RULE,...]`: GitHub Actions and GitLab CI hardening (`CI000`–`CI009`:
+  permissions, `pull_request_target`, script injection, secrets echoed).
+- `supply audit [DIR] [--lockfile F]... [--sbom F] [--offline]`: osv-scanner, else the
+  ecosystem's own auditor when already installed (`npm audit`, `pip-audit` on fully hashed
+  requirements files, `cargo-audit`, `govulncheck`), never running code from the checkout.
+  `data.auditors[]` says per ecosystem whether it was `ok`, `partial`, `unavailable`, `error` or
+  `offline`: unavailable is never clean.
+- `supply sbom DIR|IMAGE [--out F]` (syft, from a directory or a registry, never the docker
+  daemon) and `supply sbom lint FILE` (SPDX and CycloneDX shape, no tool needed).
+- `supply verify TARGET --identity NAME | --key F | --github OWNER[/REPO]`: cosign keyless,
+  key, attestation and blob-with-bundle verification, or `gh attestation verify`; anchored
+  identity regexps only, never an `--insecure-*` flag. A failure is a finding (exit 2).
+- `supply redact`: the redactor as a stdin filter.
+
+**Skills and agents.**
 
 - `/pin-deps [DIR] [--actions|--images|--deps] [--no-apply]` turns `supply pins` findings into
   pins: a tag is resolved read-only to the commit or digest it points at today (`git
@@ -44,6 +73,8 @@ agents.
   hypotheses). They never install, edit, sign or push; a command the guard would ask or deny on
   becomes a finding for the human.
 - Neither skill commits or pushes: the diff is the user's to review.
+
+**Guard section 38.**
 
 - Switching TLS or signature verification off is **denied**: `pip|uv --trusted-host` (also a
   unique prefix such as `--trusted`), `uv --allow-insecure-host`, an `http://` index (`-i`,
@@ -99,10 +130,34 @@ agents.
   denies of core section 20 ([repository-level
   harnesses](../repo-level.md#what-owning-a-domain-lifts)).
 
-Config: `supply_chain.allow_global_re`, `supply_chain.venv_markers` (both read by the guard),
-and `supply_chain.registries_re`, `supply_chain.identities`, `supply_chain.redact_extra_re`,
-`supply_chain.exclude_re`, `supply_chain.osv_offline_db`, `supply_chain.pin_actions`,
-`supply_chain.timeout`, `supply_chain.max_bytes` for the `supply` CLI.
+**Optional tools.** `osv-scanner` 2.7.0, `cosign` 3.1.4 and `syft` 1.55.0 are pinned and
+sha256-verified in `tools/<tool>.lock.json` and marked optional: bootstrap never fetches them
+unasked and `harness pack --tools` ships them only with `--tools-optional`. Install the ones you
+use with `harness install TOOL` (manual step [install-supply-tools](#install-supply-tools));
+a missing one makes its verb report `unavailable` (audit) or exit 2 (sbom, verify), never pass.
+`supply verify --github` needs `gh` 2.49 or newer (the `github` bundle).
+
+**Configuration.** `supply_chain.allow_global_re` and `supply_chain.venv_markers` are read by
+the guard; the other keys by the `supply` CLI, where `SUPPLY_*` environment variables win.
+Public values only, never a key, in `local/harness.toml` (documentation values shown), then
+`harness apply`:
+
+```toml
+[supply_chain]
+allow_global_re = '^(ripgrep|typescript)$'          # global installs that pass without a prompt
+registries_re = '^(ghcr\.io|registry\.example\.com)$'  # REG001 for any other registry
+exclude_re = '^(examples|third_party)/'              # paths supply skips
+# osv_offline_db = "/home/u/osv-db"                  # for `supply audit --offline`
+# pin_actions = false                                # keep GitHub Actions on tags
+
+[[supply_chain.identities]]                          # signers `supply verify --identity` trusts
+name = "release"
+identity_re = '^https://github\.com/octocat/hello-world/\.github/workflows/release\.yml@refs/tags/v.*$'
+issuer = "https://token.actions.githubusercontent.com"
+match_re = '^ghcr\.io/octocat/'
+```
+
+Every key with its default is in the Configuration table below.
 
 ## Troubleshooting
 
@@ -125,6 +180,16 @@ and `supply_chain.registries_re`, `supply_chain.identities`, `supply_chain.redac
 | `supply audit --offline` exits 2 `no offline version of the OSV database` | osv-scanner reads its offline databases from `DIR/osv-scalibr/<Ecosystem>/all.zip` and the CLI never downloads them | download them once by hand (`OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY=DIR osv-scanner scan source --offline-vulnerabilities --download-offline-databases -r .`; `-r .` downloads databases only for the ecosystems found in that directory, so run it in each repository you audit offline) and set `supply_chain.osv_offline_db = "DIR"`, or drop `--offline` |
 | `supply verify IMAGE --offline` exits 3 | cosign 3.1.4 deprecated `--offline` and reads an image's signatures from its registry; nothing keeps it offline | verify a downloaded file: `supply verify FILE --bundle F --trusted-root F --offline`, or `supply verify IMAGE --github OWNER/REPO --bundle F --trusted-root F --offline`; else drop `--offline` |
 | `supply verify IMAGE --bundle F` exits 1 | cosign 3 reads an image's signatures from its registry; `--bundle` is for a file | drop `--bundle`, or use `--github OWNER/REPO --bundle F` |
+| `supply audit` reports an ecosystem `unavailable` although osv-scanner is installed (`AUD001 … osv-scanner read no … here`) | osv-scanner found no lockfile it understands for that ecosystem (a `pyproject.toml` or `package.json` alone is no lockfile) | commit the lockfile (`uv lock`, `npm install --package-lock-only --ignore-scripts`), or pass it with `--lockfile F` |
+| `supply audit` reports an ecosystem `partial` | the fallback auditor read some files and skipped others (`pip-audit` only reads fully hashed requirements files, `npm audit` needs `package-lock.json`) | `harness install osv-scanner`, which reads every lockfile; or lock the skipped files |
+| `supply audit` exits 3 `no auditor for …` | no auditor could run for any ecosystem detected: osv-scanner is absent and so is each ecosystem's own auditor | `harness install osv-scanner`; unaudited is reported, never clean |
+| `supply` exits 3 elsewhere | unsupported input: `ci` with no file it can scan, `sbom lint` on a non-JSON file, `sbom` on a file, `verify --offline` without `--trusted-root`, `--github --offline` without `--bundle`, an image with `--offline` | pass the input the message names; `supply detect` knows pip, npm, go and cargo (plus Actions, GitLab CI, Dockerfiles and shell): another ecosystem's lockfiles are audited only by osv-scanner and are otherwise not covered |
+| `supply verify` exits 2 `no signer identity for …` or `is not a configured identity` | no `[[supply_chain.identities]]` entry is named or matches the target (`match_re`) | add the signer (manual step [configure-identities](#configure-identities)) and run `harness apply`, or pass `--identity '^…$' --issuer URL` |
+| `supply verify` exits 2 `… must be anchored` (doctor `supply-config` WARNs) | an identity regexp without `^…$` would accept any certificate that merely contains it | anchor it, name the workflow file and restrict the ref |
+| `supply verify` exits 2 `unverifiable: …` | cosign rejected it: the signer's identity or issuer is not the one asked for, the tag now points at another digest, there is no signature or attestation, or the registry refused the read (private image, not logged in) | compare the identity and issuer with the release workflow, verify by digest (`IMAGE@sha256:…`), have the human log in to the registry; never retry with `--insecure-*`, `--allow-*-registry` or a looser regexp: an unverified artefact is a finding |
+| `supply verify --github` exits 2 | `gh is not installed`; gh older than 2.49 (`unverifiable: unknown command "attestation"…`, or `printed no JSON`); gh not logged in (`unverifiable:` naming `gh auth login`); or the artefact has no attestation (`unverifiable: … no attestations found`) | `harness install gh` (the `github` bundle); `gh auth status` and, by the human, `gh auth login`; a missing attestation is a finding, not a pass |
+| `supply ci` flags a line that is safe in context | the rules are line heuristics without a full YAML model | rerun with `--ignore RULE` and state the reason in the MR/PR description; never add an ignore comment to the workflow |
+| `supply pins` flags `uses: actions/checkout@v4` or `FROM python:3.12` | by design: a tag can be moved to other code; only a commit sha or a digest pins | `/pin-deps` resolves the tag to today's sha or digest; to keep actions on tags, set `supply_chain.pin_actions = false` and run `harness apply` |
 
 <!-- generated:begin source=bundles/supply-chain/bundle.toml -->
 ## Summary
