@@ -15,7 +15,8 @@ Output is findings-first: JSON when stdout is not a TTY (or --json), Markdown on
    "findings":[{"id","severity","file","line","message","fix"[,"ref"]}],"data":{...}}
 Findings are sorted by (file, line, id, message); there is no timestamp. Pin findings carry
 "ref": the exact token as written, so /pin-deps can build an apply file.
-Exit codes: 0 clean, 1 a crit or warn finding (or a usage error), 2 access, tool or config error
+Exit codes: 0 clean, 1 a crit or warn finding (AUD001: a detected ecosystem, or part of one, was
+not audited) or a usage error, 2 access, tool or config error
 (unreadable DIR, a needed tool missing, a tool failing or printing unexpected output, a bad
 config regex, a refused or failed `--apply` write), 3 unsupported (no auditor for any detected
 ecosystem, `ci` with no scannable file, `sbom lint` on a non-JSON file, `verify --offline`
@@ -46,9 +47,10 @@ Commands (run with no args to print this list):
                         Known vulnerabilities: osv-scanner (OSV001), else npm audit,
                         pip-audit (hashed requirements only), cargo-audit, govulncheck when
                         present (VUL001).
-                        "unavailable" is never "clean": AUD001 per ecosystem with no auditor,
-                        exit 3 when none could be audited. --offline with osv-scanner: status
-                        ok plus "offline": true (the local database's date bounds it).
+                        "unavailable" is never "clean": AUD001 (warn, exit 1) per ecosystem or
+                        file left unaudited, exit 3 when none could be audited. --offline with
+                        osv-scanner: status ok plus "offline": true (the local database's date
+                        bounds it).
   sbom DIR|IMAGE [--format spdx-json|cyclonedx-json] [--out F] [--force]
                         SBOM through syft (dir: or registry:, never the docker daemon); a
                         summary without --out; --out refuses an existing file unless --force.
@@ -574,7 +576,7 @@ RULES = {
                        "patch and minor upgrades"),
     "VUL001": ("warn", "upgrade to the fixed version (see the message); /audit-deps applies "
                        "patch and minor upgrades"),
-    "AUD001": ("info", "`harness install osv-scanner` (covers every ecosystem), or install the "
+    "AUD001": ("warn", "`harness install osv-scanner` (covers every ecosystem), or install the "
                        "ecosystem's own auditor"),
     "AUD002": ("info", "nothing to audit: no lockfile or manifest osv-scanner understands"),
     "AUD003": ("warn", "run the auditor by hand to see its error; an errored audit is not clean"),

@@ -51,7 +51,7 @@ supply audit: no auditor for cargo, go, npm, pip — harness install osv-scanner
       "id": "AUD001",
       "line": 0,
       "message": "cargo: no auditor (osv-scanner and cargo-audit are not installed); cargo is unaudited, not clean",
-      "severity": "info"
+      "severity": "warn"
     },
     {
       "file": "",
@@ -59,7 +59,7 @@ supply audit: no auditor for cargo, go, npm, pip — harness install osv-scanner
       "id": "AUD001",
       "line": 0,
       "message": "go: no auditor (osv-scanner and govulncheck are not installed); go is unaudited, not clean",
-      "severity": "info"
+      "severity": "warn"
     },
     {
       "file": "",
@@ -67,7 +67,7 @@ supply audit: no auditor for cargo, go, npm, pip — harness install osv-scanner
       "id": "AUD001",
       "line": 0,
       "message": "npm: no auditor (osv-scanner and npm are not installed); npm is unaudited, not clean",
-      "severity": "info"
+      "severity": "warn"
     },
     {
       "file": "",
@@ -75,7 +75,7 @@ supply audit: no auditor for cargo, go, npm, pip — harness install osv-scanner
       "id": "AUD001",
       "line": 0,
       "message": "pip: no auditor (osv-scanner and pip-audit are not installed); pip is unaudited, not clean",
-      "severity": "info"
+      "severity": "warn"
     }
   ],
   "tools": []

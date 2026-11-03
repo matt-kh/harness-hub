@@ -1,0 +1,28 @@
+{
+  "results": [
+    {
+      "source": {
+        "path": "__DIR__/requirements.txt",
+        "type": "lockfile"
+      },
+      "packages": [
+        {
+          "package": {
+            "name": "requests",
+            "version": "2.32.3",
+            "ecosystem": "PyPI",
+            "purl": "pkg:pypi/requests@2.32.3"
+          }
+        },
+        {
+          "package": {
+            "name": "urllib3",
+            "version": "2.2.3",
+            "ecosystem": "PyPI",
+            "purl": "pkg:pypi/urllib3@2.2.3"
+          }
+        }
+      ]
+    }
+  ]
+}
