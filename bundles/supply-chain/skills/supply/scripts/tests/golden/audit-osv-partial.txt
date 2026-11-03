@@ -1,0 +1,48 @@
+# exit=1
+# stderr:
+supply: dir=OUT/work/pip-only ecosystems=npm,pip tools=cargo-audit,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+# stdout:
+{
+  "command": "audit",
+  "data": {
+    "auditors": [
+      {
+        "ecosystem": "npm",
+        "packages": 0,
+        "status": "unavailable",
+        "tool": "osv-scanner"
+      },
+      {
+        "ecosystem": "pip",
+        "packages": 2,
+        "status": "ok",
+        "tool": "osv-scanner"
+      }
+    ]
+  },
+  "dir": "OUT/work/pip-only",
+  "ecosystems": [
+    "npm",
+    "pip"
+  ],
+  "findings": [
+    {
+      "file": "",
+      "fix": "commit the lockfile (or pass it with --lockfile) so osv-scanner can read it",
+      "id": "AUD001",
+      "line": 0,
+      "message": "npm: osv-scanner read no file it understands here (package-lock.json, npm-shrinkwrap.json, yarn.lock, pnpm-lock.yaml or bun.lock); npm is unaudited, not clean",
+      "severity": "warn"
+    }
+  ],
+  "tools": [
+    "cargo-audit",
+    "cosign",
+    "gh",
+    "govulncheck",
+    "npm",
+    "osv-scanner",
+    "pip-audit",
+    "syft"
+  ]
+}

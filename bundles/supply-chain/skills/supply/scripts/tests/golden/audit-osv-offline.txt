@@ -14,8 +14,9 @@ supply: dir=dirty ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,sh
       },
       {
         "ecosystem": "go",
+        "offline": true,
         "packages": 1,
-        "status": "offline",
+        "status": "ok",
         "tool": "osv-scanner"
       },
       {
@@ -26,8 +27,9 @@ supply: dir=dirty ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,sh
       },
       {
         "ecosystem": "pip",
+        "offline": true,
         "packages": 2,
-        "status": "offline",
+        "status": "ok",
         "tool": "osv-scanner"
       }
     ]
@@ -50,7 +52,7 @@ supply: dir=dirty ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,sh
       "id": "AUD001",
       "line": 0,
       "message": "cargo: osv-scanner read no file it understands here (Cargo.lock); cargo is unaudited, not clean",
-      "severity": "info"
+      "severity": "warn"
     },
     {
       "file": "",
@@ -58,7 +60,7 @@ supply: dir=dirty ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,sh
       "id": "AUD001",
       "line": 0,
       "message": "npm: osv-scanner read no file it understands here (package-lock.json, npm-shrinkwrap.json, yarn.lock, pnpm-lock.yaml or bun.lock); npm is unaudited, not clean",
-      "severity": "info"
+      "severity": "warn"
     },
     {
       "file": "go.mod",
