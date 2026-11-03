@@ -3,8 +3,9 @@
 One governed harness for the AI coding agents your developers already use: the rules,
 skills, sub-agents, permission lists, MCP servers and command guard that make Claude Code,
 Gemini CLI, Copilot CLI, Codex and OpenCode work like a careful colleague on GitHub, GitLab,
-Jira, Kubernetes, Google Workspace and the software supply chain. Built for platform teams rolling out one baseline to
-many developers, and for the developer who wants that baseline on their own machine.
+Jira, Kubernetes, Google Workspace and the software supply chain. Built for platform teams
+rolling out one baseline to many developers, and for the developer who wants that baseline on
+their own machine.
 
 Without it, an agent can read a token file, push to `main` or close a ticket with a commit
 message, and five providers get configured five different ways, by hand, on every machine.

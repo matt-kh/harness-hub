@@ -13,12 +13,16 @@ prints every one between your applied version and the new one.
 - [docs/bundles/supply-chain.md](docs/bundles/supply-chain.md): the hand-written body (the
   `supply` verbs and exit codes, skills and agents, guard section 38, the optional tools, a
   `[supply_chain]` example with documentation values) and Troubleshooting rows for audit
-  `unavailable`/`partial`/exit 3, `supply verify` exit 2 (identity, anchoring, `unverifiable`,
+  `unavailable`/`partial` (exit 1) and exit 3 (no detected ecosystem could be audited, and the
+  other unsupported inputs), `supply verify` exit 2 (identity, anchoring, `unverifiable`,
   `--github`), `supply ci` false positives and tags flagged by `supply pins`. `SECURITY.md`: a
   threat-model row for unpinned or unverified code, outbound-call rows for `supply audit`,
   `supply verify` and `supply sbom IMAGE`, and `security` among the domains a repository can
-  own. [docs/roadmap.md](docs/roadmap.md): `supply-chain` shipped (experimental), band `38` in
-  use, its config keys moved to the shipped list, S4b covers `supply-architect`;
+  own (every rule of section 38; the `~/.sigstore/` key deny never yields).
+  [docs/roadmap.md](docs/roadmap.md): `supply-chain` shipped (experimental; the section keeps
+  the design as planned and points to the bundle page), band `38` in use while core band `35`
+  (pipe-to-shell) stays planned for a later part, its config keys moved to the shipped list,
+  S4b covers `supply-architect`;
   [docs/reference/security.md](docs/reference/security.md) marks it shipped; README names
   the supply chain and the security track.
 - [docs/roadmap.md](docs/roadmap.md): the Security track. `supply-chain` (#51) is its first

@@ -11,29 +11,41 @@ and `supply ci` already report it in files (`SH001`).
 
 **The `supply` CLI** reads a checkout, an image or a file and changes nothing but the files
 `pins --apply` and `sbom --out` name. Banner on stderr `supply: dir=<DIR> ecosystems=<list>
-tools=<installed list>`; exit `0` clean, `1` findings (also a usage error), `2` access, tool or
-config error (a failed `verify` included), `3` unsupported input. Every tool output passes
-through the core redactor; severities come from the rubrics in
-`bundles/supply-chain/skills/supply/references/`.
+tools=<installed list>` (`dir=-` for an image, a file and `ci`; none for `redact` and `sbom
+lint`); exit `0` clean, `1` findings (an ecosystem `audit` left unaudited included; also a usage
+error), `2` access, tool or config error (a failed `verify` included), `3` unsupported input
+(for `audit`: no detected ecosystem could be audited). Every tool output passes through the core
+redactor; severities come from the rubrics in `bundles/supply-chain/skills/supply/references/`.
 
 - `supply detect [DIR]`: ecosystems (pip, npm, go, cargo, docker, GitHub Actions, GitLab CI,
   shell), their manifests and lockfiles; never runs a tool.
 - `supply pins [DIR] [--apply FILE]`: actions by tag, images without a digest, unpinned
   dependencies and downloads without a checksum, each finding carrying the exact `ref` token;
-  `--apply` rewrites those tokens to a digest or commit sha, all files or none, byte-exact, then
-  re-scans.
-- `supply ci FILE... [--ignore RULE,...]`: GitHub Actions and GitLab CI hardening (`CI000`–`CI009`:
-  permissions, `pull_request_target`, script injection, secrets echoed).
+  `--apply` rewrites those tokens to a digest or commit sha, all files or none, byte-exact apart
+  from the tag comment it writes for an action pinned from a tag (` # TAG`), then re-scans.
+- `supply ci FILE... [--ignore RULE,...]`: hardening of GitHub Actions workflows and actions,
+  GitLab CI, Dockerfiles, compose files and shell scripts (`CI000`–`CI009`, `GHA*`, `SH*`,
+  `REG001`: permissions, `pull_request_target`, script injection, secrets echoed, unpinned
+  actions, images and includes, remote includes, security jobs allowed to fail, unverified
+  downloads).
 - `supply audit [DIR] [--lockfile F]... [--sbom F] [--offline]`: osv-scanner, else the
   ecosystem's own auditor when already installed (`npm audit`, `pip-audit` on fully hashed
   requirements files, `cargo-audit`, `govulncheck`), never running code from the checkout.
-  `data.auditors[]` says per ecosystem whether it was `ok`, `partial`, `unavailable`, `error` or
-  `offline`: unavailable is never clean.
+  `data.auditors[]` gives each ecosystem a status: `ok` (with `"offline": true` when osv-scanner
+  used its local database), `partial` (pip-audit read the fully hashed requirements files and
+  skipped the others), `unavailable` (no auditor, or nothing it can read), `error` (the fallback
+  auditor failed, `AUD003`) or `offline` (a fallback that needs the network did not run under
+  `--offline`). `unavailable` and `offline` are never clean: each ecosystem or file left
+  unaudited is an `AUD001` warning, so the run exits 1; it exits 3 only when osv-scanner is
+  absent and no detected ecosystem could be audited.
 - `supply sbom DIR|IMAGE [--out F]` (syft, from a directory or a registry, never the docker
   daemon) and `supply sbom lint FILE` (SPDX and CycloneDX shape, no tool needed).
-- `supply verify TARGET --identity NAME | --key F | --github OWNER[/REPO]`: cosign keyless,
+- `supply verify TARGET [--identity NAME|RE [--issuer URL] | --key F | --github OWNER[/REPO]]
+  [--attestation [--type T]] [--bundle F] [--trusted-root F] [--offline]`: cosign keyless (with
+  none of the three, the `[[supply_chain.identities]]` entry whose `match_re` matches TARGET),
   key, attestation and blob-with-bundle verification, or `gh attestation verify`; anchored
-  identity regexps only, never an `--insecure-*` flag. A failure is a finding (exit 2).
+  identity regexps only, never an `--insecure-*` flag. A failed verification exits 2 with
+  `unverifiable: …` on stderr and no JSON: report it as a finding.
 - `supply redact`: the redactor as a stdin filter.
 
 **Skills and agents.**
@@ -55,10 +67,11 @@ through the core redactor; severities come from the rubrics in
   prefix) or `npm update NAME --package-lock-only --ignore-scripts`; `pnpm update NAME@X.Y.Z
   --lockfile-only --ignore-pnpmfile --ignore-scripts` with package-manager switching off, and
   only without a `.pnpmfile.cjs` or a `packageManager` version other than the installed pnpm;
-  `cargo update -p NAME --precise X.Y.Z` only without a `rust-toolchain` file or a
-  `.cargo/config*` that names a credential provider or a rustc wrapper; `GOTOOLCHAIN=local go
-  get`. Poetry, and every case above that does not hold, is a manual change for the human. It
-  never crosses a major (for `0.x`, a `0.MINOR`; a `0.0.x` package never upgrades), checks each
+  `cargo update -p NAME --precise X.Y.Z` only without a `rust-toolchain` file, without a
+  `.cargo/config*` that sets a credential provider, `rustc` or a rustc wrapper, and with
+  `RUSTUP_TOOLCHAIN` unset or naming an installed toolchain; `GOTOOLCHAIN=local go get`.
+  Poetry, and every case above that does not hold, is a manual change for the human. It never
+  crosses a major (for `0.x`, a `0.MINOR`; a `0.0.x` package never upgrades), checks each
   new locked version against the `--fix` limit (an overshoot is reverted and reported), and
   re-runs `supply audit`. It never runs the project's tests: it names the test command and
   reports the upgrade as untested. The report separates what the diff fixed, what needs a major
@@ -89,8 +102,9 @@ through the core redactor; severities come from the rubrics in
   `GOINSECURE=<value>`, `GOFLAGS=-insecure`, `go get -insecure`, `go env -w
   GONOSUMDB|GONOSUMCHECK=<value>`, `GOSUMDB=off`, `cosign verify* --insecure-*|--allow-*-registry|
   --private-infrastructure` (any true value), and a reader taking `cosign.key` or a key under
-  `~/.sigstore/` (any `.sigstore/**/*.key`, so `cd ~` is no bypass) as a file operand. Each reason names the trust-root fix (`PIP_CERT`,
-  `NODE_EXTRA_CA_CERTS`, `http.sslCAInfo`, `GOPRIVATE`).
+  `~/.sigstore/` (any `.sigstore/**/*.key`, so `cd ~` is no bypass) as a file operand. Each
+  reason names the trust-root fix (`PIP_CERT`, `NODE_EXTRA_CA_CERTS`, `http.sslCAInfo`,
+  `GOPRIVATE`).
 - Installing into the machine **asks**: `pip install` outside a venv, with `--user`,
   `--break-system-packages`, `sudo`, or `--target|--prefix` outside the checkout; `uv pip
   install --system|--break-system-packages` and `UV_SYSTEM_PYTHON=1`; `npm|pnpm -g` (also
@@ -138,7 +152,8 @@ a missing one makes its verb report `unavailable` (audit) or exit 2 (sbom, verif
 `supply verify --github` needs `gh` 2.49 or newer (the `github` bundle).
 
 **Configuration.** `supply_chain.allow_global_re` and `supply_chain.venv_markers` are read by
-the guard; the other keys by the `supply` CLI, where `SUPPLY_*` environment variables win.
+the guard; the other keys by the `supply` CLI, where a `SUPPLY_*` environment variable wins
+where one exists (every key but `identities` and `pin_actions`).
 Public values only, never a key, in `local/harness.toml` (documentation values shown), then
 `harness apply`:
 
@@ -180,10 +195,10 @@ Every key with its default is in the Configuration table below.
 | `supply audit --offline` exits 2 `no offline version of the OSV database` | osv-scanner reads its offline databases from `DIR/osv-scalibr/<Ecosystem>/all.zip` and the CLI never downloads them | download them once by hand (`OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY=DIR osv-scanner scan source --offline-vulnerabilities --download-offline-databases -r .`; `-r .` downloads databases only for the ecosystems found in that directory, so run it in each repository you audit offline) and set `supply_chain.osv_offline_db = "DIR"`, or drop `--offline` |
 | `supply verify IMAGE --offline` exits 3 | cosign 3.1.4 deprecated `--offline` and reads an image's signatures from its registry; nothing keeps it offline | verify a downloaded file: `supply verify FILE --bundle F --trusted-root F --offline`, or `supply verify IMAGE --github OWNER/REPO --bundle F --trusted-root F --offline`; else drop `--offline` |
 | `supply verify IMAGE --bundle F` exits 1 | cosign 3 reads an image's signatures from its registry; `--bundle` is for a file | drop `--bundle`, or use `--github OWNER/REPO --bundle F` |
-| `supply audit` reports an ecosystem `unavailable` although osv-scanner is installed (`AUD001 … osv-scanner read no … here`) | osv-scanner found no lockfile it understands for that ecosystem (a `pyproject.toml` or `package.json` alone is no lockfile) | commit the lockfile (`uv lock`, `npm install --package-lock-only --ignore-scripts`), or pass it with `--lockfile F` |
-| `supply audit` reports an ecosystem `partial` | the fallback auditor read some files and skipped others (`pip-audit` only reads fully hashed requirements files, `npm audit` needs `package-lock.json`) | `harness install osv-scanner`, which reads every lockfile; or lock the skipped files |
-| `supply audit` exits 3 `no auditor for …` | no auditor could run for any ecosystem detected: osv-scanner is absent and so is each ecosystem's own auditor | `harness install osv-scanner`; unaudited is reported, never clean |
-| `supply` exits 3 elsewhere | unsupported input: `ci` with no file it can scan, `sbom lint` on a non-JSON file, `sbom` on a file, `verify --offline` without `--trusted-root`, `--github --offline` without `--bundle`, an image with `--offline` | pass the input the message names; `supply detect` knows pip, npm, go and cargo (plus Actions, GitLab CI, Dockerfiles and shell): another ecosystem's lockfiles are audited only by osv-scanner and are otherwise not covered |
+| `supply audit` reports an ecosystem `unavailable` although osv-scanner is installed (`AUD001 … osv-scanner read no … here`) | osv-scanner found no lockfile it understands for that ecosystem (a `pyproject.toml` or `package.json` alone is no lockfile) | commit the lockfile (`UV_PYTHON_DOWNLOADS=never uv lock --no-build`, `npm install --package-lock-only --ignore-scripts`), or pass it with `--lockfile F` |
+| `supply audit` reports pip `partial` (`AUD001` per skipped file, exit 1) | `pip-audit` read the fully hashed requirements files and skipped the others; only pip can be partial (npm without `package-lock.json` is `unavailable`) | `harness install osv-scanner`, which reads every lockfile; or hash the skipped files (`uv pip compile --generate-hashes`) |
+| `supply audit` exits 3 `no auditor for …` | no detected ecosystem could be audited: osv-scanner is absent, and each ecosystem's own auditor is absent, has nothing it can read (`pip-audit`: fully hashed requirements files; `npm audit`: `package-lock.json`) or needs the network under `--offline` | `harness install osv-scanner` (plus `supply_chain.osv_offline_db` for `--offline`); unaudited is reported, never clean |
+| `supply` exits 3 elsewhere | unsupported input: `audit --sbom F` without osv-scanner, `ci` with no file it can scan, `sbom lint` on a non-JSON file, `sbom` on a file, `verify --offline` without `--trusted-root`, `--github --offline` without `--bundle`, an image with `--offline` | pass the input the message names; `supply detect` knows pip, npm, go and cargo (plus Actions, GitLab CI, Dockerfiles and shell): another ecosystem's lockfiles are audited only by osv-scanner and are otherwise not covered |
 | `supply verify` exits 2 `no signer identity for …` or `is not a configured identity` | no `[[supply_chain.identities]]` entry is named or matches the target (`match_re`) | add the signer (manual step [configure-identities](#configure-identities)) and run `harness apply`, or pass `--identity '^…$' --issuer URL` |
 | `supply verify` exits 2 `… must be anchored` (doctor `supply-config` WARNs) | an identity regexp without `^…$` would accept any certificate that merely contains it | anchor it, name the workflow file and restrict the ref |
 | `supply verify` exits 2 `unverifiable: …` | cosign rejected it: the signer's identity or issuer is not the one asked for, the tag now points at another digest, there is no signature or attestation, or the registry refused the read (private image, not logged in) | compare the identity and issuer with the release workflow, verify by digest (`IMAGE@sha256:…`), have the human log in to the registry; never retry with `--insecure-*`, `--allow-*-registry` or a looser regexp: an unverified artefact is a finding |

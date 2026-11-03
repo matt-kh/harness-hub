@@ -19,9 +19,9 @@ loop (`lessons`), the software supply chain (`supply-chain`, experimental)
 and the conventions, credentials and git rules every developer needs (`core`). That is the
 surface of a platform engineer. Application, data, QA, security and release engineers also
 run containers, databases, cloud CLIs, infrastructure-as-code, pipelines and remote hosts
-from the same terminal, and the agent sees none of it today (package managers: `supply-chain`). The
-[Security track](#security-track) plans the security engineer's surface; its first bundle,
-`supply-chain`, has shipped.
+from the same terminal, and apart from package managers (`supply-chain`) the agent sees none of
+it today. The [Security track](#security-track) plans the security engineer's surface; its first
+bundle, `supply-chain`, has shipped.
 
 Site reliability work has the same gap: `k8s` reads the Kubernetes API only, so the agent sees
 no signals outside the cluster (metrics, logs, traces and alerts in an observability backend),
@@ -79,9 +79,9 @@ New `domain` values, added through the procedure in
 Everything else reuses existing values: `ci`, `release` and the worktree work are `scm`
 (pipelines, tags and worktrees live on or for the source host); `secrets` is `base` (its
 meaning already includes credentials, and the credential denies never yield; see
-[security](reference/security.md#which-domain-security-or-the-systems-own)); `digest` is `delivery`. `db` stays under
-`infrastructure` until a second data bundle exists ("a value exists only while a component
-uses it"). No new `function` or `posture` values are needed.
+[security](reference/security.md#which-domain-security-or-the-systems-own)); `digest` is
+`delivery`. `db` stays under `infrastructure` until a second data bundle exists ("a value
+exists only while a component uses it"). No new `function` or `posture` values are needed.
 
 ## Tranche P0: honesty and cheap sensors
 
@@ -348,7 +348,8 @@ off (deny, with the trust-root fix as the alternative), findings in the `code-re
 contract, output through the shared `redact` block, optional scanners pinned by
 `tools/<tool>.lock.json`, organisation policy as config. The reference page maps nine
 disciplines onto the taxonomy and says what stays out of scope for a user-level harness.
-**Status: in progress** (`supply-chain` shipped, experimental; core `35` and the candidates planned).
+**Status: in progress** (`supply-chain` shipped, experimental; core `35` and the candidates
+planned).
 
 | Item | Kind | Domain / posture / function | Prefix | Slice |
 |---|---|---|---|---|
@@ -366,15 +367,17 @@ disciplines onto the taxonomy and says what stays out of scope for a user-level 
 
 ### `supply-chain` bundle
 
-**Shipped** (experimental; see CHANGELOG and the [bundle page](bundles/supply-chain.md)).
+**Shipped** (experimental; see CHANGELOG and the [bundle page](bundles/supply-chain.md)). The
+design below is as planned; the bundle page is authoritative.
 `depends_on = ["core"]`, `recommends = ["github"]` (`gh attestation verify`, tag lookups),
 stability `experimental`; taxonomy security / local / client, the CLI and client skill
 read-only. Supersedes the P2 `toolchain` row: its asks and `/audit-deps` move here unchanged.
 
 - CLI and client skill **`supply`** (the `stack` → `stk` precedent: bundle and CLI names
   differ), stdlib, inlining the core `harness_config` and `redact` blocks; banner on stderr
-  `supply: dir=<path> ecosystems=<list> tools=<installed list>`; exit `0` clean, `1` findings,
-  `2` access, tool or config error, `3` unsupported.
+  `supply: dir=<path> ecosystems=<list> tools=<installed list>`; exit `0` clean, `1` findings
+  (an ecosystem `audit` left unaudited included), `2` access, tool or config error, `3`
+  unsupported (for `audit`: no detected ecosystem could be audited).
 
   ```
   supply detect [DIR]                            ecosystems, manifests, lockfiles, CI systems, Dockerfiles
@@ -412,8 +415,8 @@ read-only. Supersedes the P2 `toolchain` row: its asks and `/audit-deps` move he
 - Optional pinned tools: `osv-scanner`, `cosign`, `syft` in `tools/<tool>.lock.json`, marked
   `"optional": true` so `harness pack --tools` and bootstrap skip them unless asked.
 - Sensors: guard rows with bypasses and yield rows, doctor (`supply-cli`, `supply-detect`,
-  `supply-config`, and the generic per-binary check for each optional tool), goldens per verb over fixture checkouts with stub
-  tools, a stub-tool log that shows reads only.
+  `supply-config`, and the generic per-binary check for each optional tool), goldens per verb
+  over fixture checkouts with stub tools, a stub-tool log that shows reads only.
 - Not implemented: publishing, signing, key generation, registry administration, SBOM upload,
   licence policy (org overlay), reachability analysis.
 - Seams: image scanning is `containers`; tags and publication are `release`; credential
@@ -496,8 +499,8 @@ Cross-tranche items that make the hub easier to maintain and to extend.
   `core.review.max_diff_kb`, `core.checks.extra_patterns`, `core.worktree_path_tmpl`,
   `core.session_banner`, `core.report_max_age_days`, `providers.claude.status_line`,
   `ci.log_tail`, `ci.redact_extra_re`, `ci.flaky_re`, `k8s.registries_allow_re`,
-  `secrets.extra_token_shapes_re`, `secrets.scan_exclude_re`, `containers.remote_re`, `containers.prod_re`,
-  `containers.registries_re`, `release.changelog`, `release.version_file`,
+  `secrets.extra_token_shapes_re`, `secrets.scan_exclude_re`, `containers.remote_re`,
+  `containers.prod_re`, `containers.registries_re`, `release.changelog`, `release.version_file`,
   `release.tag_prefix`, `release.tag_re`, `release.conventional_commits`, `cloud.prod_re`,
   `cloud.accounts`, `iac.prod_re`, `iac.stateful_types_re`, `db.prod_re`, `db.targets`,
   `db.row_limit`, `hosts.prod_re`, `hosts.inventory`, `hosts.ssh_timeout`, `digest.repos`,
@@ -506,12 +509,14 @@ Cross-tranche items that make the hub easier to maintain and to extend.
   `k8s.redact_extra_re`, `incident.runbook_dirs`, `incident.runbook_max_age_days`,
   `incident.postmortem_dir`, `incident.postmortem_folder`, `incident.severity_levels`,
   `incident.timeline_since`, `incident.tracker`, `slo.dir`, `slo.default_window`,
-  `slo.burn_windows`, `slo.page_threshold`, `slo.ticket_threshold`, and (shipped) `stack.label`, `stack.push`,
-  `stack.update_method`, `stack.leaf_refresh`, `supply_chain.allow_global_re`,
-  `supply_chain.venv_markers`, `supply_chain.registries_re`, `supply_chain.identities`,
-  `supply_chain.redact_extra_re`, `supply_chain.exclude_re`, `supply_chain.osv_offline_db`,
-  `supply_chain.pin_actions`, `supply_chain.timeout`, `supply_chain.max_bytes`. Every env name a guard section reads must carry a prefix the
-  guard accepts (`HARNESS_`, `K8S_`, `OBS_`, `INCIDENT_`, `SLO_`, `SUPPLY_`, …; lint `env-provides` enforces this).
+  `slo.burn_windows`, `slo.page_threshold`, `slo.ticket_threshold`, and (shipped)
+  `stack.label`, `stack.push`, `stack.update_method`, `stack.leaf_refresh`,
+  `supply_chain.allow_global_re`, `supply_chain.venv_markers`, `supply_chain.registries_re`,
+  `supply_chain.identities`, `supply_chain.redact_extra_re`, `supply_chain.exclude_re`,
+  `supply_chain.osv_offline_db`, `supply_chain.pin_actions`, `supply_chain.timeout`,
+  `supply_chain.max_bytes`. Every env name a guard section reads must carry a prefix the guard
+  accepts (`HARNESS_`, `K8S_`, `OBS_`, `INCIDENT_`, `SLO_`, `SUPPLY_`, …; lint `env-provides`
+  enforces this).
 
 ## Rejected or deferred
 
