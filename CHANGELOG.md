@@ -10,6 +10,21 @@ prints every one between your applied version and the new one.
 
 ### Docs
 
+- [docs/bundles/supply-chain.md](docs/bundles/supply-chain.md): the hand-written body (the
+  `supply` verbs and exit codes, skills and agents, guard section 38, the optional tools, a
+  `[supply_chain]` example with documentation values) and Troubleshooting rows for audit
+  `unavailable`/`partial` (exit 1) and exit 3 (no detected ecosystem could be audited, and the
+  other unsupported inputs), `supply verify` exit 2 (identity, anchoring, `unverifiable`,
+  `--github`), `supply ci` false positives and tags flagged by `supply pins`. `SECURITY.md`: a
+  threat-model row for unpinned or unverified code, outbound-call rows for `supply audit`,
+  `supply verify` and `supply sbom IMAGE`, and `security` among the domains a repository can
+  own (every rule of section 38; the `~/.sigstore/` key deny never yields).
+  [docs/roadmap.md](docs/roadmap.md): `supply-chain` shipped (experimental; the section keeps
+  the design as planned and points to the bundle page), band `38` in use while core band `35`
+  (pipe-to-shell) stays planned for a later part, its config keys moved to the shipped list,
+  S4b covers `supply-architect`;
+  [docs/reference/security.md](docs/reference/security.md) marks it shipped; README names
+  the supply chain and the security track.
 - [docs/roadmap.md](docs/roadmap.md): the Security track. `supply-chain` (#51) is its first
   bundle and supersedes the planned `toolchain` (guard band `38`; the P2 row becomes a pointer,
   the proposed `code` domain is dropped, `toolchain.*` keys become `supply_chain.*`, env prefix
@@ -76,8 +91,15 @@ prints every one between your applied version and the new one.
 
 ### Added
 
-- `supply-chain` bundle, part 1 of #51 (experimental; domain `security`, posture `local`):
-  rule `rules/38-supply-chain.md`, guard section `38-supply-chain` and a permission list.
+- `supply-chain` bundle (#51; experimental; domain `security`, posture `local`), the first
+  bundle of the security track: pin what you add, install inside the project, never switch
+  verification off. Guard section 38 with its rule and permission list, the read-only `supply`
+  CLI and client skill, pinned optional `osv-scanner`, `cosign` and `syft`, the workflow skills
+  `/pin-deps` and `/audit-deps` and three read-only agents (the bullets below); docs page
+  [supply-chain](docs/bundles/supply-chain.md). Pipe-to-shell as a command (core band `35`)
+  lands in a later part of #51.
+- `supply-chain` guard: rule `rules/38-supply-chain.md`, guard section `38-supply-chain` and a
+  permission list.
   The section lexes the raw command once (newlines, subshells, `{ }`, `if/for` bodies, `$( )`,
   backticks and `sh -c`/`eval` strings are separate commands; quotes and backslashes removed;
   heredoc bodies are data unless a shell reads them) and exempts commands that only print or
@@ -110,11 +132,11 @@ prints every one between your applied version and the new one.
   (`SUPPLY_ALLOW_GLOBAL_RE`), `supply_chain.venv_markers` (`SUPPLY_VENV_MARKERS`),
   `supply_chain.registries_re`, `supply_chain.identities`, `supply_chain.redact_extra_re`,
   `supply_chain.osv_offline_db`, `supply_chain.pin_actions`, `supply_chain.max_bytes` (the last
-  six for the `supply` CLI of a later part). Guard rows incl. bypasses, ordering against later
-  denies, the `security` yield and `guard.env`; docs page [supply-chain](docs/bundles/supply-chain.md).
+  six for the `supply` CLI). Guard rows incl. bypasses, ordering against later denies, the
+  `security` yield and `guard.env`.
   The guard's `guard.env` parser and the `env-provides` lint accept the `SUPPLY_` prefix; band
   `38` is listed in ARCHITECTURE §3.
-- `supply-chain` bundle, part 2 of #51: the read-only `supply` CLI (stdlib python 3.9, inlining
+- `supply-chain` CLI: the read-only `supply` CLI (stdlib python 3.9, inlining
   the core `harness_config` and `redact` blocks) and its client skill with six reference
   rubrics. Verbs: `detect` (ecosystems, manifests, lockfiles; never runs a tool), `pins`
   (unpinned actions, images, dependencies and unverified downloads, `GHA*`, `DKR*`, `PIP*`,
@@ -144,7 +166,7 @@ prints every one between your applied version and the new one.
   (`SUPPLY_PATH`): every verb in JSON and Markdown, the unavailable and fallback-only paths,
   byte-exact `--apply` (CRLF and comments kept), redaction, stub-log invariants (verify only,
   no `fix`, no docker), one rubric row per rule id, and two identical runs.
-- `supply-chain` bundle, part 3 of #51: pinned, sha256-verified, **optional** lock files
+- `supply-chain` tools: pinned, sha256-verified, **optional** lock files
   `tools/osv-scanner.lock.json` (2.7.0, bare binaries), `tools/cosign.lock.json` (3.1.4, bare
   binaries) and `tools/syft.lock.json` (1.55.0, tar.gz) for linux/darwin × amd64/arm64, each
   digest taken from the upstream checksum file (`osv-scanner_SHA256SUMS`,
@@ -169,7 +191,7 @@ prints every one between your applied version and the new one.
   document root and, for syft's own output only, CycloneDX `"type": "file"` components (absolute
   manifest paths); `sbom lint` accepts CycloneDX 1.7 (syft 1.55.0's default). `[uninstall]` also keeps
   `~/.cache/osv-scalibr/**`, where osv-scanner 2.7.0 keeps its offline databases.
-- `supply-chain` bundle, part 4 of #51: workflow skills `/pin-deps` (`supply pins` findings →
+- `supply-chain` skills and agents: workflow skills `/pin-deps` (`supply pins` findings →
   values resolved read-only with `git ls-remote`, `gh api` or `glab api` GETs and an installed
   `crane`/`docker buildx imagetools` → `supply pins --apply` → `supply pins` again; tags keep
   today's target, branches and `latest` are suggestions the user accepts, a `CI008` include
@@ -738,7 +760,7 @@ prints every one between your applied version and the new one.
   `supply_chain.allow_global_re` (`SUPPLY_ALLOW_GLOBAL_RE`), `supply_chain.venv_markers`
   (`SUPPLY_VENV_MARKERS`), `supply_chain.registries_re`, `supply_chain.identities` (array of
   tables), `supply_chain.redact_extra_re`, `supply_chain.osv_offline_db`,
-  `supply_chain.pin_actions`, `supply_chain.max_bytes`, and for the `supply` CLI (part 2)
+  `supply_chain.pin_actions`, `supply_chain.max_bytes`, and for the `supply` CLI
   `supply_chain.exclude_re` (default `""`) and `supply_chain.timeout` (default `120`). The guard's `guard.env` parser now also
   accepts `SUPPLY_` keys (core engine and the `env-provides` lint list); nothing to edit for
   existing setups. With the bundle enabled, `pip install` outside a venv, global npm/cargo
@@ -747,7 +769,7 @@ prints every one between your applied version and the new one.
   the conda or mamba root), and a `VIRTUAL_ENV=` assignment on the command line is no marker:
   activate a project env, or use `uv` or `.venv/bin/pip`. Write `supply_chain.allow_global_re`
   anchored (`^(ruff|black)$`).
-- Optional tool locks (`supply-chain` part 3): a `tools/*.lock.json` may carry `"optional": true`.
+- Optional tool locks (`supply-chain`): a `tools/*.lock.json` may carry `"optional": true`.
   `harness pack --tools …` leaves such locks out unless you add `--tools-optional`; an
   air-gapped site that wants osv-scanner, cosign or syft adds the flag to its pack command.
   Bootstrap no longer installs a missing binary that a bundle declares `optional`: the one

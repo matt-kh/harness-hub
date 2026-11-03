@@ -3,8 +3,9 @@
 One governed harness for the AI coding agents your developers already use: the rules,
 skills, sub-agents, permission lists, MCP servers and command guard that make Claude Code,
 Gemini CLI, Copilot CLI, Codex and OpenCode work like a careful colleague on GitHub, GitLab,
-Jira, Kubernetes and Google Workspace. Built for platform teams rolling out one baseline to
-many developers, and for the developer who wants that baseline on their own machine.
+Jira, Kubernetes, Google Workspace and the software supply chain. Built for platform teams
+rolling out one baseline to many developers, and for the developer who wants that baseline on
+their own machine.
 
 Without it, an agent can read a token file, push to `main` or close a ticket with a commit
 message, and five providers get configured five different ways, by hand, on every machine.
@@ -134,7 +135,10 @@ Ten principles govern every change to the hub; each links to its document (check
   ([hook policy](docs/reference/hook-policy.md)). With the experimental
   [`supply-chain`](docs/bundles/supply-chain.md) bundle it also denies switching TLS or
   signature verification off and asks before installs into the machine and unpinned
-  dependencies.
+  dependencies; its read-only `supply` CLI reports unpinned actions, images and
+  dependencies, known vulnerabilities and unverified signatures, and `/pin-deps` and
+  `/audit-deps` turn the findings into a diff you review. It is the first bundle of the
+  [security track](docs/reference/security.md).
 - Agents write without a prompt only to artefacts they own, marked by an `agent-*` label
   ([governance](docs/governance.md)).
 - **User-level by design.** Everything the hub installs is a baseline that yields wholesale
