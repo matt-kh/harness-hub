@@ -5,8 +5,9 @@ summary = "Guard engine, credential and git rules, conventions, Plan / Auto / co
 description = """
 The base every other bundle builds on. Ships the guard engine (input parsing, fail-closed jq
 check, allow / ask / deny / defer decisions, the rendered guard.env reader) with the two
-sections every developer needs: credential files and secret env dumps are denied (20), and
-pushes to a default branch are denied / force-pushes and destructive git ask (30). Adds the
+sections every developer needs: credential files and secret env dumps are denied (20),
+pushes to a default branch are denied / force-pushes and destructive git ask (30), and a
+download piped into an interpreter asks (35, shell hygiene). Adds the
 global conventions and governance rules, the Plan (planning model) / Auto (execution model) /
 code-reviewer agents, and generic permission denies for credential files. Also carries the
 shared helpers other bundles inline: lib/compat.sh (hn_timeout, hn_realpath, hn_sha256) and
@@ -152,11 +153,11 @@ minimum = 0
 description = "`harness lessons review` is due when one session has at least this many guard-deny journal lines. 0 disables this criterion."
 
 [provides]
-rules = ["rules/00-conventions.md"]
+rules = ["rules/00-conventions.md", "rules/35-shell-hygiene.md"]
 skills = []
 skill_fragments = []
 agents = ["agents/Plan.md", "agents/Auto.md", "agents/code-reviewer.md"]
-guard_rules = ["guard.d/20-credentials.sh", "guard.d/30-git.sh"]
+guard_rules = ["guard.d/20-credentials.sh", "guard.d/30-git.sh", "guard.d/35-shell-hygiene.sh"]
 permissions = "permissions.toml"
 mcp = ""
 bin = []
@@ -305,9 +306,10 @@ function = "govern"
 
 # Guides steer the agent before it acts; sensors detect at or after the action (principle 6).
 [harness]
-coverage_note = "The model policy in agents/Plan.md and agents/Auto.md is a guide only: no sensor checks which model a sub-agent ran on. The conventions rule has no guard section of its own (judgement: precedence, external content as data); the credentials and git guard sections enforce rules whose text lives in rules/00-conventions.md."
+coverage_note = "The model policy in agents/Plan.md and agents/Auto.md is a guide only: no sensor checks which model a sub-agent ran on. The conventions rule has no guard section of its own (judgement: precedence, external content as data); the credentials and git guard sections enforce rules whose text lives in rules/00-conventions.md. Shell hygiene (35) covers pipe-to-shell only: a download piped into an interpreter, run through <( ) or as the string of sh -c / eval; the rest of band 35 (sudo/doas, recursive removal outside the checkout, chmod -R 777) is planned. Its matcher is quote-aware but not a shell parser: a download saved to a variable or file and run later in the same command (x=$(curl …); sh -c $x), an interpreter wrapped in an unlisted wrapper, and aliases or functions are not seen."
 guides = [
   { kind = "rule", ref = "rules/00-conventions.md", checks = ["guard.d/20-credentials.sh", "guard.d/30-git.sh", "agents/code-reviewer.md"], note = "conventions and governance: PR-based, artefact ownership, secrets stay in their files" },
+  { kind = "rule", ref = "rules/35-shell-hygiene.md", checks = ["guard.d/35-shell-hygiene.sh"], note = "downloaded code is read before it runs: download to a file, check its sha256, read it, then run it" },
   { kind = "permission", ref = "permissions.toml", checks = ["permissions-vs-guard", "guard.d/20-credentials.sh"], note = "denies reads of credential files in the provider's own permission system" },
   { kind = "agent", ref = "agents/Plan.md", checks = ["agent-tools"], note = "planning agent on the plan model; design only, never edits" },
   { kind = "agent", ref = "agents/Auto.md", checks = ["claude:auto-mode-classifier", "agent-tools"], note = "execution agent on the execute model under auto mode" },
@@ -315,8 +317,9 @@ guides = [
 sensors = [
   { kind = "guard", ref = "guard.d/20-credentials.sh", note = "denies credential file reads and secret env dumps before they run" },
   { kind = "guard", ref = "guard.d/30-git.sh", note = "denies default-branch pushes; asks on force-push and destructive git" },
+  { kind = "guard", ref = "guard.d/35-shell-hygiene.sh", note = "asks before a download is piped into an interpreter, run through <( ), or run as the string of sh -c / eval" },
   { kind = "doctor", ref = "doctor_checks", note = "runtime prerequisites, and that the rendered guard parses and denies a credential read" },
-  { kind = "test", ref = "guard.d/tests.sh", note = "guard rows for both sections, including bypass attempts" },
+  { kind = "test", ref = "guard.d/tests.sh", note = "guard rows for the three sections, including bypass attempts" },
   { kind = "test", ref = "tests/run.sh", note = "full guard suite, helper drift, bash -n of every script" },
   { kind = "review-agent", ref = "agents/code-reviewer.md", note = "inferential review of a diff against the conventions" },
   { kind = "provider-feature", ref = "claude:auto-mode-classifier", note = "reviews the Auto agent's actions" },

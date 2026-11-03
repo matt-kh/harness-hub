@@ -122,7 +122,9 @@ would authorise itself: the hub's permission list asks before `Write`/`Edit` of
 without `--write` prints a draft for the human to review and commit.
 
 Owning `core/guard.d/20-credentials`, `core/permissions` or the domain `base` has no effect on
-the credential denies ([below](#the-credential-exemption)).
+the credential denies ([below](#the-credential-exemption)). Owning `base` does lift core's
+shell-hygiene section (`core/guard.d/35-shell-hygiene`: the ask on `curl … | sh`) and the
+lessons ask, as the table below lists.
 
 ## Claude Code: what stacks, what shadows
 
@@ -238,7 +240,7 @@ Components that yield by declaration: listing a domain in `[owns] domains` cover
 
 | domain | guard sections that yield | skills that yield |
 |---|---|---|
-| `base` | `lessons/guard.d/15-lessons` | `lessons/skills/retro` |
+| `base` | `core/guard.d/35-shell-hygiene`, `lessons/guard.d/15-lessons` | `lessons/skills/retro` |
 | `scm` | `core/guard.d/30-git`, `github/guard.d/60-github`, `gitlab/guard.d/50-gitlab`, `stack/guard.d/65-stack` | `stack/skills/stk` |
 | `tracker` | `github/guard.d/41-github-closing`, `gitlab/guard.d/40-gitlab-closing`, `jira/guard.d/70-jira` | `jira/skills/jira` |
 | `delivery` | `ticket-workflow/guard.d/75-ticket-workflow` | `ticket-workflow/skills/create-ticket`, `ticket-workflow/skills/work-ticket` |
@@ -250,6 +252,7 @@ Components that yield by declaration: listing a domain in `[owns] domains` cover
 | id | kind | domain | bundle |
 |---|---|---|---|
 | `core/guard.d/30-git` | guard | scm | core |
+| `core/guard.d/35-shell-hygiene` | guard | base | core |
 | `gdoc/guard.d/80-gdoc` | guard | workspace | gdoc |
 | `gdoc/skills/gdoc` | skill | workspace | gdoc |
 | `github/guard.d/41-github-closing` | guard | tracker | github |
