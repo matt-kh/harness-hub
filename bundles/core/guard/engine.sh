@@ -3,7 +3,7 @@
 # Rendered by harness-hub: engine.sh + bundles/*/guard.d/NN-*.sh (sorted by basename) +
 # engine-flush.sh, concatenated into ONE file (see bundles/core/guard/build.sh).
 # Section order (global numeric prefixes): 10 k8s definitions, 20 credentials, 25 k8s rules,
-# 30 git, 32 obs, 38 supply chain, 40 GitLab/Jira closing keywords, 41 GitHub closing keywords,
+# 30 git, 32 obs, 35 shell hygiene, 38 supply chain, 40 GitLab/Jira closing keywords, 41 GitHub closing keywords,
 # 50 glab, 60 gh, 70 jira, 80 gdoc, 90+ private bundles, then the flush. allow/ask/deny exit
 # immediately, so an earlier section wins; gated rules use defer/pending_allow to let a later
 # deny win.

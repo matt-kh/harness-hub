@@ -26,7 +26,7 @@ order=$(grep -o '^# ==== section [0-9][0-9]-[^ ]*' "$GUARD_BASH" | awk '{print $
 ck "sections are concatenated in basename order" [ "$order" = "$(printf '%s\n' "$order" | LC_ALL=C sort)" ]
 bash -n "$GUARD_BASH"; chk $? "concatenated guard parses"
 HARNESS_GUARD_BUNDLES=none bash "$core/guard/build.sh" "$tmp/core-only.sh"
-ck "HARNESS_GUARD_BUNDLES=none keeps only core's sections" [ "$(grep -c '^# ==== section' "$tmp/core-only.sh")" = 2 ]
+ck "HARNESS_GUARD_BUNDLES=none keeps only core's sections" [ "$(grep -c '^# ==== section' "$tmp/core-only.sh")" = 3 ]
 ck "every section is wrapped in a function and called (principle 8: sections may return)" \
   [ "$(grep -c '^guard_section_[A-Za-z0-9_]*() {$' "$GUARD_BASH")" = "$(grep -c '^# ==== section' "$GUARD_BASH")" ]
 ck "the credential section never yields (no repo_owns line)" \

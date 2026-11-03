@@ -142,7 +142,7 @@ A value exists only while a component uses it. To add one:
 
 | value | meaning | components using it |
 |---|---|---|
-| `base` | the harness itself: engine, credentials, conventions, core agents | 26 (core, lessons) |
+| `base` | the harness itself: engine, credentials, conventions, core agents | 28 (core, lessons) |
 | `scm` | source hosts, branches, MRs/PRs | 35 (core, github, gitlab, stack) |
 | `tracker` | tickets, issues, their state | 15 (github, gitlab, jira) |
 | `delivery` | ticket-to-merge workflow spanning tracker and SCM | 10 (ticket-workflow) |
@@ -155,7 +155,7 @@ A value exists only while a component uses it. To add one:
 
 | value | meaning | components using it |
 |---|---|---|
-| `govern` | constrains the agent and says what to do instead | 39 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, stack, supply-chain, ticket-workflow) |
+| `govern` | constrains the agent and says what to do instead | 41 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, stack, supply-chain, ticket-workflow) |
 | `client` | thin interface to one system | 13 (gdoc, jira, k8s, obs, stack, supply-chain) |
 | `workflow` | multi-step governed procedure | 5 (lessons, supply-chain, ticket-workflow) |
 | `investigate` | diagnoses to a root cause, never applies the fix | 3 (k8s, obs, supply-chain) |
@@ -176,9 +176,9 @@ A value exists only while a component uses it. To add one:
 
 | value | meaning | components using it |
 |---|---|---|
-| `declaration` | returns early when the repository's .harness.toml owns its id or domain | 24 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, stack, supply-chain, ticket-workflow) |
+| `declaration` | returns early when the repository's .harness.toml owns its id or domain | 25 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, stack, supply-chain, ticket-workflow) |
 | `name` | the provider shadows it with a repository component of the same name | 10 (core, k8s, obs, supply-chain) |
-| `text` | concatenated with the repository's instructions, which come last and win | 11 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, stack, supply-chain, ticket-workflow) |
+| `text` | concatenated with the repository's instructions, which come last and win | 12 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, stack, supply-chain, ticket-workflow) |
 | `config` | merged by the provider's permission system; a repository can add rules, never lift a deny | 10 (gdoc, github, gitlab, jira, k8s, lessons, obs, stack, supply-chain, ticket-workflow) |
 | `never` | the developer's own credentials: no repository setting lifts it | 2 (core) |
 | `n/a` | no repository-level equivalent | 90 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, stack, supply-chain, ticket-workflow) |
