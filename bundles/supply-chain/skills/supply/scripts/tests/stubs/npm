@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Test stub for `npm` (supply CLI suite): logs "npm ARGS" to $STUB_LOG, answers from
+# $SUPPLY_STUB_FIX, and fails loudly on anything that writes, signs or switches verification off.
+name=npm
+printf '%s %s\n' "$name" "$*" >> "${STUB_LOG:-/dev/null}"
+fix=${SUPPLY_STUB_FIX:?SUPPLY_STUB_FIX is not set}
+for a in "$@"; do
+  case "$a" in
+    sign|sign-blob|attest|attest-blob|fix|push|publish|--insecure*|--allow-*-registry|--download-offline-databases)
+      echo "stub $name: refusing a mutating or verification-off argument: $a" >&2; exit 1 ;;
+  esac
+done
+if [ "${STUB_FAIL:-}" = "$name" ]; then
+  echo "stub $name: failing on request (STUB_FAIL)" >&2; exit 2
+fi
+[ "$1" = audit ] || { echo "stub npm: only 'npm audit' is supported, got: $*" >&2; exit 1; }
+cat "$fix/npm-audit.json"
+exit 1

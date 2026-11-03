@@ -1,0 +1,45 @@
+# exit=0
+# stderr:
+supply: dir=- ecosystems=docker,github-actions,gitlab-ci,shell tools=cargo-audit,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+# stdout:
+{
+  "command": "ci",
+  "data": {
+    "files": [
+      {
+        "file": "clean/.github/workflows/ci.yml",
+        "kind": "github-workflow"
+      },
+      {
+        "file": "clean/.gitlab-ci.yml",
+        "kind": "gitlab-ci"
+      },
+      {
+        "file": "clean/scripts/install.bash",
+        "kind": "shell"
+      },
+      {
+        "file": "clean/Dockerfile",
+        "kind": "dockerfile"
+      }
+    ]
+  },
+  "dir": "-",
+  "ecosystems": [
+    "docker",
+    "github-actions",
+    "gitlab-ci",
+    "shell"
+  ],
+  "findings": [],
+  "tools": [
+    "cargo-audit",
+    "cosign",
+    "gh",
+    "govulncheck",
+    "npm",
+    "osv-scanner",
+    "pip-audit",
+    "syft"
+  ]
+}

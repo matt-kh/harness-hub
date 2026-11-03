@@ -1,0 +1,82 @@
+# exit=3
+# stderr:
+supply: dir=clean ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,shell tools=none
+supply audit: no auditor for cargo, go, npm, pip — harness install osv-scanner (or the ecosystem's own auditor); unaudited is not clean
+# stdout:
+{
+  "command": "audit",
+  "data": {
+    "auditors": [
+      {
+        "ecosystem": "cargo",
+        "packages": 0,
+        "status": "unavailable",
+        "tool": ""
+      },
+      {
+        "ecosystem": "go",
+        "packages": 0,
+        "status": "unavailable",
+        "tool": ""
+      },
+      {
+        "ecosystem": "npm",
+        "packages": 0,
+        "status": "unavailable",
+        "tool": ""
+      },
+      {
+        "ecosystem": "pip",
+        "packages": 0,
+        "status": "unavailable",
+        "tool": ""
+      }
+    ]
+  },
+  "dir": "clean",
+  "ecosystems": [
+    "cargo",
+    "docker",
+    "github-actions",
+    "gitlab-ci",
+    "go",
+    "npm",
+    "pip",
+    "shell"
+  ],
+  "findings": [
+    {
+      "file": "",
+      "fix": "`harness install osv-scanner` (covers every ecosystem), or install the ecosystem's own auditor",
+      "id": "AUD001",
+      "line": 0,
+      "message": "cargo: no auditor (osv-scanner and cargo-audit are not installed); cargo is unaudited, not clean",
+      "severity": "info"
+    },
+    {
+      "file": "",
+      "fix": "`harness install osv-scanner` (covers every ecosystem), or install the ecosystem's own auditor",
+      "id": "AUD001",
+      "line": 0,
+      "message": "go: no auditor (osv-scanner and govulncheck are not installed); go is unaudited, not clean",
+      "severity": "info"
+    },
+    {
+      "file": "",
+      "fix": "`harness install osv-scanner` (covers every ecosystem), or install the ecosystem's own auditor",
+      "id": "AUD001",
+      "line": 0,
+      "message": "npm: no auditor (osv-scanner and npm are not installed); npm is unaudited, not clean",
+      "severity": "info"
+    },
+    {
+      "file": "",
+      "fix": "`harness install osv-scanner` (covers every ecosystem), or install the ecosystem's own auditor",
+      "id": "AUD001",
+      "line": 0,
+      "message": "pip: no auditor (osv-scanner and pip-audit are not installed); pip is unaudited, not clean",
+      "severity": "info"
+    }
+  ],
+  "tools": []
+}

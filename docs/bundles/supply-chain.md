@@ -2,10 +2,11 @@
 
 The software supply chain for agents: pin what you add, install inside the project, never switch
 verification off. The first bundle of the [security family](../reference/security.md) (domain
-`security`, posture `local`). It lands in parts across #51: this part ships the rule, guard
-section 38 and the permission list; the `supply` CLI (`detect`, `pins`, `ci`, `audit`, `sbom`,
-`verify`), the `/pin-deps` and `/audit-deps` skills, the `supply-architect`, `supply-auditor` and
-`supply-triage` agents and the pinned `osv-scanner`, `cosign` and `syft` follow.
+`security`, posture `local`). It lands in parts across #51: the rule, guard section 38, the
+permission list and the read-only `supply` CLI with its client skill (`detect`, `pins`, `ci`,
+`audit`, `sbom`, `verify`, `redact`) are here; the `/pin-deps` and `/audit-deps` skills, the
+`supply-architect`, `supply-auditor` and `supply-triage` agents and the pinned `osv-scanner`,
+`cosign` and `syft` follow.
 
 - Switching TLS or signature verification off is **denied**: `pip|uv --trusted-host` (also a
   unique prefix such as `--trusted`), `uv --allow-insecure-host`, an `http://` index (`-i`,
@@ -63,8 +64,8 @@ section 38 and the permission list; the `supply` CLI (`detect`, `pins`, `ci`, `a
 
 Config: `supply_chain.allow_global_re`, `supply_chain.venv_markers` (both read by the guard),
 and `supply_chain.registries_re`, `supply_chain.identities`, `supply_chain.redact_extra_re`,
-`supply_chain.osv_offline_db`, `supply_chain.pin_actions`, `supply_chain.max_bytes` for the
-`supply` CLI of a later part.
+`supply_chain.exclude_re`, `supply_chain.osv_offline_db`, `supply_chain.pin_actions`,
+`supply_chain.timeout`, `supply_chain.max_bytes` for the `supply` CLI.
 
 ## Troubleshooting
 
@@ -99,8 +100,12 @@ cargo install without --locked --version, go install @latest; pipx, uv tool inst
 pinned installs pass), so do unpinned git and URL dependencies, GONOSUMDB,
 cosign sign|attest and insecure downloads written to a file. supply_chain.allow_global_re
 allow-lists global tools; venv detection reads the hook's environment and the command text.
-The `supply` CLI (detect, pins, ci, audit, sbom, verify), the /pin-deps and /audit-deps
-skills and the supply-architect, supply-auditor and supply-triage agents land in later parts.
+The read-only `supply` CLI and client skill: detect (ecosystems, manifests, lockfiles), pins
+(unpinned actions, images, dependencies and unverified downloads, with an exact-token
+--apply), ci (workflow hardening), audit (osv-scanner, else npm audit, pip-audit, cargo-audit,
+govulncheck), sbom (syft) and sbom lint, verify (cosign, gh attestation verify) and redact.
+The /pin-deps and /audit-deps skills, the supply-architect, supply-auditor and supply-triage
+agents and the pinned osv-scanner, cosign and syft land in later parts.
 
 - **Depends on:** `core`
 - **Recommends:** `github`
@@ -110,6 +115,10 @@ skills and the supply-architect, supply-auditor and supply-triage agents land in
 ## Components
 
 Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md) facets (domain shown only where it differs from the bundle's). All bundles: [catalog](../catalog.md).
+
+**Skills**
+
+- `supply-chain/skills/supply` — control: guide · function: client · posture: read-only · model: execute · yields: declaration
 
 **Rules**
 
@@ -122,6 +131,12 @@ Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md
 **Permission lists**
 
 - `supply-chain/permissions` — control: guide · function: govern · decisions: deny 4 · ask 6 · allow 21 · yields: config
+
+**CLIs**
+
+- `supply-chain/bin/supply` — function: client · posture: read-only · yields: n/a
+
+**Doctor checks** (function: setup · posture: read-only; table below): `supply-chain/doctor/supply-cli`, `supply-chain/doctor/supply-detect`
 
 ## Requirements
 
@@ -137,12 +152,14 @@ Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md
 | key | type | required | default | description |
 |---|---|---|---|---|
 | `supply_chain.allow_global_re` | string | no | `""` | POSIX ERE (the guard applies it with grep -E) that every spec of a global install must match for it to pass without a prompt: pip outside a venv or with --user, npm\|pnpm -g, yarn global add, cargo install. Matched against each word after the first install verb as typed (name and any version; options and redirections are skipped), so anchor it (^…$). Use [0-9] and [[:space:]], never \d or \s. Empty = every global install asks. SUPPLY_ALLOW_GLOBAL_RE. |
+| `supply_chain.exclude_re` | string | no | `""` | Python regex matched against paths relative to DIR that the supply CLI skips (detect, pins, audit, sbom), on top of .git, node_modules, vendor, .venv, venv, target, dist, build, __pycache__ and .tox. Empty = skip nothing more. SUPPLY_EXCLUDE_RE. |
 | `supply_chain.identities` | array | no | `[]` | Signer identities `supply verify --identity NAME` resolves, as [[supply_chain.identities]] tables: name, identity_re (certificate identity regexp), issuer (OIDC issuer URL), match_re (optional regex on the target that selects this entry without --identity). Public values only; never a key. |
 | `supply_chain.max_bytes` | integer | no | `65536` | Default output cap in bytes for the supply CLI (--max-bytes overrides). |
 | `supply_chain.osv_offline_db` | string | no | `""` | Directory of a local OSV vulnerability database that `supply audit --offline` passes to osv-scanner; empty = osv-scanner's own cache. |
 | `supply_chain.pin_actions` | boolean | no | `true` | Whether `supply pins` reports (and `supply pins --apply` rewrites) GitHub Actions referenced by tag instead of by commit. |
 | `supply_chain.redact_extra_re` | string | no | `""` | Extra Python regex of token shapes every supply output redacts in addition to the built-in list; compiled on its own, so a leading global flag such as (?i) works. |
 | `supply_chain.registries_re` | string | no | `""` | Python regex of allowed registry hosts (no scheme, no port) that `supply pins` and `supply audit` accept for dependencies and images; empty = no registry check. |
+| `supply_chain.timeout` | integer | no | `120` | Seconds the supply CLI waits for one tool run (osv-scanner, an auditor, syft, cosign, gh) before exit 2 (--timeout overrides). SUPPLY_TIMEOUT. |
 | `supply_chain.venv_markers` | string | no | `"VIRTUAL_ENV CONDA_PREFIX PIPENV_ACTIVE"` | Space-separated environment variable names that mean "inside a virtual environment" when set in the guard's own environment (the provider was started from an activated venv); pip install then passes. CONDA_PREFIX counts only when CONDA_DEFAULT_ENV names an env other than base (an auto-activated base is the machine's Python). Empty keeps the default. SUPPLY_VENV_MARKERS. |
 
 ### Secrets (never in harness.toml)
@@ -155,22 +172,28 @@ _none_
 
 ## Doctor checks
 
-_none_
+| id | severity | offline | fix |
+|---|---|---|---|
+| `supply-cli` | fail | runs | `harness apply` |
+| `supply-detect` | warn | runs | `harness apply` |
 
 ## Guides and sensors
 
-Guides steer the agent before it acts; sensors detect at or after the action. Pairing: **paired**; guides with a declared check: 2 of 2.
+Guides steer the agent before it acts; sensors detect at or after the action. Pairing: **paired**; guides with a declared check: 3 of 3.
 
 | side | kind | ref | note | pairs with |
 |---|---|---|---|---|
 | guide | rule | `rules/38-supply-chain.md` | pin what you add, install inside the project, never switch verification off, signing is a human release step | `guard.d/38-supply-chain.sh` |
+| guide | skill | `skills/supply` | the supply CLI: detect, pins (with --apply), ci, audit, sbom, verify, redact; severities from the reference rubrics | `skills/supply/scripts/tests/run.sh`, `doctor_checks` |
 | guide | permission | `permissions.toml` | verification and audit tools allowed, cosign signing asks, verification-off config and cosign keys denied | `permissions-vs-guard`, `guard.d/38-supply-chain.sh` |
 | sensor | guard | `guard.d/38-supply-chain.sh` | verification-off denies, global-install and unpinned-dependency asks, cosign signing and insecure-download asks | `rules/38-supply-chain.md`, `permissions.toml` |
 | sensor | test | `guard.d/tests.sh` | guard rows incl. bypasses, ordering against later denies and the security yield | — |
 | sensor | test | `tests/run.sh` | this bundle's rows against core + supply-chain only | — |
+| sensor | test | `skills/supply/scripts/tests/run.sh` | the supply CLI against stub tools and fixture checkouts: goldens per verb, byte-exact --apply, redaction, stub-log invariants (verify only, no fix, no docker), a rubric row per rule id, two identical runs | `skills/supply` |
+| sensor | doctor | `doctor_checks` | the supply CLI on PATH and an offline detect | `skills/supply` |
 | sensor | lint | `permissions-vs-guard` | each Bash allow/deny rule of permissions.toml run through the guard: no allowed command the guard denies or asks, no denied one it allows | `permissions.toml` |
 
-**Not covered:** Pipe-to-shell (curl … | sh) is core band 35 and lands in a later part of #51. Reachability of a vulnerability and licence policy are judgement or organisation-specific and are not sensed. A venv activated outside the provider's process is invisible to the guard (it reads the hook's environment and the command text). Direct writes to configuration files (>> ~/.npmrc, ~/.gitconfig, pip.conf, .yarnrc.yml) and an empty quoted value (git config http.sslVerify '') are out of scope for the guard. The command lexer is a heuristic, not a shell parser. The supply CLI, its doctor checks, the agents and the /pin-deps and /audit-deps workflow skills land in later parts of #51.
+**Not covered:** Pipe-to-shell (curl … | sh) as a command is core band 35 and lands in a later part of #51 (supply pins and supply ci already report it in files as SH001). Reachability of a vulnerability, major-upgrade safety and licence policy are judgement or organisation-specific and are not sensed. A venv activated outside the provider's process is invisible to the guard (it reads the hook's environment and the command text). Direct writes to configuration files (>> ~/.npmrc, ~/.gitconfig, pip.conf, .yarnrc.yml) and an empty quoted value (git config http.sslVerify '') are out of scope for the guard. The command lexer is a heuristic, not a shell parser. The CLI's own tool runs are not shell commands and are not guarded; the suite's stub log and dry-run log are the read-only proof. YAML is read with a line model: anchors, multi-document files, reusable workflows and extends are not checked. The agents, the /pin-deps and /audit-deps workflow skills and the pinned tools land in later parts of #51.
 
 ## Uninstall
 

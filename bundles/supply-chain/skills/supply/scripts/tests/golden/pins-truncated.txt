@@ -1,0 +1,79 @@
+# exit=1
+# stderr:
+supply: dir=dirty ecosystems=cargo,docker,gitlab-ci tools=cargo-audit,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+# stdout:
+{
+  "command": "pins",
+  "data": {
+    "files_scanned": 3
+  },
+  "dir": "dirty",
+  "ecosystems": [
+    "cargo",
+    "docker",
+    "gitlab-ci"
+  ],
+  "findings": [
+    {
+      "file": "",
+      "fix": "narrow DIR or exclude generated trees with supply_chain.exclude_re; files after the cap were not scanned",
+      "id": "SUP001",
+      "line": 0,
+      "message": "scan stopped at 3 files; the rest of dirty was not scanned",
+      "severity": "warn"
+    },
+    {
+      "file": ".gitlab-ci.yml",
+      "fix": "pin the include to a full 40-character commit sha (`ref: <sha>`) or a released component version (`@1.2.3`)",
+      "id": "CI008",
+      "line": 2,
+      "message": "include of project `example-group/ci-templates` has no ref: it follows the default branch",
+      "severity": "crit"
+    },
+    {
+      "file": ".gitlab-ci.yml",
+      "fix": "vendor the remote file into the repository, or include it from a project pinned to a commit sha",
+      "id": "CI009",
+      "line": 4,
+      "message": "remote include `https://example.com/ci/common.yml` runs whatever that URL serves",
+      "severity": "warn"
+    },
+    {
+      "file": "Cargo.toml",
+      "fix": "pin the commit: `{ git = \"URL\", rev = \"<sha>\" }`, or use a released crate",
+      "id": "CGO001",
+      "line": 6,
+      "message": "git dependency `hello` follows the branch `main`",
+      "ref": "https://github.com/octocat/hello-world",
+      "severity": "crit"
+    },
+    {
+      "file": "Dockerfile",
+      "fix": "pin the base image digest: `FROM IMAGE:TAG@sha256:<digest>`",
+      "id": "DKR001",
+      "line": 1,
+      "message": "base image `node:20` is pinned to a tag, not a digest",
+      "ref": "node:20",
+      "severity": "warn"
+    },
+    {
+      "file": "Dockerfile",
+      "fix": "name a released tag and pin its digest: `FROM IMAGE:TAG@sha256:<digest>`",
+      "id": "DKR002",
+      "line": 3,
+      "message": "base image `alpine` has no tag or uses :latest",
+      "ref": "alpine",
+      "severity": "crit"
+    }
+  ],
+  "tools": [
+    "cargo-audit",
+    "cosign",
+    "gh",
+    "govulncheck",
+    "npm",
+    "osv-scanner",
+    "pip-audit",
+    "syft"
+  ]
+}

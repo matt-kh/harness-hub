@@ -1,0 +1,26 @@
+{
+  "dependencies": [
+    {
+      "name": "requests",
+      "version": "2.32.3",
+      "vulns": [
+        {
+          "aliases": [
+            "CVE-2099-0002"
+          ],
+          "description": "Synthetic certificate check bypass. Longer explanation follows.",
+          "fix_versions": [
+            "2.32.4"
+          ],
+          "id": "PYSEC-0000-0002"
+        }
+      ]
+    },
+    {
+      "name": "urllib3",
+      "version": "2.2.3",
+      "vulns": []
+    }
+  ],
+  "fixes": []
+}

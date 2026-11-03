@@ -1,0 +1,69 @@
+{
+  "auditReportVersion": 2,
+  "metadata": {
+    "vulnerabilities": {
+      "critical": 1,
+      "high": 2,
+      "total": 3
+    }
+  },
+  "vulnerabilities": {
+    "example-wrapper": {
+      "effects": [],
+      "fixAvailable": true,
+      "isDirect": false,
+      "name": "example-wrapper",
+      "range": "*",
+      "severity": "high",
+      "via": [
+        "lodash"
+      ]
+    },
+    "lodash": {
+      "effects": [
+        "example-wrapper"
+      ],
+      "fixAvailable": true,
+      "isDirect": true,
+      "name": "lodash",
+      "nodes": [
+        "node_modules/lodash"
+      ],
+      "range": "<4.17.21",
+      "severity": "high",
+      "via": [
+        {
+          "dependency": "lodash",
+          "name": "lodash",
+          "range": "<4.17.21",
+          "severity": "high",
+          "source": 1001,
+          "title": "Synthetic prototype pollution in lodash",
+          "url": "https://github.com/advisories/GHSA-0000-0000-0005"
+        }
+      ]
+    },
+    "minimist": {
+      "effects": [],
+      "fixAvailable": {
+        "isSemVerMajor": false,
+        "name": "minimist",
+        "version": "1.2.8"
+      },
+      "isDirect": false,
+      "name": "minimist",
+      "range": "<1.2.6",
+      "severity": "critical",
+      "via": [
+        {
+          "name": "minimist",
+          "range": "<1.2.6",
+          "severity": "critical",
+          "source": 1002,
+          "title": "Synthetic prototype pollution in minimist",
+          "url": "https://github.com/advisories/GHSA-0000-0000-0006"
+        }
+      ]
+    }
+  }
+}

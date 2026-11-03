@@ -1,0 +1,165 @@
+# exit=1
+# stderr:
+supply: dir=- ecosystems=github-actions,gitlab-ci,shell tools=cargo-audit,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+# stdout:
+{
+  "command": "ci",
+  "data": {
+    "files": [
+      {
+        "file": "dirty/.github/workflows/build.yml",
+        "kind": "github-workflow"
+      },
+      {
+        "file": "dirty/.github/workflows/pr-target.yml",
+        "kind": "github-workflow"
+      },
+      {
+        "file": "dirty/.github/workflows/release.yml",
+        "kind": "github-workflow"
+      },
+      {
+        "file": "dirty/.gitlab-ci.yml",
+        "kind": "gitlab-ci"
+      },
+      {
+        "file": "dirty/deploy.bash",
+        "kind": "shell"
+      }
+    ]
+  },
+  "dir": "-",
+  "ecosystems": [
+    "github-actions",
+    "gitlab-ci",
+    "shell"
+  ],
+  "findings": [
+    {
+      "file": "dirty/.github/workflows/build.yml",
+      "fix": "add a top-level `permissions: contents: read` and widen per job only where needed",
+      "id": "CI001",
+      "line": 3,
+      "message": "no top-level permissions: the token gets the repository default for job(s) build",
+      "severity": "warn"
+    },
+    {
+      "file": "dirty/.github/workflows/build.yml",
+      "fix": "pin the image digest: `IMAGE:TAG@sha256:<digest>` (resolve with `docker buildx imagetools inspect` or `crane digest`)",
+      "id": "CI006",
+      "line": 6,
+      "message": "job container `node:20` is pinned to a tag, not a digest",
+      "ref": "node:20",
+      "severity": "warn"
+    },
+    {
+      "file": "dirty/.github/workflows/build.yml",
+      "fix": "pin the full 40-character commit sha and keep the tag as a comment: `uses: OWNER/REPO@<sha> # vX.Y.Z` (/pin-deps resolves it)",
+      "id": "GHA001",
+      "line": 8,
+      "message": "action `actions/checkout` is pinned to the tag `v4`, which can be moved",
+      "ref": "actions/checkout@v4",
+      "severity": "warn"
+    },
+    {
+      "file": "dirty/.github/workflows/build.yml",
+      "fix": "pin the full 40-character commit sha of a released tag: `uses: OWNER/REPO@<sha> # vX.Y.Z`",
+      "id": "GHA002",
+      "line": 9,
+      "message": "action `octocat/hello-world-action` follows the branch `main`",
+      "ref": "octocat/hello-world-action@main",
+      "severity": "crit"
+    },
+    {
+      "file": "dirty/.github/workflows/build.yml",
+      "fix": "pin the image digest: `docker://IMAGE@sha256:<digest>` (keep the tag in a comment)",
+      "id": "GHA003",
+      "line": 10,
+      "message": "action image `docker://alpine:3.20` has no digest",
+      "ref": "docker://alpine:3.20",
+      "severity": "warn"
+    },
+    {
+      "file": "dirty/.github/workflows/build.yml",
+      "fix": "pass the value through env: (`env: TITLE: ${{ ... }}`) and use \"$TITLE\" in the script; never expand it into the script text",
+      "id": "CI004",
+      "line": 12,
+      "message": "untrusted `github.event.issue.title` is expanded into the script text",
+      "severity": "crit"
+    },
+    {
+      "file": "dirty/.github/workflows/build.yml",
+      "fix": "never print secrets or dump the environment; pass secrets as env variables to the step that needs them",
+      "id": "CI005",
+      "line": 15,
+      "message": "a secret is printed to the job log: `echo ${{ secrets.NPM_TOKEN }}`",
+      "severity": "warn"
+    },
+    {
+      "file": "dirty/.github/workflows/build.yml",
+      "fix": "let the security job fail the pipeline; triage findings instead of `allow_failure`/`continue-on-error`",
+      "id": "CI007",
+      "line": 19,
+      "message": "security step `audit` cannot fail the job (continue-on-error: true)",
+      "severity": "warn"
+    },
+    {
+      "file": "dirty/.github/workflows/pr-target.yml",
+      "fix": "never check out the pull request head in a pull_request_target workflow; use pull_request, or a two-workflow split with workflow_run and no secrets in the untrusted half",
+      "id": "CI003",
+      "line": 13,
+      "message": "pull_request_target checks out the pull request head (`ref: ${{ github.event.pull_request.head.sha }}`) with the base repository's token and secrets",
+      "severity": "crit"
+    },
+    {
+      "file": "dirty/.github/workflows/release.yml",
+      "fix": "grant only the scopes a job needs, at job level (`permissions: contents: read` at the top)",
+      "id": "CI002",
+      "line": 5,
+      "message": "top-level permissions: write-all grants every scope",
+      "severity": "crit"
+    },
+    {
+      "file": "dirty/.gitlab-ci.yml",
+      "fix": "pin the include to a full 40-character commit sha (`ref: <sha>`) or a released component version (`@1.2.3`)",
+      "id": "CI008",
+      "line": 2,
+      "message": "include of project `example-group/ci-templates` has no ref: it follows the default branch",
+      "severity": "crit"
+    },
+    {
+      "file": "dirty/.gitlab-ci.yml",
+      "fix": "vendor the remote file into the repository, or include it from a project pinned to a commit sha",
+      "id": "CI009",
+      "line": 4,
+      "message": "remote include `https://example.com/ci/common.yml` runs whatever that URL serves",
+      "severity": "warn"
+    },
+    {
+      "file": "dirty/deploy.bash",
+      "fix": "download to a file, check its sha256 (`sha256sum -c`) or signature, read it, then run it",
+      "id": "SH001",
+      "line": 3,
+      "message": "downloaded code runs unreviewed: `curl -fsSL \"https://example.com/install.sh?password=***REDACTED*** | sh`",
+      "severity": "crit"
+    },
+    {
+      "file": "dirty/deploy.bash",
+      "fix": "verify the download before use: `sha256sum -c`, `cosign verify-blob`, `gh attestation verify`, or `ADD --checksum=sha256:...`",
+      "id": "SH002",
+      "line": 4,
+      "message": "download written to a file with no checksum or signature check within the next 8 lines: `curl -fsSLo tool.tgz https://example.com/tool.tgz`",
+      "severity": "warn"
+    }
+  ],
+  "tools": [
+    "cargo-audit",
+    "cosign",
+    "gh",
+    "govulncheck",
+    "npm",
+    "osv-scanner",
+    "pip-audit",
+    "syft"
+  ]
+}

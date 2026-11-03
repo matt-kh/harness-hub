@@ -1,0 +1,4 @@
+# exit=2
+# stderr:
+supply redact: SUPPLY_REDACT_EXTRA_RE / supply_chain.redact_extra_re is not a valid Python regex (missing ), unterminated subpattern at position 0); fix or unset it (a global flag such as (?i) must come first)
+# stdout:

@@ -1,0 +1,48 @@
+{
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "creationInfo": {
+    "created": "2026-01-01T00:00:00Z",
+    "creators": [
+      "Organization: Anchore, Inc",
+      "Tool: syft-1.55.0"
+    ]
+  },
+  "dataLicense": "CC0-1.0",
+  "documentNamespace": "https://example.com/spdxdocs/example-0001",
+  "name": "example",
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-Package-flask",
+      "comment": "fetched with password=hunter2",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceLocator": "pkg:pypi/flask@1.0.0",
+          "referenceType": "purl"
+        }
+      ],
+      "name": "flask",
+      "versionInfo": "2.0.0"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-local",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceLocator": "pkg:pypi/local-helper@1.0.0",
+          "referenceType": "purl"
+        }
+      ],
+      "name": "local-helper",
+      "versionInfo": "1.0.0"
+    }
+  ],
+  "relationships": [
+    {
+      "relatedSpdxElement": "SPDXRef-Package-flask",
+      "relationshipType": "DESCRIBES",
+      "spdxElementId": "SPDXRef-DOCUMENT"
+    }
+  ],
+  "spdxVersion": "SPDX-2.3"
+}

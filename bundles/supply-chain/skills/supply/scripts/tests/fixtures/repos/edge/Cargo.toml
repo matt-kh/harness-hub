@@ -1,0 +1,6 @@
+[package]
+name = "example-edge"
+version = "0.1.0"
+
+[dependencies]
+hello = { git = "https://github.com/octocat/hello-world", branch = "main" }

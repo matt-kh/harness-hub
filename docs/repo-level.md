@@ -245,7 +245,7 @@ Components that yield by declaration: listing a domain in `[owns] domains` cover
 | `kubernetes` | `k8s/guard.d/25-k8s-rules` | `k8s/skills/k8s` |
 | `workspace` | `gdoc/guard.d/80-gdoc` | `gdoc/skills/gdoc` |
 | `operations` | `obs/guard.d/32-obs` | `obs/skills/obs` |
-| `security` | `supply-chain/guard.d/38-supply-chain` | — |
+| `security` | `supply-chain/guard.d/38-supply-chain` | `supply-chain/skills/supply` |
 
 | id | kind | domain | bundle |
 |---|---|---|---|
@@ -267,6 +267,7 @@ Components that yield by declaration: listing a domain in `[owns] domains` cover
 | `stack/guard.d/65-stack` | guard | scm | stack |
 | `stack/skills/stk` | skill | scm | stack |
 | `supply-chain/guard.d/38-supply-chain` | guard | security | supply-chain |
+| `supply-chain/skills/supply` | skill | security | supply-chain |
 | `ticket-workflow/guard.d/75-ticket-workflow` | guard | delivery | ticket-workflow |
 | `ticket-workflow/skills/create-ticket` | skill | delivery | ticket-workflow |
 | `ticket-workflow/skills/work-ticket` | skill | delivery | ticket-workflow |

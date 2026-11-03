@@ -1,0 +1,5 @@
+# exit=2
+# stderr:
+supply: dir=clean ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,shell tools=cargo-audit,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+supply sbom: --out OUT/no-such-dir/clean.spdx.json: the directory OUT/no-such-dir does not exist — nothing scanned or written; create it first or write somewhere else
+# stdout:

@@ -1,0 +1,87 @@
+# exit=3
+# stderr:
+supply: dir=clean ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,shell tools=cargo-audit,govulncheck,npm,pip-audit
+supply audit: no auditor for cargo, go, npm, pip — harness install osv-scanner (or the ecosystem's own auditor); unaudited is not clean
+# stdout:
+{
+  "command": "audit",
+  "data": {
+    "auditors": [
+      {
+        "ecosystem": "cargo",
+        "packages": 0,
+        "status": "offline",
+        "tool": "cargo-audit"
+      },
+      {
+        "ecosystem": "go",
+        "packages": 0,
+        "status": "offline",
+        "tool": "govulncheck"
+      },
+      {
+        "ecosystem": "npm",
+        "packages": 0,
+        "status": "offline",
+        "tool": "npm"
+      },
+      {
+        "ecosystem": "pip",
+        "packages": 0,
+        "status": "offline",
+        "tool": "pip-audit"
+      }
+    ]
+  },
+  "dir": "clean",
+  "ecosystems": [
+    "cargo",
+    "docker",
+    "github-actions",
+    "gitlab-ci",
+    "go",
+    "npm",
+    "pip",
+    "shell"
+  ],
+  "findings": [
+    {
+      "file": "",
+      "fix": "`harness install osv-scanner` (covers every ecosystem), or install the ecosystem's own auditor",
+      "id": "AUD001",
+      "line": 0,
+      "message": "cargo: cargo-audit needs the network; `--offline` works with osv-scanner and a local database",
+      "severity": "info"
+    },
+    {
+      "file": "",
+      "fix": "`harness install osv-scanner` (covers every ecosystem), or install the ecosystem's own auditor",
+      "id": "AUD001",
+      "line": 0,
+      "message": "go: govulncheck needs the network; `--offline` works with osv-scanner and a local database",
+      "severity": "info"
+    },
+    {
+      "file": "",
+      "fix": "`harness install osv-scanner` (covers every ecosystem), or install the ecosystem's own auditor",
+      "id": "AUD001",
+      "line": 0,
+      "message": "npm: npm needs the network; `--offline` works with osv-scanner and a local database",
+      "severity": "info"
+    },
+    {
+      "file": "",
+      "fix": "`harness install osv-scanner` (covers every ecosystem), or install the ecosystem's own auditor",
+      "id": "AUD001",
+      "line": 0,
+      "message": "pip: pip-audit needs the network; `--offline` works with osv-scanner and a local database",
+      "severity": "info"
+    }
+  ],
+  "tools": [
+    "cargo-audit",
+    "govulncheck",
+    "npm",
+    "pip-audit"
+  ]
+}

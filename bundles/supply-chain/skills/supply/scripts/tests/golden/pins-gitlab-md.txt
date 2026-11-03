@@ -1,0 +1,22 @@
+# exit=1
+# stderr:
+supply: dir=gitlab-include ecosystems=gitlab-ci tools=cargo-audit,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+# stdout:
+# supply pins — gitlab-include
+
+ecosystems: gitlab-ci · tools: cargo-audit, cosign, gh, govulncheck, npm, osv-scanner, pip-audit, syft
+
+## Findings (6)
+
+| sev | id | where | message | fix |
+|---|---|---|---|---|
+| crit | CI008 | .gitlab-ci.yml:5 | include of project `example-group/ci-templates` follows the branch `main` | pin the include to a full 40-character commit sha (`ref: <sha>`) or a released component version (`@1.2.3`) |
+| warn | CI008 | .gitlab-ci.yml:10 | component `gitlab.example.com/example-group/components/scan@~latest` is not pinned to a released version or a commit sha | pin the include to a full 40-character commit sha (`ref: <sha>`) or a released component version (`@1.2.3`) |
+| warn | CI009 | .gitlab-ci.yml:13 | remote include `https://example.com/ci/common.yml` runs whatever that URL serves | vendor the remote file into the repository, or include it from a project pinned to a commit sha |
+| warn | CI006 | .gitlab-ci.yml:14 | image `python:3.12` is pinned to a tag, not a digest | pin the image digest: `IMAGE:TAG@sha256:<digest>` (resolve with `docker buildx imagetools inspect` or `crane digest`) |
+| crit | CI006 | .gitlab-ci.yml:17 | service `postgres` has no tag or uses :latest | pin the image digest: `IMAGE:TAG@sha256:<digest>` (resolve with `docker buildx imagetools inspect` or `crane digest`) |
+| crit | SH001 | ci/build.yml:5 | downloaded code runs unreviewed: `curl -fsSL https://example.com/setup.sh \| bash` | download to a file, check its sha256 (`sha256sum -c`) or signature, read it, then run it |
+
+## files_scanned
+
+2

@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Test stub for `cargo-audit` (supply CLI suite): logs "cargo-audit ARGS" to $STUB_LOG, answers from
+# $SUPPLY_STUB_FIX, and fails loudly on anything that writes, signs or switches verification off.
+name=cargo-audit
+printf '%s %s\n' "$name" "$*" >> "${STUB_LOG:-/dev/null}"
+fix=${SUPPLY_STUB_FIX:?SUPPLY_STUB_FIX is not set}
+for a in "$@"; do
+  case "$a" in
+    sign|sign-blob|attest|attest-blob|fix|push|publish|--insecure*|--allow-*-registry|--download-offline-databases)
+      echo "stub $name: refusing a mutating or verification-off argument: $a" >&2; exit 1 ;;
+  esac
+done
+if [ "${STUB_FAIL:-}" = "$name" ]; then
+  echo "stub $name: failing on request (STUB_FAIL)" >&2; exit 2
+fi
+[ "$1 $2 $3" = "audit --json --file" ] || { echo "stub cargo-audit: only 'cargo-audit audit --json --file LOCK' is supported, got: $*" >&2; exit 1; }
+case "$4" in /*) ;; *) echo "stub cargo-audit: --file must be absolute, got: $4" >&2; exit 1 ;; esac
+[ -f "$4" ] || { echo "error: not found: Couldn't load $4" >&2; exit 1; }
+# the CLI runs it from an empty directory: no .cargo/config.toml, rust-toolchain.toml or audit.toml
+[ -z "$(ls -A .)" ] || { echo "stub cargo-audit: working directory is not empty: $(pwd)" >&2; exit 1; }
+cat "$fix/cargo-audit.json"
+exit 1
