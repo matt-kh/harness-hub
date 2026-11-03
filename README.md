@@ -130,8 +130,8 @@ Ten principles govern every change to the hub; each links to its document (check
 ## Governance you can audit
 
 - The guard **denies** reading credential files, pushing to a default branch, closing
-  tickets by keyword and changing ticket state. It **asks** before merges, cluster mutations
-  and writes to human-owned tickets. Every reason names what to do instead
+  tickets by keyword and changing ticket state. It **asks** before merges, cluster mutations,
+  writes to human-owned tickets and piping a download into a shell (`curl … | sh`). Every reason names what to do instead
   ([hook policy](docs/reference/hook-policy.md)). With the experimental
   [`supply-chain`](docs/bundles/supply-chain.md) bundle it also denies switching TLS or
   signature verification off and asks before installs into the machine and unpinned

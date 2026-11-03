@@ -20,8 +20,8 @@ prints every one between your applied version and the new one.
   `supply verify` and `supply sbom IMAGE`, and `security` among the domains a repository can
   own (every rule of section 38; the `~/.sigstore/` key deny never yields).
   [docs/roadmap.md](docs/roadmap.md): `supply-chain` shipped (experimental; the section keeps
-  the design as planned and points to the bundle page), band `38` in use while core band `35`
-  (pipe-to-shell) stays planned for a later part, its config keys moved to the shipped list,
+  the design as planned and points to the bundle page), bands `38` and `35` (pipe-to-shell)
+  in use, its config keys moved to the shipped list,
   S4b covers `supply-architect`;
   [docs/reference/security.md](docs/reference/security.md) marks it shipped; README names
   the supply chain and the security track.
@@ -91,13 +91,34 @@ prints every one between your applied version and the new one.
 
 ### Added
 
+- `core` guard section `35-shell-hygiene` and rule `rules/35-shell-hygiene.md` (#51, the last
+  part; band `35` now in use, pipe-to-shell only): a download (`curl`, `wget`, `fetch`) piped
+  into an interpreter that reads its program from stdin (`| sh`, `| sudo bash`, `| python3 -`,
+  `| bash -s`, `| perl`, `| node`, `| ruby`; not with `-c`/`-m`/`-e`/`-n`/`-p` or a script
+  operand), `sh|bash|source|. <(curl …)`, `sh|bash -c "$(curl …)"` and `eval "$(curl …)"`
+  **ask** (deferred, so a later deny still wins): download to a file, check its sha256, read
+  it, then run it instead. A small quote-aware matcher reads the raw command: quoted text in
+  `echo`, `printf`, `grep` or a commit message is not a command, while `sh -c '…'`,
+  `cd … &&`, `/usr/bin/curl`, `env X=1 curl`, subshells and quoted command words still are,
+  and so are `{ …; } | sh`, `curl … | (sh)`, `if`/`for`/`while`/`case` bodies, a pipeline
+  continued after a trailing `|`, `tee >(sh)`, the wrappers `timeout`, `busybox`, `exec -a`,
+  `sudo -s|-i`, `su`, `xargs … sh -c`, `bash -euo pipefail`, `bash -o pipefail -c "$(curl …)"`,
+  `python3 -c|perl -e|node -e|ruby -e "$(curl …)"`, `source /dev/stdin <<< "$(curl …)"`, an
+  interpreter's heredoc expanding `$(curl …)`, `ash`/`mksh`/`fish`/`$SHELL` and HTTPie / `xh`
+  as downloaders. `| tar xz`, `| jq .`, `| sha256sum`, `| python3 -c '…'`, `| bash -n`,
+  `| bash -s < file`, `| xargs sh` and `-o file && sh file` pass. The matcher runs in the C
+  locale in linear time and on any POSIX awk (the core tests rerun its rows under mawk,
+  busybox awk or BSD awk when installed); what it does not see (other downloaders,
+  interpreters and wrappers, remote and container shells, a download kept in a variable) is
+  listed in the bundle's coverage note. The rest of band `35` (`sudo`/`doas`, recursive
+  removal, `chmod -R 777`) stays planned.
 - `supply-chain` bundle (#51; experimental; domain `security`, posture `local`), the first
   bundle of the security track: pin what you add, install inside the project, never switch
   verification off. Guard section 38 with its rule and permission list, the read-only `supply`
   CLI and client skill, pinned optional `osv-scanner`, `cosign` and `syft`, the workflow skills
   `/pin-deps` and `/audit-deps` and three read-only agents (the bullets below); docs page
-  [supply-chain](docs/bundles/supply-chain.md). Pipe-to-shell as a command (core band `35`)
-  lands in a later part of #51.
+  [supply-chain](docs/bundles/supply-chain.md). Pipe-to-shell as a command is core band `35`
+  (below).
 - `supply-chain` guard: rule `rules/38-supply-chain.md`, guard section `38-supply-chain` and a
   permission list.
   The section lexes the raw command once (newlines, subshells, `{ }`, `if/for` bodies, `$( )`,
@@ -756,6 +777,14 @@ prints every one between your applied version and the new one.
 
 ### Migration
 
+- Guard decision change (core, every install): `curl … | sh` and the other pipe-to-shell forms
+  of core section `35-shell-hygiene` (also inside `{ }` / `( )` groups, compound bodies, a
+  continued line, `tee >(sh)`, `python3 -c "$(curl …)"` and an interpreter's heredoc) used to
+  pass and now **ask**. Download the script to a
+  file, check its sha256, read it, then run it. A repository whose `.harness.toml` owns domain
+  `base` (`[owns] domains = ["base"]`) or the component (`components =
+  ["core/guard.d/35-shell-hygiene"]`) lifts the section there; nothing else changes. No config
+  key was added.
 - `supply-chain` bundle: new keys only when you enable it (`supply-chain` in `[hub] bundles`):
   `supply_chain.allow_global_re` (`SUPPLY_ALLOW_GLOBAL_RE`), `supply_chain.venv_markers`
   (`SUPPLY_VENV_MARKERS`), `supply_chain.registries_re`, `supply_chain.identities` (array of
