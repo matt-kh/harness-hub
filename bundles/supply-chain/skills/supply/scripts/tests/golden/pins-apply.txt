@@ -7,6 +7,7 @@ supply: dir=dirty ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,sh
   "data": {
     "applied": [
       {
+        "comment": "v4",
         "file": ".github/workflows/build.yml",
         "line": 8,
         "new": "actions/checkout@0123456789abcdef0123456789abcdef01234567",

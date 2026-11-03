@@ -37,7 +37,8 @@ Commands (run with no args to print this list):
                         JSON list [{"file","line","old","new"}]: each old must be the ref of a
                         current finding on that line, occur there exactly once as a whole token,
                         and new must pin it (digest, 40-hex sha); no symlinks; all files or
-                        none are written (exit 2), then it re-scans.
+                        none are written (exit 2), then it re-scans. An action pinned from a
+                        tag keeps it as the comment: ` # TAG`, or `# TAG - <old comment>`.
   ci FILE... [--ignore RULE,...]
                         Workflow hardening for GitHub Actions, GitLab CI, Dockerfiles and
                         shell files: CI*, GHA*, SH*. --ignore is a flag, never a comment.
@@ -46,7 +47,8 @@ Commands (run with no args to print this list):
                         pip-audit (hashed requirements only), cargo-audit, govulncheck when
                         present (VUL001).
                         "unavailable" is never "clean": AUD001 per ecosystem with no auditor,
-                        exit 3 when none could be audited.
+                        exit 3 when none could be audited. --offline with osv-scanner: status
+                        ok plus "offline": true (the local database's date bounds it).
   sbom DIR|IMAGE [--format spdx-json|cyclonedx-json] [--out F] [--force]
                         SBOM through syft (dir: or registry:, never the docker daemon); a
                         summary without --out; --out refuses an existing file unless --force.
@@ -940,7 +942,8 @@ _YKEY = re.compile(r"""^(?P<key>"[^"]*"|'[^']*'|[^\s"'#{\[|>&*!%@`,?:-][^:#]*?|-
 _BLOCK_IND = re.compile(r"^[|>][0-9+-]*$")
 
 
-def strip_comment(s):
+def comment_at(s):
+    """Offset of the `#` that starts a YAML comment in S (outside quotes), or -1."""
     q = None
     for i, ch in enumerate(s):
         if q:
@@ -949,8 +952,13 @@ def strip_comment(s):
         elif ch in ("'", '"') and (i == 0 or s[i - 1] in " \t:[{,-"):
             q = ch
         elif ch == "#" and (i == 0 or s[i - 1] in " \t"):
-            return s[:i].rstrip()
-    return s.rstrip()
+            return i
+    return -1
+
+
+def strip_comment(s):
+    i = comment_at(s)
+    return (s[:i] if i >= 0 else s).rstrip()
 
 
 def unquote(v):
@@ -2321,6 +2329,24 @@ def pin_problem(rid, old, new):
     return "%s findings are not rewritten by --apply; edit the file by hand (see the finding's fix)" % rid
 
 
+def tag_comment(line, tag):
+    """LINE (bytes) with the tag an action pin replaced kept as its comment, for Renovate and
+    Dependabot: no comment -> ` # TAG` appended; a comment -> `# TAG - <old comment>`; a comment
+    whose first word is already TAG -> unchanged. A trailing CR stays last."""
+    s = line.decode("utf-8", "surrogateescape")
+    cr = "\r" if s.endswith("\r") else ""
+    s = s[:len(s) - len(cr)]
+    i = comment_at(s)
+    if i < 0:
+        s += ("" if s[-1:] in (" ", "\t") else " ") + "# " + tag
+    else:
+        rest = s[i + 1:].lstrip(" \t")
+        if rest.split(None, 1)[:1] == [tag]:
+            return line
+        s = s[:i] + "# " + tag + (" - " + rest if rest.strip() else "")
+    return (s + cr).encode("utf-8", "surrogateescape")
+
+
 def token_spans(line, ob):
     """Start offsets of OB in LINE where it stands as a whole token (no [\\w.:@/-] neighbour)."""
     out, i = [], line.find(ob)
@@ -2494,7 +2520,13 @@ def apply_pins(a):
                           % (where, old, len(spans), f, line))
             continue
         lines[line - 1] = cur[:spans[0]] + new.encode("utf-8") + cur[spans[0] + len(ob):]
-        applied.append({"file": f, "line": line, "old": red_text(old), "new": red_text(new)})
+        done = {"file": f, "line": line, "old": red_text(old), "new": red_text(new)}
+        tag = old.rsplit("@", 1)[1] if rid in ("GHA001", "GHA002") else ""
+        if tag and ref_kind(tag) == "tag" and not branchy(tag):
+            # the moved-from tag stays on the line as a comment, in the same atomic write
+            lines[line - 1] = tag_comment(lines[line - 1], tag)
+            done["comment"] = red_text(tag)
+        applied.append(done)
     if errors:
         raise AccessError("pins --apply: nothing written —\n  " + "\n  ".join(red_text(x) for x in errors))
     changes = [(rel, files[rel][0], files[rel][1], b"\n".join(files[rel][2]))
@@ -2996,8 +3028,10 @@ def cmd_audit(a):
                         % (eco, "packages" if empty else "file it understands", OSV_NEEDS.get(eco, "a lockfile"), eco),
                         fix="commit the lockfile (or pass it with --lockfile) so osv-scanner can read it")
             auditors.append({"ecosystem": eco, "tool": "osv-scanner",
-                             "status": ("offline" if a.offline else "ok") if read else "unavailable",
+                             "status": "ok" if read else "unavailable",
                              "packages": counts.get(eco, 0)})
+            if read and a.offline:  # audited against the local database: ok, and says so
+                auditors[-1]["offline"] = True
         rep.data["auditors"] = auditors
         return rep
     if a.sbom:

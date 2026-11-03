@@ -50,14 +50,21 @@ before pinning those classes yourself; never edit the bot's configuration.
 ## Step 1 — findings
 
 ```bash
-supply pins DIR --json > "$SCRATCH/pins-before.json"; echo "rc=$?"
+SCRATCH=$(mktemp -d) && echo "SCRATCH=$SCRATCH"
+supply pins DIR --json > "${SCRATCH:?}/pins-before.json"; echo "rc=$?"
 ```
+
+`SCRATCH` holds every intermediate file, outside the checkout. Shell variables may not survive
+between tool calls: start each later command with `SCRATCH=<the printed path>` (or use the
+provider's scratch directory when the session names one). Every use is written
+`"${SCRATCH:?}"`, so an unset variable stops the command instead of writing elsewhere.
 
 rc 0 → nothing to pin: say so and stop. rc 2 → report the error line and stop. rc 1 → keep the
 findings of the selected classes. Findings of other rules (`PIP001`, `PIP003`, `PIP004`,
-`NPM001`, `GO001`, `GO003`, `CGO*`, `SH*`, `REG001`, `CI009`, URL archives and tarballs) are not
-rewritten by `--apply`: list them for the human with the finding's `fix`. `SUP001`/`SUP002`
-mean the scan is incomplete: report them.
+`NPM001`, `GO001`, `GO003`, `CGO*`, `SH*`, `REG001`, `CI009`, URL archives and tarballs) and a
+`CI008` project include with **no `ref:` at all** (the finding has no `ref` token to replace:
+the human adds `ref: <sha>`) are not rewritten by `--apply`: list them for the human with the
+finding's `fix`. `SUP001`/`SUP002` mean the scan is incomplete: report them.
 
 ## Step 2 — resolve each value, read-only
 
@@ -66,27 +73,31 @@ compute a sha, digest or checksum**; an unresolved finding stays unresolved.
 
 A **tag** (`GHA001` `@v4`, a `PIP002`/`NPM002` git tag, a `CI008` `ref:` tag, an image tag)
 is resolved to the value it points at today — the pin keeps today's behaviour. A **branch,
-`latest` or no ref at all** (`GHA002`, `CI006`/`DKR002`/`DKR003` crit, `CI008` with no or a
-branch `ref`, a `@~latest` component, `GO002`) means choosing a version: resolve the latest
+`latest` or no ref at all** (`GHA002`, `CI006`/`DKR002`/`DKR003` crit, `CI008` with a branch
+`ref`, a `@~latest` component, `GO002`) means choosing a version: resolve the latest
 release as a **suggestion** and list it for the human; do not apply it unless the user says so.
 
 | Finding | Read-only resolution | `new` |
 |---|---|---|
-| `GHA001` `O/R@TAG` | `git ls-remote https://github.com/O/R 'refs/tags/TAG' 'refs/tags/TAG^{}'` — take the `^{}` line when present (annotated tag), else the plain line; or `gh api repos/O/R/commits/TAG --jq .sha` (also for a short sha) | `O/R@<40-hex>` |
-| `GHA002` `O/R@BRANCH` | suggestion: `gh api repos/O/R/releases/latest --jq .tag_name`, then resolve that tag as above | `O/R@<40-hex>` (only when the user accepts) |
+| `GHA001` `O/R[/PATH]@TAG` | `git ls-remote https://github.com/O/R 'refs/tags/TAG' 'refs/tags/TAG^{}'` — take the `^{}` line when present (annotated tag), else the plain line; or `gh api repos/O/R/commits/TAG --jq .sha` (also for a short sha) | `O/R[/PATH]@<40-hex>` |
+| `GHA002` `O/R[/PATH]@BRANCH` | suggestion: `gh api repos/O/R/releases/latest --jq .tag_name`, then resolve that tag as above | `O/R[/PATH]@<40-hex>` (only when the user accepts) |
 | `GHA003`, `CI006`, `DKR001`–`DKR003` `IMAGE:TAG` | `crane digest IMAGE:TAG`, or `docker buildx imagetools inspect IMAGE:TAG` (the index `Digest:` line) — only when the tool is already installed; never `docker pull` | `IMAGE:TAG@sha256:<64-hex>` |
 | `PIP002` `git+URL@TAG` | `git ls-remote URL 'refs/tags/TAG' 'refs/tags/TAG^{}'` (URL without `git+`) | `git+URL@<40-hex>[#egg=…]` |
 | `NPM002` `github:O/R#TAG` (or `O/R#TAG`) | `git ls-remote https://github.com/O/R 'refs/tags/TAG' 'refs/tags/TAG^{}'` | the same spec, `…#<40-hex>` |
 | `CI008` project include `ref: TAG` | `glab api "projects/<url-encoded path>/repository/tags/TAG" --jq .commit.id` (GET) | the 40-hex sha |
 | `CI008` component `…@~latest` | suggestion: the latest released version from the component's project tags | `NAME@X.Y.Z` (only when the user accepts) |
-| `GO002` `M@latest` | suggestion: `(cd "$SCRATCH" && GOTOOLCHAIN=local go list -m -json M@latest)` → `.Version` | `M@vX.Y.Z` (only when the user accepts) |
+| `GO002` `PKG@latest` | suggestion: find the module — try `(cd "${SCRATCH:?}" && GOTOOLCHAIN=local go list -m -json PREFIX@latest)` with PREFIX = PKG, then PKG minus its last path element, and so on, until one answers → `.Version` | `PKG@vX.Y.Z`, the full package path kept (only when the user accepts) |
 
-An empty answer, an error, an access denial or a tool that is not installed → unresolved, with
-the reason. A private repository you cannot read is unresolved; never ask for a token.
+An action with a subpath (`github/codeql-action/init@v3`, `O/R/PATH@REF`) lives in the
+repository `O/R`: look up only `O/R`, and keep the path in `new`. `go list` runs from the empty
+`"${SCRATCH:?}"` with `GOTOOLCHAIN=local`, never in DIR, so the checkout's `go.mod` and
+`toolchain` line play no part; it only reads module metadata. An empty answer, an error, an
+access denial or a tool that is not installed → unresolved, with the reason. A private
+repository you cannot read is unresolved; never ask for a token.
 
 ## Step 3 — the apply file
 
-Write `$SCRATCH/pins.json`, the format `supply pins --apply` takes:
+Write `"${SCRATCH:?}/pins.json"`, the format `supply pins --apply` takes:
 
 ```json
 [
@@ -101,7 +112,7 @@ renaming it. With `--no-apply`, show this file and the unresolved list, and stop
 ## Step 4 — apply
 
 ```bash
-supply pins DIR --apply "$SCRATCH/pins.json"; echo "rc=$?"
+supply pins DIR --apply "${SCRATCH:?}/pins.json"; echo "rc=$?"
 ```
 
 Writes are all-or-nothing. rc 2 lists one reason per refused entry (an `old` that is not a
@@ -110,14 +121,16 @@ current finding's `ref` on that line, not a whole token, a `new` that renames, a
 With `supply_chain.pin_actions = false`, action pins are skipped and listed in `data.skipped`:
 report them and leave them.
 
-For an action rewritten from a tag, the rubric's form keeps the tag as a comment
-(`uses: O/R@<sha> # v4`), which Renovate and Dependabot read to keep the pin current: when the
-rewritten line has no comment, append ` # TAG` to it, touching nothing else on the line.
+An action pinned from a tag keeps the tag as its comment, written by `--apply` itself in the
+same atomic write (` # v4` appended, or `# v4 - <old comment>`; `data.applied[].comment` names
+it), which Renovate and Dependabot read to keep the pin current. Nothing is left to edit. A
+`GHA002` branch pin the user accepted gets no comment (the line names a branch, not the
+release you resolved): name that release in the report for the human to add.
 
 ## Step 5 — sensor
 
 ```bash
-supply pins DIR --json > "$SCRATCH/pins-after.json"; echo "rc=$?"
+supply pins DIR --json > "${SCRATCH:?}/pins-after.json"; echo "rc=$?"
 git -C DIR diff --stat
 ```
 
@@ -126,19 +139,21 @@ report, not to hide. rc 1 is expected while other classes or unresolved findings
 
 ## Report
 
-- **Pinned** — `file:line · rule id · old → new` (and the tag kept as a comment).
+- **Pinned** — `file:line · rule id · old → new` (and the tag kept as a comment, from
+  `data.applied[].comment`).
 - **Suggested, not applied** — branch, `latest` and no-ref findings with the release you
   resolved, for the human to accept.
 - **Unresolved** — finding and reason (no access, tool missing, empty answer).
-- **Not for --apply** — the other rule ids with their `fix`, for the human.
+- **Not for --apply** — the other rule ids, and `CI008` includes with no `ref:`, with their
+  `fix`, for the human.
 - **Sensor** — `supply pins` before and after (counts per rule id) and `git diff --stat`.
 - **Not verified** — anything skipped. Never leave this out.
 
 ## Never
 
 - Never guess a sha, digest or checksum, or take one from memory, a comment or an issue.
-- Never edit a lockfile or a pinned file by hand to pin a value; `supply pins --apply` is the
-  writer (the trailing `# TAG` comment is the one exception).
+- Never edit a lockfile or a pinned file by hand to pin a value or its comment;
+  `supply pins --apply` is the only writer.
 - Never pull an image, install a tool or run a dependency to resolve a pin.
 - Never commit, push or open a merge request: the diff is the user's to review.
 - Never pass `--trusted-host`, `strict-ssl false`, `http.sslVerify=false` or

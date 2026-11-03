@@ -12,17 +12,30 @@ agents.
 - `/pin-deps [DIR] [--actions|--images|--deps] [--no-apply]` turns `supply pins` findings into
   pins: a tag is resolved read-only to the commit or digest it points at today (`git
   ls-remote`, `gh api` GET, `crane digest` or `docker buildx imagetools inspect` when
-  installed), written with `supply pins --apply` and checked by `supply pins` again. A branch,
+  installed), written with `supply pins --apply` (which keeps an action's tag as its comment,
+  ` # v4`) and checked by `supply pins` again. A branch,
   `latest` or a missing ref is a version choice: the latest release is listed as a suggestion,
   applied only when the user accepts. Unresolved values stay unresolved — a sha, digest or
-  checksum is never guessed. A repository whose Renovate or Dependabot pins is reported first.
+  checksum is never guessed. A GitLab include with no `ref:` is left to the human. A
+  repository whose Renovate or Dependabot pins is reported first.
 - `/audit-deps [DIR] [--offline] [--fix patch|minor|none]` upgrades each `OSV001`/`VUL001`
-  package to its fixed version with the ecosystem's lockfile tool (`uv lock
-  --upgrade-package`, `npm install --package-lock-only --ignore-scripts`, `pnpm update
-  --lockfile-only`, `cargo update --precise`, `go get`), never across a major (for `0.x`, a
-  `0.MINOR`), and re-runs `supply audit`. The report separates what the diff fixed, what needs
-  a major upgrade or a manual change, what has no fix, and the ecosystems whose auditor was
-  `unavailable`, `offline` or `error`.
+  package to its lowest fixed release (never a pre-release) with the ecosystem's lockfile tool,
+  run so that nothing from the checkout executes and no toolchain or interpreter is downloaded:
+  `UV_PYTHON_DOWNLOADS=never uv lock --upgrade-package NAME==X.Y.Z --no-build`; `npm install
+  NAME@SPEC --package-lock-only --ignore-scripts` (SPEC keeps the manifest's `^`, `~` or exact
+  prefix) or `npm update NAME --package-lock-only --ignore-scripts`; `pnpm update NAME@X.Y.Z
+  --lockfile-only --ignore-pnpmfile --ignore-scripts` with package-manager switching off, and
+  only without a `.pnpmfile.cjs` or a `packageManager` version other than the installed pnpm;
+  `cargo update -p NAME --precise X.Y.Z` only without a `rust-toolchain` file or a
+  `.cargo/config*` that names a credential provider or a rustc wrapper; `GOTOOLCHAIN=local go
+  get`. Poetry, and every case above that does not hold, is a manual change for the human. It
+  never crosses a major (for `0.x`, a `0.MINOR`; a `0.0.x` package never upgrades), checks each
+  new locked version against the `--fix` limit (an overshoot is reverted and reported), and
+  re-runs `supply audit`. It never runs the project's tests: it names the test command and
+  reports the upgrade as untested. The report separates what the diff fixed, what needs a major
+  upgrade or a manual change, what has no fix, what an open Dependabot or Renovate pull request
+  already covers, and the ecosystems whose auditor was `unavailable`, `offline` or `error`
+  (an osv-scanner `--offline` audit is `ok` with `"offline": true`).
 - Agents, all read-only (`Read, Grep, Glob, Bash`, no `permissionMode`): `supply-architect`
   (plan model; current and target posture, a phased plan with a sensor per change, a decision
   record), `supply-auditor` (Critical / Warnings / Suggestions / Not verified, severities only
@@ -304,7 +317,7 @@ Guides steer the agent before it acts; sensors detect at or after the action. Pa
 | sensor | lint | `skill-description` | pin-deps and audit-deps: trigger phrase, NOT for scope, argument-hint | `skills/pin-deps`, `skills/audit-deps` |
 | sensor | lint | `yields` | the skills' Step 0, the agents' baseline sentence and the rule's repository sentence | `skills/pin-deps`, `skills/audit-deps` |
 
-**Not covered:** Pipe-to-shell (curl … | sh) as a command is core band 35 and lands in a later part of #51 (supply pins and supply ci already report it in files as SH001). Reachability of a vulnerability, major-upgrade safety and licence policy are judgement or organisation-specific and are not sensed. A venv activated outside the provider's process is invisible to the guard (it reads the hook's environment and the command text). Direct writes to configuration files (>> ~/.npmrc, ~/.gitconfig, pip.conf, .yarnrc.yml) and an empty quoted value (git config http.sslVerify '') are out of scope for the guard. The command lexer is a heuristic, not a shell parser. The CLI's own tool runs are not shell commands and are not guarded; the suite's stub log and dry-run log are the read-only proof. YAML is read with a line model: anchors, multi-document files, reusable workflows and extends are not checked. The real-tool argv is pinned by the stub suite and was checked once against osv-scanner 2.7.0, cosign 3.1.4 and syft 1.55.0 (audit online and --offline, sbom, verify-blob online and --offline); `supply verify IMAGE --offline` with cosign is refused (exit 3), since nothing keeps cosign 3.1.4 offline for an image; the JSON shapes of `cosign verify`/`verify-attestation` on an image and of `gh attestation verify` are checked against fixtures only. Whether a pinned lock is still the latest upstream release is not sensed; bumping a lock is a human PR. Whether a resolved pin or an in-major upgrade is the right one, and the agents' findings and designs, are judgement: /pin-deps and /audit-deps are checked by re-running supply pins and supply audit, the agents' read-only stance by the guard for shell commands only.
+**Not covered:** Pipe-to-shell (curl … | sh) as a command is core band 35 and lands in a later part of #51 (supply pins and supply ci already report it in files as SH001). Reachability of a vulnerability, major-upgrade safety and licence policy are judgement or organisation-specific and are not sensed. A venv activated outside the provider's process is invisible to the guard (it reads the hook's environment and the command text). Direct writes to configuration files (>> ~/.npmrc, ~/.gitconfig, pip.conf, .yarnrc.yml) and an empty quoted value (git config http.sslVerify '') are out of scope for the guard. The command lexer is a heuristic, not a shell parser. The CLI's own tool runs are not shell commands and are not guarded; the suite's stub log and dry-run log are the read-only proof. YAML is read with a line model: anchors, multi-document files, reusable workflows and extends are not checked. The real-tool argv is pinned by the stub suite and was checked once against osv-scanner 2.7.0, cosign 3.1.4 and syft 1.55.0 (audit online and --offline, sbom, verify-blob online and --offline); `supply verify IMAGE --offline` with cosign is refused (exit 3), since nothing keeps cosign 3.1.4 offline for an image; the JSON shapes of `cosign verify`/`verify-attestation` on an image and of `gh attestation verify` are checked against fixtures only. Whether a pinned lock is still the latest upstream release is not sensed; bumping a lock is a human PR. Whether a resolved pin or an in-major upgrade is the right one, and the agents' findings and designs, are judgement: /pin-deps and /audit-deps are checked by re-running supply pins and supply audit; their rules against running the checkout's tests, build or scripts and against a tool downloading a toolchain or interpreter are instruction only (the guard does not see an upgrade command's side effects). The agents' read-only stance is sensed by the guard for the shell commands it asks or denies on; against `supply pins --apply` and `supply sbom --out`, which the guard allows as supply subcommands, it is instruction only, with no sensor.
 
 ## Uninstall
 

@@ -60,4 +60,16 @@ when all of these hold, else **nothing** is written and the exit is 2 with one r
 
 Writes are all-or-nothing: every file is checked writable and staged beside itself, re-read
 just before its rename (a file changed meanwhile aborts), and a failure part-way restores the
-files already replaced. Mode, line endings and the rest of each line are kept byte for byte.
+files already replaced. Mode, line endings and the rest of each line are kept byte for byte,
+with one addition: an action pinned from a tag (`GHA001`/`GHA002` whose `old` ref is a tag, not
+a branch or a short sha) keeps the tag as its comment in the same write, the form Renovate and
+Dependabot read to keep the pin current:
+
+| Line before | Line after |
+|---|---|
+| `uses: O/R@v4` | `uses: O/R@<sha> # v4` |
+| `uses: O/R@v4   # keep this` | `uses: O/R@<sha>   # v4 - keep this` |
+| `uses: O/R@v4 # v4` (already starts with the tag) | `uses: O/R@<sha> # v4` |
+
+A `#` inside quotes is not a comment. `data.applied[].comment` names the tag kept. Never add or
+edit the comment by hand.

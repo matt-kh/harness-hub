@@ -2,7 +2,8 @@
 
 `supply audit DIR` runs `osv-scanner scan source --format json --all-packages -r /ABS/DIR` (or
 `-L /ABS/F` per `--lockfile`/`--sbom`; `--all-packages` makes the JSON list clean packages too, so
-`packages` counts what was read, not only what is vulnerable). `--offline` adds
+`packages` counts every package read, not only the vulnerable ones; a fallback auditor's
+`packages` counts only the packages with a reported vulnerability). `--offline` adds
 `--offline-vulnerabilities` and reads the databases osv-scanner keeps under
 `supply_chain.osv_offline_db` (passed as `OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY`; osv-scanner 2.7.0
 reads `DIR/osv-scalibr/<Ecosystem>/all.zip`, default DIR the user cache directory). The CLI never
@@ -30,15 +31,25 @@ its whole process group.
 When no detected ecosystem could be audited the command exits 3; an osv-scanner failure exits
 2, as does an auditor printing JSON of an unexpected shape. `data.auditors[]` says per ecosystem
 which tool ran and with what status: `ok`, `partial` (some files audited, the rest `AUD001`),
-`unavailable`, `error` or `offline`.
+`unavailable`, `error` or `offline`. An osv-scanner run with `--offline` that read an ecosystem
+is `ok` with `"offline": true` — audited, against the local database as of its last download
+(say so in the report). Status `offline` means a fallback auditor that needs the network was
+not run: not audited, `AUD001`.
 
 ## From a finding to a decision
 
 1. **Which manifest pulls it in?** The finding's file is the lockfile or manifest; `git log -S
-   'NAME' -- FILE` dates its arrival; `npm explain NAME`, `uv tree --invert NAME`, `cargo tree -i
-   NAME`, `go mod why -m MODULE` show the path (read-only).
-2. **Is there a fix in the same major?** Yes → `/audit-deps` (`uv lock --upgrade-package`,
-   `npm update`, `cargo update -p`, `go get MODULE@vX.Y.Z`), then `supply audit` again.
+   'NAME' -- FILE` dates its arrival; `npm explain NAME --package-lock-only`,
+   `UV_PYTHON_DOWNLOADS=never uv tree --frozen --invert --package NAME`, `cargo tree --locked
+   --offline -i NAME` (not with a `rust-toolchain` file or a `.cargo/config*` that names a
+   program: read `Cargo.lock`), `GOTOOLCHAIN=local go mod why -m MODULE` show the path
+   (read-only).
+2. **Is there a fix in the same major?** The lowest fixed release that is not a pre-release;
+   for `0.x` the same `0.MINOR`, and `0.0.x` never (npm and cargo treat each `0.0.x` as
+   breaking). Yes → `/audit-deps`, which upgrades with the ecosystem's tool under guards (no
+   scripts, no builds, no toolchain or interpreter downloads; poetry, a pnpmfile or a pinned
+   rust toolchain are manual changes) and never runs the project's tests, then `supply audit`
+   again.
 3. **Only in a new major?** List it for the human with the breaking-change notes; never apply
    it unasked.
 4. **No fix published?** Is the vulnerable function reachable (`govulncheck` says "called")?

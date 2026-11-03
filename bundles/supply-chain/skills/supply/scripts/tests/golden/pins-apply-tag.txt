@@ -1,0 +1,75 @@
+# exit=0
+# stderr:
+supply: dir=tag ecosystems=github-actions tools=cargo-audit,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+# stdout:
+{
+  "command": "pins",
+  "data": {
+    "applied": [
+      {
+        "comment": "v4",
+        "file": ".github/workflows/w.yml",
+        "line": 7,
+        "new": "actions/checkout@0123456789abcdef0123456789abcdef01234567",
+        "old": "actions/checkout@v4"
+      },
+      {
+        "comment": "v4",
+        "file": ".github/workflows/w.yml",
+        "line": 8,
+        "new": "actions/cache@0123456789abcdef0123456789abcdef01234567",
+        "old": "actions/cache@v4"
+      },
+      {
+        "comment": "v4",
+        "file": ".github/workflows/w.yml",
+        "line": 9,
+        "new": "actions/setup-node@0123456789abcdef0123456789abcdef01234567",
+        "old": "actions/setup-node@v4"
+      },
+      {
+        "comment": "v4",
+        "file": ".github/workflows/w.yml",
+        "line": 10,
+        "new": "actions/upload-artifact@0123456789abcdef0123456789abcdef01234567",
+        "old": "actions/upload-artifact@v4"
+      },
+      {
+        "comment": "v4.1.0",
+        "file": ".github/workflows/w.yml",
+        "line": 11,
+        "new": "actions/download-artifact@0123456789abcdef0123456789abcdef01234567",
+        "old": "actions/download-artifact@v4.1.0"
+      },
+      {
+        "comment": "v3",
+        "file": ".github/workflows/w.yml",
+        "line": 12,
+        "new": "github/codeql-action/init@0123456789abcdef0123456789abcdef01234567",
+        "old": "github/codeql-action/init@v3"
+      },
+      {
+        "file": ".github/workflows/w.yml",
+        "line": 13,
+        "new": "octo/thing@0123456789abcdef0123456789abcdef01234567",
+        "old": "octo/thing@main"
+      }
+    ],
+    "files_scanned": 1
+  },
+  "dir": "tag",
+  "ecosystems": [
+    "github-actions"
+  ],
+  "findings": [],
+  "tools": [
+    "cargo-audit",
+    "cosign",
+    "gh",
+    "govulncheck",
+    "npm",
+    "osv-scanner",
+    "pip-audit",
+    "syft"
+  ]
+}
