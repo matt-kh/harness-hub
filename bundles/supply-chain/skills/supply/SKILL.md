@@ -77,7 +77,8 @@ FILE`: a directory named `lint` is passed as `./lint`; a `verify` TARGET startin
 
 ## Contract & rules
 
-- **Exit codes**: `0` clean · `1` a `crit` or `warn` finding (also a usage error) · `2` access,
+- **Exit codes**: `0` clean · `1` a `crit` or `warn` finding, including `AUD001` (a detected
+  ecosystem, or part of one, was not audited) — also a usage error · `2` access,
   tool or config error (unreadable DIR, a needed tool missing, the tool failing or timing out
   or printing JSON of an unexpected shape, `verify` failing — reported as `unverifiable: <first
   stderr line>` — or listing nothing, a bad config regex or an unanchored identity regexp, a
@@ -86,7 +87,8 @@ FILE`: a directory named `lint` is passed as `./lint`; a `verify` TARGET startin
   `--trusted-root`, `verify IMAGE --offline` with cosign (offline is a FILE with `--bundle`, or
   `--github … --bundle F --trusted-root F`), or `--github --offline` without `--bundle`). `detect` exits 0 on any
   readable DIR. No command prints a Python traceback.
-- **"Unavailable" is not "clean".** `AUD001` (no auditor), `AUD003` (the auditor errored),
+- **"Unavailable" is not "clean".** `AUD001` (no auditor; a warn, so exit 1), `AUD003` (the
+  auditor errored),
   `SUP002` (a directory or file that could not be read), `CI000`, exit 3 and a missing
   `cosign`/`syft`/`gh` (exit 2) are reported as gaps in the answer, with `harness install
   <tool>` for the human — never as a pass.

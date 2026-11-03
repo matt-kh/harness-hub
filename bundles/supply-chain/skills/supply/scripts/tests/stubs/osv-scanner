@@ -37,6 +37,7 @@ if [ "${STUB_OSV_NODB:-}" = 1 ]; then
 fi
 case "$target" in
   *empty*) cat "$fix/osv-nopackages.txt" >&2; exit 128 ;;
+  *pip-only*) abs=$(cd "$target" && pwd); sed "s#__DIR__#$abs#g" "$fix/osv-clean-pip.json"; exit 0 ;;
   *clean*) abs=$(cd "$target" && pwd); sed "s#__DIR__#$abs#g" "$fix/osv-clean.json"; exit 0 ;;
   *gitlab-include*) cat "$fix/osv-error.txt" >&2; exit 127 ;;
 esac

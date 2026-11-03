@@ -37,7 +37,9 @@ files it touches, but run the scans on the whole checkout and say so.
    audited (partial: only some files; `ok` with `"offline": true` against osv-scanner's local
    database, as current as its last download — say so under Scope); `unavailable`, `offline`
    (a fallback auditor that needs the network) and `error` were not — `AUD001`/`AUD003` go
-   under Not verified, never under a clean verdict.
+   under Not verified, never under a clean verdict. Both are `warn`, so `supply audit` exits 1
+   when any detected ecosystem (or file of one) went unaudited; exit 0 means every one was
+   audited clean, exit 3 that none could be.
 5. **SBOM** — `supply sbom lint FILE` for each SBOM the repository ships (`*.spdx.json`,
    `*.cdx.json`, `bom.json`); `supply audit DIR --sbom FILE` when the user asks about it.
 6. **Artefacts** — only when an image or file and a signer are given. Signature: `supply verify
@@ -68,7 +70,8 @@ files it touches, but run the scans on the whole checkout and say so.
 - Never read `cosign.key`, `~/.sigstore/**/*.key` or any credential file.
 - "Unavailable" is not "clean": a missing tool, `AUD001`, `AUD003`, `CI000`, `SUP002`, exit 2 or
   exit 3 is reported as a gap, with `harness install <tool>` for the human where it applies.
-- Severity mapping, fixed: `crit` → Critical, `warn` → Warnings, `info` → Suggestions;
+- Severity mapping, fixed: `crit` → Critical, `warn` → Warnings, `info` → Suggestions —
+  except `AUD001` and `AUD003` (warn: unaudited code), which go under Not verified;
   `supply verify` exit 2 with an `unverifiable:` line → Critical, any other exit 2 → Not
   verified. Whether a vulnerability is reachable is judgement: say
   what was and was not verified, and hand hard cases to `supply-triage`.
