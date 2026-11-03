@@ -1,0 +1,45 @@
+# Claude Code permission rules contributed by bundle `supply-chain` (merged into settings.json
+# `permissions` by the claude provider; other providers translate what they can).
+# Verification, audit and lockfile-respecting install tools allowed, cosign signing and key
+# generation ask, verification-off config and cosign private keys denied (the guard's
+# 38-supply-chain section is the authoritative check). `pip install` and `npm install` are
+# deliberately absent: the guard tells a venv or project install from a global one.
+
+[permissions]
+allow = [
+  "Bash(cargo audit:*)",
+  "Bash(cosign tree:*)",
+  "Bash(cosign verify-attestation:*)",
+  "Bash(cosign verify-blob:*)",
+  "Bash(cosign verify:*)",
+  "Bash(gh attestation download:*)",
+  "Bash(gh attestation verify:*)",
+  "Bash(go mod download:*)",
+  "Bash(go mod verify:*)",
+  "Bash(govulncheck:*)",
+  "Bash(grype:*)",
+  "Bash(npm audit:*)",
+  "Bash(npm ci:*)",
+  "Bash(osv-scanner:*)",
+  "Bash(pip-audit:*)",
+  "Bash(sha256sum:*)",
+  "Bash(shasum:*)",
+  "Bash(supply:*)",
+  "Bash(syft:*)",
+  "Bash(uv lock:*)",
+  "Bash(uv sync:*)",
+]
+ask = [
+  "Bash(cosign attest-blob:*)",
+  "Bash(cosign attest:*)",
+  "Bash(cosign generate-key-pair:*)",
+  "Bash(cosign import-key-pair:*)",
+  "Bash(cosign sign-blob:*)",
+  "Bash(cosign sign:*)",
+]
+deny = [
+  "Bash(git config http.sslVerify false:*)",
+  "Bash(npm config set strict-ssl false:*)",
+  "Read(**/cosign.key)",
+  "Read(~/.sigstore/**/*.key)",
+]

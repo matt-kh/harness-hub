@@ -1,0 +1,15 @@
+# Defaults for bundle `supply-chain`.
+
+[supply_chain]
+# POSIX ERE (grep -E, as the guard applies it): [0-9] not \d, [[:space:]] not \s, no (?…)
+allow_global_re = ""
+venv_markers = "VIRTUAL_ENV CONDA_PREFIX PIPENV_ACTIVE"
+# Python regex of allowed registry hosts; empty = no check
+registries_re = ""
+# [[supply_chain.identities]] tables: name, identity_re, issuer, match_re (optional)
+identities = []
+# Python regex, compiled on its own (a leading (?i) is fine)
+redact_extra_re = ""
+osv_offline_db = ""
+pin_actions = true
+max_bytes = 65536
