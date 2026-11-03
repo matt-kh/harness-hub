@@ -128,7 +128,9 @@ prints every one between your applied version and the new one.
   requirements only, `cargo-audit` called directly from an empty directory, `govulncheck` with
   `GOTOOLCHAIN=local`: never code from the checkout; "unavailable" is never "clean": `AUD001`
   (warn, so exit 1) for every ecosystem or file left unaudited, also one osv-scanner read
-  nothing for, even when the rest audited clean; exit 3 when none could be audited),
+  nothing for, even when the rest audited clean; exit 3 when none could be audited; `--offline`
+  runs osv-scanner with `--offline-vulnerabilities --no-resolve`: no network, neither for the
+  vulnerability lookup nor for resolving a manifest's transitive dependencies),
   `sbom DIR|IMAGE` (syft, never the docker daemon; `--out` written exclusively with token-shape
   redaction only) and `sbom lint FILE` (`SBM001`–`SBM009`), `verify` (cosign keyless, key, attestation and blob-with-bundle;
   `gh attestation verify`; the subject after `--`; anchored identity regexps; never an

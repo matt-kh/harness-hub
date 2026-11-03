@@ -19,8 +19,9 @@ Exit codes: 0 clean, 1 a crit or warn finding (AUD001: a detected ecosystem, or 
 not audited) or a usage error, 2 access, tool or config error
 (unreadable DIR, a needed tool missing, a tool failing or printing unexpected output, a bad
 config regex, a refused or failed `--apply` write), 3 unsupported (no auditor for any detected
-ecosystem, `ci` with no scannable file, `sbom lint` on a non-JSON file, `verify --offline`
-without --trusted-root, or with --github and no --bundle). `detect` exits 0 on any readable DIR.
+ecosystem, `audit --sbom F` without osv-scanner, `ci` with no scannable file, `sbom` on a file,
+`sbom lint` on a non-JSON file, `verify --offline` without --trusted-root, or with --github and
+no --bundle, `verify IMAGE --offline` with cosign). `detect` exits 0 on any readable DIR.
 When JSON output exceeds --max-bytes, trailing items of the largest list are dropped until it
 fits and the envelope carries "truncated": {"items_dropped": N, "max_bytes": M}.
 
@@ -49,7 +50,8 @@ Commands (run with no args to print this list):
                         present (VUL001).
                         "unavailable" is never "clean": AUD001 (warn, exit 1) per ecosystem or
                         file left unaudited, exit 3 when none could be audited. --offline with
-                        osv-scanner: status ok plus "offline": true (the local database's date
+                        osv-scanner: no network (local databases, no transitive resolution of
+                        manifests); status ok plus "offline": true (the local database's date
                         bounds it).
   sbom DIR|IMAGE [--format spdx-json|cyclonedx-json] [--out F] [--force]
                         SBOM through syft (dir: or registry:, never the docker daemon); a
@@ -2997,7 +2999,11 @@ def cmd_audit(a):
         args += targets or ["-r", os.path.abspath(root)]
         env = {}
         if a.offline:
-            args.append("--offline-vulnerabilities")
+            # --offline-vulnerabilities keeps the vulnerability lookup local; --no-resolve stops
+            # osv-scanner 2.7.0 resolving a manifest's transitive dependencies over the network
+            # (deps.dev / the registries). Not --offline: it would be the same plus whatever later
+            # releases add, unpinned; never --download-offline-databases.
+            args += ["--offline-vulnerabilities", "--no-resolve"]
             db = _env_or_cfg("SUPPLY_OSV_OFFLINE_DB", "supply_chain.osv_offline_db", "")
             if db:
                 # osv-scanner 2.7.0 has no flag for it: the variable names the directory under which
