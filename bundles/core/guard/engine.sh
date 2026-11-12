@@ -47,6 +47,15 @@
 # Git: pushing to a default branch (BASE_BRANCH_RE) denies — MR-based workflow.
 # Fail CLOSED if jq is missing: every Bash command is denied until jq is installed.
 #
+# ---- Caller: main thread or subagent (principle 2: humans decide) --------------------
+# Claude Code's PreToolUse input carries `agent_id` (a non-empty string) when the hook fires
+# inside a subagent or an in-process teammate. The engine sets IN_SUBAGENT=true for a non-empty
+# agent_id and false otherwise (absent, "", null; every other provider never sends it).
+# `agent_type` is NOT the signal and is never read: Claude Code also sets it on the main thread
+# of a session started with --agent. Sections gate human decisions (merge, approve, PR/MR, issue
+# and ticket state) through human_decision / human_decision_defer: deny inside a subagent, else
+# ask / defer, so the main thread carries one out only on the user's explicit, confirmed request.
+#
 # ---- Repository-level declaration (principle 8: user-level by design) ----------------
 # This hook is a user-level baseline. Hooks stack and the most restrictive decision wins, so a
 # repository's own hook cannot lift a deny made here; instead the guard yields from inside. It
@@ -173,18 +182,26 @@ GUARD_SELF="$GUARD_DIR/${_gs##*/}"    # this file (absolute): the `# repo-overri
 unset _ge _gl _gk _gv _gq _gs _genv_keys
 
 input=$(cat)
+IN_SUBAGENT=false   # true when the hook input carries a non-empty agent_id (see the header)
 if command -v jq >/dev/null 2>&1; then
   # Fail closed on malformed input: valid JSON without a command passes, unparsable JSON denies.
-  # One jq call: line 1 = session_id (newlines made invalid), the rest = the command.
-  if ! _gin=$(printf '%s' "$input" | jq -r '(.session_id // "" | tostring | split("\n") | join("!")), (.tool_input.command // empty)' 2>/dev/null); then
+  # One jq call: line 1 = session_id (newlines made invalid), line 2 = the subagent flag (1 when
+  # agent_id is a non-empty string, else 0; agent_type is never read: it is also set on the main
+  # thread of a session started with --agent), the rest = the command. Both leading lines are
+  # always emitted and line 2 is never empty, so stripping exactly two lines leaves the command,
+  # or nothing when the input has none: the flag is never judged as a command.
+  if ! _gin=$(printf '%s' "$input" | jq -r '(.session_id // "" | tostring | split("\n") | join("!")), (if (.agent_id // "" | tostring) == "" then "0" else "1" end), (.tool_input.command // empty)' 2>/dev/null); then
     printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"guard-bash(user): malformed hook input (not JSON) — denied (fail closed)"}}'
     exit 0
   fi
   _gnl='
 '
   session=${_gin%%"$_gnl"*}
-  case "$_gin" in *"$_gnl"*) cmd=${_gin#*"$_gnl"} ;; *) cmd="" ;; esac
-  unset _gin _gnl
+  case "$_gin" in *"$_gnl"*) _gin=${_gin#*"$_gnl"} ;; *) _gin="" ;; esac   # drop line 1 (session)
+  _gsub=${_gin%%"$_gnl"*}
+  case "$_gin" in *"$_gnl"*) cmd=${_gin#*"$_gnl"} ;; *) cmd="" ;; esac     # drop line 2 (flag)
+  case "$_gsub" in 1) IN_SUBAGENT=true ;; *) IN_SUBAGENT=false ;; esac
+  unset _gin _gnl _gsub
   guard_session_clean() {  # session -> itself when [A-Za-z0-9._-]{1,64} in the C locale (ASCII only), else -
     local LC_ALL=C
     case "$session" in ''|*[!A-Za-z0-9._-]*) session=- ;; esac
@@ -463,6 +480,18 @@ defer() {  # the first deferred reason wins; its rule site is kept for the journ
   deferred="$1"
   if [ "${HARNESS_LESSONS_JOURNAL:-}" = true ]; then journal_site; deferred_site=$_jsite; _jsite=""; fi
   return 0
+}
+# Human decisions (merge, approve, PR/MR, issue and ticket state; principle 2): a subagent caller
+# (IN_SUBAGENT, from the hook input's agent_id) is always denied; the main thread asks (or defers
+# the ask), so the user confirms a call they explicitly requested. Journaled like deny/ask/defer.
+HUMAN_DECISION_SUBAGENT="a subagent never merges, approves or changes PR/MR, issue or ticket state — hand the command back to the main thread, which runs it only on the user's explicit request"
+human_decision() {  # REASON -> deny in a subagent, else ask
+  [ "$IN_SUBAGENT" != true ] || deny "$1 — $HUMAN_DECISION_SUBAGENT"
+  ask "$1"
+}
+human_decision_defer() {  # REASON -> deny in a subagent, else defer (a later deny still wins)
+  [ "$IN_SUBAGENT" != true ] || deny "$1 — $HUMAN_DECISION_SUBAGENT"
+  defer "$1"
 }
 
 # ---- Shared governance config -----------------------------------------------------
