@@ -93,6 +93,7 @@ Step by step: [getting started](docs/getting-started.md); tiers and release file
 |---|---|---|---|---|---|
 | guard hook | enforced | advisory | enforced | enforced | advisory |
 | ask decision | native | - | mapped (ask_as) | mapped (ask_as) | - |
+| subagent deny (merge, state) | native | - | mapped (ask_as) | mapped (ask_as) | - |
 | permission lists | native | advisory | advisory | advisory | none |
 | instructions | native | native | native | native | native |
 | skills | native | native | native | native | native |
@@ -104,6 +105,9 @@ Step by step: [getting started](docs/getting-started.md); tiers and release file
 <!-- generated:end -->
 
 Where a provider has no "ask", an ask maps to **deny** (`[providers.<name>].ask_as`).
+"Subagent deny" is how the guard treats a merge, approval or PR/MR/issue/ticket state change:
+`native` denies a sub-agent and asks the main thread; `mapped (ask_as)` cannot tell the caller
+apart, so every caller gets `ask_as` (default deny); `-` is advisory.
 "Extra hook events" are the neutral `prompt` and `stop` events bundles can hook beyond the
 guard; on a provider showing `-` such hooks are not rendered.
 Details per provider: [capability matrix](docs/reference/capability-matrix.md).

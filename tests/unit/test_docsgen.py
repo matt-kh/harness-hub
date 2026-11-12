@@ -57,6 +57,25 @@ class RegionTest(unittest.TestCase):
         self.assertEqual(rows[-1], ["extra hook events (prompt, stop)", "prompt, stop", "-", "prompt, stop",
                                     "prompt, stop", "-"])
 
+    def test_subagent_deny_matrix_row(self):
+        from harness import status as ST
+
+        provs = M.discover_providers([os.path.join(REPO, "providers")])
+        rows = {r[0]: r[1:] for r in ST.matrix_rows([provs[n] for n in sorted(provs)])}
+        # claude, codex, copilot, gemini, opencode
+        self.assertEqual(rows["subagent deny (merge, state)"],
+                         ["native", "-", "mapped (ask_as)", "mapped (ask_as)", "-"])
+        self.assertTrue(provs["claude"].capabilities.get("subagent_identity"))
+        for n in ("codex", "copilot", "gemini", "opencode"):
+            self.assertFalse(provs[n].capabilities.get("subagent_identity"), n)
+        tiers = [({"hook_enforced": True, "ask": True, "subagent_identity": True}, "native"),
+                 ({"hook_enforced": True, "ask": True}, "ask only"),
+                 ({"hook_enforced": True, "ask": False}, "mapped (ask_as)"),
+                 ({"hook_enforced": False, "subagent_identity": True}, "-"),
+                 ({"hook_enforced": False}, "-")]
+        for caps, want in tiers:
+            self.assertEqual(ST.subagent_deny(caps), want, caps)
+
     def test_cli_body_is_stable(self):
         self.assertEqual(G.cli_body(), G.cli_body())
         self.assertIn("### harness plan", G.cli_body())
