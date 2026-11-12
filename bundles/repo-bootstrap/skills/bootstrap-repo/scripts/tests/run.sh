@@ -122,7 +122,7 @@ EOF
   rbt plan --dir "$d/r"
   rbt apply --dir "$d/r"
   calls
-  ls -A "$d/r"
+  ls -A "$d/r" | LC_ALL=C sort
 }
 case_gh_push_refused() {  # the API says empty, the remote has a branch: nothing is pushed or configured
   local d=$1; sandbox "$d" "$GHURL"
@@ -203,7 +203,7 @@ case_hardening() {  # review findings: path escapes, option-like answers, origin
   rb answer --dir "$d/r" pack.evil.target=ok.txt
   rb render --dir "$d/r"
   echo "--- ok.txt"; cat "$d/r/ok.txt"
-  ls -A "$d/r"
+  ls -A "$d/r" | LC_ALL=C sort
   unset HARNESS_REPO_BOOTSTRAP_PACK_DIRS
   rb answer --dir "$d/r2" workflow.default_branch=--force
   rb answer --dir "$d/r2" repo.owner=../x
