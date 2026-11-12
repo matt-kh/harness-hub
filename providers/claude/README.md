@@ -11,6 +11,7 @@
 | permissions | `settings.json` `permissions.allow/ask/deny` | merged from every bundle's `permissions.toml`, de-duplicated, sorted |
 | trust | `settings.json` `autoMode.environment` | rendered from `[trust]` (or `trust.environment` verbatim) |
 | guard hook | `~/.claude/hooks/guard-bash.sh` + `guard.env` | `PreToolUse` / matcher `Bash`, command `bash <home>/.claude/hooks/guard-bash.sh` (no shim: the guard speaks Claude's envelope) |
+| subagent identity | `PreToolUse` input `agent_id` | non-empty only on a sub-agent's (or in-process teammate's) call; the guard denies human decisions there and asks the main thread (`subagent_identity = true`). Per the Claude Code 2.1.x hooks reference; `agent_type` is not the signal (also set on a `--agent` main thread) |
 | MCP | `~/.claude.json` `mcpServers.<name>` | json-merge of only the servers the active bundles define; every other key of the file is preserved |
 
 ## Quirks
