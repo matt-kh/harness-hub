@@ -72,6 +72,14 @@ Environment override for any key: `HARNESS_<SECTION>_<KEY>` (e.g. `HARNESS_JIRA_
 | `obs.prod_re` | string | `"(^\|[-_./:])(prod\|production)([-_./:]\|$)"` | obs | Case-insensitive ERE on backend names and hosts marking production ([PROD] banner; remediations become suggestions only). OBS_PROD_RE. |
 | `obs.redact_extra_re` | string | `""` | obs | Extra Python regex of token shapes every obs output redacts in addition to the built-in list; compiled on its own, so a leading global flag such as (?i) works. OBS_REDACT_EXTRA_RE. |
 | `providers` | table of object |  |  | Per-provider options, keyed by provider name. |
+| `repo_bootstrap.default_license` | string | `"none"` | repo-bootstrap | Default answer to repo.license; other licenses come from a pack. HARNESS_REPO_BOOTSTRAP_DEFAULT_LICENSE. |
+| `repo_bootstrap.default_merge_method` | string | `"squash"` | repo-bootstrap | Default answer to workflow.merge_method. HARNESS_REPO_BOOTSTRAP_DEFAULT_MERGE_METHOD. |
+| `repo_bootstrap.default_visibility` | string | `"private"` | repo-bootstrap | Default answer to repo.visibility. HARNESS_REPO_BOOTSTRAP_DEFAULT_VISIBILITY. |
+| `repo_bootstrap.github_owner` | string | `""` | repo-bootstrap | Default GitHub owner (user or organisation) for repo.owner. HARNESS_REPO_BOOTSTRAP_GITHUB_OWNER. |
+| `repo_bootstrap.gitlab_namespace` | string | `""` | repo-bootstrap | Default GitLab group or namespace path for repo.owner. HARNESS_REPO_BOOTSTRAP_GITLAB_NAMESPACE. |
+| `repo_bootstrap.gitlab_remove_source_branch` | string | `"auto"` | repo-bootstrap | GitLab project default `remove_source_branch_after_merge`. auto: false when the stack bundle is active (GitLab CE retargets a deleted blocker's dependents to the default branch), true otherwise. HARNESS_REPO_BOOTSTRAP_GITLAB_REMOVE_SOURCE_BRANCH. |
+| `repo_bootstrap.pack_dirs` | array | `[]` | repo-bootstrap | Extra pack directories (each holds <pack>/pack.toml), searched after the bundled baseline; a later directory replaces a pack of the same id. Org packs live in a private overlay. HARNESS_REPO_BOOTSTRAP_PACK_DIRS (':'-separated) wins. |
+| `repo_bootstrap.required_approvals` | integer | `1` | repo-bootstrap | Default answer to workflow.required_approvals (GitHub: enforced by the default-branch ruleset; GitLab CE/Free: recorded only). HARNESS_REPO_BOOTSTRAP_REQUIRED_APPROVALS. |
 | `schema_version` | integer |  |  | Configuration schema version. Bumped only with a CHANGELOG Migration entry. |
 | `stack.label` | string | `"stack"` | stack | Label that selects stacks when neither refs nor --stack are given (the stacks of open MRs/PRs carrying it). HARNESS_STACK_LABEL. |
 | `stack.leaf_refresh` | string | `"auto"` | stack | auto: `stk sync` rebases at most one fan-in leaf server-side per run, and only when the merge method needs an up-to-date source (GitLab ff / rebase_merge, a GitHub "up to date" rule); never: report it only. HARNESS_STACK_LEAF_REFRESH. |

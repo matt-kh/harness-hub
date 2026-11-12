@@ -1,0 +1,16 @@
+# Claude Code permission rules contributed by bundle `repo-bootstrap` (merged into settings.json
+# `permissions` by the claude provider; other providers translate what they can).
+# The intake, plans, checks and local renders are allowed; `repoboot apply` is not listed: it
+# creates repositories and changes remote settings, and the guard's 67-repo-bootstrap section
+# asks. Never `Bash(repoboot:*)`: new verbs must be classified first.
+
+[permissions]
+allow = [
+  "Bash(repoboot questions:*)",
+  "Bash(repoboot answer:*)",
+  "Bash(repoboot plan:*)",
+  "Bash(repoboot render:*)",
+  "Bash(repoboot check:*)",
+]
+ask = []
+deny = []

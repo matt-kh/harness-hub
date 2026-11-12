@@ -1,0 +1,86 @@
+# The baseline pack: what every repository gets, whatever its architecture. Org and personal
+# packs (repo_bootstrap.pack_dirs) add files, replace these by path, fill the slots below and
+# ask their own questions. Format: references/packs.md.
+[pack]
+id = "baseline"
+summary = "Hygiene files, README, MR/PR and issue templates, CODEOWNERS, license, pre-commit and a CI lint job"
+order = 0
+always = true
+
+# Answers the baseline handles on its own (not reported as uncovered).
+[pack.covers]
+"architecture.kind" = ["docs", "infrastructure", "other"]
+
+# Slots the baseline's templates expose (packs add [[fragment]] slot = "…"):
+#   gitignore           extra .gitignore lines
+#   precommit_repos     extra repos entries of .pre-commit-config.yaml (YAML list items, 2-space indent)
+#   gitlab_ci_jobs      extra jobs of .gitlab-ci.yml (stages: lint, test, build)
+#   github_ci_jobs      extra jobs of .github/workflows/ci.yml (under `jobs:`, 2-space indent)
+#   readme_development  extra README "Development" lines
+#   mr_checklist        extra MR/PR template checklist items
+
+[[file]]
+path = ".gitignore"
+template = "files/gitignore"
+
+[[file]]
+path = ".gitattributes"
+template = "files/gitattributes"
+
+[[file]]
+path = ".editorconfig"
+template = "files/editorconfig"
+
+[[file]]
+path = "README.md"
+template = "files/README.md.tmpl"
+
+[[file]]
+path = ".pre-commit-config.yaml"
+template = "files/pre-commit-config.yaml.tmpl"
+when = "quality.precommit"
+
+[[file]]
+path = ".gitlab/merge_request_templates/Default.md"
+template = "files/change-template.md.tmpl"
+when = "repo.host == gitlab"
+
+[[file]]
+path = ".github/pull_request_template.md"
+template = "files/change-template.md.tmpl"
+when = "repo.host == github"
+
+[[file]]
+path = ".github/ISSUE_TEMPLATE/bug.yml"
+template = "files/issue-bug.yml"
+when = "workflow.tracker == github-issues"
+
+[[file]]
+path = ".github/ISSUE_TEMPLATE/feature.yml"
+template = "files/issue-feature.yml"
+when = "workflow.tracker == github-issues"
+
+[[file]]
+path = ".github/ISSUE_TEMPLATE/config.yml"
+template = "files/issue-config.yml"
+when = "workflow.tracker == github-issues"
+
+[[file]]
+path = "{{#if repo.host == gitlab}}.gitlab/CODEOWNERS{{else}}.github/CODEOWNERS{{/if}}"
+template = "files/CODEOWNERS"
+when = "workflow.codeowners"
+
+[[file]]
+path = "LICENSE"
+template = "files/LICENSE"
+when = "repo.license in MIT|proprietary"
+
+[[file]]
+path = ".gitlab-ci.yml"
+template = "files/gitlab-ci.yml.tmpl"
+when = "repo.host == gitlab and quality.ci_jobs"
+
+[[file]]
+path = ".github/workflows/ci.yml"
+template = "files/github-ci.yml.tmpl"
+when = "repo.host == github and quality.ci_jobs"

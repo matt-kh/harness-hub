@@ -143,7 +143,7 @@ A value exists only while a component uses it. To add one:
 | value | meaning | components using it |
 |---|---|---|
 | `base` | the harness itself: engine, credentials, conventions, core agents | 26 (core, lessons) |
-| `scm` | source hosts, branches, MRs/PRs | 35 (core, github, gitlab, stack) |
+| `scm` | source hosts, branches, MRs/PRs | 43 (core, github, gitlab, repo-bootstrap, stack) |
 | `tracker` | tickets, issues, their state | 15 (github, gitlab, jira) |
 | `delivery` | ticket-to-merge workflow spanning tracker and SCM | 10 (ticket-workflow) |
 | `kubernetes` | clusters, Helm, GitOps, IaC targeting them | 18 (k8s) |
@@ -155,33 +155,33 @@ A value exists only while a component uses it. To add one:
 
 | value | meaning | components using it |
 |---|---|---|
-| `govern` | constrains the agent and says what to do instead | 36 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, stack, ticket-workflow) |
-| `client` | thin interface to one system | 11 (gdoc, jira, k8s, obs, stack) |
+| `govern` | constrains the agent and says what to do instead | 39 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, repo-bootstrap, stack, ticket-workflow) |
+| `client` | thin interface to one system | 12 (gdoc, jira, k8s, obs, repo-bootstrap, stack) |
 | `workflow` | multi-step governed procedure | 3 (lessons, ticket-workflow) |
 | `investigate` | diagnoses to a root cause, never applies the fix | 2 (k8s, obs) |
 | `plan` | designs; read-only | 2 (core, k8s) |
 | `execute` | implements autonomously | 1 (core) |
 | `review` | assesses and reports | 2 (core, k8s) |
-| `setup` | installs, verifies or configures once | 75 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, stack, ticket-workflow) |
+| `setup` | installs, verifies or configures once | 79 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, repo-bootstrap, stack, ticket-workflow) |
 
 ### posture
 
 | value | meaning | components using it |
 |---|---|---|
-| `read-only` | reads only | 53 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, stack, ticket-workflow) |
+| `read-only` | reads only | 55 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, repo-bootstrap, stack, ticket-workflow) |
 | `local` | edits the checkout and its own branches; other remote writes pass the guard | 2 (core, lessons) |
-| `label-gated` | writes promptlessly only to agent-* artefacts; human ones ask | 8 (gdoc, jira, stack, ticket-workflow) |
+| `label-gated` | writes promptlessly only to agent-* artefacts; human ones ask | 10 (gdoc, jira, repo-bootstrap, stack, ticket-workflow) |
 
 ### yields
 
 | value | meaning | components using it |
 |---|---|---|
-| `declaration` | returns early when the repository's .harness.toml owns its id or domain | 20 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, stack, ticket-workflow) |
+| `declaration` | returns early when the repository's .harness.toml owns its id or domain | 22 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, repo-bootstrap, stack, ticket-workflow) |
 | `name` | the provider shadows it with a repository component of the same name | 7 (core, k8s, obs) |
-| `text` | concatenated with the repository's instructions, which come last and win | 10 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, stack, ticket-workflow) |
-| `config` | merged by the provider's permission system; a repository can add rules, never lift a deny | 9 (gdoc, github, gitlab, jira, k8s, lessons, obs, stack, ticket-workflow) |
+| `text` | concatenated with the repository's instructions, which come last and win | 11 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, repo-bootstrap, stack, ticket-workflow) |
+| `config` | merged by the provider's permission system; a repository can add rules, never lift a deny | 10 (gdoc, github, gitlab, jira, k8s, lessons, obs, repo-bootstrap, stack, ticket-workflow) |
 | `never` | the developer's own credentials: no repository setting lifts it | 2 (core) |
-| `n/a` | no repository-level equivalent | 84 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, stack, ticket-workflow) |
+| `n/a` | no repository-level equivalent | 88 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, repo-bootstrap, stack, ticket-workflow) |
 
 ### Facets by kind
 

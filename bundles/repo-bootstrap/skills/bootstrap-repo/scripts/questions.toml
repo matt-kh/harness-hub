@@ -1,0 +1,217 @@
+# The standard intake of repoboot: every requirement a repository bootstrap needs, asked only
+# while it is open. `repoboot questions` resolves `when` and `default` against the answers so far
+# (spec sections repo/workflow/architecture/quality), the checkout's facts (fact.*), the bundle
+# config (config.*) and the agent labels (label.*). Packs add their own questions in round 2.
+#
+# Fields: id (section.key), group, round (1|2), prompt, type (string|choice|multi|list|bool|int),
+# choices, default (a template: "{{ fact.dir_name }}", "{{ config.default_visibility }}"),
+# when (`A == v`, `A != v`, `A in a|b`, `A has v`, `A`, `not A`, joined by and / or),
+# required (default true), pattern (regex for strings), help.
+
+# ---- identity --------------------------------------------------------------------------
+[[question]]
+id = "repo.host"
+group = "identity"
+prompt = "Where does the repository live?"
+type = "choice"
+choices = ["github", "gitlab", "local"]
+help = "local = git init only, no remote (add one later with `repoboot answer repo.host=…` and `repoboot apply`)."
+
+[[question]]
+id = "repo.name"
+group = "identity"
+prompt = "Repository name (the path segment)?"
+default = "{{ fact.dir_name }}"
+pattern = '^[A-Za-z0-9._-]+$'
+
+[[question]]
+id = "repo.owner"
+group = "identity"
+prompt = "Owner: GitHub user/organisation, or GitLab group/namespace path?"
+when = "repo.host in github|gitlab"
+default = "{{#if repo.host == github}}{{ config.github_owner }}{{else}}{{ config.gitlab_namespace }}{{/if}}"
+pattern = '^[A-Za-z0-9._/-]+$'
+
+[[question]]
+id = "repo.server"
+group = "identity"
+prompt = "GitLab server (host name)?"
+when = "repo.host == gitlab"
+default = "{{ config.gitlab_host }}"
+pattern = '^[A-Za-z0-9.-]+(:[0-9]+)?$'
+
+[[question]]
+id = "repo.visibility"
+group = "identity"
+prompt = "Visibility?"
+type = "choice"
+choices = ["private", "internal", "public"]
+when = "repo.host in github|gitlab"
+default = "{{ config.default_visibility }}"
+help = "internal exists on GitLab and on GitHub organisations with Enterprise only."
+
+[[question]]
+id = "repo.description"
+group = "identity"
+prompt = "One-line description?"
+required = false
+default = ""
+
+[[question]]
+id = "repo.license"
+group = "identity"
+prompt = "License?"
+type = "choice"
+choices = ["none", "MIT", "proprietary"]
+default = "{{ config.default_license }}"
+help = "Other licenses come from a pack (references/packs.md)."
+
+[[question]]
+id = "repo.license_holder"
+group = "identity"
+prompt = "Copyright holder for the license?"
+when = "repo.license in MIT|proprietary"
+
+[[question]]
+id = "repo.license_year"
+group = "identity"
+prompt = "Copyright year?"
+when = "repo.license in MIT|proprietary"
+default = "{{ fact.year }}"
+pattern = '^[0-9]{4}(-[0-9]{4})?$'
+
+# ---- workflow --------------------------------------------------------------------------
+[[question]]
+id = "workflow.default_branch"
+group = "workflow"
+prompt = "Default branch?"
+default = "main"
+pattern = '^[A-Za-z0-9._/-]+$'
+
+[[question]]
+id = "workflow.merge_method"
+group = "workflow"
+prompt = "How are MRs/PRs merged?"
+type = "choice"
+choices = ["squash", "merge", "rebase"]
+when = "repo.host in github|gitlab"
+default = "{{ config.default_merge_method }}"
+help = "squash = one commit per MR/PR (recommended); merge = merge commits; rebase = fast-forward / rebase-merge."
+
+[[question]]
+id = "workflow.required_approvals"
+group = "workflow"
+prompt = "Approvals required before merge (0 for a one-person repository)?"
+type = "int"
+when = "repo.host in github|gitlab"
+default = "{{ config.required_approvals }}"
+help = "GitHub: enforced by the default-branch ruleset (you cannot approve your own PR). GitLab CE/Free: not enforceable, recorded only."
+
+[[question]]
+id = "workflow.codeowners"
+group = "workflow"
+prompt = "Code owners (users or teams, e.g. @alice, @org/team; empty for none)?"
+type = "list"
+required = false
+default = []
+
+[[question]]
+id = "workflow.tracker"
+group = "workflow"
+prompt = "Where are tickets tracked?"
+type = "choice"
+choices = ["github-issues", "jira", "none"]
+default = "{{#if repo.host == github}}github-issues{{/if}}{{#if repo.host == local}}none{{/if}}"
+
+[[question]]
+id = "workflow.tracker_project"
+group = "workflow"
+prompt = "Jira project key for this repository (e.g. PROJ)?"
+when = "workflow.tracker == jira"
+pattern = '^[A-Z][A-Z0-9_]+$'
+
+[[question]]
+id = "workflow.agent_labels"
+group = "workflow"
+prompt = "Create the agent provenance labels ({{ label.worked }}, {{ label.created }}, {{ label.drafted }})?"
+type = "bool"
+when = "repo.host in github|gitlab"
+default = true
+
+# ---- architecture ----------------------------------------------------------------------
+[[question]]
+id = "architecture.kind"
+group = "architecture"
+prompt = "What kind of project is it?"
+type = "choice"
+choices = ["service", "library", "cli", "chart", "gitops", "infrastructure", "docs", "monorepo", "other"]
+
+[[question]]
+id = "architecture.languages"
+group = "architecture"
+prompt = "Languages / stacks (comma-separated, e.g. python, node, go, helm; empty for none)?"
+type = "list"
+required = false
+default = ["{{ fact.languages }}"]
+help = "Selects packs that match them; uncovered ones are reported so a pack can be written."
+
+[[question]]
+id = "architecture.toolchain"
+group = "architecture"
+prompt = "Build / package toolchain (e.g. uv, poetry, pnpm, maven, cmake; empty for none)?"
+when = "architecture.languages"
+required = false
+default = ""
+
+[[question]]
+id = "architecture.container"
+group = "architecture"
+prompt = "Does it ship a container image?"
+type = "bool"
+when = "architecture.kind in service|cli|other"
+default = false
+
+[[question]]
+id = "architecture.deploy"
+group = "architecture"
+prompt = "How is it deployed?"
+type = "choice"
+choices = ["none", "helm", "gitops", "package-registry", "other"]
+when = "architecture.kind in service|library|cli|chart|other"
+default = "none"
+
+[[question]]
+id = "architecture.notes"
+group = "architecture"
+prompt = "Anything else the layout must follow (an architecture, a reference repository, constraints)?"
+required = false
+default = ""
+help = "Free text kept in the spec and shown in the README; packs and the skill read it."
+
+# ---- quality ---------------------------------------------------------------------------
+[[question]]
+id = "quality.precommit"
+group = "quality"
+prompt = "Use pre-commit hooks (generic hygiene hooks plus the packs' hooks)?"
+type = "bool"
+default = true
+
+[[question]]
+id = "quality.ci_jobs"
+group = "quality"
+prompt = "CI jobs on every MR/PR?"
+type = "multi"
+choices = ["lint", "test", "build"]
+when = "repo.host in github|gitlab"
+default = ["{{#if quality.precommit}}lint{{/if}}"]
+help = "lint runs pre-commit; test and build jobs come from the packs of your languages."
+
+[[question]]
+id = "quality.required_checks"
+group = "quality"
+prompt = "Status checks required before merge (CI job names)?"
+type = "list"
+when = "repo.host == github and quality.ci_jobs"
+required = false
+default = ["{{#if quality.ci_jobs has lint}}lint{{/if}}"]
+help = "GitHub only (default-branch ruleset). On GitLab, 'pipelines must succeed' covers it."

@@ -60,6 +60,7 @@ ARCHITECTURE §3 is updated when a band is first used.
 | `45` | `45-release` | release | tags and publication; after the closing-keyword sections, before the SCM CLIs |
 | `46` | `46-compliance` | compliance | reserved ([Security track](#security-track)) |
 | `55` | `55-ci` | ci | between `50-gitlab` and `60-github`; adds only the rows those two lack |
+| `67` | `67-repo-bootstrap` | repo-bootstrap | in use: asks on `repoboot apply` (creates repositories, the first push into an empty remote, remote settings); after `60-github` and `65-stack`, so their asks on hand-typed `gh`/`glab` writes come first |
 | `82` | `82-hosts` | hosts | miscellaneous band, with `80-gdoc` |
 
 Free after this table: `47`–`49`, `85`.

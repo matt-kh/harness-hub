@@ -1,0 +1,76 @@
+# OS and editors
+.DS_Store
+Thumbs.db
+*.swp
+*~
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Local environment and secrets — never commit them
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Logs and scratch
+*.log
+tmp/
+{{#if architecture.languages has python}}
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+{{/if}}
+{{#if architecture.languages has node}}
+
+# Node
+node_modules/
+.npm/
+dist/
+coverage/
+{{/if}}
+{{#if architecture.languages has go}}
+
+# Go
+/bin/
+*.test
+coverage.out
+{{/if}}
+{{#if architecture.languages has rust}}
+
+# Rust
+target/
+{{/if}}
+{{#if architecture.languages has java}}
+
+# Java
+target/
+.gradle/
+build/
+*.class
+{{/if}}
+{{#if architecture.languages has cpp}}
+
+# C/C++
+build/
+cmake-build-*/
+*.o
+{{/if}}
+{{#if architecture.languages has helm}}
+
+# Helm
+charts/*.tgz
+{{/if}}
+{{slot gitignore}}

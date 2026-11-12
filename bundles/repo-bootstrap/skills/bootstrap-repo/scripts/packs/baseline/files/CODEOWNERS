@@ -1,0 +1,3 @@
+# Owners review every change (https://docs.github.com/articles/about-code-owners,
+# https://docs.gitlab.com/ee/user/project/codeowners/).
+* {{ derived.codeowners }}

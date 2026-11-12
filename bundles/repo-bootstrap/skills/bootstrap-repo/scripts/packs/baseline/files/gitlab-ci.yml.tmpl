@@ -1,0 +1,28 @@
+# CI for {{ repo.name }} (repository standard; jobs from the packs fill the test and build stages).
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+stages:
+  - lint
+  - test
+  - build
+{{#if quality.ci_jobs has lint}}
+
+pre-commit:
+  stage: lint
+  image: python:3.12-slim
+  variables:
+    PRE_COMMIT_HOME: ${CI_PROJECT_DIR}/.cache/pre-commit
+  cache:
+    key: pre-commit
+    paths:
+      - .cache/pre-commit
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq --no-install-recommends git > /dev/null
+    - pip install --quiet pre-commit
+  script:
+    - pre-commit run --all-files --show-diff-on-failure
+{{/if}}
+{{slot gitlab_ci_jobs}}

@@ -19,6 +19,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | [`k8s`](bundles/k8s.md#components) | kubernetes | read-only | govern, client, investigate, plan, review, setup | stable | Read-only Kubernetes client (k8s CLI + skill), triage / audit / architect agents, kubeconfig and Secret guards |
 | [`lessons`](bundles/lessons.md#components) | base | local | govern, workflow, setup | experimental | The lessons loop: a /retro skill that turns a session's journal signals into at most two evidence-backed candidate lessons, a rule that has agents consult them, and hooks that record user corrections and nudge for a retro |
 | [`obs`](bundles/obs.md#components) | operations | read-only | govern, client, investigate, setup | experimental | Read-only observability client (obs CLI + skill) for SigNoz, Prometheus and Grafana, an obs-triage agent, and API-key and raw-backend guards |
+| [`repo-bootstrap`](bundles/repo-bootstrap.md#components) | scm | label-gated | govern, client, setup | experimental | Bootstrap git repositories to a standard, locally and on GitHub or GitLab: a standard intake, architecture packs, and `repoboot` (questions, answer, plan, render, apply, check) |
 | [`stack`](bundles/stack.md#components) | scm | label-gated | govern, client, setup | experimental | Stacked MRs/PRs on free tiers: the `stk` CLI (plan, status, check, sync) keeps a chain of dependent parts retargeted, rebased and pushed |
 | [`ticket-workflow`](bundles/ticket-workflow.md#components) | delivery | label-gated | govern, workflow, setup | beta | /work-ticket (ticket → governed MR/PR, stacked delivery) and /create-ticket (one drafted ticket or issue) |
 
@@ -33,6 +34,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | `k8s/skills/k8s` | guide | kubernetes | client | read-only | execute | declaration | Read-only Kubernetes operator client for every context in the user's kubeconfig via the `k8s` CLI and explicit-context kubectl. |
 | `lessons/skills/retro` | guide | base | workflow | local | execute | declaration | Reflect on the task just finished and record at most two evidence-backed candidate lessons (one invariant, one for the task's domain) in the private lessons li… |
 | `obs/skills/obs` | guide | operations | client | read-only | execute | declaration | Read-only observability client for SigNoz, Prometheus and Grafana via the `obs` CLI. |
+| `repo-bootstrap/skills/bootstrap-repo` | guide | scm | setup | label-gated | execute | declaration | Bootstrap a git repository to a standard, locally or on GitHub / GitLab, with the `repoboot` CLI. |
 | `stack/skills/stk` | guide | scm | client | label-gated | execute | declaration | Stacked MRs/PRs on free tiers with the `stk` CLI over native glab, gh and git: check a repository's readiness, plan a stack (topology, bottom-up merge order, t… |
 | `ticket-workflow/skills/create-ticket` | guide | delivery | workflow | label-gated | execute | declaration | Create ONE Jira ticket (self-hosted Jira Server 8.x) from the user's free-text ask in any project they can create in (discovered, never hardcoded). |
 | `ticket-workflow/skills/work-ticket` | guide | delivery | workflow | label-gated | execute | declaration | Governed Jira-ticket → GitLab-MR workflow for any repo. |
@@ -64,6 +66,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | `gitlab/rules/50-gitlab` | guide | scm | text | GitLab ({{ gitlab.host }}) |
 | `github/rules/60-github` | guide | scm | text | GitHub ({{ github.host }}) |
 | `stack/rules/65-stack` | guide | scm | text | Stacked MRs/PRs (stk) |
+| `repo-bootstrap/rules/67-repo-bootstrap` | guide | scm | text | Repository bootstrap (repoboot) |
 | `jira/rules/70-jira` | guide | tracker | text | Jira ({{ jira.url }}) |
 | `ticket-workflow/rules/75-ticket-workflow` | guide | delivery | text | Ticket workflow |
 | `gdoc/rules/80-gdoc` | guide | workspace | text | Google Workspace ({{ google.domain }}) |
@@ -85,6 +88,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | [`gitlab/guard.d/50-gitlab`](reference/hook-policy.md) | sensor | scm | ask 6 · allow 3 | declaration | API writes, merges/approvals, stacked MR targets, label-gated edits; MR creates with --fill or --related-issue, or a -t title not matching gitlab.mr_title_re, ask |
 | [`github/guard.d/60-github`](reference/hook-policy.md) | sensor | scm | deny 2 · ask 5 · allow 3 | declaration | token printing, API writes, merges/reviews, provenance labels, stacked PR targets; PR creates with --fill* or a -t title matching github.pr_title_forbid_re ask |
 | [`stack/guard.d/65-stack`](reference/hook-policy.md) | sensor | scm | ask 1 · allow 1 | declaration | stk sync --include-human asks; a sole stk sync allows |
+| [`repo-bootstrap/guard.d/67-repo-bootstrap`](reference/hook-policy.md) | sensor | scm | ask 1 | declaration | repoboot apply asks, however it is wrapped |
 | [`jira/guard.d/70-jira`](reference/hook-policy.md) | sensor | tracker | deny 3 · ask 1 · allow 4 | declaration | label-gated writes, provenance label on create, transitions denied on human tickets |
 | [`ticket-workflow/guard.d/75-ticket-workflow`](reference/hook-policy.md) | sensor | delivery | ask 4 | declaration | key-free branches and subjects, sub worktree paths, squash delivery |
 | [`gdoc/guard.d/80-gdoc`](reference/hook-policy.md) | sensor | workspace | deny 1 · ask 2 · allow 2 | declaration | GET-only api, provenance check before writes, ask on mark and mail send |
@@ -112,6 +116,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | `k8s/permissions` | guide | kubernetes | deny 12 · ask 45 · allow 42 | config | read-only kubectl/helm allowed |
 | `lessons/permissions` | guide | base | ask 2 · allow 1 | config | harness lessons allowed; hand edits of the library ask |
 | `obs/permissions` | guide | operations | deny 1 · ask 3 · allow 5 | config | obs and read-only rule tooling allowed, alert-state changes ask, key files denied to Read |
+| `repo-bootstrap/permissions` | guide | scm | allow 5 | config | repoboot questions\|answer\|plan\|render\|check allowed; apply is not (the guard asks); never Bash(repoboot:*) |
 | `stack/permissions` | guide | scm | allow 4 | config | stk plan\|status\|check\|sync allowed; never Bash(stk:*) |
 | `ticket-workflow/permissions` |  | delivery | empty (no rules) | config |  |
 
@@ -133,6 +138,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | `jira/bin/jira` | tracker | label-gated | `skills/jira/scripts/jira.py` |
 | `k8s/bin/k8s` | kubernetes | read-only | `skills/k8s/scripts/k8s.py` |
 | `obs/bin/obs` | operations | read-only | `skills/obs/scripts/obs.py` |
+| `repo-bootstrap/bin/repoboot` | scm | label-gated | `skills/bootstrap-repo/scripts/repoboot.py` |
 | `stack/bin/stk` | scm | label-gated | `skills/stk/scripts/stk.py` |
 
 ## Installers
@@ -184,6 +190,8 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | [`obs/doctor/obs-hosts-re`](bundles/obs.md#doctor-checks) | sensor | operations | obs.hosts_re is a POSIX ERE covering every configured backend |
 | [`obs/doctor/obs-keys`](bundles/obs.md#doctor-checks) | sensor | operations | every backend's key file exists |
 | [`obs/doctor/obs-reach`](bundles/obs.md#doctor-checks) | sensor | operations | every backend reachable and accepts its key |
+| [`repo-bootstrap/doctor/repoboot-cli`](bundles/repo-bootstrap.md#doctor-checks) | sensor | scm | repoboot CLI on PATH and its packs parse |
+| [`repo-bootstrap/doctor/repoboot-scm-cli`](bundles/repo-bootstrap.md#doctor-checks) | sensor | scm | An SCM CLI is on PATH (gh or glab) |
 | [`stack/doctor/stk-cli`](bundles/stack.md#doctor-checks) | sensor | scm | stk CLI on PATH |
 | [`stack/doctor/stk-git-update-refs`](bundles/stack.md#doctor-checks) | sensor | scm | git supports rebase --update-refs (2.38+) |
 | [`stack/doctor/stk-scm-cli`](bundles/stack.md#doctor-checks) | sensor | scm | An SCM CLI is on PATH (glab or gh) |
@@ -226,6 +234,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | [`lessons/steps/read-the-loop`](bundles/lessons.md#read-the-loop) | base | Read how the lessons loop works (you confirm, retire and propose) |
 | [`obs/steps/configure-backends`](bundles/obs.md#configure-backends) | operations | Describe your observability backends in local/harness.toml |
 | [`obs/steps/obs-api-key`](bundles/obs.md#obs-api-key) | operations | Create a read-only API key per backend |
+| [`repo-bootstrap/steps/repo-bootstrap-packs`](bundles/repo-bootstrap.md#repo-bootstrap-packs) | scm | Optional: point repo_bootstrap.pack_dirs at your architecture packs |
 | [`stack/steps/stack-github-repo-settings`](bundles/stack.md#stack-github-repo-settings) | scm | GitHub: repository settings for stacked PRs |
 | [`stack/steps/stack-gitlab-project-settings`](bundles/stack.md#stack-gitlab-project-settings) | scm | GitLab: project settings for stacked MRs |
 | [`stack/steps/stack-read-the-flow`](bundles/stack.md#stack-read-the-flow) | scm | Read how a stack is merged (you merge it) |
@@ -263,7 +272,7 @@ Skills, agents, CLIs and MCP servers by domain and posture (the strongest effect
 | domain | read-only | local | label-gated |
 |---|---|---|---|
 | base | `core/agents/Plan`, `core/agents/code-reviewer` | `core/agents/Auto`, `lessons/skills/retro` | — |
-| scm | — | — | `stack/bin/stk`, `stack/skills/stk` |
+| scm | — | — | `repo-bootstrap/bin/repoboot`, `repo-bootstrap/skills/bootstrap-repo`, `stack/bin/stk`, `stack/skills/stk` |
 | tracker | `jira/mcp/jira-mcp` | — | `jira/bin/jira`, `jira/skills/jira` |
 | delivery | — | — | `ticket-workflow/skills/create-ticket`, `ticket-workflow/skills/work-ticket` |
 | kubernetes | `k8s/agents/infra-architect`, `k8s/agents/k8s-auditor`, `k8s/agents/k8s-triage`, `k8s/bin/k8s`, `k8s/skills/k8s` | — | — |

@@ -1,0 +1,57 @@
+# {{ repo.name }}
+{{#if repo.description}}
+
+{{ repo.description }}
+{{/if}}
+
+## Overview
+
+- Kind: {{ architecture.kind }}
+{{#if architecture.languages}}
+- Languages: {{ architecture.languages }}{{#if architecture.toolchain}} ({{ architecture.toolchain }}){{/if}}
+{{/if}}
+{{#if architecture.container}}
+- Ships a container image
+{{/if}}
+{{#if architecture.deploy != none}}
+{{#if architecture.deploy}}
+- Deployed with: {{ architecture.deploy }}
+{{/if}}
+{{/if}}
+{{#if architecture.notes}}
+- Notes: {{ architecture.notes }}
+{{/if}}
+
+## Development
+{{#if quality.precommit}}
+
+Install the git hooks once per clone:
+
+```sh
+pre-commit install
+```
+{{/if}}
+{{slot readme_development}}
+
+## Contributing
+
+{{#if repo.host == local}}
+Work on a branch; keep `{{ workflow.default_branch }}` releasable.
+{{else}}
+Work on a branch and open a{{#if repo.host == gitlab}} merge request{{else}} pull request{{/if}} against
+`{{ workflow.default_branch }}`; direct pushes to it are blocked.{{#if workflow.required_approvals != 0}}{{#if repo.host == github}} Merging needs
+{{ workflow.required_approvals }} approval(s).{{else}} Get {{ workflow.required_approvals }} approval(s)
+before merging.{{/if}}{{/if}} {{#if workflow.merge_method == squash}}Changes are squash-merged.{{/if}}{{#if workflow.merge_method == rebase}}Changes are rebased onto the default branch.{{/if}}{{#if workflow.merge_method == merge}}Changes are merged with a merge commit.{{/if}}
+{{/if}}
+{{#if workflow.tracker == jira}}
+Tickets live in Jira project `{{ workflow.tracker_project }}`; mention the key in the MR/PR title.
+{{/if}}
+{{#if workflow.tracker == github-issues}}
+Tickets are GitHub Issues; mention them as `#N` in the PR body.
+{{/if}}
+{{#if repo.license != none}}
+
+## License
+
+{{#if repo.license == MIT}}MIT — see [LICENSE](LICENSE).{{else}}Proprietary — see [LICENSE](LICENSE).{{/if}}
+{{/if}}
