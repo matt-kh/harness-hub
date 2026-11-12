@@ -66,9 +66,11 @@ class Provider(object):
                 argv += ["-f", "%s=%s" % (k, v)]
         return self.c.step(sid, argv, note)
 
-    def ruleset_step(self):
+    def ruleset_step(self, ruleset_id=None):
         body = self.ruleset()
-        return self.c.step("protection", ["gh", "api", "-X", "POST", "repos/%s/rulesets" % self.slug, "--input", "@BODY"],
+        method, path = ("PUT", "repos/%s/rulesets/%s" % (self.slug, ruleset_id)) if ruleset_id else (
+            "POST", "repos/%s/rulesets" % self.slug)
+        return self.c.step("protection", ["gh", "api", "-X", method, path, "--input", "@BODY"],
                            "default-branch ruleset %r: PRs only, %d approval(s), no force-push or deletion%s" % (
                                RULESET_NAME, body["rules"][2]["parameters"]["required_approving_review_count"],
                                ", required checks" if len(body["rules"]) > 3 else ""),
@@ -87,11 +89,12 @@ class Provider(object):
         st, repo = self.get("repos/" + self.slug)
         if st == 404 or repo is None:
             return {"exists": False, "summary": "%s does not exist" % self.slug}
-        _st, branches = self.get("repos/%s/branches?per_page=1" % self.slug)
-        r = {"exists": True, "repo": repo, "empty": not branches,
+        st, branches = self.get("repos/%s/branches?per_page=1" % self.slug, missing_ok=(403, 404))
+        empty = (not branches) if st == 200 else None   # None: unknown (no read access to branches)
+        r = {"exists": True, "repo": repo, "empty": empty,
              "summary": "%s exists (%s, %s)" % (self.slug, repo.get("visibility") or "?",
-                                                 "empty" if not branches else "default branch " + repo.get("default_branch", "?"))}
-        if branches:
+                                                 "empty" if empty else "default branch " + repo.get("default_branch", "?"))}
+        if not empty:
             branch = repo.get("default_branch") or self.branch
             st, rules = self.get("repos/%s/rules/branches/%s" % (self.slug, urllib.parse.quote(branch, safe="")),
                                  missing_ok=(403, 404))
@@ -100,16 +103,22 @@ class Provider(object):
                                 missing_ok=(403, 404))
             r["protection"] = prot if st == 200 else None
             r["protection_status"] = st
+            st, sets = self.get("repos/%s/rulesets" % self.slug, missing_ok=(403, 404))
+            r["ruleset_id"] = next((x.get("id") for x in (sets or []) if x.get("name") == RULESET_NAME), None)
         rc, out, err = self.c.call(["gh", "label", "list", "-R", self.slug, "--json", "name", "--limit", "500"])
-        if rc == 0:
-            r["labels"] = [x.get("name") for x in json.loads(out or "[]")]
-        else:
+        try:
+            r["labels"] = [x.get("name") for x in json.loads(out or "[]")] if rc == 0 else []
+        except ValueError:
             r["labels"] = []
         return r
 
     # ---- new repository
     def new_steps(self, remote):
         steps, notes = [], []
+        if remote["exists"] and remote.get("empty") is None:
+            self.blocked = ("%s exists but its branches cannot be read (no access?): check `gh repo view %s` "
+                            "and your permission before bootstrapping into it" % (self.slug, self.slug))
+            return steps, notes
         if remote["exists"] and not remote.get("empty"):
             self.blocked = ("%s already exists and has branches: clone it (git clone %s) and run repoboot in that "
                             "checkout, which plans the drift fixes instead" % (self.slug, self.url))
@@ -143,7 +152,7 @@ class Provider(object):
         elif origin != self.url:
             self.blocked = ("%s already has origin %s, not %s: fix the answers (repo.owner, repo.name) or the "
                             "remote first" % (self.e.dir, origin, self.url))
-        out.append(self.c.step("push", ["git", "-C", self.e.dir, "push", "-u", "origin", self.branch],
+        out.append(self.c.step("push", ["git", "-C", self.e.dir, "push", "-u", "origin", "HEAD:refs/heads/" + self.branch],
                                "the initial push of %s — only after `git ls-remote` shows the remote has no branches"
                                % self.branch))
         return out
@@ -216,7 +225,7 @@ class Provider(object):
                 missing.append("%d approval(s)" % want)
             if not missing:
                 return [F("ok", "protection", "default-branch rules: pull requests, no force-push, no deletion")]
-            s = self.ruleset_step()
+            s = self.ruleset_step(remote.get("ruleset_id"))
             steps.append(s)
             return [F("warn", "protection", "the default branch's rules lack: %s" % ", ".join(missing),
                       s["command"] + "  (body: repoboot plan --json)")]
@@ -227,6 +236,6 @@ class Provider(object):
                 return [F("ok", "protection", "classic branch protection: pull requests, no force-push")]
         if remote.get("protection_status") == 403 and not rules:
             return [F("warn", "protection", "unavailable: " + PLAN_403)]
-        s = self.ruleset_step()
+        s = self.ruleset_step(remote.get("ruleset_id"))
         steps.append(s)
         return [F("warn", "protection", "the default branch is not protected", s["command"] + "  (body: repoboot plan --json)")]

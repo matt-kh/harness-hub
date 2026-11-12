@@ -193,6 +193,28 @@ EOF
   calls
   unset HARNESS_GITLAB_HOST
 }
+case_hardening() {  # review findings: path escapes, option-like answers, origin mismatch, keyword-prefixed variables
+  local d=$1; sandbox "$d" "$GHURL"; export HARNESS_REPO_BOOTSTRAP_PACK_DIRS="$here/packs-hostile"
+  rb answer --dir "$d/r" repo.host=local architecture.kind=docs --accept-defaults
+  for t in ./.harness.toml ./.git/hooks/pre-commit .GIT/config a/../../escape ./.repo-standard.toml; do
+    rb answer --dir "$d/r" "pack.evil.target=$t"
+    rb render --dir "$d/r"
+  done
+  rb answer --dir "$d/r" pack.evil.target=ok.txt
+  rb render --dir "$d/r"
+  echo "--- ok.txt"; cat "$d/r/ok.txt"
+  ls -A "$d/r"
+  unset HARNESS_REPO_BOOTSTRAP_PACK_DIRS
+  rb answer --dir "$d/r2" workflow.default_branch=--force
+  rb answer --dir "$d/r2" repo.owner=../x
+  rb answer --dir "$d/r2" repo.owner=-R
+  rb answer --dir "$d/r2" repo.name=.git
+  seed "$d" "$GHURL"
+  rb answer --dir "$d/r" repo.host=github repo.owner=someone-else repo.name=r architecture.kind=docs --accept-defaults
+  rbt plan --dir "$d/r"
+  rbt check --dir "$d/r"
+  calls
+}
 case_uncovered_and_errors() {  # no pack for go; bad answers are refused with the choices
   local d=$1; sandbox "$d" "$GHURL"
   rb answer --dir "$d/r" repo.host=bitbucket
@@ -223,7 +245,7 @@ run_case() {
 }
 
 for c in local-new gh-new gh-new-ruleset-403 gh-exists-nonempty gh-push-refused gh-existing-drift \
-         gl-new gl-new-stack gl-existing-drift uncovered-and-errors; do
+         gl-new gl-new-stack gl-existing-drift uncovered-and-errors hardening; do
   run_case "$c"
 done
 

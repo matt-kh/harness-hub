@@ -1,0 +1,223 @@
+$ repoboot answer --dir SANDBOX/r repo.host=local architecture.kind=docs --accept-defaults
+{
+  "verb": "answer",
+  "spec": "SANDBOX/r/.repo-standard.toml",
+  "changed": {
+    "repo.host": "local",
+    "architecture.kind": "docs",
+    "repo.name": "r",
+    "repo.description": "",
+    "repo.license": "none",
+    "workflow.default_branch": "main",
+    "workflow.codeowners": [],
+    "workflow.tracker": "none",
+    "architecture.languages": [],
+    "architecture.notes": "",
+    "quality.precommit": true,
+    "pack.evil.target": "ok.txt"
+  },
+  "packs": [
+    "baseline",
+    "evil"
+  ],
+  "open": [],
+  "exit": 0
+}
+[rc 0]
+$ repoboot answer --dir SANDBOX/r pack.evil.target=./.harness.toml
+{
+  "verb": "answer",
+  "spec": "SANDBOX/r/.repo-standard.toml",
+  "changed": {
+    "pack.evil.target": "./.harness.toml"
+  },
+  "packs": [
+    "baseline",
+    "evil"
+  ],
+  "open": [],
+  "exit": 0
+}
+[rc 0]
+$ repoboot render --dir SANDBOX/r
+repoboot: pack evil: .harness.toml is not a pack file (.git, .repo-standard.toml and .harness.toml are never written)
+[rc 1]
+$ repoboot answer --dir SANDBOX/r pack.evil.target=./.git/hooks/pre-commit
+{
+  "verb": "answer",
+  "spec": "SANDBOX/r/.repo-standard.toml",
+  "changed": {
+    "pack.evil.target": "./.git/hooks/pre-commit"
+  },
+  "packs": [
+    "baseline",
+    "evil"
+  ],
+  "open": [],
+  "exit": 0
+}
+[rc 0]
+$ repoboot render --dir SANDBOX/r
+repoboot: pack evil: .git/hooks/pre-commit is not a pack file (.git, .repo-standard.toml and .harness.toml are never written)
+[rc 1]
+$ repoboot answer --dir SANDBOX/r pack.evil.target=.GIT/config
+{
+  "verb": "answer",
+  "spec": "SANDBOX/r/.repo-standard.toml",
+  "changed": {
+    "pack.evil.target": ".GIT/config"
+  },
+  "packs": [
+    "baseline",
+    "evil"
+  ],
+  "open": [],
+  "exit": 0
+}
+[rc 0]
+$ repoboot render --dir SANDBOX/r
+repoboot: pack evil: .GIT/config is not a pack file (.git, .repo-standard.toml and .harness.toml are never written)
+[rc 1]
+$ repoboot answer --dir SANDBOX/r pack.evil.target=a/../../escape
+{
+  "verb": "answer",
+  "spec": "SANDBOX/r/.repo-standard.toml",
+  "changed": {
+    "pack.evil.target": "a/../../escape"
+  },
+  "packs": [
+    "baseline",
+    "evil"
+  ],
+  "open": [],
+  "exit": 0
+}
+[rc 0]
+$ repoboot render --dir SANDBOX/r
+repoboot: pack evil: file path '{{ pack.evil.target }}' must stay inside the repository
+[rc 1]
+$ repoboot answer --dir SANDBOX/r pack.evil.target=./.repo-standard.toml
+{
+  "verb": "answer",
+  "spec": "SANDBOX/r/.repo-standard.toml",
+  "changed": {
+    "pack.evil.target": "./.repo-standard.toml"
+  },
+  "packs": [
+    "baseline",
+    "evil"
+  ],
+  "open": [],
+  "exit": 0
+}
+[rc 0]
+$ repoboot render --dir SANDBOX/r
+repoboot: pack evil: .repo-standard.toml is not a pack file (.git, .repo-standard.toml and .harness.toml are never written)
+[rc 1]
+$ repoboot answer --dir SANDBOX/r pack.evil.target=ok.txt
+{
+  "verb": "answer",
+  "spec": "SANDBOX/r/.repo-standard.toml",
+  "changed": {
+    "pack.evil.target": "ok.txt"
+  },
+  "packs": [
+    "baseline",
+    "evil"
+  ],
+  "open": [],
+  "exit": 0
+}
+[rc 0]
+$ repoboot render --dir SANDBOX/r
+{
+  "verb": "render",
+  "dir": "SANDBOX/r",
+  "written": [
+    ".editorconfig",
+    ".gitattributes",
+    ".gitignore",
+    ".pre-commit-config.yaml",
+    "README.md",
+    "ok.txt"
+  ],
+  "skipped_differs": [],
+  "exit": 0
+}
+[rc 0]
+--- ok.txt
+x
+.editorconfig
+.gitattributes
+.gitignore
+.pre-commit-config.yaml
+.repo-standard.toml
+README.md
+ok.txt
+$ repoboot answer --dir SANDBOX/r2 workflow.default_branch=--force
+repoboot: workflow.default_branch: '--force' does not match ^(?!-)(?!.*\.\.)(?!.*//)[A-Za-z0-9._/-]+$
+[rc 1]
+$ repoboot answer --dir SANDBOX/r2 repo.owner=../x
+repoboot: repo.owner: '../x' does not match ^(?![-./])(?!.*\.\.)(?!.*//)[A-Za-z0-9._/-]+(?<!/)$
+[rc 1]
+$ repoboot answer --dir SANDBOX/r2 repo.owner=-R
+repoboot: repo.owner: '-R' does not match ^(?![-./])(?!.*\.\.)(?!.*//)[A-Za-z0-9._/-]+(?<!/)$
+[rc 1]
+$ repoboot answer --dir SANDBOX/r2 repo.name=.git
+repoboot: repo.name: '.git' does not match ^(?![-.])[A-Za-z0-9._-]+$
+[rc 1]
+$ repoboot answer --dir SANDBOX/r repo.host=github repo.owner=someone-else repo.name=r architecture.kind=docs --accept-defaults
+{
+  "verb": "answer",
+  "spec": "SANDBOX/r/.repo-standard.toml",
+  "changed": {
+    "repo.host": "github",
+    "repo.owner": "someone-else",
+    "repo.name": "r",
+    "architecture.kind": "docs",
+    "repo.visibility": "private",
+    "workflow.merge_method": "squash",
+    "workflow.required_approvals": 1,
+    "workflow.agent_labels": true,
+    "quality.ci_jobs": [
+      "lint"
+    ],
+    "quality.required_checks": [
+      "lint"
+    ]
+  },
+  "packs": [
+    "baseline"
+  ],
+  "open": [],
+  "exit": 0
+}
+[rc 0]
+$ repoboot plan --dir SANDBOX/r --text
+repoboot plan — SANDBOX/r
+mode existing, host github
+pack  baseline
+file  same     .editorconfig (baseline)
+file  same     .gitattributes (baseline)
+file  create   .github/pull_request_template.md (baseline)
+file  create   .github/workflows/ci.yml (baseline)
+file  same     .gitignore (baseline)
+file  same     .pre-commit-config.yaml (baseline)
+file  differs  README.md (baseline)
+note: existing repository on its default branch: render on a branch (git switch -c repo-standard) and open an MR/PR for the file changes
+BLOCKED: origin is git@github.com:o/r.git but the spec names git@github.com:someone-else/r.git: fix repo.owner / repo.name / repo.server (`repoboot answer`) or the remote before anything is changed
+[rc 1]
+$ repoboot check --dir SANDBOX/r --text
+repoboot check — SANDBOX/r
+pack  baseline
+ok    file:.editorconfig: as the standard (baseline)
+ok    file:.gitattributes: as the standard (baseline)
+warn  file:.github/pull_request_template.md: missing (baseline)
+warn  file:.github/workflows/ci.yml: missing (baseline)
+ok    file:.gitignore: as the standard (baseline)
+ok    file:.pre-commit-config.yaml: as the standard (baseline)
+warn  file:README.md: differs from the standard (baseline)
+info  harness: no .harness.toml: the user-level harness applies unchanged
+fail  origin: origin is git@github.com:o/r.git but the spec names git@github.com:someone-else/r.git; the remote was not checked
+[rc 1]
+--- stub calls

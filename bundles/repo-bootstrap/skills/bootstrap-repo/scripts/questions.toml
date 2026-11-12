@@ -22,7 +22,7 @@ id = "repo.name"
 group = "identity"
 prompt = "Repository name (the path segment)?"
 default = "{{ fact.dir_name }}"
-pattern = '^[A-Za-z0-9._-]+$'
+pattern = '^(?![-.])[A-Za-z0-9._-]+$'
 
 [[question]]
 id = "repo.owner"
@@ -30,7 +30,7 @@ group = "identity"
 prompt = "Owner: GitHub user/organisation, or GitLab group/namespace path?"
 when = "repo.host in github|gitlab"
 default = "{{#if repo.host == github}}{{ config.github_owner }}{{else}}{{ config.gitlab_namespace }}{{/if}}"
-pattern = '^[A-Za-z0-9._/-]+$'
+pattern = '^(?![-./])(?!.*\.\.)(?!.*//)[A-Za-z0-9._/-]+(?<!/)$'
 
 [[question]]
 id = "repo.server"
@@ -86,7 +86,7 @@ id = "workflow.default_branch"
 group = "workflow"
 prompt = "Default branch?"
 default = "main"
-pattern = '^[A-Za-z0-9._/-]+$'
+pattern = '^(?!-)(?!.*\.\.)(?!.*//)[A-Za-z0-9._/-]+$'
 
 [[question]]
 id = "workflow.merge_method"

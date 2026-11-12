@@ -58,10 +58,11 @@ pytest:
 | `\{{ label.worked }}` | The agent labels (`worked` / `created` / `drafted`). |
 | `\{{ derived.slug }}`, `\{{ derived.ssh_url }}`, `\{{ derived.web_url }}`, `\{{ derived.codeowners }}` | Values computed from the answers. |
 | `{{#if COND}}…{{else}}…{{/if}}` | A condition. Supported forms: `A == v`, `A != v`, `A in a\|b`, `A has v`, `A`, `not A`, joined with `and` / `or`. |
+| `slot.NAME` in a condition | True when packs filled the slot `NAME`; the baseline writes its CI files only when `quality.ci_jobs` has `lint` or a pack filled the host's CI slot. |
 | `{{#each LIST}}{{ . }}{{/each}}` | Repeats the block once per list item. |
 | `{{slot NAME}}` | The fragments that packs added to the slot `NAME`, in pack order. |
 
-When a block tag stands alone on its line, the whole line is removed. Runs of three or more newlines collapse to one blank line, and every file ends with exactly one newline. Output is deterministic: the same answers always render the same bytes.
+When a block tag stands alone on its line, the whole line is removed. Runs of three or more newlines collapse to one blank line, and every file ends with exactly one newline. Output is deterministic: the same answers always render the same bytes. A file path is normalised and must stay inside the repository; `.git/`, `.harness.toml` and `.repo-standard.toml` are refused, ignoring case.
 
 ## Baseline slots
 

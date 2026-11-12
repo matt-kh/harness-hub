@@ -373,9 +373,11 @@ gh api repos/o/r
 gh api repos/o/r/branches?per_page=1
 gh api repos/o/r/rules/branches/main
 gh api repos/o/r/branches/main/protection
+gh api repos/o/r/rulesets
 gh label list -R o/r --json name --limit 500
 gh api repos/o/r
 gh api repos/o/r/branches?per_page=1
 gh api repos/o/r/rules/branches/main
 gh api repos/o/r/branches/main/protection
+gh api repos/o/r/rulesets
 gh label list -R o/r --json name --limit 500

@@ -78,9 +78,9 @@ when = "repo.license in MIT|proprietary"
 [[file]]
 path = ".gitlab-ci.yml"
 template = "files/gitlab-ci.yml.tmpl"
-when = "repo.host == gitlab and quality.ci_jobs"
+when = "repo.host == gitlab and quality.ci_jobs has lint or repo.host == gitlab and slot.gitlab_ci_jobs"
 
 [[file]]
 path = ".github/workflows/ci.yml"
 template = "files/github-ci.yml.tmpl"
-when = "repo.host == github and quality.ci_jobs"
+when = "repo.host == github and quality.ci_jobs has lint or repo.host == github and slot.github_ci_jobs"

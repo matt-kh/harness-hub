@@ -30,6 +30,20 @@ t ask   'repoboot plan && repoboot apply'
 t ask   'echo . | xargs repoboot apply --dir'
 t ask   '(repoboot apply)'
 tr 'show the user `repoboot plan` first' 'repoboot apply'
+# fail closed: a verb the guard cannot read literally asks (review findings)
+t ask   "repoboot \$'apply'"
+t ask   'V=apply; repoboot $V'
+t ask   'repoboot $(echo apply)'
+t ask   'repoboot `echo apply`'
+t ask   'echo apply | xargs repoboot'
+t ask   'printf apply | xargs -I{} repoboot {}'
+t ask   'r=repoboot; $r apply'
+t ask   'R=/home/u/.local/bin/repoboot; $R apply'
+t ask   'repoboot --dir . apply'                                     # flags before the verb: not a literal read verb
+t ask   'repoboot aplly'                                             # unknown verbs ask too
+tr 'type the verb literally' 'repoboot $V'
+t pass  'repoboot plan; repoboot check'
+t pass  'repoboot help'
 # a later deny still wins
 t deny  'repoboot apply && git push origin feat-x:main'
 

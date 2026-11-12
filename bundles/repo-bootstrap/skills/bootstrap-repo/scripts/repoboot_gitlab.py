@@ -59,10 +59,13 @@ class Provider(object):
             out.append(self.c.step("unprotect", self.api("-X", "DELETE", "projects/%s/protected_branches/%s" % (self.pid, enc)),
                                    "drop the instance-default protection of %s (re-created below)" % self.branch,
                                    tolerate={"404": "the branch was not protected yet"}))
-        out.append(self.c.step("protection", self.api("-X", "POST", "projects/%s/protected_branches" % self.pid,
-                                                      "-f", "name=" + self.branch, "-F", "push_access_level=0",
-                                                      "-F", "merge_access_level=40", "-F", "allow_force_push=false"),
-                               "protect %s: push no one, merge maintainers, no force-push" % self.branch))
+        post = self.api("-X", "POST", "projects/%s/protected_branches" % self.pid,
+                        "-f", "name=" + self.branch, "-F", "push_access_level=0",
+                        "-F", "merge_access_level=40", "-F", "allow_force_push=false")
+        out.append(self.c.step("protection", post, "protect %s: push no one, merge maintainers, no force-push" % self.branch,
+                               on_fail=("%s is UNPROTECTED now: protect it again with `%s` or in Settings → "
+                                        "Repository → Protected branches" % (self.branch, self.c.fmt_cmd(post)))
+                               if existing else None))
         return out
 
     def label_step(self, name, text):
@@ -113,7 +116,7 @@ class Provider(object):
         elif origin != self.url:
             self.blocked = ("%s already has origin %s, not %s: fix the answers (repo.owner, repo.name, repo.server) "
                             "or the remote first" % (self.e.dir, origin, self.url))
-        steps.append(self.c.step("push", ["git", "-C", self.e.dir, "push", "-u", "origin", self.branch],
+        steps.append(self.c.step("push", ["git", "-C", self.e.dir, "push", "-u", "origin", "HEAD:refs/heads/" + self.branch],
                                  "the initial push of %s — only after `git ls-remote` shows the remote has no branches"
                                  % self.branch))
         fields = self.desired_settings()
