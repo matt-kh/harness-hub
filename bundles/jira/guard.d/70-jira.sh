@@ -49,13 +49,13 @@ jira_words() { printf '%s' "$1" | grep -oE '\bjira(\.py)?\s+[A-Za-z-]+' | sed -E
 #       hidden write asks.
 if printf '%s' "$flat_dq" | grep -qE '\bjira(\.py)?\s' && [ "$(jira_words "$flat")" != "$(jira_words "$flat_dq")" ]; then
   if printf '%s' "$flat_dq" | grep -qE '\bjira(\.py)?\s+transition\b'; then
-    human_decision_defer "jira transition with its command words in quotes or escapes cannot be checked — write the jira subcommand unquoted"
+    human_decision_defer "jira transition with its command words in quotes or escapes cannot be checked — write the jira subcommand unquoted instead"
   elif printf '%s' "$flat_dq" | grep -qE '\bjira(\.py)?\s+(set|create|upload|comment|label|link)\b'; then
-    defer "jira write with its command words in quotes or escapes cannot be checked — write the jira subcommand unquoted"
+    defer "jira write with its command words in quotes or escapes cannot be checked — write the jira subcommand unquoted instead"
   fi
 fi
 if printf '%s' "$flat" | grep -qE '\bjira(\.py)?\s+[^[:space:]]*[$`]'; then
-  human_decision_defer "jira subcommand from a \$VAR, \$(…) or backticks cannot be checked — write the subcommand literally"
+  human_decision_defer "jira subcommand from a \$VAR, \$(…) or backticks cannot be checked — write the subcommand literally instead"
 fi
 if printf '%s' "$flat" | grep -qE '\bjira(\.py)?\s+(set|create|transition|upload|comment|label|link)\b'; then
   # -- ticket state is a human decision: a subagent is denied before any parsing or label lookup
