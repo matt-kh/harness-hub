@@ -12,9 +12,11 @@ and the gh guard rules:
 - `gh issue create` without a provenance label (`agent-drafted`, `agent-created`): **deny**
 - `gh pr create` with `agent-worked`, edits to agent-labelled PRs/issues: promptless
 - edits to human PRs/issues, cross-repo (fork) edits, `gh pr merge`, `gh pr review`,
-  `gh repo edit`, `gh api` writes: **ask**
-- from a subagent: `gh pr merge|review`, PR/issue state changes and `gh api` writes: **deny**
-  (hand the command back to the main thread)
+  `gh issue delete|transfer`, `gh repo edit`, `gh api` writes: **ask**
+- quoted or escaped command words (`gh "pr" merge`) and a `$VAR` subcommand: **ask** (write
+  the subcommand literally)
+- from a subagent: `gh pr merge|review`, `gh issue delete|transfer`, PR/issue state changes,
+  `gh api` writes and hidden subcommands: **deny** (hand the command back to the main thread)
 
 Config: `github.host` (default `github.com`, or your GHES host), `github.login`.
 Manual steps: `install-gh`, `gh-auth`, `ssh-key`, `agent-labels` (full text below).
@@ -70,7 +72,7 @@ Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md
 **Guard sections**
 
 - `github/guard.d/41-github-closing` — control: sensor · domain: tracker · function: govern · decisions: deny 1 · yields: declaration
-- `github/guard.d/60-github` — control: sensor · function: govern · decisions: deny 5 · ask 7 · allow 3 · yields: declaration
+- `github/guard.d/60-github` — control: sensor · function: govern · decisions: deny 6 · ask 8 · allow 3 · yields: declaration
 
 **Permission lists**
 
