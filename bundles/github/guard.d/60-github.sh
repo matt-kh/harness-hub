@@ -9,7 +9,7 @@
 # rule: gh with quoted/escaped command words or a $VAR/$(…) subcommand -> ask : the subcommand cannot be checked; write it literally and unquoted instead (a subagent is denied)
 # rule: gh release/repo/workflow/secret/auth/gist/... mutations -> ask : team-visible; ask the user (releases are human-only)
 # rule: gh label create agent-* -> allow : governance label; other labels ask
-# rule: gh pr create|new -> allow : creates are ungated (same -sub- stacked rules as glab)
+# rule: gh pr create -> allow : creates are ungated (same -sub- stacked rules as glab; the gh pr new alias too)
 # rule: gh pr create -f|--fill|--fill-first|--fill-verbose -> ask : generated text may contain a closing keyword; pass -t and -F body-file instead
 # rule: gh pr create -t TITLE matching HARNESS_GITHUB_PR_TITLE_FORBID_RE -> ask : issue refs belong in the PR body (mention #N there), not the title; set github.pr_title_forbid_re to change the convention (empty disables)
 # rule: gh pr create -t with $VAR or backticks -> ask : the title cannot be checked; use a literal title instead

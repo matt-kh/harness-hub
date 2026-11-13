@@ -76,7 +76,7 @@ marks the developer's own credentials and the ask on writing `.harness.toml`.
 | 60-github.sh | github | `gh with quoted/escaped command words or a $VAR/$(…) subcommand` | ask | the subcommand cannot be checked; write it literally and unquoted instead (a subagent is denied) | owns scm |
 | 60-github.sh | github | `gh release/repo/workflow/secret/auth/gist/... mutations` | ask | team-visible; ask the user (releases are human-only) | owns scm |
 | 60-github.sh | github | `gh label create agent-*` | allow | governance label; other labels ask | owns scm |
-| 60-github.sh | github | `gh pr create\|new` | allow | creates are ungated (same -sub- stacked rules as glab) | owns scm |
+| 60-github.sh | github | `gh pr create` | allow | creates are ungated (same -sub- stacked rules as glab; the gh pr new alias too) | owns scm |
 | 60-github.sh | github | `gh pr create -f\|--fill\|--fill-first\|--fill-verbose` | ask | generated text may contain a closing keyword; pass -t and -F body-file instead | owns scm |
 | 60-github.sh | github | `gh pr create -t TITLE matching HARNESS_GITHUB_PR_TITLE_FORBID_RE` | ask | issue refs belong in the PR body (mention #N there), not the title; set github.pr_title_forbid_re to change the convention (empty disables) | owns scm |
 | 60-github.sh | github | `gh pr create -t with $VAR or backticks` | ask | the title cannot be checked; use a literal title instead | owns scm |
