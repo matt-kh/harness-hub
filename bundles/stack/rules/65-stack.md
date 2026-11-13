@@ -1,6 +1,7 @@
 ## Stacked MRs/PRs (stk)
-- **Humans merge, bottom-up, in the web UI**, in the order `stk plan --stack <BR>` prints
-  (main MR/PR last). Agents never merge.
+- **Humans decide the merges, bottom-up**, in the order `stk plan --stack <BR>` prints (main
+  MR/PR last), usually in the web UI. `stk` has no merge verb; merge a part yourself only when
+  the user explicitly asks for it in the main thread (the guard asks; a subagent is denied).
 - **After every merge, and after amending a lower part, run `stk sync --stack <BR>`**: it
   retargets parts whose blocker merged (or that GitLab CE sent to the default branch),
   rebases each chain in its worktree with `git rebase --update-refs --onto`, pushes the

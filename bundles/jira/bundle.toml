@@ -206,7 +206,7 @@ function = "client"
 [harness]
 coverage_note = "The optional MCP server runs with READ_ONLY_MODE=true; no sensor inspects MCP calls. The CLI's request shapes, error mapping and output are golden-tested offline."
 guides = [
-  { kind = "rule", ref = "rules/70-jira.md", checks = ["guard.d/70-jira.sh"], note = "reads free, writes gated by agent-* labels, transitions human-only" },
+  { kind = "rule", ref = "rules/70-jira.md", checks = ["guard.d/70-jira.sh"], note = "reads free, writes gated by agent-* labels, transitions on explicit main-thread request only" },
   { kind = "skill", ref = "skills/jira", checks = ["skills/jira/scripts/tests/run.sh", "guard.d/70-jira.sh"], note = "the jira CLI for Jira Server: search, fields, comments, labels" },
   { kind = "permission", ref = "permissions.toml", checks = ["permissions-vs-guard"], note = "read commands allowed; writes left to the guard" },
 ]
