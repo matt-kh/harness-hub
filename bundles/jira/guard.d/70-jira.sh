@@ -6,17 +6,26 @@
 # rule: jira create without a provenance label (agent-drafted|agent-created) -> deny : every agent-created ticket is labelled; use labels agent-drafted (or agent-created) instead
 # rule: jira create with a provenance label -> allow : creates are promptless
 # rule: jira label KEY add agent-* -> allow : governance labelling is free
-# rule: jira set|comment|upload|label|transition KEY on agent-labelled tickets -> allow : promptless
-# rule: jira transition KEY on a human ticket -> deny : ticket state is human-only (ask under WORK_TICKET_ALLOW_TRANSITION=1)
+# rule: jira set|comment|upload|label KEY on agent-labelled tickets -> allow : promptless (so is transition, on the main thread)
+# rule: jira transition KEY on a human ticket -> ask : ticket state is a human decision; run it only on the user's explicit request (they confirm it), or ask the user to transition it in Jira instead
+# rule: jira transition from a subagent -> deny : a subagent never changes ticket state, on human and agent-labelled tickets alike; hand the command back to the main thread
+# rule: jira transition without a literal key ($VAR, xargs, none) or whose labels cannot be read -> deny : the ticket cannot be checked; type the key literally (e.g. PROJ-123), or ask the user to transition it
+# rule: jira with quoted/escaped command words or a $VAR/$(…) subcommand -> ask : the subcommand cannot be checked; write it literally and unquoted instead (a hidden transition or $VAR subcommand from a subagent is denied)
 # rule: jira writes to human tickets -> ask : need an explicit user request; ask the user, or label the ticket agent-worked first
-# repo-override: WORK_TICKET_ALLOW_TRANSITION = "" -> =1: a state change (transition, close, reopen) on a purely human ticket or issue asks instead of denying
+# repo-override: WORK_TICKET_ALLOW_TRANSITION = "" -> deprecated, no effect since #67: a state change on a human ticket or issue asks on the main thread (and is denied in a subagent) with or without it; remove it
 # repo-override: WORK_TICKET_LABELED_DECISION = "allow" -> allow|ask: the decision for writes to agent-labelled tickets, issues, MRs and PRs
 repo_owns jira/guard.d/70-jira tracker && return 0   # principle 8: the repository's .harness.toml owns this section or domain tracker
 # ---- Jira writes: governance gate (work-ticket / create-ticket skills) -----------
 # create (with provenance label) and `label KEY add agent-*`: promptless.
 # set/comment/upload/label/link/transition on tickets carrying ANY agent-* label: promptless.
-# Purely human tickets (no agent-* label): writes ask; transition DENIED (state is human-only).
+# Purely human tickets (no agent-* label): writes ask. Ticket state is a human decision
+# (principle 2): a transition on a human ticket asks on the main thread (deferred), every
+# transition from a subagent is denied before any lookup, and a transition whose ticket cannot
+# be checked (no literal key, failed label lookup) is denied.
 # link / create --link: only between agent-labelled tickets (deny otherwise).
+# Section-local view: the command without fd duplications (2>&1 would cut a clause at its '&').
+# shellcheck disable=SC2168  # sections are wrapped in a function by build.sh
+local flat="$flat_split"
 JIRA_PY="${WORK_TICKET_JIRA_PY:-$GUARD_DIR/../skills/jira/scripts/jira.py}"   # rendered skill next to the hooks dir
 # Allowed link types, lowercased: HARNESS_JIRA_LINK_TYPES_RE (regex) wins, else
 # HARNESS_JIRA_LINK_TYPES (comma-separated names, rendered from jira.link_types), else the default.
@@ -32,7 +41,28 @@ fetch_labels() {
   [ -n "$o" ] || return 1
   printf '%s' "$o" | jq -c '.labels // []' 2>/dev/null || return 1
 }
+# jira_words TEXT -> one line per jira command head ('jira VERB' / 'jira.py VERB', sorted)
+jira_words() { printf '%s' "$1" | grep -oE '\bjira(\.py)?\s+[A-Za-z-]+' | sed -E 's/[[:space:]]+/ /g' | sort; }
+# -- 0. hidden subcommands: command words in quotes or escapes (jira "transition", j\ira ...) and a
+#       $VAR / $(...) / backtick in the subcommand slot cannot be checked. A hidden transition or an
+#       unknown subcommand is a human decision (main thread asks, a subagent is denied); another
+#       hidden write asks.
+if printf '%s' "$flat_dq" | grep -qE '\bjira(\.py)?\s' && [ "$(jira_words "$flat")" != "$(jira_words "$flat_dq")" ]; then
+  if printf '%s' "$flat_dq" | grep -qE '\bjira(\.py)?\s+transition\b'; then
+    human_decision_defer "jira transition with its command words in quotes or escapes cannot be checked — write the jira subcommand unquoted"
+  elif printf '%s' "$flat_dq" | grep -qE '\bjira(\.py)?\s+(set|create|upload|comment|label|link)\b'; then
+    defer "jira write with its command words in quotes or escapes cannot be checked — write the jira subcommand unquoted"
+  fi
+fi
+if printf '%s' "$flat" | grep -qE '\bjira(\.py)?\s+[^[:space:]]*[$`]'; then
+  human_decision_defer "jira subcommand from a \$VAR, \$(…) or backticks cannot be checked — write the subcommand literally"
+fi
 if printf '%s' "$flat" | grep -qE '\bjira(\.py)?\s+(set|create|transition|upload|comment|label|link)\b'; then
+  # -- ticket state is a human decision: a subagent is denied before any parsing or label lookup
+  is_transition=false; printf '%s' "$flat" | grep -qE '\bjira(\.py)?\s+transition\b' && is_transition=true
+  if $is_transition && [ "$IN_SUBAGENT" = true ]; then
+    human_decision "jira transition changes ticket state, a human decision; ask the user instead"
+  fi
   # -- raw issuelinks writes are not governed -> deny, point at the governed commands
   printf '%s' "$flat" | grep -qE "\bjira(\.py)?\s+set\s+${KEY_RE}\s+[\"']?issuelinks\b" && deny "issuelinks field rewrite — use 'jira link FROM TYPE TO' (governed)"
   printf '%s' "$flat" | grep -qE -- "--field[= ]+[\"']?issuelinks=" && deny "issuelinks in jira create — use --link TYPE:KEY (governed)"
@@ -48,7 +78,7 @@ if printf '%s' "$flat" | grep -qE '\bjira(\.py)?\s+(set|create|transition|upload
       lb=$(fetch_labels "$k") || ask "jira link — could not verify labels on $k; check 'jira whoami', or ask the user"
       labels_have_write "$lb" || deny "linking to a human ticket is not permitted ($k has no agent-* label) — ask the user to link it, or label it first (jira label $k add $GOV_LABEL)"
     done
-    allow "jira link $(printf '%s' "$lkeys" | tr '\n' ' ')— both tickets are agent-labelled"
+    $is_transition || allow "jira link $(printf '%s' "$lkeys" | tr '\n' ' ')— both tickets are agent-labelled"
   fi
 
   # -- jira create ... --link TYPE:KEY: must carry both governance labels; targets agent-worked
@@ -69,7 +99,7 @@ if printf '%s' "$flat" | grep -qE '\bjira(\.py)?\s+(set|create|transition|upload
     n_prov=$(printf '%s' "$flat" | grep -oE -- "--field[= ]+[\"']?labels=[\"']?\[[^] ]*\"(${DRAFTED_LABEL}|${CREATED_LABEL})\"" | wc -l)
     [ "$n_prov" -ge "$n_create" ] \
       || deny "jira create without a provenance label — pass --field labels='[\"${DRAFTED_LABEL}\"]' (create-ticket) or '[\"${CREATED_LABEL}\",\"${GOV_LABEL}\"]' (work-ticket sub-tickets)"
-    allow "jira create carrying a provenance label ($n_create ticket(s))"
+    $is_transition || allow "jira create carrying a provenance label ($n_create ticket(s))"
   fi
 
   # -- jira label KEY add agent-*: the tagging itself is free. Anything else → key gate below.
@@ -88,13 +118,16 @@ if printf '%s' "$flat" | grep -qE '\bjira(\.py)?\s+(set|create|transition|upload
 $(printf '%s' "$flat" | grep -oE "\bjira(\.py)?\s+label\s+${KEY_RE}\s+(add|remove)\s+[^;&|]*")
 EOF
     [ "$n_parsed" -ge "$n_label" ] || ask "jira label — could not parse every clause (use: jira label KEY add|remove LABEL…, literal keys)"
-    [ "$n_free" -ge "$n_label" ] && allow "jira governance labelling (agent-* labels only)"
+    if [ "$n_free" -ge "$n_label" ] && ! $is_transition; then allow "jira governance labelling (agent-* labels only)"; fi
   fi
 
   keys=$(printf '%s' "$flat" | grep -oE "\bjira(\.py)?\s+(set|upload|comment|transition|label)\s+${KEY_RE}" | grep -oE "${KEY_RE}$" | sort -u)
-  is_transition=false; printf '%s' "$flat" | grep -qE '\bjira(\.py)?\s+transition\b' && is_transition=true
+  # every transition clause needs its own literal key ($VAR, xargs and quoted keys cannot be checked)
+  if $is_transition && [ "$(printf '%s' "$flat" | grep -oE "\bjira(\.py)?\s+transition\s+${KEY_RE}\b" | wc -l)" -lt \
+       "$(printf '%s' "$flat" | grep -oE '\bjira(\.py)?\s+transition\b' | wc -l)" ]; then
+    deny "jira transition without an identifiable literal ticket key (\$VAR, xargs, quoted or none) cannot be checked — type the key literally (e.g. ${HARNESS_TICKET_EXAMPLE:-PROJ-123}), or ask the user to transition it"
+  fi
   if [ -z "$keys" ]; then
-    $is_transition && deny "jira transition without an identifiable ticket key — ticket state is human-only; ask the user to transition it and mention the key instead"
     ask "jira write (could not identify the ticket key) — use a literal key like PROJ-123 instead"
   fi
 
@@ -112,7 +145,9 @@ EOF
     [ "$LABELED_DECISION" = "allow" ] && allow "jira write to ${klist}— ticket(s) carry an agent-* label"
     ask "jira write to $klist(ticket(s) carry an agent-* label; WORK_TICKET_LABELED_DECISION=ask here, so ask the user to confirm)"
   fi
-  $is_transition && [ "$ALLOW_TRANSITION" = 1 ] && ask "jira transition on $klist — human ticket; transition allowed in this repo by WORK_TICKET_ALLOW_TRANSITION=1; ask the user to confirm"
-  $is_transition && deny "jira transition on $klist refused — human-written ticket state (move/close/reopen) is operated by humans only; ask the user to transition it and mention the key instead"
+  if $is_transition; then
+    human_decision_defer "jira transition on $klist— the state of a human-written ticket is a human decision; run it only on the user's explicit request (they confirm it), or ask the user to transition it in Jira instead"
+    return 0
+  fi
   ask "ticket(s) $klist not all agent-labelled — writes to human tickets need an explicit user request; ask the user, or label first (jira label KEY add $GOV_LABEL)"
 fi
