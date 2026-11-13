@@ -62,7 +62,7 @@ t deny  'jira transition ERR-1 x'
 t deny  'jira transition "$KEY" Done'
 t deny  'jira transition'
 t deny  'echo HUM-1 | xargs -I{} jira transition {} Done'
-t deny  "jira transition 'HUM-1' Done"                           # a quoted key cannot be checked
+t ask   "jira transition 'HUM-1' Done"                           # #67 review: a quoted literal key is read as the key (was deny)
 t deny  'jira comment LBL-1 x && jira transition "$KEY" Done'   # every transition clause needs a literal key
 t ask   'jira transition HUM-1 Done 2>&1'                         # a redirection never cuts the clause
 t ask   'sh -c "jira transition HUM-1 Done"'
@@ -139,6 +139,78 @@ t deny  'jira link LBL-1 Relates LBL-1'
 t deny  'jira link "$A" Relates LBL-2'
 t ask   'jira link LBL-1 Relates ERR-1'
 t deny  'jira set LBL-1 issuelinks []'
+# #67 review C1: a key is a whole literal word; LBL-1/../HUM-2 (the client would put it in a REST
+# path) never borrows LBL-1's labels
+t deny  'jira transition LBL-1/../HUM-2 Done'
+t ask   'jira comment LBL-1/../HUM-2 hi'
+T_AGENT=a1 t ask 'jira comment LBL-1/../HUM-2 hi'
+t ask   'jira set LBL-1/x labels []'
+t ask   'jira label LBL-1/../HUM-2 add agent-worked'
+t deny  'jira link LBL-1 Relates LBL-2/../HUM-1'
+t deny  "jira create PROJ Task \"x\" --field labels='[\"agent-created\",\"agent-worked\"]' --link \"Issue split:LBL-1/../HUM-1\""
+t ask   'jira comment LBL-1 a && jira comment "$KEY" b'          # every keyed clause needs a literal key (was allow)
+# #67 review W1/S2: text that only mentions jira decides nothing (command position only)
+t allow 'jira comment LBL-1 "Blocked: a human must run jira transition later"'
+T_AGENT=a1 t allow 'jira comment LBL-1 "Ready; next: jira transition LBL-1 Done"'
+T_AGENT=a1 t allow 'jira comment LBL-1 "x; jira transition HUM-1 Done"'
+nl=$'\n'
+T_AGENT=a1 t allow "jira comment LBL-1 \"\$(cat <<'X'${nl}Ready; next: jira transition LBL-1 Done (it's done)${nl}X${nl})\""
+t allow "jira comment LBL-1 \"\$(cat <<'X'${nl}Ready; next: jira transition HUM-1 Done${nl}X${nl})\""
+t allow 'jira comment LBL-1 "Use `jira get` to check"'
+T_AGENT=a1 t allow 'jira comment LBL-1 "Use `jira get` to check"'
+t pass  'ls -l $HOME/.local/bin/jira $HOME/x'
+T_AGENT=a1 t pass 'ls -l $HOME/.local/bin/jira $HOME/x'
+t pass  'git commit -m "Make jira transition a human decision"'
+T_AGENT=a1 t pass 'git commit -m "Make jira transition a human decision"'
+t pass  'grep -rn "jira transition" docs/'
+t pass  "cat <<'X' > notes.txt${nl}jira transition HUM-1 Done${nl}X"
+# ... but a command substitution, a shell fed the text, or an unquoted heredoc still runs it
+t ask   'jira comment LBL-1 "$(jira transition HUM-1 Done)"'
+T_AGENT=a1 t deny 'jira comment LBL-1 "$(jira transition LBL-1 Done)"'
+t ask   'echo "jira transition HUM-1 Done" | sh'
+T_AGENT=a1 t deny 'echo "jira transition LBL-1 Done" | bash'
+t ask   "bash <<'X'${nl}jira transition HUM-1 Done${nl}X"
+T_AGENT=a1 t deny "cat <<'X' | sh${nl}jira transition LBL-1 Done${nl}X"
+T_AGENT=a1 t deny "cat <<X > f${nl}\$(jira transition LBL-1 Done)${nl}X"
+T_AGENT=a1 t deny 'eval "jira transition LBL-1 Done"'
+T_AGENT=a1 t deny 'find . -name x -exec jira transition LBL-1 Done \;'
+T_AGENT=a1 t deny "python3 -c \"import os; os.system('jira transition LBL-1 Done')\""
+t ask   "python3 -c \"import os; os.system('jira transition LBL-1 Done')\""
+# #67 review W2: jira the guard cannot read (fed by xargs, a variable, an alias, $(which), a
+# case-changed name) is a human decision: ask on the main thread, deny in a subagent
+t ask   'echo transition LBL-1 Done | xargs jira'
+T_AGENT=a1 t deny 'echo transition LBL-1 Done | xargs jira'
+T_AGENT=a1 t deny 'xargs jira < args.txt'
+t ask   '$(which jira) transition LBL-1 Done'
+T_AGENT=a1 t deny '$(which jira) transition LBL-1 Done'
+T_AGENT=a1 t deny '"$(command -v jira)" transition LBL-1 Done'
+t ask   'J=jira; $J transition LBL-1 Done'
+T_AGENT=a1 t deny 'J=jira; $J transition LBL-1 Done'
+T_AGENT=a1 t deny 'alias j=jira; j transition LBL-1 Done'
+t ask   'JIRA transition LBL-1 Done'
+T_AGENT=a1 t deny 'JIRA transition LBL-1 Done'
+T_AGENT=a1 t deny 'Jira transition LBL-1 Done'
+T_AGENT=a1 t deny 'python3 /x/jira.PY transition LBL-1 Done'
+T_AGENT=a1 t deny "\$'jira' transition LBL-1 Done"
+T_AGENT=a1 t pass 'Jira get LBL-1'                                  # a hidden read stays a read
+T_AGENT=a1 t pass 'command -v jira'
+# #67 review S1: the literal-key deny comes before any check that can stop first
+t deny  'jira link LBL-1 Relates ERR-1 && jira transition "$KEY" Done'
+t deny  'jira label HUM-1 add agent-worked && jira transition "$KEY" Done'
+# #67 review S3: jira set KEY status|resolution is a state change like a transition
+t allow 'jira set LBL-1 status Done'
+t ask   'jira set HUM-1 resolution Fixed'
+t ask   'jira set HUM-1 Status Done'
+t deny  'jira set "$K" status Done'
+T_AGENT=a1 t deny  'jira set LBL-1 status Done'
+T_AGENT=a1 t deny  'jira set HUM-1 resolution Fixed'
+T_AGENT=a1 t allow 'jira set LBL-1 labels ["x"]'
+tr 'use jira transition' 'jira set HUM-1 status Done'
+# promptless writes no longer cover another write in the same command (were allow)
+t ask   'jira link LBL-1 Relates LBL-2 && jira comment HUM-1 x'
+t ask   "jira create PROJ Task \"x\" --field labels='[\"agent-drafted\"]' && jira comment HUM-1 x"
+t ask   'jira label HUM-1 add agent-worked && jira comment HUM-2 x'
+t allow 'jira link LBL-1 Relates LBL-2 && jira comment LBL-1 x'
 # ---- repo overrides (repo .claude/settings.json env) -------------------------------
 # WORK_TICKET_ALLOW_TRANSITION is a deprecated no-op since #67: every row decides as without it
 t ask   'jira transition HUM-1 "In Progress"'                     # #67: was deny
@@ -202,11 +274,12 @@ tr "run it only on the user's explicit request \(they confirm it\), or ask the u
 tr 'requires explicit user confirmation' 'jira transition HUM-1 Done'
 tr 'type the key literally' 'jira transition "$KEY" Done'
 tr 'could not verify labels' 'jira transition ERR-1 Done'
-tr 'write the jira subcommand unquoted' 'jira "transition" HUM-1 Done'
-tr 'write the subcommand literally' 'jira "$VERB" HUM-1 Done'
+tr 'write it literally' 'jira "transition" HUM-1 Done'
+tr 'write it literally' 'jira "$VERB" HUM-1 Done'
+tr 'write the jira subcommand literally and unquoted instead' 'jira "comment" HUM-1 x'
 T_AGENT=a1 tr 'hand the command back to the main thread' 'jira transition HUM-1 Done'
 T_AGENT=a1 tr 'hand the command back to the main thread' 'jira transition LBL-1 Done'
-T_AGENT=a1 tr 'jira transition changes ticket state' 'jira transition "$KEY" Done'
+T_AGENT=a1 tr 'changes ticket state, a human decision' 'jira transition "$KEY" Done'
 T_AGENT=a1 tr 'hand the command back to the main thread' 'jira "transition" LBL-1 Done'
 tr 'use a literal key like PROJ-123' 'jira comment "$KEY" x'
 tr "check 'jira whoami', or ask the user" 'jira comment ERR-1 x'

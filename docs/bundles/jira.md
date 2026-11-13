@@ -6,10 +6,13 @@ MCP server, and the Jira write gate.
 - Reads are free: `jira get`, `jira search`, `jira fields PROJ`, sprints, versions, links.
 - Creates need a provenance label; writes to tickets carrying an `agent-*` label are
   promptless; writes to purely human tickets **ask**.
-- Ticket state is a human decision: a transition on a human ticket **asks** on the main
-  thread, so the agent runs it only on the user's explicit request; from a subagent every
-  transition is **denied** (hand the command back to the main thread). A transition whose
-  ticket cannot be checked (no literal key, a failed label lookup) is denied. A repository
+- Ticket state (`jira transition`, `jira set KEY status|resolution`) is a human decision: a
+  state change on a human ticket **asks** on the main thread, so the agent runs it only on
+  the user's explicit request; from a subagent every state change is **denied** (hand the
+  command back to the main thread). A state change whose ticket cannot be checked (no literal
+  key, a failed label lookup) is denied, and so is any key that is not exactly `PROJ-123`
+  (also in the client). Only jira calls in command position count; text that merely mentions
+  jira decides nothing. A repository
   that owns the `tracker` domain decides itself ([repository-level harnesses](../repo-level.md));
   `WORK_TICKET_ALLOW_TRANSITION` is a deprecated no-op.
 - The MCP server (`mcp-atlassian` through `uvx`) runs with `READ_ONLY_MODE=true` and receives
@@ -70,7 +73,7 @@ Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md
 
 **Guard sections**
 
-- `jira/guard.d/70-jira` — control: sensor · function: govern · decisions: deny 4 · ask 3 · allow 4 · yields: declaration
+- `jira/guard.d/70-jira` — control: sensor · function: govern · decisions: deny 4 · ask 4 · allow 4 · yields: declaration
 
 **Permission lists**
 

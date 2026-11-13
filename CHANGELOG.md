@@ -568,6 +568,31 @@ prints every one between your applied version and the new one.
   on the main thread and deny in a subagent (a hidden non-transition write asks in both).
   Other Jira writes are unchanged, and `jira api` is GET-only in the client, so there is no
   raw API write to gate. A repository owning `tracker` still passes, in a subagent too.
+- The Jira section reads the command with a small shell scanner instead of regexes over the
+  whole text (#67 review). Only a jira call in command position counts: after assignments and
+  wrappers (`env`, `exec`, `command`, `sudo`, `nice`, `timeout`, `xargs`, `find -exec` …), inside
+  `sh|bash -c` strings, `eval`, `$(…)` and backticks, heredoc bodies fed to a shell and text
+  piped into one. Text that only mentions jira (a comment body, a `"$(cat <<'X' … X)"` body, a
+  commit message, a grep pattern, a path argument to `ls`) no longer asks or denies.
+  - A ticket key is a whole literal word: `jira transition LBL-1/../HUM-2` denies and
+    `jira comment LBL-1/../HUM-2` asks (both used LBL-1's labels before); every keyed clause
+    needs its own literal key (`jira comment LBL-1 a && jira comment "$KEY" b` asks, was
+    allow). The `jira` client refuses any key that is not exactly `[A-Z][A-Z0-9_]*-[0-9]+` in
+    every keyed command, lower-case keys included.
+  - jira the guard cannot read is a human decision (ask; deny in a subagent): fed by `xargs`
+    without a verb, a `NAME=jira` variable or alias, `$(which jira)` as the command, a
+    case-changed name (`JIRA`, `jira.PY`), jira code in `python|perl|node -c|-e`; a hidden
+    known read passes and a hidden non-state write asks. A quoted literal key
+    (`jira transition 'HUM-1' Done`) is read as the key (ask, was deny).
+  - `jira set KEY status|resolution` is a state change like a transition (promptless on an
+    agent-labelled ticket, ask on a human one, denied in a subagent).
+  - A promptless `jira link`, labelled `jira create` or `jira label … add agent-*` no longer
+    lets any other write in the same command through (was allow); every `jira link` clause is
+    checked, not only the first.
+  - The literal-key deny for a state change comes before any check that can stop first.
+  - Known limit: a copied or renamed client (`cp jira x; ./x transition …`) and jira calls built
+    inside other interpreters' code beyond the `-c|-e` text check are not recognised; the
+    provider's permission prompt is the backstop.
 - `WORK_TICKET_ALLOW_TRANSITION` is a deprecated no-op (#67): the engine no longer reads it;
   the name stays allow-listed, so setting it is not an error, and `harness repo` reports a
   set value as "deprecated, no effect" with where to remove it. `harness repo init` no longer
@@ -707,7 +732,10 @@ prints every one between your applied version and the new one.
   (`.claude/settings.json` `"env"`); nothing replaces it, since the main thread now asks
   without it. A repository whose own workflow transitions tickets owns the `tracker` domain
   instead. Quoted Jira command words (`jira "comment" …`) now ask instead of passing: write
-  jira subcommands unquoted.
+  jira subcommands unquoted. `jira set KEY status|resolution` follows the transition rule. The
+  `jira` client now refuses lower-case or path-like keys (`proj-123`, `PROJ-1/..`): pass
+  `PROJ-123`. Commands that combine a promptless Jira write with another write now go through
+  the label gate for the other write (ask on a human ticket).
 - Per-provider model names: one new optional config key, `[providers.<name>].model_policy`
   (`plan`, `execute`). Claude needs no edit. For Copilot, `harness apply` now writes agents
   and skills without `model:` (session model); to pin models, add
