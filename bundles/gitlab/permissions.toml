@@ -25,6 +25,7 @@ ask = [
   "Bash(glab issue close:*)",
   "Bash(glab issue create:*)",
   "Bash(glab issue note:*)",
+  "Bash(glab issue reopen:*)",
   "Bash(glab issue update:*)",
   "Bash(glab mr approve:*)",
   "Bash(glab mr merge:*)",

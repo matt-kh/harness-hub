@@ -2,14 +2,19 @@
 
 # Section 50 (bundle gitlab): glab governance.
 # rule: glab api -X POST|PUT|PATCH|DELETE | payload flag -> ask : API write; ask the user, or use the matching glab subcommand
-# rule: glab mr merge|approve|revoke|delete, issue/release/repo/label mutations -> ask : team-visible, humans merge; ask the user instead of merging or approving
+# rule: glab api write (as above) from a subagent -> deny : a raw API write can merge or change state; hand the command back to the main thread
+# rule: glab mr merge|approve|revoke, glab issue close|reopen -> ask : merging, approving and issue state are human-only; run it only on the user's explicit request (they confirm it), or ask the user instead
+# rule: glab mr merge|approve|revoke, glab issue close|reopen from a subagent -> deny : a subagent never merges, approves or changes issue state; hand the command back to the main thread
+# rule: glab mr delete, issue/release/repo/label mutations -> ask : team-visible; ask the user instead
 # rule: glab label create -n agent-* -> allow : governance label; other labels ask
 # rule: glab mr create -> allow : creates are ungated (a -sub- source without target / with a base target -> deny)
 # rule: glab mr create -f|--fill -> ask : generated text may carry a closing keyword or a key-less title; pass --title and --description-file instead
 # rule: glab mr create --related-issue -> ask : links (and may close) a GitLab issue; mention the key in the description instead
 # rule: glab mr create -t TITLE not matching HARNESS_GITLAB_MR_TITLE_RE -> ask : MR titles start with the ticket key; use a title like 'PROJ-123 fix parser' instead, or set gitlab.mr_title_re (empty disables)
 # rule: glab mr create -t with $VAR or backticks -> ask : the title cannot be checked; use a literal title instead
-# rule: glab mr update|note|close|rebase REF on an agent-labelled MR -> allow : human MRs ask (label it first: glab mr update REF --label agent-worked); -sub- retarget to base -> deny, retarget to the ticket branch instead; no/$VAR ref -> ask, pass a literal number
+# rule: glab mr update|note|close|reopen|rebase REF on an agent-labelled MR -> allow : human MRs ask (label it first: glab mr update REF --label agent-worked); -sub- retarget to base -> deny, retarget to the ticket branch instead; no/$VAR ref -> ask, pass a literal number
+# rule: glab mr close|reopen, glab mr update --ready|--draft on a human MR -> ask : MR state is a human decision; run it only on the user's explicit request (they confirm it), or ask the user instead
+# rule: glab mr close|reopen, glab mr update --ready|--draft from a subagent -> deny : a subagent never changes MR state; hand the command back to the main thread
 # repo-override: WORK_TICKET_BASE_BRANCH_RE = "^(master|main)$" -> default/base branches: pushes to them deny, sub MRs/PRs never target them
 # repo-override: WORK_TICKET_LABELED_DECISION = "allow" -> allow|ask: the decision for writes to agent-labelled tickets, issues, MRs and PRs
 repo_owns gitlab/guard.d/50-gitlab scm && return 0   # principle 8: the repository's .harness.toml owns this section or domain scm
@@ -27,17 +32,20 @@ fetch_glab_mr() {
   printf '%s' "$o" | jq -ce '{labels, src: .source_branch, tgt: .target_branch, cross: false} | '"$NORM_JQ" 2>/dev/null
 }
 # create + agent labelling: promptless. Existing MR without an agent-* label: ask.
-# merge/approve/revoke/delete: always ask (humans merge). Everything else team-visible: ask.
+# merge/approve/revoke and issue close/reopen are human decisions: the main thread asks, a
+# subagent is denied (as are raw API writes). delete and everything else team-visible: ask.
 if printf '%s' "$flat" | grep -qE '\bglab\s+(mr|issue|release|repo|label|api)\b'; then
   # glab api (per clause): non-GET method, or a payload flag (which flips the default method to POST)
   while IFS= read -r clause; do
     [ -n "$clause" ] || continue
-    printf '%s' "$clause" | grep -qE '(-X|--method)[= ]+(POST|PUT|DELETE|PATCH)|(^|[[:space:]])(-F|--field|--form|-f|--raw-field|--input)([= ]|$)' && ask "glab api write (non-GET or payload flag) — ask the user, or use the matching glab subcommand instead"
+    printf '%s' "$clause" | grep -qE '(-X|--method)[= ]+(POST|PUT|DELETE|PATCH)|(^|[[:space:]])(-F|--field|--form|-f|--raw-field|--input)([= ]|$)' && human_decision "glab api write (non-GET or payload flag) — ask the user, or use the matching glab subcommand instead"
   done <<EOF
 $(printf '%s' "$flat" | grep -oE '\bglab\s+api\b[^;&|]*')
 EOF
-  printf '%s' "$flat" | grep -qE '\bglab\s+(mr\s+(merge|approve|revoke|delete)|issue\s+(create|close|delete)|release\s+(create|delete|upload)|repo\s+(delete|archive|fork|create)|label\s+(edit|delete))\b' \
-    && ask "glab team-visible mutation (MR merge/approve is human-only; issues/releases/repos are not governed) — ask the user instead"
+  printf '%s' "$flat" | grep -qE '\bglab\s+(mr\s+(merge|approve|revoke)|issue\s+(close|reopen))\b' \
+    && human_decision "glab MR merge/approve/revoke or issue close/reopen (human-only) — run it only on the user's explicit request (they confirm it), or ask the user instead"
+  printf '%s' "$flat" | grep -qE '\bglab\s+(mr\s+delete|issue\s+(create|delete)|release\s+(create|delete|upload)|repo\s+(delete|archive|fork|create)|label\s+(edit|delete))\b' \
+    && ask "glab team-visible mutation (issues/releases/repos are not governed) — ask the user instead"
 
   # glab label create -n NAME: agent-* labels are free
   if printf '%s' "$flat" | grep -qE '\bglab\s+label\s+create\b'; then
@@ -86,7 +94,9 @@ EOF
     pending_allow="glab mr create (creates are ungated; pass --label agent-worked so follow-up edits stay promptless)"
   fi
 
-  # glab mr update|note|close|rebase <ref>: gate on the MR's existing labels
-  gate_writes '\bglab\s+mr\s+(update|note|close|rebase)\b' fetch_glab_mr '^(-l|--label)$' '^--target-branch$' '' \
-    '^(--(draft|ready|wip|yes|lock-discussion|unlock-discussion|remove-source-branch|squash-before-merge|unique|skip-ci)|-r|-y)$' "glab mr" '!'
+  # glab mr update|note|close|reopen|rebase <ref>: gate on the MR's existing labels; close|reopen
+  # and update --ready|--draft|--wip|-r are state (a subagent is denied, a human MR asks)
+  gate_writes '\bglab\s+mr\s+(update|note|close|reopen|rebase)\b' fetch_glab_mr '^(-l|--label)$' '^--target-branch$' '^(close|reopen)$' \
+    '^(--(draft|ready|wip|yes|lock-discussion|unlock-discussion|remove-source-branch|squash-before-merge|unique|skip-ci)|-r|-y)$' "glab mr" '!' \
+    '^(--(draft|ready|wip)|-r)$'
 fi
