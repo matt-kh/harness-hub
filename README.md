@@ -132,11 +132,14 @@ Ten principles govern every change to the hub; each links to its document (check
 ## Governance you can audit
 
 - The guard **denies** reading credential files, pushing to a default branch and closing
-  tickets by keyword. It **asks** before merges, approvals, PR/MR/issue and ticket state
-  changes, cluster mutations and writes to human-owned tickets, and
-  **denies** merges, approvals and state changes from a subagent. Every reason names what to
-  do instead
+  tickets by keyword. It **asks** before cluster mutations and writes to human-owned tickets,
+  MRs and PRs. Every reason names what to do instead
   ([hook policy](docs/reference/hook-policy.md)).
+- **Humans decide merges, approvals and state.** An agent merges, approves, closes, reopens
+  or readies a PR/MR, closes an issue or transitions a ticket only when you explicitly ask for
+  it in the main thread, and the guard asks you to confirm the call (state changes of
+  agent-labelled artefacts stay promptless). A subagent that tries is denied and hands the
+  command back ([governance](docs/governance.md#3-humans-decide-merges-approvals-and-state)).
 - Agents write without a prompt only to artefacts they own, marked by an `agent-*` label
   ([governance](docs/governance.md)).
 - **User-level by design.** Everything the hub installs is a baseline that yields wholesale

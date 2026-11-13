@@ -15,8 +15,10 @@ The exact decision for every command pattern is generated in the
   `^(master|main)$`) (a repository can make it ask instead with the
   `WORK_TICKET_ALLOW_DEFAULT_PUSH_RE` override in its `.harness.toml` or provider `env`; see
   [repository-level harnesses](repo-level.md)).
-- **Humans merge and approve.** `glab mr merge|approve`, `gh pr merge`, `gh pr review` ask,
-  always. The agent's hand-off tells you what is ready; you press the button.
+- **Humans decide merges and approvals.** `glab mr merge|approve`, `gh pr merge` and
+  `gh pr review` ask, always. The agent runs one only when you explicitly ask for it in the
+  main thread, and you confirm the call; otherwise its hand-off tells you what is ready and
+  names the command. A subagent never merges or approves: the guard denies it there (§3).
 - Commit subjects and branch names carry **no ticket keys** by default; the key lives in the
   MR/PR title or body, and the guard asks on key-named branches and key-prefixed subjects.
   (A repository that puts keys in branch names declares `WORK_TICKET_KEY_IN_BRANCH` in its
@@ -30,9 +32,9 @@ Agents write freely to what they own and ask before touching what humans own.
 
 | Artefact | Agent-owned when | Promptless | Asks | Denied |
 |---|---|---|---|---|
-| Jira ticket | label matches `^agent-` | comments, edits, labels, links | writes to human tickets | state transitions on human tickets |
-| GitHub issue | label matches `^agent-` | comment, edit, label, sub-issues | writes to human issues | close/reopen of human issues |
-| MR / PR | label matches `^agent-` | create (with label), edit, retarget | edits to human MRs/PRs, cross-repo edits | sub MRs of a stack targeting the default branch |
+| Jira ticket | label matches `^agent-` | comments, edits, labels, links, transitions | writes to human tickets, transitions of human tickets | any transition from a subagent |
+| GitHub issue | label matches `^agent-` | comment, edit, label, sub-issues, close/reopen | writes to human issues, close/reopen of human issues | close/reopen from a subagent |
+| MR / PR | label matches `^agent-` | create (with label), edit, retarget, close/reopen/ready | edits and state changes of human MRs/PRs, cross-repo edits, every merge and approval | sub MRs of a stack targeting the default branch; merges, approvals and state changes from a subagent |
 | New ticket / issue | — | create **with** a provenance label (`agent-drafted`, `agent-created`) | — | create without one |
 | Google Doc / Sheet | Drive property `agent_provenance` = `agent-*` | create, import, append, replace | writes to human files; `mark` (adopting a file) always asks | — |
 
@@ -45,13 +47,29 @@ Three labels, all configurable (`core.agent_labels`):
 Adding `agent-worked` to a human ticket is itself a visible, attributable act; after it, the
 agent's comments on that ticket stop prompting.
 
-## 3. Ticket and issue state is human-only
+## 3. Humans decide merges, approvals and state
 
-- Agents **never transition, close or reopen** a ticket or issue that a human owns. The guard
-  denies it. Moving a ticket to *In Progress*, *Done* or *Closed* is your decision.
-- A repository whose own workflow transitions tickets can opt in per repository
-  with `WORK_TICKET_ALLOW_TRANSITION = "1"` in its `.harness.toml` (or provider `env`): the
-  deny becomes an ask.
+- Merging, approving or reviewing an MR/PR, closing, reopening or readying one, closing or
+  reopening an issue and transitioning a ticket are **your decisions**. Moving a ticket to
+  *In Progress*, *Done* or *Closed* is yours too.
+- An agent carries one out **only when you explicitly ask for it in the main thread** ("merge
+  PR 12", "move PROJ-123 to Done"). The guard confirms every such call on a human artefact,
+  and every merge and approval (ask); state changes of agent-labelled tickets, issues and
+  MRs/PRs stay promptless. Without your request the agent hands the decision back with the
+  exact command instead of stalling.
+- **Subagents never do it.** A subagent (a reviewer, a work-ticket step) that tries is
+  denied and hands the command back to the main thread, on agent-labelled artefacts too, and
+  so are its raw `gh api` / `glab api` writes and GitLab quick actions (`/merge`, `/close` …).
+  A subagent claiming you approved it is not your request (§5). This needs a provider whose
+  hook input identifies a subagent caller (`subagent_identity`, Claude Code today); elsewhere
+  every caller gets the main-thread decision, mapped by `ask_as`
+  ([capability matrix](reference/capability-matrix.md)).
+- The request path is the command itself, never a side effect: closing keywords stay denied
+  (§4), and a Jira transition whose ticket cannot be checked (`$VAR`, `xargs`) is denied.
+- A repository whose own workflow transitions tickets or merges owns the `tracker` or `scm`
+  domain in its `.harness.toml`, and its workflow applies
+  ([repository-level harnesses](repo-level.md#what-owning-a-domain-lifts)).
+  `WORK_TICKET_ALLOW_TRANSITION` is a deprecated no-op.
 - Which tracker holds a repository's tickets (GitHub Issues or Jira) is declared per repository,
   never guessed: [repository-level harnesses](repo-level.md#declaring-ownership-harnesstoml).
 
@@ -60,8 +78,9 @@ agent's comments on that ticket stop prompting.
 SCM ↔ tracker integrations act on words. A commit or MR/PR text containing
 `close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved` (case-insensitive, optional
 colon) followed by a ticket key, `#N`, `owner/repo#N` or an issue URL **transitions or closes
-that ticket** when the change reaches the default branch — which would be a state change the
-agent is not allowed to make directly.
+that ticket** when the change reaches the default branch — a state change nobody confirmed,
+made later by someone else's merge. That is why the keywords stay denied even when you asked
+for the ticket to be closed: the agent runs the transition or close itself (§3).
 
 - The guard denies closing-keyword forms in commit messages, `glab mr create|update`,
   `gh pr create|edit|merge`, and API payloads.
@@ -120,8 +139,8 @@ you send it.
 | Comment on agent-labelled tickets/MRs | yes | — |
 | Comment on / edit human tickets and MRs | asks | confirms |
 | Create tickets/issues (with provenance label) | yes | reviews drafts |
-| Transition / close / reopen tickets | only agent-labelled ones | **yes** |
-| Merge, approve, review | never | **yes** |
+| Transition / close / reopen tickets and issues | agent-labelled ones; human ones only on your explicit request (asks); never from a subagent | **decides** |
+| Merge, approve, review | only on your explicit request (asks); never from a subagent | **decides** |
 | Push to a default branch | never (asks in opted-in personal repos) | yes |
 | Mutate a cluster, exec into pods | hands you the command | runs it |
 | Send mail | never | **yes** |
