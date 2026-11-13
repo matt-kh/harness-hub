@@ -185,12 +185,13 @@ g ask   'gh issue comment 3 -b hi'
 g ask   'gh issue comment 4 -b hi'
 g ask   'gh issue comment 9 -b hi'
 g allow 'gh issue close 1 -c "done" -r completed'
-g deny  'gh issue close 3'
-g deny  'gh issue reopen 3'
-g deny  'gh issue comment 3 -b x && gh issue close 3'
+g ask   'gh issue close 3'                                  # #67: human issue state asks on the main thread (was deny)
+g ask   'gh issue reopen 3'                                 # #67: was deny
+g ask   'gh issue comment 3 -b x && gh issue close 3'       # #67: was deny
 g ask   'gh issue close 9'
 g ask   'gh issue close "$N"'
-WORK_TICKET_ALLOW_TRANSITION=1 g ask 'gh issue close 3'
+WORK_TICKET_ALLOW_TRANSITION=1 g ask 'gh issue close 3'     # #67: the override no longer changes GitHub issue state (ask either way)
+g ask   'gh issue close 3 --add-label agent-worked'          # labelling flags never make a state change free
 g ask   'gh issue comment 3 -b "fixes #3 landed"'
 g allow 'gh issue comment 1 -b "fixes #3 landed"'
 # GitHub closing keywords in commits
@@ -203,22 +204,22 @@ t pass  'git commit -m "prefix #12 cleanup"'
 tr 'GitHub close the issue' 'git commit -m "Fixes #12"'
 # ---- repository-level declaration: .harness.toml (principle 8) ----------------------
 decl '[overrides]' 'WORK_TICKET_ALLOW_TRANSITION = "1"'
-r ask   'gh issue close 3'
-WORK_TICKET_ALLOW_TRANSITION=0 r deny 'gh issue close 3'     # the real environment wins
+r ask   'gh issue close 3'                                    # #67: ask with or without the override
+WORK_TICKET_ALLOW_TRANSITION=0 r ask 'gh issue close 3'      # #67: was deny; the override no longer matters for GitHub issues
 decl '[overrides]' 'WORK_TICKET_LABELED_DECISION = "ask"'
 r ask   'gh issue comment 1 -b hi'
 decl '[overrides]' 'WORK_TICKET_GH = "/bin/true"'           # bypass: client paths are never repo-settable
 # shellcheck disable=SC2154  # rpd: the fixture repository, defined in guard/tests/lib.sh
-tn deny 'WORK_TICKET_GH is settable only from your own environment' "$rpd" 'gh issue close 3'
+tn ask 'WORK_TICKET_GH is settable only from your own environment' "$rpd" 'gh issue close 3'   # #67: was deny (human issue state now asks)
 decl '[owns]' 'domains = ["scm"]'
 r pass  'gh issue close 3'
 r pass  'gh issue create --title x'
 r deny  'git commit -m "Fixes #12"'                           # 41-github-closing is tracker: unchanged
 decl '[owns]' 'domains = ["tracker"]'
 r pass  'git commit -m "Fixes #12"'
-r deny  'gh issue close 3'
+r ask   'gh issue close 3'                                    # #67: was deny
 decl '[owns]' 'components = ["github/guard.d/41-github-closing"]'
-r deny  'gh issue close 3'                                    # 60-github still runs on 41's shared definitions
+r ask   'gh issue close 3'                                    # #67: was deny; 60-github still runs on 41's shared definitions
 r ask   'gh pr merge 100'
 # never yields: commands that print the developer's stored credential (prelude above repo_owns)
 decl '[owns]' 'domains = ["scm", "kubernetes", "tracker", "workspace"]'
@@ -235,6 +236,12 @@ r pass  'gh auth status'
 decl '[owns]' 'domains = ["scm", "kubernetes", "tracker", "workspace"]'
 r pass  'gh pr merge 100'
 r pass  'gh issue close 3'
+# yielding comes first (principle 8): an owned scm domain passes a subagent's human decisions too
+decl '[owns]' 'domains = ["scm"]'
+T_AGENT=a1 r pass 'gh pr merge 100'
+T_AGENT=a1 r pass 'gh issue close 3'
+T_AGENT=a1 r pass 'gh api -X PUT repos/o/r/pulls/1/merge'
+T_AGENT=a1 r deny 'gh auth token'                             # never yields, in a subagent too
 decl
 # runtime deny/ask messages carry the # rule: alternative (lint guard-messages)
 tr 'matching gh subcommand' 'gh api -X POST repos/o/r/issues -f title=x'
@@ -243,4 +250,80 @@ tr 'pass the query inline' 'gh api graphql -F query=@q.graphql'
 tr 'literal inline query' 'gh api graphql -f query="$(cat q.graphql)"'
 tr 'drop operationName' "gh api graphql -f query='query A { viewer { login } }' -f operationName=A"
 tr 'human-only.*ask the user instead' 'gh pr merge 100 --squash'
+# ---- humans decide (#67): merge, review and PR/issue state ----------------------------
+# main thread: merge/review ask on any ref; state asks on a human ref, an agent-labelled ref keeps allow
+g ask   'gh pr merge 100'
+g ask   'gh pr merge 200'
+g ask   'gh pr review 100 --approve'
+g ask   'gh pr review 200 --comment -b x'
+g ask   'gh pr close 200'
+g ask   'gh pr reopen 200'
+g ask   'gh pr ready 200'
+g ask   'gh pr ready --undo 200'
+g ask   'gh issue close 3'
+g ask   'gh issue reopen 3'
+g allow 'gh pr close 100'
+g allow 'gh pr reopen 100'
+g allow 'gh pr ready 100'
+g allow 'gh issue close 1'
+g allow 'gh issue reopen 1'
+T_AGENT=''        g ask   'gh pr merge 100'                  # agent_id "" = main thread
+T_AGENT_NULL=1    g allow 'gh pr close 100'                  # agent_id null = main thread
+T_AGENT_TYPE=Plan g ask   'gh pr merge 100'                  # main thread under --agent
+T_AGENT_TYPE=Plan g allow 'gh issue close 1'
+# subagent: every merge, review, state change and raw API write denies (human and agent-labelled refs)
+T_AGENT=a1 g deny 'gh pr merge 100'
+T_AGENT=a1 g deny 'gh pr merge 200'
+T_AGENT=a1 g deny 'gh pr review 100 --approve'
+T_AGENT=a1 g deny 'gh pr review 200 --comment -b x'
+T_AGENT=a1 g deny 'gh pr close 100'
+T_AGENT=a1 g deny 'gh pr close 200'
+T_AGENT=a1 g deny 'gh pr reopen 100'
+T_AGENT=a1 g deny 'gh pr reopen 200'
+T_AGENT=a1 g deny 'gh pr ready 100'
+T_AGENT=a1 g deny 'gh pr ready 200'
+T_AGENT=a1 g deny 'gh pr ready --undo 110'
+T_AGENT=a1 g deny 'gh pr close 120'                          # fork PR
+T_AGENT=a1 g deny 'gh pr close "$N"'                         # denied before any lookup
+T_AGENT=a1 g deny 'gh pr close'
+T_AGENT=a1 g deny 'gh issue close 1'
+T_AGENT=a1 g deny 'gh issue close 3'
+T_AGENT=a1 g deny 'gh issue reopen 1'
+T_AGENT=a1 g deny 'gh issue reopen 3'
+T_AGENT=a1 g deny 'gh issue close 9'
+T_AGENT=a1 g deny 'gh api -X PUT repos/o/r/pulls/1/merge'
+T_AGENT=a1 g deny 'gh api repos/o/r/issues/3 -f state=closed'
+T_AGENT=a1 g deny 'gh api repos/o/r/issues --input -'
+T_AGENT=a1 g deny "gh api graphql -f query='mutation { mergePullRequest(input:{pullRequestId:\"x\"}) { clientMutationId } }'"
+T_AGENT=a1 g deny 'GH_REPO=o/r gh pr close 100'
+# subagent: everything else is unchanged
+T_AGENT=a1 g allow 'gh pr comment 100 -b hi'
+T_AGENT=a1 g allow 'gh pr edit 100 -b new'
+T_AGENT=a1 g allow 'gh pr update-branch 110 --rebase'
+T_AGENT=a1 g ask   'gh pr comment 200 -b hi'
+T_AGENT=a1 g allow 'gh issue comment 1 -b hi'
+T_AGENT=a1 g allow 'gh issue edit 3 --add-label agent-worked'
+T_AGENT=a1 g pass  'gh pr view 100 --json title'
+T_AGENT=a1 g pass  'gh api repos/o/r/pulls'
+T_AGENT=a1 g pass  "gh api graphql -f query='{ viewer { login } }'"
+T_AGENT=a1 t ask   'gh release create v1.0.0'
+T_AGENT=a1 g allow 'gh pr create -H feat-x -B main -t x -l agent-worked'
+# subagent bypass attempts: still denied
+T_AGENT=a1 g deny 'sh -c "gh pr merge 100"'
+T_AGENT=a1 g deny 'GH_TOKEN=x gh pr merge 100'
+T_AGENT=a1 g deny 'cd sub && gh pr merge 100'
+T_AGENT=a1 g deny 'gh -R o/r pr merge 100'
+T_AGENT=a1 g deny 'gh pr -R o/r close 100'
+T_AGENT=a1 g deny 'gh pr update-branch 110 && gh pr merge 110'
+T_AGENT=a1 g deny 'gh pr comment 100 -b x; gh issue close 1'
+T_AGENT=a1 g deny "bash -c 'gh issue reopen 1'"
+T_AGENT=a1 g deny 'echo 100 | xargs gh pr merge'
+# closing keywords: unchanged (section 41), on either caller
+g deny  'gh pr merge 100 -b "Closes #3"'
+T_AGENT=a1 g deny 'gh pr merge 100 -b "Closes #3"'
+# reasons: the subagent deny hands the command back; the main-thread ask names the alternative
+T_AGENT=a1 tr 'hand the command back to the main thread' 'gh pr merge 100'
+T_AGENT=a1 tr 'hand the command back to the main thread' 'gh issue close 1'
+T_AGENT=a1 tr 'hand the command back to the main thread' 'gh api -X PUT repos/o/r/pulls/1/merge'
+tr 'explicit request.*ask the user' 'gh pr merge 200'
 tr 'use an agent-\* name, or ask the user' 'gh label create bug'

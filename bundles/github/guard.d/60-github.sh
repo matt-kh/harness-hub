@@ -2,14 +2,19 @@
 
 # Section 60 (bundle github): gh governance.
 # rule: gh api -X non-GET | --input | fields without a method | graphql mutation -> ask : API write; ask the user, or use the matching gh subcommand
-# rule: gh pr merge|review, release/repo/workflow/secret/auth/gist/... mutations -> ask : team-visible; ask the user (merges, reviews and releases are human-only)
+# rule: gh api write (as above) from a subagent -> deny : a raw API write can merge or change state; hand the command back to the main thread
+# rule: gh pr merge|review -> ask : merging and reviewing are human-only; run it only on the user's explicit request (they confirm it), or ask the user instead
+# rule: gh pr merge|review from a subagent -> deny : a subagent never merges or reviews; hand the command back to the main thread
+# rule: gh release/repo/workflow/secret/auth/gist/... mutations -> ask : team-visible; ask the user (releases are human-only)
 # rule: gh label create agent-* -> allow : governance label; other labels ask
 # rule: gh pr create -> allow : creates are ungated (same -sub- stacked rules as glab)
 # rule: gh pr create -f|--fill|--fill-first|--fill-verbose -> ask : generated text may contain a closing keyword; pass -t and -F body-file instead
 # rule: gh pr create -t TITLE matching HARNESS_GITHUB_PR_TITLE_FORBID_RE -> ask : issue refs belong in the PR body (mention #N there), not the title; set github.pr_title_forbid_re to change the convention (empty disables)
 # rule: gh pr create -t with $VAR or backticks -> ask : the title cannot be checked; use a literal title instead
 # rule: gh issue create without -l agent-drafted|agent-created -> deny : provenance label required; use -l agent-drafted (or agent-created) instead
-# rule: gh pr edit|comment|close|reopen|ready|update-branch, gh issue edit|comment|close|reopen on an agent-labelled ref -> allow : human refs ask; human issue close|reopen -> deny; fork PRs ask
+# rule: gh pr edit|comment|close|reopen|ready|update-branch, gh issue edit|comment|close|reopen on an agent-labelled ref -> allow : human refs ask (label it first, or ask the user); fork PRs ask
+# rule: gh pr close|reopen|ready, gh issue close|reopen on a human ref -> ask : PR/issue state is a human decision; run it only on the user's explicit request (they confirm it), or ask the user instead
+# rule: gh pr close|reopen|ready, gh issue close|reopen from a subagent -> deny : a subagent never changes PR/issue state; hand the command back to the main thread
 # repo-override: WORK_TICKET_BASE_BRANCH_RE = "^(master|main)$" -> default/base branches: pushes to them deny, sub MRs/PRs never target them
 # repo-override: WORK_TICKET_ALLOW_TRANSITION = "" -> =1: a state change (transition, close, reopen) on a purely human ticket or issue asks instead of denying
 # repo-override: WORK_TICKET_LABELED_DECISION = "allow" -> allow|ask: the decision for writes to agent-labelled tickets, issues, MRs and PRs
@@ -42,7 +47,8 @@ fetch_gh_issue() {
 # github) means "disabled"; without a guard.env (tests, hand-installed hook) the default applies.
 if [ -n "${HARNESS_GITHUB_PR_TITLE_FORBID_RE+x}" ]; then GH_TITLE_FORBID_RE=$HARNESS_GITHUB_PR_TITLE_FORBID_RE
 else case " ${HARNESS_BUNDLES:-} " in *" github "*) GH_TITLE_FORBID_RE="" ;; *) GH_TITLE_FORBID_RE='#[0-9]+' ;; esac; fi
-GH_TEAM_RE="${GHP}(pr\s+${GHR}(merge|review|lock|unlock)|issue\s+${GHR}(delete|transfer|pin|unpin|lock|unlock|develop)|release\s+${GHR}(create|edit|delete|delete-asset|upload)|repo\s+${GHR}(delete|archive|unarchive|fork|create|rename|edit|sync|deploy-key|autolink)|label\s+${GHR}(edit|delete|clone)|workflow\s+${GHR}(run|enable|disable)|run\s+${GHR}(cancel|rerun|delete)|(secret|variable)\s+${GHR}(set|delete)|gist\s+(create|edit|delete|rename)|auth\s+(login|logout|refresh|setup-git|switch)|(ssh-key|gpg-key)\s+(add|delete)|alias\s+(set|import|delete)|ext(ension)?s?\s+(install|upgrade|remove)|project\s+(close|copy|create|delete|edit|field-create|field-delete|item-add|item-archive|item-create|item-delete|item-edit|link|unlink|mark-template)|cache\s+${GHR}delete)\b"
+GH_HUMAN_RE="${GHP}pr\s+${GHR}(merge|review)\b"
+GH_TEAM_RE="${GHP}(pr\s+${GHR}(lock|unlock)|issue\s+${GHR}(delete|transfer|pin|unpin|lock|unlock|develop)|release\s+${GHR}(create|edit|delete|delete-asset|upload)|repo\s+${GHR}(delete|archive|unarchive|fork|create|rename|edit|sync|deploy-key|autolink)|label\s+${GHR}(edit|delete|clone)|workflow\s+${GHR}(run|enable|disable)|run\s+${GHR}(cancel|rerun|delete)|(secret|variable)\s+${GHR}(set|delete)|gist\s+(create|edit|delete|rename)|auth\s+(login|logout|refresh|setup-git|switch)|(ssh-key|gpg-key)\s+(add|delete)|alias\s+(set|import|delete)|ext(ension)?s?\s+(install|upgrade|remove)|project\s+(close|copy|create|delete|edit|field-create|field-delete|item-add|item-archive|item-create|item-delete|item-edit|link|unlink|mark-template)|cache\s+${GHR}delete)\b"
 GH_PR_BOOL_RE='^--?(d|draft|undo|edit-last|create-if-none|delete-last|y|yes|w|web|delete-branch|remove-milestone|dry-run|e|editor|rebase)$'
 GH_ISSUE_BOOL_RE='^--?(e|editor|w|web|edit-last|create-if-none|delete-last|y|yes|remove-milestone|remove-parent)$'
 if printf '%s' "$flat" | grep -qE "${GHP}(pr|issue|label|api|release|repo|run|workflow|secret|variable|gist|auth|config|alias|ext(ension)?s?|ssh-key|gpg-key|project|cache)\b"; then
@@ -51,11 +57,12 @@ if printf '%s' "$flat" | grep -qE "${GHP}(pr|issue|label|api|release|repo|run|wo
   # -- 2. gh api (per clause): explicit non-GET → ask; --input → ask; fields without a method
   #       (gh auto-POSTs) → ask; explicit GET/HEAD + fields → pass (query params); graphql passes
   #       only a literal query ('{…}' / 'query …', no operationName, no @file, no $VAR/$(…)).
+  #       Every write is a human decision (it can merge or change state): a subagent is denied.
   while IFS= read -r clause; do
     [ -n "$clause" ] || continue
-    if printf '%s' "$clause" | grep -qiE '(^|[[:space:]])(-X|--method)[= ]*["'"'"']?(POST|PUT|PATCH|DELETE)\b'; then defer "gh api write (explicit non-GET method) — ask the user, or use the matching gh subcommand instead"; continue; fi
-    if printf '%s' "$clause" | grep -qE '(^|[[:space:]])--input([= ]|$)'; then defer "gh api --input (request body from a file/stdin) — ask the user, or use the matching gh subcommand instead"; continue; fi
-    words=$(shell_words "$clause") || { defer "gh api — could not parse the command line (unbalanced quotes); use balanced literal arguments instead"; continue; }
+    if printf '%s' "$clause" | grep -qiE '(^|[[:space:]])(-X|--method)[= ]*["'"'"']?(POST|PUT|PATCH|DELETE)\b'; then human_decision_defer "gh api write (explicit non-GET method) — ask the user, or use the matching gh subcommand instead"; continue; fi
+    if printf '%s' "$clause" | grep -qE '(^|[[:space:]])--input([= ]|$)'; then human_decision_defer "gh api --input (request body from a file/stdin) — ask the user, or use the matching gh subcommand instead"; continue; fi
+    words=$(shell_words "$clause") || { human_decision_defer "gh api — could not parse the command line (unbalanced quotes); use balanced literal arguments instead"; continue; }
     toks=(); [ -z "$words" ] || while IFS= read -r _w; do toks+=("$_w"); done <<<"$words"
     a_method=""; a_fields=false; a_files=false; a_opname=false; a_query=""; a_endpoint=""; i=2   # skip 'gh api'
     while [ "$i" -lt "${#toks[@]}" ]; do
@@ -78,28 +85,31 @@ if printf '%s' "$flat" | grep -qE "${GHP}(pr|issue|label|api|release|repo|run|wo
       fi
     done
     a_m=$(printf '%s' "$a_method" | tr '[:lower:]' '[:upper:]')
-    case "$a_m" in ''|GET|HEAD) ;; *) defer "gh api with method '$a_method' (only GET/HEAD pass)"; continue ;; esac
+    case "$a_m" in ''|GET|HEAD) ;; *) human_decision_defer "gh api with method '$a_method' (only GET/HEAD pass)"; continue ;; esac
     case "$a_endpoint" in
       graphql|/graphql)
-        [ -z "$a_m" ] || { defer "gh api graphql with an explicit method — drop -X/--method for a read-only query, or ask the user"; continue; }
-        $a_files && { defer "gh api graphql reading @file — the operation cannot be inspected; pass the query inline as a literal -f query=... instead"; continue; }
-        $a_opname && { defer "gh api graphql with operationName — cannot verify the operation is a query; drop operationName and pass a single literal query instead"; continue; }
-        if printf '%s' "$clause" | grep -qE '\$|`'; then defer "gh api graphql with \$VAR / \$(…) — the operation cannot be inspected; pass a literal inline query instead"; continue; fi
+        [ -z "$a_m" ] || { human_decision_defer "gh api graphql with an explicit method — drop -X/--method for a read-only query, or ask the user"; continue; }
+        $a_files && { human_decision_defer "gh api graphql reading @file — the operation cannot be inspected; pass the query inline as a literal -f query=... instead"; continue; }
+        $a_opname && { human_decision_defer "gh api graphql with operationName — cannot verify the operation is a query; drop operationName and pass a single literal query instead"; continue; }
+        if printf '%s' "$clause" | grep -qE '\$|`'; then human_decision_defer "gh api graphql with \$VAR / \$(…) — the operation cannot be inspected; pass a literal inline query instead"; continue; fi
         a_q=$(printf '%s' "$a_query" | sed -E 's/^[[:space:]]+//')
         if ! printf '%s' "$a_q" | grep -qE '^(\{|query([^A-Za-z0-9_]|$))' \
            || printf '%s' "$a_q" | grep -qE '(^|[^A-Za-z0-9_])(mutation|subscription)([^A-Za-z0-9_]|$)'; then
-          defer "gh api graphql — only literal queries pass; mutations and uninspectable operations ask"; continue
+          human_decision_defer "gh api graphql — only literal queries pass; mutations and uninspectable operations ask"; continue
         fi ;;
       *)
-        if $a_fields && [ -z "$a_m" ]; then defer "gh api with -f/-F fields and no method auto-POSTs — pass -X GET for query parameters"; continue; fi ;;
+        if $a_fields && [ -z "$a_m" ]; then human_decision_defer "gh api with -f/-F fields and no method auto-POSTs — pass -X GET for query parameters"; continue; fi ;;
     esac
   done <<EOF
 $(printf '%s' "$flat" | grep -oE '\bgh\s+api\b[^;&|]*')
 EOF
 
-  # -- 3. team-visible actions: humans merge/review; releases, repos, workflows, secrets, auth … ask
+  # -- 3. humans merge/review (a human decision: main thread asks, a subagent is denied);
+  #       team-visible actions — releases, repos, workflows, secrets, auth … — ask
+  printf '%s' "$flat" | grep -qE "$GH_HUMAN_RE" \
+    && human_decision_defer "gh pr merge/review — merging and reviewing are human-only; run it only on the user's explicit request (they confirm it), or ask the user instead"
   printf '%s' "$flat" | grep -qE "$GH_TEAM_RE" \
-    && defer "gh team-visible action (PR merge/review is human-only; releases/repos/workflows/secrets/auth/gists are not governed) — ask the user instead"
+    && defer "gh team-visible action (releases/repos/workflows/secrets/auth/gists are not governed) — ask the user instead"
 
   # -- 4. gh label create NAME (positional): agent-* labels are free
   while IFS= read -r clause; do
@@ -197,13 +207,14 @@ $(printf '%s' "$flat" | grep -oE "${GHP}issue\s+${GHR}create\b[^;&|]*")
 EOF
   fi
 
-  # -- 7. writes to existing PRs / issues: gated on their labels (fork PRs ask; human issue
-  #       close|reopen deny). A GH_REPO=… prefix would make the lookup read the wrong repo → ask.
+  # -- 7. writes to existing PRs / issues: gated on their labels (fork PRs ask). PR close|reopen|
+  #       ready and issue close|reopen are state: a subagent is denied, a human ref asks.
+  #       A GH_REPO=… prefix would make the lookup read the wrong repo → ask.
   GH_PR_W_RE="${GHP}pr\s+${GHR}(edit|comment|close|reopen|ready|update-branch)\b"
   GH_IS_W_RE="${GHP}issue\s+${GHR}(edit|comment|close|reopen)\b"
   if printf '%s' "$flat" | grep -qE "$GH_PR_W_RE|$GH_IS_W_RE" && printf '%s' "$flat" | grep -qE '(^|[[:space:];&|(])GH_REPO='; then
     defer "gh write with GH_REPO=… — the label lookup cannot see it; pass -R owner/repo instead"
   fi
-  gate_writes "$GH_PR_W_RE" fetch_gh_pr '^--add-label$' '^(-B|--base)$' '' "$GH_PR_BOOL_RE" "gh pr" '#'
+  gate_writes "$GH_PR_W_RE" fetch_gh_pr '^--add-label$' '^(-B|--base)$' '^(close|reopen|ready)$' "$GH_PR_BOOL_RE" "gh pr" '#'
   gate_writes "$GH_IS_W_RE" fetch_gh_issue '^--add-label$' '' '^(close|reopen)$' "$GH_ISSUE_BOOL_RE" "gh issue" '#'
 fi
