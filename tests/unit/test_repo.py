@@ -108,7 +108,7 @@ class RepoCommandTest(HubTestCase):
         sec = os.path.join(self.bundles, "core", "guard.d", "20-core.sh")
         head = "# rule: fixture-deny ... -> deny : fixture deny rule\n"
         self.write(sec, self.read(sec).replace(head, head + (
-            '# repo-override: WORK_TICKET_ALLOW_TRANSITION = "" -> =1: transitions ask\n'
+            '# repo-override: WORK_TICKET_ALLOW_TRANSITION = "" -> deprecated, no effect: transitions ask either way\n'
             '# repo-override: WORK_TICKET_BASE_BRANCH_RE = "^(master|main)$" -> base branches\n')))
         self._env = {k: os.environ.pop(k) for k in ("WORK_TICKET_ALLOW_TRANSITION", "WORK_TICKET_BASE_BRANCH_RE")
                      if k in os.environ}
@@ -203,6 +203,8 @@ class RepoCommandTest(HubTestCase):
         self.assertEqual((res["WORK_TICKET_ALLOW_TRANSITION"]["value"], res["WORK_TICKET_ALLOW_TRANSITION"]["source"]),
                          ("0", "environment"))
         self.assertEqual(res["WORK_TICKET_ALLOW_TRANSITION"]["shadowed"], [".harness.toml=1"])
+        self.assertTrue(res["WORK_TICKET_ALLOW_TRANSITION"]["deprecated"])   # #67: allow-listed, but a no-op
+        self.assertFalse(res["WORK_TICKET_BASE_BRANCH_RE"]["deprecated"])
         b = res["WORK_TICKET_BASE_BRANCH_RE"]
         self.assertEqual((b["value"], b["source"]), ("^(release)$", ".claude/settings.json env"))
         self.assertEqual(b["shadowed"], [".harness.toml=^(trunk)$", "guard.env=^(dev)$"])
@@ -243,6 +245,10 @@ class RepoCommandTest(HubTestCase):
         self.assertEqual(rc, 0, out)
         self.assertIn("alpha/guard.d/40-alpha", out)
         self.assertIn('WORK_TICKET_ALLOW_TRANSITION  "1"', out)
+        # #67: a deprecated override is flagged as a no-op (a warning: rc stays 0), not shown as active
+        self.assertIn("[overrides] WORK_TICKET_ALLOW_TRANSITION is deprecated, no effect", out)
+        self.assertIn("deprecated, no effect: remove it from .harness.toml", out)
+        self.assertNotIn("deprecated, no effect: remove", out.split("WORK_TICKET_BASE_BRANCH_RE", 1)[1].split("\n", 1)[0])
         rc, out = self.run_cli("repo", self.root, "--json")
         data = json.loads(out)
         self.assertEqual([y["id"] for y in data["yielding"]], ["alpha/guard.d/40-alpha"])
@@ -279,6 +285,7 @@ class RepoCommandTest(HubTestCase):
         self.assertIn("[owns]", out)
         self.assertIn('# tracker = "jira"', out)
         self.assertIn("#   core/guard.d/20-core", out)
+        self.assertNotIn("WORK_TICKET_ALLOW_TRANSITION", out)     # #67: deprecated, never suggested
         self.assertFalse(os.path.exists(self.decl))
         data, problems = RP.parser_module().parse_subset(out)
         self.assertEqual(problems, [])

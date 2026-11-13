@@ -100,8 +100,9 @@ class Declaration:
 
 
 def load(root: Optional[str], comps: Optional[List[Any]] = None, override_names: Optional[List[str]] = None,
-         home: Optional[str] = None) -> Declaration:
-    """Parse and check ``<root>/.harness.toml``. ``comps``/``override_names`` enable the id/name checks."""
+         home: Optional[str] = None, deprecated: Optional[Dict[str, str]] = None) -> Declaration:
+    """Parse and check ``<root>/.harness.toml``. ``comps``/``override_names`` enable the id/name checks;
+    ``deprecated`` (name -> effect) flags allow-listed overrides that no longer change anything."""
     from . import manifest as M
     from . import schema_lite
     from . import taxonomy as T
@@ -178,6 +179,9 @@ def load(root: Optional[str], comps: Optional[List[Any]] = None, override_names:
                 decl.problems.append(Problem("error", 0, "[overrides] %s is not a repo override; the guard ignores "
                                              "it (allowed: %s; docs/reference/hook-policy.md#repo-overrides)"
                                              % (name, ", ".join(override_names))))
+            elif deprecated and name in deprecated:
+                decl.problems.append(Problem("warning", 0, "[overrides] %s is %s; remove the line"
+                                             % (name, deprecated[name])))
     return decl
 
 
@@ -296,8 +300,11 @@ def effective_overrides(decl: Declaration, overrides: List[Dict[str, str]], envi
     from . import taxonomy as T
 
     seen: "OrderedDict[str, str]" = OrderedDict()
+    old = set()
     for o in overrides:
         seen.setdefault(o["name"], o["default"])
+        if o.get("deprecated"):
+            old.add(o["name"])
     out = []
     for name, default in sorted(seen.items()):
         chain = []
@@ -314,7 +321,8 @@ def effective_overrides(decl: Declaration, overrides: List[Dict[str, str]], envi
         chain.append(("default", default))
         src, val = chain[0]
         out.append(OrderedDict([("name", name), ("value", val), ("source", src),
-                                ("shadowed", ["%s=%s" % c for c in chain[1:] if c[0] != "default"])]))
+                                ("shadowed", ["%s=%s" % c for c in chain[1:] if c[0] != "default"]),
+                                ("deprecated", name in old)]))
     return out
 
 
@@ -353,7 +361,7 @@ def template(comps: List[Any]) -> str:
         "[overrides]",
         "# Allow-listed WORK_TICKET_* guard settings (docs/reference/hook-policy.md#repo-overrides); a provider env",
         "# override of the same name (e.g. .claude/settings.json \"env\") wins per key.",
-        "# WORK_TICKET_ALLOW_TRANSITION = \"1\"",
+        "# WORK_TICKET_KEY_IN_BRANCH = \"1\"",
         "",
     ]
     return "\n".join(lines)
@@ -428,7 +436,8 @@ def run(ctx: Any, action: Optional[str], args: List[str], write: bool = False) -
         return 0
     overrides = T.repo_overrides(bundles)
     names = sorted(set(o["name"] for o in overrides))
-    decl = load(root, comps, names, home=hub.home)
+    deprecated = {o["name"]: o["effect"] for o in overrides if o.get("deprecated")}
+    decl = load(root, comps, names, home=hub.home, deprecated=deprecated)
     providers = [hub.providers[n] for n in sorted(hub.providers)]
     settings = _settings(root, providers)
     guard_env = read_guard_env(os.path.join(hub.build_dir, "guard.env"))
@@ -447,6 +456,16 @@ def run(ctx: Any, action: Optional[str], args: List[str], write: bool = False) -
         return 1 if any(p.level == "error" for p in decl.problems) else 0
     _print_show(report, decl)
     return 1 if any(p.level == "error" for p in decl.problems) else 0
+
+
+def _deprecated_note(o: Dict[str, Any]) -> str:
+    """The show column for a deprecated override: a no-op, and where to remove it when it is set."""
+    if not o.get("deprecated"):
+        return ""
+    if o["source"] == "default":
+        return "deprecated, no effect"
+    return "deprecated, no effect: remove it from %s" % ", ".join(
+        [o["source"]] + [s.split("=", 1)[0] for s in o["shadowed"]])
 
 
 def _print_show(report: Dict[str, Any], decl: Declaration) -> None:
@@ -482,7 +501,8 @@ def _print_show(report: Dict[str, Any], decl: Declaration) -> None:
     print("\nrepo overrides (effective value <- source)")
     print("".join("  " + ln + "\n" for ln in format_table(
         [[o["name"], json.dumps(o["value"]), "<- %s" % o["source"],
-          ("(over %s)" % ", ".join(o["shadowed"])) if o["shadowed"] else ""] for o in report["overrides"]]
+          ("(over %s)" % ", ".join(o["shadowed"])) if o["shadowed"] else "",
+          _deprecated_note(o)] for o in report["overrides"]]
     ).splitlines()), end="")
     for w in report["warnings"]:
         print("\nWARN  %s" % w)

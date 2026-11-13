@@ -131,6 +131,9 @@ REPO_OVERRIDE_PREFIX_RE = re.compile(r"^WORK_TICKET_[A-Z0-9_]+$")
 # `# repo-override: NAME = "default" -> effect` in a guard section: the allow-list (single source)
 REPO_OVERRIDE_RE = re.compile(r'^#\s*repo-override:\s*(?P<name>[A-Z][A-Z0-9_]*)\s*=\s*"(?P<default>[^"]*)"'
                               r'\s*->\s*(?P<effect>.+?)\s*$')
+# an override whose effect starts with "deprecated" is still allow-listed (a set value is not reported as
+# unknown) but changes nothing; `harness repo` flags it and `harness repo init` never suggests it
+REPO_OVERRIDE_DEPRECATED_RE = re.compile(r"^deprecated\b", re.I)
 # the yield check every declaration guard section runs first
 REPO_OWNS_LINE_RE = re.compile(r"^\s*repo_owns\s+(?P<id>\S+)\s+(?P<domain>\S+)\s+&&\s+return 0\b", re.M)
 # a block of rule code that runs above the repo_owns line and therefore never yields
@@ -521,7 +524,8 @@ def repo_overrides(bundles: Any) -> List[Dict[str, str]]:
             if m:
                 out.append(OrderedDict([("name", m.group("name")), ("default", m.group("default")),
                                         ("effect", m.group("effect")), ("section", "%s/%s" % (bname, component_id(rel))),
-                                        ("bundle", bname)]))
+                                        ("bundle", bname),
+                                        ("deprecated", bool(REPO_OVERRIDE_DEPRECATED_RE.match(m.group("effect"))))]))
     return out
 
 
