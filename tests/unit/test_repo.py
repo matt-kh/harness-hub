@@ -108,7 +108,7 @@ class RepoCommandTest(HubTestCase):
         sec = os.path.join(self.bundles, "core", "guard.d", "20-core.sh")
         head = "# rule: fixture-deny ... -> deny : fixture deny rule\n"
         self.write(sec, self.read(sec).replace(head, head + (
-            '# repo-override: WORK_TICKET_ALLOW_TRANSITION = "" -> deprecated, no effect: transitions ask either way\n'
+            '# repo-override: WORK_TICKET_ALLOW_TRANSITION = "" -> deprecated, no effect: transitions ask either way; remove it\n'
             '# repo-override: WORK_TICKET_BASE_BRANCH_RE = "^(master|main)$" -> base branches\n')))
         self._env = {k: os.environ.pop(k) for k in ("WORK_TICKET_ALLOW_TRANSITION", "WORK_TICKET_BASE_BRANCH_RE")
                      if k in os.environ}
@@ -214,6 +214,40 @@ class RepoCommandTest(HubTestCase):
         self.assertEqual((res["WORK_TICKET_BASE_BRANCH_RE"]["value"], res["WORK_TICKET_BASE_BRANCH_RE"]["source"]),
                          ("^(master|main)$", "default"))
 
+    def test_deprecated_override_outside_the_declaration(self):
+        # #67: a deprecated no-op set only in the environment, a provider env or guard.env gets a report
+        # warning; guard.env is rendered by the hub, so the advice names the harness config key
+        hub = self.hub(require_config=False, select=False)
+        ovr = T.repo_overrides([hub.bundles[n] for n in sorted(hub.bundles)])
+        decl = RP.Declaration(None)
+        res = RP.effective_overrides(decl, ovr, {"WORK_TICKET_ALLOW_TRANSITION": "1"}, [], {})
+        warns = RP.deprecated_warnings(res)
+        self.assertEqual(len(warns), 1, warns)
+        self.assertIn("WORK_TICKET_ALLOW_TRANSITION is deprecated and has no effect, but it is set in environment; "
+                      "remove it from your shell environment", warns[0])
+        settings = [(".claude/settings.json", {"env": {"WORK_TICKET_ALLOW_TRANSITION": "1"}})]
+        res = RP.effective_overrides(decl, ovr, {}, settings, {"WORK_TICKET_ALLOW_TRANSITION": "1"},
+                                     {"WORK_TICKET_ALLOW_TRANSITION": ["core.allow_transition"]})
+        warns = RP.deprecated_warnings(res)
+        self.assertIn("set in .claude/settings.json env, guard.env", warns[0])
+        self.assertIn("the harness config key core.allow_transition (then `harness apply`)", warns[0])
+        self.assertNotIn("remove it from guard.env", warns[0])
+        note = RP._deprecated_note({o["name"]: o for o in res}["WORK_TICKET_ALLOW_TRANSITION"])
+        self.assertIn("remove it from .claude/settings.json env; the harness config key core.allow_transition", note)
+        res = RP.effective_overrides(decl, ovr, {}, [], {"WORK_TICKET_ALLOW_TRANSITION": "1"})
+        self.assertIn("your harness config (guard.env is rendered from it", RP.deprecated_warnings(res)[0])
+        self.assertEqual(RP.deprecated_warnings(RP.effective_overrides(decl, ovr, {}, [], {})), [])
+        self.assertEqual(RP.deprecated_warnings(RP.effective_overrides(
+            decl, ovr, {"WORK_TICKET_BASE_BRANCH_RE": "x"}, [], {})), [])        # not deprecated
+        os.environ["WORK_TICKET_ALLOW_TRANSITION"] = "1"
+        try:
+            rc, out = self.run_cli("repo", self.root)
+        finally:
+            del os.environ["WORK_TICKET_ALLOW_TRANSITION"]
+        self.assertEqual(rc, 0, out)
+        self.assertIn("WARN  WORK_TICKET_ALLOW_TRANSITION is deprecated and has no effect, but it is set in "
+                      "environment", out)
+
     def test_collisions_and_disable_all_hooks(self):
         self.write(os.path.join(self.root, ".claude", "skills", "demo", "SKILL.md"), "---\nname: demo\n---\n")
         self.write(os.path.join(self.root, ".claude", "skills", "mine", "SKILL.md"), "---\nname: mine\n---\n")
@@ -246,8 +280,11 @@ class RepoCommandTest(HubTestCase):
         self.assertIn("alpha/guard.d/40-alpha", out)
         self.assertIn('WORK_TICKET_ALLOW_TRANSITION  "1"', out)
         # #67: a deprecated override is flagged as a no-op (a warning: rc stays 0), not shown as active
-        self.assertIn("[overrides] WORK_TICKET_ALLOW_TRANSITION is deprecated, no effect", out)
+        self.assertIn("[overrides] WORK_TICKET_ALLOW_TRANSITION is deprecated, no effect: transitions ask either "
+                      "way; remove the line from .harness.toml", out)
+        self.assertNotIn("remove it; remove", out)
         self.assertIn("deprecated, no effect: remove it from .harness.toml", out)
+        self.assertNotIn("WARN  WORK_TICKET_ALLOW_TRANSITION", out)          # the declaration problem says it
         self.assertNotIn("deprecated, no effect: remove", out.split("WORK_TICKET_BASE_BRANCH_RE", 1)[1].split("\n", 1)[0])
         rc, out = self.run_cli("repo", self.root, "--json")
         data = json.loads(out)
