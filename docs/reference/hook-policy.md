@@ -51,23 +51,33 @@ marks the developer's own credentials and the ask on writing `.harness.toml`.
 | 40-gitlab-closing.sh | gitlab | `(close\|fix\|resolve\|implement) KEY-123 in git commit \| glab mr create\|update \| glab api` | deny | ticket state is human-only; mention the key instead (KEY-123 fix parser) | owns tracker |
 | 41-github-closing.sh | github | `(close\|fix\|resolve) #N \| owner/repo#N \| issue URL in git commit \| gh pr create\|edit\|merge \| gh api` | deny | issue state is human-only; mention #N instead (see #N, refs #N) | owns tracker |
 | 50-gitlab.sh | gitlab | `glab api -X POST\|PUT\|PATCH\|DELETE \| payload flag` | ask | API write; ask the user, or use the matching glab subcommand | owns scm |
-| 50-gitlab.sh | gitlab | `glab mr merge\|approve\|revoke\|delete, issue/release/repo/label mutations` | ask | team-visible, humans merge; ask the user instead of merging or approving | owns scm |
+| 50-gitlab.sh | gitlab | `glab api write (as above) from a subagent` | deny | a raw API write can merge or change state; hand the command back to the main thread | owns scm |
+| 50-gitlab.sh | gitlab | `glab mr merge\|approve\|revoke, glab issue close\|reopen` | ask | merging, approving and issue state are human-only; run it only on the user's explicit request (they confirm it), or ask the user instead | owns scm |
+| 50-gitlab.sh | gitlab | `glab mr merge\|approve\|revoke, glab issue close\|reopen from a subagent` | deny | a subagent never merges, approves or changes issue state; hand the command back to the main thread | owns scm |
+| 50-gitlab.sh | gitlab | `glab mr delete, issue/release/repo/label mutations` | ask | team-visible; ask the user instead | owns scm |
 | 50-gitlab.sh | gitlab | `glab label create -n agent-*` | allow | governance label; other labels ask | owns scm |
 | 50-gitlab.sh | gitlab | `glab mr create` | allow | creates are ungated (a -sub- source without target / with a base target -> deny) | owns scm |
 | 50-gitlab.sh | gitlab | `glab mr create -f\|--fill` | ask | generated text may carry a closing keyword or a key-less title; pass --title and --description-file instead | owns scm |
 | 50-gitlab.sh | gitlab | `glab mr create --related-issue` | ask | links (and may close) a GitLab issue; mention the key in the description instead | owns scm |
 | 50-gitlab.sh | gitlab | `glab mr create -t TITLE not matching HARNESS_GITLAB_MR_TITLE_RE` | ask | MR titles start with the ticket key; use a title like 'PROJ-123 fix parser' instead, or set gitlab.mr_title_re (empty disables) | owns scm |
 | 50-gitlab.sh | gitlab | `glab mr create -t with $VAR or backticks` | ask | the title cannot be checked; use a literal title instead | owns scm |
-| 50-gitlab.sh | gitlab | `glab mr update\|note\|close\|rebase REF on an agent-labelled MR` | allow | human MRs ask (label it first: glab mr update REF --label agent-worked); -sub- retarget to base -> deny, retarget to the ticket branch instead; no/$VAR ref -> ask, pass a literal number | owns scm |
+| 50-gitlab.sh | gitlab | `glab mr update\|note\|close\|reopen\|rebase REF on an agent-labelled MR` | allow | human MRs ask (label it first: glab mr update REF --label agent-worked); -sub- retarget to base -> deny, retarget to the ticket branch instead; no/$VAR ref -> ask, pass a literal number | owns scm |
+| 50-gitlab.sh | gitlab | `glab mr close\|reopen, glab mr update --ready\|--draft on a human MR` | ask | MR state is a human decision; run it only on the user's explicit request (they confirm it), or ask the user instead | owns scm |
+| 50-gitlab.sh | gitlab | `glab mr close\|reopen, glab mr update --ready\|--draft from a subagent` | deny | a subagent never changes MR state; hand the command back to the main thread | owns scm |
 | 60-github.sh | github | `gh api -X non-GET \| --input \| fields without a method \| graphql mutation` | ask | API write; ask the user, or use the matching gh subcommand | owns scm |
-| 60-github.sh | github | `gh pr merge\|review, release/repo/workflow/secret/auth/gist/... mutations` | ask | team-visible; ask the user (merges, reviews and releases are human-only) | owns scm |
+| 60-github.sh | github | `gh api write (as above) from a subagent` | deny | a raw API write can merge or change state; hand the command back to the main thread | owns scm |
+| 60-github.sh | github | `gh pr merge\|review` | ask | merging and reviewing are human-only; run it only on the user's explicit request (they confirm it), or ask the user instead | owns scm |
+| 60-github.sh | github | `gh pr merge\|review from a subagent` | deny | a subagent never merges or reviews; hand the command back to the main thread | owns scm |
+| 60-github.sh | github | `gh release/repo/workflow/secret/auth/gist/... mutations` | ask | team-visible; ask the user (releases are human-only) | owns scm |
 | 60-github.sh | github | `gh label create agent-*` | allow | governance label; other labels ask | owns scm |
 | 60-github.sh | github | `gh pr create` | allow | creates are ungated (same -sub- stacked rules as glab) | owns scm |
 | 60-github.sh | github | `gh pr create -f\|--fill\|--fill-first\|--fill-verbose` | ask | generated text may contain a closing keyword; pass -t and -F body-file instead | owns scm |
 | 60-github.sh | github | `gh pr create -t TITLE matching HARNESS_GITHUB_PR_TITLE_FORBID_RE` | ask | issue refs belong in the PR body (mention #N there), not the title; set github.pr_title_forbid_re to change the convention (empty disables) | owns scm |
 | 60-github.sh | github | `gh pr create -t with $VAR or backticks` | ask | the title cannot be checked; use a literal title instead | owns scm |
 | 60-github.sh | github | `gh issue create without -l agent-drafted\|agent-created` | deny | provenance label required; use -l agent-drafted (or agent-created) instead | owns scm |
-| 60-github.sh | github | `gh pr edit\|comment\|close\|reopen\|ready\|update-branch, gh issue edit\|comment\|close\|reopen on an agent-labelled ref` | allow | human refs ask; human issue close\|reopen -> deny; fork PRs ask | owns scm |
+| 60-github.sh | github | `gh pr edit\|comment\|close\|reopen\|ready\|update-branch, gh issue edit\|comment\|close\|reopen on an agent-labelled ref` | allow | human refs ask (label it first, or ask the user); fork PRs ask | owns scm |
+| 60-github.sh | github | `gh pr close\|reopen\|ready, gh issue close\|reopen on a human ref` | ask | PR/issue state is a human decision; run it only on the user's explicit request (they confirm it), or ask the user instead | owns scm |
+| 60-github.sh | github | `gh pr close\|reopen\|ready, gh issue close\|reopen from a subagent` | deny | a subagent never changes PR/issue state; hand the command back to the main thread | owns scm |
 | 60-github.sh | github | `gh auth token \| gh auth status --show-token \| gh config get oauth_token` | deny | prints the token; run plain 'gh auth status' instead | never |
 | 65-stack.sh | stack | `stk sync … --include-human (also …/stk, stk.py)` | ask | writes to MRs/PRs without an agent-* label; label them first (glab mr update N --label agent-worked / gh pr edit N --add-label agent-worked) or ask the user | owns scm |
 | 65-stack.sh | stack | `stk sync` | allow | writes only to agent-labelled MRs/PRs (retarget, cascade rebase, lease push of -sub- branches, one leaf refresh); stk plan\|status\|check are reads and pass | owns scm |

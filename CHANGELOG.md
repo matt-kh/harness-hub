@@ -521,6 +521,21 @@ prints every one between your applied version and the new one.
 
 ### Changed
 
+- GitHub and GitLab guard sections adopt "humans decide" (principle 2, part of #67). From a
+  subagent (Claude Code's `agent_id`) every merge, approval and PR/MR/issue state change is
+  **denied** with "hand the command back to the main thread": `gh pr merge|review`,
+  `glab mr merge|approve|revoke`, `gh pr close|reopen|ready`, `gh issue close|reopen`,
+  `glab mr close|reopen`, `glab mr update --ready|--draft`, `glab issue close|reopen`, on human
+  and agent-labelled refs alike, before any label lookup; so are raw `gh api` / `glab api`
+  writes (non-GET, fields without a method, GraphQL mutations, `--input`). On the main thread:
+  merge, approve and review ask on every ref; PR/MR state asks on a human ref and stays
+  promptless on an agent-labelled one; `gh issue close|reopen` on a human issue **asks**
+  (was deny); `glab issue close|reopen` asks (no label model). `glab mr reopen` joins the MR
+  label gate and `glab issue reopen` is guarded (both were unguarded). Labelling flags never
+  make a state change free. Comments, edits, labels, rebases and `update-branch` are unchanged,
+  and so are the closing-keyword denies (sections 40 and 41). A repository owning `scm` still
+  passes, in a subagent too. `gate_writes` gains an optional state-flag argument and loses its
+  `WORK_TICKET_ALLOW_TRANSITION` branch; `gitlab/permissions` asks on `glab issue reopen`.
 - `harness lint` rule `stability` now checks `beta` bundles as well as `stable` ones: a skill
   or CLI without a `tests/run.sh`, or a `coverage_note` admitting a missing suite, warns with
   the level to move to (`beta` → `experimental`, `stable` → `beta`). CONTRIBUTING "Stability
@@ -634,6 +649,14 @@ prints every one between your applied version and the new one.
 
 ### Migration
 
+- Guard decisions for gh and glab (#67), nothing to edit in config: `gh issue close|reopen` on
+  a human issue now **asks** on the main thread instead of denying. Merges, approvals, reviews
+  and PR/MR/issue state changes run from a subagent are now **denied**, as are raw `gh api` /
+  `glab api` writes from a subagent: have the subagent hand such a command back, and run it
+  from the main thread when the user asks for it. `glab issue reopen` and `glab mr reopen` are
+  newly guarded (ask on a human ref; `glab mr reopen` on an agent-labelled MR stays promptless).
+  `WORK_TICKET_ALLOW_TRANSITION` no longer affects GitHub issues (it still turns the Jira
+  transition deny into an ask); a repository that set it only for GitHub issues can drop it.
 - Per-provider model names: one new optional config key, `[providers.<name>].model_policy`
   (`plan`, `execute`). Claude needs no edit. For Copilot, `harness apply` now writes agents
   and skills without `model:` (session model); to pin models, add

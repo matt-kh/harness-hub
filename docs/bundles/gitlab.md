@@ -7,10 +7,15 @@ rules:
   **deny** — GitLab's Jira integration (and its own issue closing) transitions tickets on
   them
 - `glab mr create` with an `agent-*` label, edits to agent-labelled MRs: promptless
-- edits to human MRs: **ask**; `glab mr merge|approve`: **ask** (humans merge)
+- edits to human MRs: **ask**; `glab mr merge|approve|revoke` and `glab issue close|reopen`:
+  **ask** (humans decide; run only on the user's explicit request)
+- `glab mr close|reopen` and `glab mr update --ready|--draft`: **ask** on a human MR,
+  promptless on an agent-labelled one
 - stacked delivery: sub MRs (`<short>-sub-NN-<task>` branches) must target the ticket branch;
   a sub MR aimed at the default branch is **denied**
 - `glab api` GETs pass; writes **ask**
+- from a subagent: merges, approvals, MR/issue state changes and `glab api` writes: **deny**
+  (hand the command back to the main thread)
 
 MRs are created with `--squash-before-merge --remove-source-branch` and a title that starts
 with the ticket key; the key is mentioned, never used with a closing keyword.
@@ -59,11 +64,11 @@ Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md
 **Guard sections**
 
 - `gitlab/guard.d/40-gitlab-closing` — control: sensor · domain: tracker · function: govern · decisions: deny 1 · yields: declaration
-- `gitlab/guard.d/50-gitlab` — control: sensor · function: govern · decisions: ask 6 · allow 3 · yields: declaration
+- `gitlab/guard.d/50-gitlab` — control: sensor · function: govern · decisions: deny 3 · ask 8 · allow 3 · yields: declaration
 
 **Permission lists**
 
-- `gitlab/permissions` — control: guide · function: govern · decisions: ask 11 · allow 13 · yields: config
+- `gitlab/permissions` — control: guide · function: govern · decisions: ask 12 · allow 13 · yields: config
 
 **Doctor checks** (function: setup · posture: read-only; table below): `gitlab/doctor/gitlab-ssh`, `gitlab/doctor/glab-auth`, `gitlab/doctor/glab-binary`, `gitlab/doctor/glab-token-mode`
 
