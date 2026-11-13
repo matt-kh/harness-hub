@@ -146,7 +146,7 @@ EOF
     ask "jira write to $klist(ticket(s) carry an agent-* label; WORK_TICKET_LABELED_DECISION=ask here, so ask the user to confirm)"
   fi
   if $is_transition; then
-    human_decision_defer "jira transition on $klist— the state of a human-written ticket is a human decision; run it only on the user's explicit request (they confirm it), or ask the user to transition it in Jira instead"
+    human_decision_defer "jira transition on ${klist}— the state of a human-written ticket is a human decision; run it only on the user's explicit request (they confirm it), or ask the user to transition it in Jira instead"
     return 0
   fi
   ask "ticket(s) $klist not all agent-labelled — writes to human tickets need an explicit user request; ask the user, or label first (jira label KEY add $GOV_LABEL)"
