@@ -327,3 +327,68 @@ T_AGENT=a1 tr 'hand the command back to the main thread' 'gh issue close 1'
 T_AGENT=a1 tr 'hand the command back to the main thread' 'gh api -X PUT repos/o/r/pulls/1/merge'
 tr 'explicit request.*ask the user' 'gh pr merge 200'
 tr 'use an agent-\* name, or ask the user' 'gh label create bug'
+# ---- humans decide (#67), review hardening: hidden forms of the same calls --------------
+# fd duplications no longer cut a clause short (C1)
+T_AGENT=a1 g deny  'gh api repos/o/r/pulls/1/merge 2>&1 -X PUT'
+T_AGENT=a1 g deny  'gh api repos/o/r/issues/3 >&2 -f state=closed'
+T_AGENT=a1 g deny  'gh pr close 100 2>&1'
+T_AGENT=a1 g deny  'gh pr comment 100 -b x &>/dev/null; gh pr merge 100'
+g deny  'gh pr edit 110 2>&1 --base main'                      # stacked-delivery deny no longer bypassed
+g deny  'gh pr edit 110 >&2 -B main'
+g allow 'gh pr comment 100 -b hi 2>&1'
+g ask   'gh api repos/o/r/pulls/1/merge 2>&1 -X PUT'
+# quoted / escaped command words (W1)
+T_AGENT=a1 g deny  'gh "pr" merge 100'
+T_AGENT=a1 g deny  'gh pr "merge" 100'
+T_AGENT=a1 g deny  'g\h pr merge 100'
+T_AGENT=a1 g deny  "gh 'issue' close 1"
+T_AGENT=a1 g deny  'gh "api" -X PUT repos/o/r/pulls/1/merge'
+g ask   'gh "pr" merge 100'
+g ask   'gh "pr" comment 100 -b hi'                          # cannot be checked: asks on the main thread
+g allow 'gh pr comment 100 -b "run \"gh pr view\" first"'        # quoted command words inside text are not hidden words
+g pass  'gh api "repos/o/r/pulls"'
+# $VAR / $(…) in the noun or verb slot (W2)
+T_AGENT=a1 g deny  'a=merge; gh pr $a 100'
+T_AGENT=a1 g deny  'gh pr ${x:-merge} 100'
+T_AGENT=a1 g deny  'gh $(echo pr) merge 100'
+T_AGENT=a1 g deny  'gh pr `echo close` 100'
+g ask   'a=merge; gh pr $a 100'
+g pass  'gh pr view "$N" --json title'
+g pass  'gh api "repos/$R/pulls"'
+# attached repo flag (W3)
+T_AGENT=a1 g deny  'gh -Ro/r pr merge 100'
+T_AGENT=a1 g deny  'gh pr -Ro/r merge 100'
+T_AGENT=a1 g deny  'gh pr -Ro/r close 100'
+T_AGENT=a1 g deny  'gh pr --repo=o/r ready 100'
+T_AGENT=a1 g deny  'gh -R o/r api -X PUT repos/o/r/pulls/1/merge'
+g ask   'gh -Ro/r pr merge 100'
+g allow 'gh pr -Ro/r close 100'
+g ask   'gh pr close -Ro/r 200'
+g allow 'gh pr comment 100 -Ro/r -b hi'                      # attached -R no longer swallows the next flag
+# closing keywords in forms 41 does not parse (backstop in 60, yields like 41)
+g deny  'gh -Ro/r pr edit 100 -b "Closes #3"'
+g deny  'gh pr -Ro/r edit 100 -b "Closes #3"'
+g deny  'gh pr new -H feat-x -B main -t x -b "Fixes #3"'
+decl '[owns]' 'domains = ["tracker"]'
+r allow 'gh -Ro/r pr edit 100 -b "Closes #3"'                # yields with 41 when the repository owns tracker
+decl
+# deletes and transfers are human decisions (W6)
+T_AGENT=a1 g deny  'gh issue delete 1 --yes'
+T_AGENT=a1 g deny  'gh issue transfer 1 o/other'
+g ask   'gh issue delete 3 --yes'
+g ask   'gh issue transfer 3 o/other'
+# create aliases: gh pr new / gh issue new follow the create rules
+g deny  'gh issue new -t x'
+g allow 'gh issue new -t x -l agent-drafted'
+g deny  'gh pr new -H feat-x-sub-01-schema -B main -t x'
+g allow 'gh pr new -H feat-x-sub-01-schema -B feat-x -t x'
+# attached short values in creates
+g deny  'gh pr create -Hfeat-x-sub-01-schema -Bmain -t x'
+g allow 'gh pr create -Hfeat-x-sub-01-schema -Bfeat-x -t x'
+g deny  'gh pr create -Ro/r -H feat-x-sub-01-schema -B main -t x'
+g allow 'gh issue create -t x -lagent-drafted'
+# reasons
+T_AGENT=a1 tr 'hand the command back to the main thread' 'gh "pr" merge 100'
+tr 'write the gh subcommand unquoted' 'gh "pr" merge 100'
+tr 'write the subcommand literally' 'a=merge; gh pr $a 100'
+T_AGENT=a1 tr 'hand the command back to the main thread' 'gh issue delete 1 --yes'

@@ -3,15 +3,17 @@
 # Section 60 (bundle github): gh governance.
 # rule: gh api -X non-GET | --input | fields without a method | graphql mutation -> ask : API write; ask the user, or use the matching gh subcommand
 # rule: gh api write (as above) from a subagent -> deny : a raw API write can merge or change state; hand the command back to the main thread
-# rule: gh pr merge|review -> ask : merging and reviewing are human-only; run it only on the user's explicit request (they confirm it), or ask the user instead
-# rule: gh pr merge|review from a subagent -> deny : a subagent never merges or reviews; hand the command back to the main thread
+# rule: gh pr merge|review, gh issue delete|transfer -> ask : merging, reviewing and deleting/transferring issues are human-only; run it only on the user's explicit request (they confirm it), or ask the user instead
+# rule: gh pr merge|review, gh issue delete|transfer from a subagent -> deny : a subagent never merges, reviews or deletes; hand the command back to the main thread
+# rule: (close|fix|resolve) #N in gh pr create|new|edit|merge with -Ro/r or the new alias (forms 41 misses) -> deny : issue state is human-only; mention #N instead (see #N); yields like 41 (tracker)
+# rule: gh with quoted/escaped command words or a $VAR/$(…) subcommand -> ask : the subcommand cannot be checked; write it literally and unquoted instead (a subagent is denied)
 # rule: gh release/repo/workflow/secret/auth/gist/... mutations -> ask : team-visible; ask the user (releases are human-only)
 # rule: gh label create agent-* -> allow : governance label; other labels ask
-# rule: gh pr create -> allow : creates are ungated (same -sub- stacked rules as glab)
+# rule: gh pr create|new -> allow : creates are ungated (same -sub- stacked rules as glab)
 # rule: gh pr create -f|--fill|--fill-first|--fill-verbose -> ask : generated text may contain a closing keyword; pass -t and -F body-file instead
 # rule: gh pr create -t TITLE matching HARNESS_GITHUB_PR_TITLE_FORBID_RE -> ask : issue refs belong in the PR body (mention #N there), not the title; set github.pr_title_forbid_re to change the convention (empty disables)
 # rule: gh pr create -t with $VAR or backticks -> ask : the title cannot be checked; use a literal title instead
-# rule: gh issue create without -l agent-drafted|agent-created -> deny : provenance label required; use -l agent-drafted (or agent-created) instead
+# rule: gh issue create|new without -l agent-drafted|agent-created -> deny : provenance label required; use -l agent-drafted (or agent-created) instead
 # rule: gh pr edit|comment|close|reopen|ready|update-branch, gh issue edit|comment|close|reopen on an agent-labelled ref -> allow : human refs ask (label it first, or ask the user); fork PRs ask
 # rule: gh pr close|reopen|ready, gh issue close|reopen on a human ref -> ask : PR/issue state is a human decision; run it only on the user's explicit request (they confirm it), or ask the user instead
 # rule: gh pr close|reopen|ready, gh issue close|reopen from a subagent -> deny : a subagent never changes PR/issue state; hand the command back to the main thread
@@ -25,6 +27,16 @@ printf '%s' "$flat" | grep -qE '\bgh\s+auth\s+status\b[^;&|]*[[:space:]](--show-
 printf '%s' "$flat" | grep -qE '\bgh\s+config\s+get\b[^;&|]*\boauth_token\b' && deny "gh config get oauth_token prints the token — check auth with 'gh auth status'"
 repo_owns github/guard.d/60-github scm && return 0   # principle 8: the repository's .harness.toml owns this section or domain scm
 # ---- GitHub (gh) ------------------------------------------------------------------
+# Section-local views (gate_writes, called from here, sees them too): the command without fd
+# duplications (2>&1 would cut a clause at its '&'), and a repo flag that also matches the
+# attached forms -Ro/r and -R=o/r (41's shared GHR keeps the separated forms only).
+# shellcheck disable=SC2168  # sections are wrapped in a function by build.sh
+local flat="$flat_split"
+# shellcheck disable=SC2168
+local GHR='((-R[= ]?|--repo[= ])\S+\s+)?'
+# shellcheck disable=SC2168
+local GHP='\bgh\s+'"$GHR"
+GH_NOUNS='pr|issue|label|release|repo|run|workflow|secret|variable|gist|auth|config|alias|ext(ension)?s?|ssh-key|gpg-key|project|cache'
 # Reads are free (settings.json allow). Order: token denies (prelude, above) → gh api (per clause) → team-visible
 # ask → label create → pr create (per clause) → issue create (per clause) → PR/issue write gates.
 # Asks are deferred so a deny anywhere in the command wins.
@@ -47,11 +59,28 @@ fetch_gh_issue() {
 # github) means "disabled"; without a guard.env (tests, hand-installed hook) the default applies.
 if [ -n "${HARNESS_GITHUB_PR_TITLE_FORBID_RE+x}" ]; then GH_TITLE_FORBID_RE=$HARNESS_GITHUB_PR_TITLE_FORBID_RE
 else case " ${HARNESS_BUNDLES:-} " in *" github "*) GH_TITLE_FORBID_RE="" ;; *) GH_TITLE_FORBID_RE='#[0-9]+' ;; esac; fi
-GH_HUMAN_RE="${GHP}pr\s+${GHR}(merge|review)\b"
-GH_TEAM_RE="${GHP}(pr\s+${GHR}(lock|unlock)|issue\s+${GHR}(delete|transfer|pin|unpin|lock|unlock|develop)|release\s+${GHR}(create|edit|delete|delete-asset|upload)|repo\s+${GHR}(delete|archive|unarchive|fork|create|rename|edit|sync|deploy-key|autolink)|label\s+${GHR}(edit|delete|clone)|workflow\s+${GHR}(run|enable|disable)|run\s+${GHR}(cancel|rerun|delete)|(secret|variable)\s+${GHR}(set|delete)|gist\s+(create|edit|delete|rename)|auth\s+(login|logout|refresh|setup-git|switch)|(ssh-key|gpg-key)\s+(add|delete)|alias\s+(set|import|delete)|ext(ension)?s?\s+(install|upgrade|remove)|project\s+(close|copy|create|delete|edit|field-create|field-delete|item-add|item-archive|item-create|item-delete|item-edit|link|unlink|mark-template)|cache\s+${GHR}delete)\b"
+GH_HUMAN_RE="${GHP}(pr\s+${GHR}(merge|review)|issue\s+${GHR}(delete|transfer))\b"
+GH_TEAM_RE="${GHP}(pr\s+${GHR}(lock|unlock)|issue\s+${GHR}(pin|unpin|lock|unlock|develop)|release\s+${GHR}(create|edit|delete|delete-asset|upload)|repo\s+${GHR}(delete|archive|unarchive|fork|create|rename|edit|sync|deploy-key|autolink)|label\s+${GHR}(edit|delete|clone)|workflow\s+${GHR}(run|enable|disable)|run\s+${GHR}(cancel|rerun|delete)|(secret|variable)\s+${GHR}(set|delete)|gist\s+(create|edit|delete|rename)|auth\s+(login|logout|refresh|setup-git|switch)|(ssh-key|gpg-key)\s+(add|delete)|alias\s+(set|import|delete)|ext(ension)?s?\s+(install|upgrade|remove)|project\s+(close|copy|create|delete|edit|field-create|field-delete|item-add|item-archive|item-create|item-delete|item-edit|link|unlink|mark-template)|cache\s+${GHR}delete)\b"
 GH_PR_BOOL_RE='^--?(d|draft|undo|edit-last|create-if-none|delete-last|y|yes|w|web|delete-branch|remove-milestone|dry-run|e|editor|rebase)$'
 GH_ISSUE_BOOL_RE='^--?(e|editor|w|web|edit-last|create-if-none|delete-last|y|yes|remove-milestone|remove-parent)$'
-if printf '%s' "$flat" | grep -qE "${GHP}(pr|issue|label|api|release|repo|run|workflow|secret|variable|gist|auth|config|alias|ext(ension)?s?|ssh-key|gpg-key|project|cache)\b"; then
+# Closing-keyword backstop for command forms 41's shared regex does not parse (attached -Ro/r,
+# the gh pr new alias); it yields exactly like 41 (component 41-github-closing, domain tracker).
+if ! repo_owns github/guard.d/41-github-closing tracker \
+   && printf '%s' "$flat" | grep -qiE "$GH_CLOSE_RE" \
+   && printf '%s' "$flat" | grep -qE "${GHP}pr\s+${GHR}(create|new|edit|merge)\b"; then
+  deny "closing keyword + GitHub issue ref (#N, owner/repo#N or issue URL) would let GitHub close the issue; issue state is human-only — mention it instead (e.g. 'part of #12')"
+fi
+# gh_words TEXT -> one line per gh command head: 'gh api', or 'gh NOUN VERB' (sorted)
+gh_words() { printf '%s' "$1" | grep -oE "\bgh\s+${GHR}(api|(${GH_NOUNS})\s+${GHR}[A-Za-z-]+)" | sed -E 's/[[:space:]]+/ /g' | sort; }
+# -- 0. hidden subcommands: command words in quotes or escapes (gh "pr" merge, g\h pr merge) and
+#       a $VAR / $(…) / backtick in the noun or verb slot cannot be checked → human decision
+if printf '%s' "$flat_dq" | grep -qE '\bgh\s' && [ "$(gh_words "$flat")" != "$(gh_words "$flat_dq")" ]; then
+  human_decision_defer "gh command words in quotes or escapes cannot be checked — write the gh subcommand unquoted"
+fi
+if printf '%s' "$flat" | grep -qE "\bgh\s+${GHR}([^[:space:]]*[\$\`]|(${GH_NOUNS})\s+${GHR}[^[:space:]]*[\$\`])"; then
+  human_decision_defer "gh subcommand from a \$VAR, \$(…) or backticks cannot be checked — write the subcommand literally"
+fi
+if printf '%s' "$flat" | grep -qE "${GHP}(${GH_NOUNS}|api)\b"; then
   # -- 1. tokens: denied in the never-yields prelude above
 
   # -- 2. gh api (per clause): explicit non-GET → ask; --input → ask; fields without a method
@@ -64,7 +93,8 @@ if printf '%s' "$flat" | grep -qE "${GHP}(pr|issue|label|api|release|repo|run|wo
     if printf '%s' "$clause" | grep -qE '(^|[[:space:]])--input([= ]|$)'; then human_decision_defer "gh api --input (request body from a file/stdin) — ask the user, or use the matching gh subcommand instead"; continue; fi
     words=$(shell_words "$clause") || { human_decision_defer "gh api — could not parse the command line (unbalanced quotes); use balanced literal arguments instead"; continue; }
     toks=(); [ -z "$words" ] || while IFS= read -r _w; do toks+=("$_w"); done <<<"$words"
-    a_method=""; a_fields=false; a_files=false; a_opname=false; a_query=""; a_endpoint=""; i=2   # skip 'gh api'
+    a_method=""; a_fields=false; a_files=false; a_opname=false; a_query=""; a_endpoint=""; i=0
+    while [ "$i" -lt "${#toks[@]}" ] && [ "${toks[i]}" != api ]; do i=$((i+1)); done; i=$((i+1))   # skip 'gh [-R x] api'
     while [ "$i" -lt "${#toks[@]}" ]; do
       tok=${toks[i]}; i=$((i+1)); fk=""; fv=""
       case "$tok" in
@@ -101,13 +131,13 @@ if printf '%s' "$flat" | grep -qE "${GHP}(pr|issue|label|api|release|repo|run|wo
         if $a_fields && [ -z "$a_m" ]; then human_decision_defer "gh api with -f/-F fields and no method auto-POSTs — pass -X GET for query parameters"; continue; fi ;;
     esac
   done <<EOF
-$(printf '%s' "$flat" | grep -oE '\bgh\s+api\b[^;&|]*')
+$(printf '%s' "$flat" | grep -oE "${GHP}api\b[^;&|]*")
 EOF
 
-  # -- 3. humans merge/review (a human decision: main thread asks, a subagent is denied);
-  #       team-visible actions — releases, repos, workflows, secrets, auth … — ask
+  # -- 3. humans merge/review and delete/transfer issues (a human decision: main thread asks, a
+  #       subagent is denied); team-visible actions — releases, repos, workflows, secrets, auth … — ask
   printf '%s' "$flat" | grep -qE "$GH_HUMAN_RE" \
-    && human_decision_defer "gh pr merge/review — merging and reviewing are human-only; run it only on the user's explicit request (they confirm it), or ask the user instead"
+    && human_decision_defer "gh pr merge/review or gh issue delete/transfer — merging, reviewing and deleting are human-only; run it only on the user's explicit request (they confirm it), or ask the user instead"
   printf '%s' "$flat" | grep -qE "$GH_TEAM_RE" \
     && defer "gh team-visible action (releases/repos/workflows/secrets/auth/gists are not governed) — ask the user instead"
 
@@ -137,7 +167,7 @@ EOF
   #       branch of cwd (none inside a sub worktree → deny); base = -B/--base; -sub- rules as glab.
   #       --web / --dry-run create nothing here → no decision. --fill* and a title matching
   #       HARNESS_GITHUB_PR_TITLE_FORBID_RE (or a $VAR/backtick title) ask (deferred).
-  if printf '%s' "$flat" | grep -qE "${GHP}pr\s+${GHR}create\b"; then
+  if printf '%s' "$flat" | grep -qE "${GHP}pr\s+${GHR}(create|new)\b"; then
     while IFS= read -r clause; do
       [ -n "$clause" ] || continue
       # a clause cut out of `sh -c "…"` ends in the wrapper's quote: retry without it
@@ -156,6 +186,10 @@ EOF
           -t|--title) ptitle=${toks[i]:-}; phas_title=true; i=$((i+1)) ;;
           --title=*)  ptitle=${tok#*=}; phas_title=true ;;
           -d|--draft|--no-maintainer-edit|-e|--editor|--*=*) ;;
+          -H?*) phead=${tok#-H} ;;  # attached short values: -Hbranch, -Bmain, -t"x", -Ro/r
+          -B?*) pbase=${tok#-B} ;;
+          -t?*) ptitle=${tok#-t}; phas_title=true ;;
+          -[bFlamprTR]?*) ;;
           -?*) i=$((i+1)) ;;        # -t -b -F -l -a -r -m -p -T -R --recover take a value
         esac
       done
@@ -176,12 +210,12 @@ EOF
       fi
       pending_allow="gh pr create (creates are ungated; pass --label agent-worked so follow-up edits stay promptless)"
     done <<EOF
-$(printf '%s' "$flat" | grep -oE "${GHP}pr\s+${GHR}create\b[^;&|]*")
+$(printf '%s' "$flat" | grep -oE "${GHP}pr\s+${GHR}(create|new)\b[^;&|]*")
 EOF
   fi
 
   # -- 6. gh issue create (per clause): every created issue carries a provenance label
-  if printf '%s' "$flat" | grep -qE "${GHP}issue\s+${GHR}create\b"; then
+  if printf '%s' "$flat" | grep -qE "${GHP}issue\s+${GHR}(create|new)\b"; then
     while IFS= read -r clause; do
       [ -n "$clause" ] || continue
       words=$(shell_words "$clause") || { defer "gh issue create — could not parse the command line (unbalanced quotes); pass literal -t/-F/-l values instead"; continue; }
@@ -194,6 +228,8 @@ EOF
           --label=*)  lv=${tok#*=} ;;
           -w|--web) iweb=true ;;
           -e|--editor|--*=*) ;;
+          -l?*) lv=${tok#-l} ;;     # attached short values: -lagent-drafted, -Ro/r
+          -[tbFamTpR]?*) ;;
           -?*) i=$((i+1)) ;;        # -t -b -F -a -m -p -T -R --recover take a value
         esac
         [ -n "$lv" ] && printf '%s' "$lv" | tr ',' '\n' | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//' \
@@ -203,7 +239,7 @@ EOF
       $iprov || deny "gh issue create without a provenance label — pass -l ${DRAFTED_LABEL} (create-ticket) or -l ${CREATED_LABEL},${GOV_LABEL} (work-ticket sub-issues)"
       pending_allow="gh issue create carrying a provenance label"
     done <<EOF
-$(printf '%s' "$flat" | grep -oE "${GHP}issue\s+${GHR}create\b[^;&|]*")
+$(printf '%s' "$flat" | grep -oE "${GHP}issue\s+${GHR}(create|new)\b[^;&|]*")
 EOF
   fi
 

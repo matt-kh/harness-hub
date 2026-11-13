@@ -216,6 +216,14 @@ else
 fi
 [ -n "$cmd" ] || exit 0
 flat=$(printf '%s' "$cmd" | tr '\n' ' ' | tr -s ' ')
+# Detection copies for the scm sections (gh, glab, gate_writes): an fd duplication (2>&1, >&2,
+# <&0, >&-) or &> / &>> carries an '&' that would cut a clause short at every `[^;&|]*`
+# extraction, so flat_split drops them (&> and >&FILE become >). flat_dq also drops quotes and
+# backslashes; it is matched only to notice command words hidden in quotes (gh "pr" merge).
+# shellcheck disable=SC2034  # read by the gh / glab sections
+flat_split=$(printf '%s' "$flat" | sed -E 's/[0-9]*[<>]&([0-9]+|-)/ /g; s/&>>?/>/g; s/>&/>/g')
+# shellcheck disable=SC2034  # read by the gh / glab sections
+flat_dq=$(printf '%s' "$flat_split" | tr -d "\"'\\\\")
 cwd=$(printf '%s' "$input" | jq -r '.cwd // empty' 2>/dev/null)
 cwd_base=$(basename -- "${cwd:-/}")
 in_sub_worktree=false; printf '%s' "$cwd_base" | grep -qE '_[^/]*-sub-' && in_sub_worktree=true
@@ -568,21 +576,40 @@ sub_create_rules() {
   return 0
 }
 
-# gate_writes CLAUSE_RE FETCH_FN LABEL_FLAG_RE RETARGET_FLAG_RE STATE_VERB_RE BOOL_FLAG_RE KIND SIGIL [STATE_FLAG_RE]
+# head_repo HEAD -> the -R/--repo value inside a clause head (-R x, -Rx, -R=x, --repo x, --repo=x), or empty
+head_repo() {
+  local w nxt=false
+  for w in $1; do
+    if $nxt; then printf '%s' "$w"; return 0; fi
+    case "$w" in
+      -R|--repo) nxt=true ;;
+      --repo=*)  printf '%s' "${w#*=}"; return 0 ;;
+      -R=*)      printf '%s' "${w#-R=}"; return 0 ;;
+      -R?*)      printf '%s' "${w#-R}"; return 0 ;;
+    esac
+  done
+  return 0
+}
+
+# gate_writes CLAUSE_RE FETCH_FN LABEL_FLAG_RE RETARGET_FLAG_RE STATE_VERB_RE BOOL_FLAG_RE KIND SIGIL
+#             [STATE_FLAG_RE [STATE_FLAG_VERB_RE [STATE_TEXT_RE]]]
 # Label gate for writes to existing MRs/PRs/issues (glab mr update|note|close, gh pr …, gh issue …).
 # CLAUSE_RE matches up to and including the verb (an -R/--repo inside it scopes the lookup, as does
 # one after the verb). Per clause: every positional ref is gated; $VAR refs ask; a clause whose only
 # flags are LABEL_FLAG_RE with agent-* values is free; FETCH_FN REF REPO → normalised JSON (fail →
 # ask); a -sub- src retargeted (RETARGET_FLAG_RE) to BASE_BRANCH_RE denies ($VAR → ask);
-# cross-repository (fork) PRs ask; unlabelled refs ask. A state change — a verb matching
-# STATE_VERB_RE or a flag matching STATE_FLAG_RE (glab mr update --ready) — is a human decision:
-# denied from a subagent before any lookup; on the main thread a human ref asks (deferred), an
-# agent-labelled ref keeps the label decision, and labelling flags never make it free.
-# Asks are deferred; a clean gate records pending_allow.
+# cross-repository (fork) PRs ask; unlabelled refs ask. Flags are parsed the way the CLIs parse
+# them: --flag=value, -f=value, attached short values (-Ro/r) and clusters of short booleans
+# (-yr) all count. A state change — a verb matching STATE_VERB_RE, or a flag matching
+# STATE_FLAG_RE on a verb matching STATE_FLAG_VERB_RE (glab mr update --ready) — is a human
+# decision: denied from a subagent before any lookup (STATE_TEXT_RE, an ERE on the raw clause
+# text, is the subagent's fail-closed second check for the flag); on the main thread a human ref
+# asks (deferred), an agent-labelled ref keeps the label decision, and labelling flags never make
+# it free. Asks are deferred; a clean gate records pending_allow.
 gate_writes() {
-  local cre="$1" fetch="$2" lre="$3" rre="$4" sre="$5" bre="$6" kind="$7" sig="$8" sfre="${9:-}"
-  local n_cmds n_seen=0 clause head verb repo rest words tok f v i ref r mj ml msrc mcross rtgt labelonly hint state sfin
-  local -a toks refs lbls
+  local cre="$1" fetch="$2" lre="$3" rre="$4" sre="$5" bre="$6" kind="$7" sig="$8" sfre="${9:-}" sfvre="${10:-}" stre="${11:-}"
+  local n_cmds n_seen=0 clause head verb repo rest words tok f v i j s c ref r mj ml msrc mcross rtgt labelonly hint state sflags
+  local -a toks refs lbls pf pv
   printf '%s' "$flat" | grep -qE "$cre" || return 0
   n_cmds=$(printf '%s' "$flat" | grep -oE "$cre" | wc -l)
   while IFS= read -r clause; do
@@ -590,32 +617,47 @@ gate_writes() {
     n_seen=$((n_seen+1))
     head=$(printf '%s' "$clause" | grep -oE "^$cre" | head -1)
     verb=$(printf '%s' "$head" | awk '{print $NF}')
-    repo=$(flag_val '-R|--repo' "$head")
+    repo=$(head_repo "$head")
     rest=${clause:${#head}}
     state=false
     if [ -n "$sre" ] && printf '%s' "$verb" | grep -qE "$sre"; then state=true; fi
+    sflags=false
+    if [ -n "$sfre" ] && { [ -z "$sfvre" ] || printf '%s' "$verb" | grep -qE "$sfvre"; }; then sflags=true; fi
     # a subagent never changes state: deny before any parsing or label lookup (the main thread
-    # decides per ref below)
-    if $state && [ "$IN_SUBAGENT" = true ]; then
-      human_decision_defer "$kind $verb changes PR/MR/issue state, a human decision; ask the user instead"
-    fi
-    if ! words=$(shell_words "$rest"); then
-      sfin=${sfre#^}; sfin=${sfin%\$}
-      if [ -n "$sfre" ] && [ "$IN_SUBAGENT" = true ] && printf '%s' "$rest" | grep -qE -- "(^|[[:space:]])${sfin}([[:space:]=]|\$)"; then
-        human_decision_defer "$kind $verb with a state flag changes PR/MR state, a human decision; ask the user instead"
+    # decides per ref below); the raw-text check fails closed on flags the parser could miss
+    if [ "$IN_SUBAGENT" = true ]; then
+      $state && human_decision_defer "$kind $verb changes PR/MR/issue state, a human decision; ask the user instead"
+      if $sflags && [ -n "$stre" ] && printf '%s' "$rest" | grep -qE -- "$stre"; then
+        human_decision_defer "$kind $verb with a state flag (ready/draft) changes MR state, a human decision; ask the user instead"
       fi
-      defer "$kind $verb — could not parse the command line (unbalanced quotes); pass balanced literal arguments instead"; continue
     fi
+    words=$(shell_words "$rest") || words=$(shell_words "${rest%[\"\']}") \
+      || { defer "$kind $verb — could not parse the command line (unbalanced quotes); pass balanced literal arguments instead"; continue; }
     toks=(); [ -z "$words" ] || while IFS= read -r _w; do toks+=("$_w"); done <<<"$words"
-    refs=(); lbls=(); rtgt=""; labelonly=true; i=0
+    # 1. tokens -> refs + (flag, value) pairs
+    refs=(); pf=(); pv=(); i=0
     while [ "$i" -lt "${#toks[@]}" ]; do
       tok=${toks[i]}; i=$((i+1))
       case "$tok" in
-        --*=*) f=${tok%%=*}; v=${tok#*=} ;;
-        -?*)   f=$tok; v=""
-               if [ -z "$bre" ] || ! printf '%s' "$f" | grep -qE "$bre"; then v=${toks[i]:-}; i=$((i+1)); fi ;;
-        *)     refs+=("$tok"); continue ;;
+        --)    while [ "$i" -lt "${#toks[@]}" ]; do refs+=("${toks[i]}"); i=$((i+1)); done ;;
+        --*=*) pf+=("${tok%%=*}"); pv+=("${tok#*=}") ;;
+        --?*)  if [ -n "$bre" ] && printf '%s' "$tok" | grep -qE "$bre"; then pf+=("$tok"); pv+=("")
+               else pf+=("$tok"); pv+=("${toks[i]:-}"); i=$((i+1)); fi ;;
+        -?*)   s=${tok#-}
+               while [ -n "$s" ]; do
+                 c=${s:0:1}; s=${s:1}; f="-$c"
+                 case "$s" in =*) pf+=("$f"); pv+=("${s#=}"); break ;; esac
+                 if [ -n "$bre" ] && printf '%s' "$f" | grep -qE "$bre"; then pf+=("$f"); pv+=(""); continue; fi
+                 if [ -n "$s" ]; then v=$s; else v=${toks[i]:-}; i=$((i+1)); fi
+                 pf+=("$f"); pv+=("$v"); break
+               done ;;
+        *)     refs+=("$tok") ;;
       esac
+    done
+    # 2. pairs -> repo, labels, retarget, state flags
+    lbls=(); rtgt=""; labelonly=true; j=0
+    while [ "$j" -lt "${#pf[@]}" ]; do
+      f=${pf[j]}; v=${pv[j]}; j=$((j+1))
       case "$f" in -R|--repo) repo=$v; continue ;; esac
       if [ -n "$lre" ] && printf '%s' "$f" | grep -qE "$lre"; then
         while IFS= read -r r; do [ -n "$r" ] && lbls+=("$r"); done <<<"$(printf '%s' "$v" | tr ',' '\n' | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
@@ -623,16 +665,16 @@ gate_writes() {
         labelonly=false
       fi
       if [ -n "$rre" ] && printf '%s' "$f" | grep -qE "$rre"; then rtgt=$v; fi
-      if [ -n "$sfre" ] && printf '%s' "$f" | grep -qE "$sfre"; then state=true; verb="$verb $f"; fi
+      if $sflags && printf '%s' "$f" | grep -qE "$sfre"; then state=true; verb="$verb $f"; fi
     done
     if $state && [ "$IN_SUBAGENT" = true ]; then
       human_decision_defer "$kind $verb changes PR/MR state, a human decision; ask the user instead"
     fi
     [ "${#refs[@]}" -gt 0 ] || { defer "$kind $verb without an explicit ref — pass the number so its labels can be checked"; continue; }
     for ref in "${refs[@]}"; do
-      case "$ref" in *'$'*) defer "$kind $verb on \$VAR — use a literal number"; continue 2 ;; esac
+      case "$ref" in *'$'*|*'`'*) defer "$kind $verb on \$VAR — use a literal number"; continue 2 ;; esac
     done
-    case "$repo" in *'$'*) defer "$kind $verb with a \$VAR repo — use a literal owner/repo"; continue ;; esac
+    case "$repo" in *'$'*|*'`'*) defer "$kind $verb with a \$VAR repo — use a literal owner/repo"; continue ;; esac
     if ! $state && $labelonly && [ "${#lbls[@]}" -gt 0 ] && ! printf '%s\n' "${lbls[@]}" | grep -vqE "$AGENT_LABEL_RE"; then
       continue   # labelling only with agent-* labels → free
     fi
@@ -654,7 +696,7 @@ gate_writes() {
       if [ "$mcross" = true ]; then defer "$kind $verb $sig$r — cross-repository (fork) PR; edits there ask"; continue; fi
       if ! labels_match_re "$ml" "$AGENT_LABEL_RE"; then
         if $state; then
-          human_decision_defer "$kind $verb $sig$r — state of a human-written ref is a human decision; run it only on the user's explicit request (they confirm it), or ask the user to do it instead"; continue
+          human_decision_defer "$kind $verb $sig$r — the state of a human-written PR/MR/issue is a human decision; run it only on the user's explicit request (they confirm it), or ask the user to do it instead"; continue
         fi
         defer "$kind $verb $sig$r — not agent-labelled (label it first: $hint)"
         continue
