@@ -219,9 +219,11 @@ and PRs, and a Drive file property for Google Docs:
 
 Names and the matching regex (`^agent-`) are config (`core.agent_labels`,
 `core.agent_label_re`). Creating an artefact requires a provenance label; adding an `agent-*`
-label to an existing human ticket is the explicit, visible act of adopting it. Ticket **state**
-stays human-only regardless of labels unless a repo opts in. Details:
-[governance](governance.md).
+label to an existing human ticket is the explicit, visible act of adopting it. Merges,
+approvals and the **state** of human tickets, issues and MRs/PRs stay human decisions
+regardless of labels: an agent changes them only on the user's explicit request in the main
+thread (the guard asks), and a subagent never does (the guard denies). Details:
+[governance](governance.md#3-humans-decide-merges-approvals-and-state).
 
 ## Where things live
 

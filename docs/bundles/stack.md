@@ -3,7 +3,7 @@
 Stacked MRs/PRs on free tiers. work-ticket delivers large tickets as a stack: a ticket branch
 `BR` with its main MR/PR (`BR -> BASE`, Draft until the parts merged) and parts
 `BR-sub-NN-<task>`, each its own MR/PR targeting `BR` (a **fan-in leaf**) or another part's
-branch (a **chain**). Humans merge the parts bottom-up in the web UI. Between merges somebody
+branch (a **chain**). Humans decide the merges, bottom-up, usually in the web UI. Between merges somebody
 has to retarget, rebase and push the rest of the stack — that is `stk sync`.
 
 **What the hosts give for free.**
@@ -32,7 +32,9 @@ therefore chains parts whose `paths` overlap and fans in only provably disjoint 
 checks `git diff --name-only` pairwise before publishing). A chain costs a rebase after each
 merge — automated here — instead of a conflict.
 
-**Humans merge.** There is no merge verb. The guard allows a sole `stk sync` and asks for
+**Humans decide the merges.** There is no merge verb. An agent merges a part (`glab mr merge`,
+`gh pr merge`) only when you explicitly ask for it in the main thread, and the guard asks you
+to confirm; a subagent is denied. The guard allows a sole `stk sync` and asks for
 `stk sync --include-human` (writes to unlabelled MRs/PRs). The core guard allows a hand-typed
 `git push --force-with-lease origin <sub branches>` and asks for every other force-push.
 
@@ -64,7 +66,7 @@ conflict), pushes the rebased sub branches with `--force-with-lease`, refreshes 
 fan-in leaf server-side when the merge method needs an up-to-date source, and marks the main
 MR/PR ready once every part merged. It writes only to agent-labelled MRs/PRs and prints every
 native command before it runs it. `stk plan|status|check` are reads; `plan` prints the
-bottom-up merge order for the human, who merges in the web UI. Stacks are work-ticket's
+bottom-up merge order for the human, who decides each merge (usually in the web UI). Stacks are work-ticket's
 `<BR>-sub-NN-<task>` branches (`stk sync --stack BR`).
 
 - **Depends on:** `core`
@@ -177,7 +179,7 @@ per run with `gh pr update-branch`. Then run `stk check --stack <BR>` in a check
 
 *once per machine · needs nothing but a terminal · ~2 min*
 
-**Why:** Merging is human-only: stk keeps the stack mergeable, you merge it.
+**Why:** Merging is your decision: stk keeps the stack mergeable and has no merge verb; you merge it, or ask the agent to in the main thread (the guard asks).
 
 **How:**
 
@@ -203,7 +205,7 @@ Guides steer the agent before it acts; sensors detect at or after the action. Pa
 
 | side | kind | ref | note | pairs with |
 |---|---|---|---|---|
-| guide | rule | `rules/65-stack.md` | humans merge bottom-up; stk sync after each merge; agent-labelled parts only | `guard.d/65-stack.sh` |
+| guide | rule | `rules/65-stack.md` | humans decide the merges, bottom-up; stk sync after each merge; agent-labelled parts only | `guard.d/65-stack.sh` |
 | guide | skill | `skills/stk` | the stk CLI: check, plan, status, sync and the merge-order hand-off | `skills/stk/scripts/tests/run.sh`, `doctor_checks` |
 | guide | permission | `permissions.toml` | stk plan\|status\|check\|sync allowed; never Bash(stk:*) | `permissions-vs-guard`, `guard.d/65-stack.sh` |
 | sensor | guard | `guard.d/65-stack.sh` | stk sync --include-human asks; a sole stk sync allows | `rules/65-stack.md`, `permissions.toml` |
