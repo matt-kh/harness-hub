@@ -29,7 +29,7 @@
 # EXPECTED is allow | ask | deny | pass (pass = no output, the provider decides).
 # Every helper builds its input with t_input (below); T_AGENT=<id> makes the row a subagent
 # call, e.g. `T_AGENT=a1 t deny '…'` (T_AGENT_NULL, T_AGENT_TYPE: see t_input).
-# Prefix env assignments work as usual: `WORK_TICKET_ALLOW_TRANSITION=1 t ask '…'`.
+# Prefix env assignments work as usual: `WORK_TICKET_KEY_IN_BRANCH=1 t pass '…'`.
 # NOTE: `tr` shadows the tr(1) command inside the test shell; the guard runs in its own bash.
 #
 # Inputs: GUARD_BASH (the concatenated guard under test; run.sh builds it) and the stubs in
