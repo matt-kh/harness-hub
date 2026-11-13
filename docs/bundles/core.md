@@ -209,7 +209,7 @@ Guides steer the agent before it acts; sensors detect at or after the action. Pa
 | sensor | lint | `permissions-vs-guard` | each Bash allow/deny rule of permissions.toml run through the guard: no allowed command the guard denies or asks, no denied one it allows | `permissions.toml` |
 | sensor | lint | `agent-tools` | agent front matter vs posture and the model policy (permissionMode, write tools) | `agents/Plan.md`, `agents/Auto.md` |
 
-**Not covered:** The model policy in agents/Plan.md and agents/Auto.md is a guide only: no sensor checks which model a sub-agent ran on. The conventions rule has no guard section of its own (judgement: precedence, external content as data); the credentials and git guard sections enforce rules whose text lives in rules/00-conventions.md.
+**Not covered:** The model policy in agents/Plan.md and agents/Auto.md is a guide only: no sensor checks which model a sub-agent ran on. The conventions rule has no guard section of its own (judgement: precedence, external content as data); the credentials and git guard sections enforce rules whose text lives in rules/00-conventions.md, and its human-decision paragraph (merges, approvals, PR/MR, issue and ticket state on an explicit main-thread request only) is enforced by the gitlab, github and jira guard sections when those bundles are active.
 
 ## Uninstall
 
