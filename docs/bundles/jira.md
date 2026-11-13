@@ -5,9 +5,13 @@ MCP server, and the Jira write gate.
 
 - Reads are free: `jira get`, `jira search`, `jira fields PROJ`, sprints, versions, links.
 - Creates need a provenance label; writes to tickets carrying an `agent-*` label are
-  promptless; writes to purely human tickets **ask**; state transitions on human tickets are
-  **denied** (`WORK_TICKET_ALLOW_TRANSITION = "1"` in a repository's `.harness.toml` turns
-  that into ask; [repository-level harnesses](../repo-level.md)).
+  promptless; writes to purely human tickets **ask**.
+- Ticket state is a human decision: a transition on a human ticket **asks** on the main
+  thread, so the agent runs it only on the user's explicit request; from a subagent every
+  transition is **denied** (hand the command back to the main thread). A transition whose
+  ticket cannot be checked (no literal key, a failed label lookup) is denied. A repository
+  that owns the `tracker` domain decides itself ([repository-level harnesses](../repo-level.md));
+  `WORK_TICKET_ALLOW_TRANSITION` is a deprecated no-op.
 - The MCP server (`mcp-atlassian` through `uvx`) runs with `READ_ONLY_MODE=true` and receives
   the token by file reference, never inline.
 - Plain text in comments and descriptions (Jira wiki markup), never Cloud's ADF.
@@ -44,8 +48,8 @@ Ships the stdlib `jira` CLI and its skill (read/search/update tickets, sprints, 
 transitions, attachments, links), the read-only `mcp-atlassian` server wired with the token
 read from ~/.config/jira at launch (never stored in a provider config), and guard section 70:
 creates need a provenance label, writes to agent-labelled tickets are promptless, writes to
-human tickets ask and their transitions are denied, native links only between agent-labelled
-tickets. Jira Server / Data Center 8.x with personal access tokens; Cloud is not implemented.
+human tickets ask and so do their transitions (a subagent's transitions are denied), native
+links only between agent-labelled tickets. Jira Server / Data Center 8.x with personal access tokens; Cloud is not implemented.
 
 - **Depends on:** `core`
 - **Recommends:** `ticket-workflow`, `gitlab`
@@ -66,7 +70,7 @@ Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md
 
 **Guard sections**
 
-- `jira/guard.d/70-jira` — control: sensor · function: govern · decisions: deny 3 · ask 1 · allow 4 · yields: declaration
+- `jira/guard.d/70-jira` — control: sensor · function: govern · decisions: deny 4 · ask 3 · allow 4 · yields: declaration
 
 **Permission lists**
 
@@ -190,7 +194,7 @@ Guides steer the agent before it acts; sensors detect at or after the action. Pa
 | guide | rule | `rules/70-jira.md` | reads free, writes gated by agent-* labels, transitions human-only | `guard.d/70-jira.sh` |
 | guide | skill | `skills/jira` | the jira CLI for Jira Server: search, fields, comments, labels | `skills/jira/scripts/tests/run.sh`, `guard.d/70-jira.sh` |
 | guide | permission | `permissions.toml` | read commands allowed; writes left to the guard | `permissions-vs-guard` |
-| sensor | guard | `guard.d/70-jira.sh` | label-gated writes, provenance label on create, transitions denied on human tickets | `rules/70-jira.md`, `skills/jira` |
+| sensor | guard | `guard.d/70-jira.sh` | label-gated writes, provenance label on create, human-ticket transitions ask, subagent transitions denied | `rules/70-jira.md`, `skills/jira` |
 | sensor | doctor | `doctor_checks` | CLI, token file mode, auth and uvx for the MCP server | — |
 | sensor | test | `guard.d/tests.sh` | guard rows with a stubbed jira | — |
 | sensor | test | `tests/run.sh` | this bundle's rows against core + jira only | — |

@@ -555,6 +555,23 @@ prints every one between your applied version and the new one.
   - closing keywords in the command forms sections 40 and 41 do not parse (`gh -Ro/r pr edit`,
     `gh pr new`, `glab -R g/p mr update`, `glab mr new`) are denied by sections 50 and 60,
     which yield for that check exactly as 40 and 41 do (domain `tracker`).
+- The Jira guard section adopts "humans decide" too (part of #67). `jira transition` on a
+  human ticket **asks** on the main thread (was deny; the ask is deferred, so a later deny in
+  the same command still wins) and stays promptless on an agent-labelled ticket; from a
+  subagent every transition is **denied** before any label lookup, on human and
+  agent-labelled tickets alike. A transition whose ticket cannot be checked still denies:
+  every transition clause needs a literal key (`$VAR`, `xargs` and quoted keys deny, also
+  next to another write that has one), and a failed label lookup denies. A promptless
+  `jira link`, labelled `jira create` or `jira label … add agent-*` in the same command no
+  longer lets a transition through; `2>&1` no longer cuts a `jira label` clause; quoted or
+  escaped command words (`jira "transition"`, `j\ira`) and a `$VAR` / `$(…)` subcommand ask
+  on the main thread and deny in a subagent (a hidden non-transition write asks in both).
+  Other Jira writes are unchanged, and `jira api` is GET-only in the client, so there is no
+  raw API write to gate. A repository owning `tracker` still passes, in a subagent too.
+- `WORK_TICKET_ALLOW_TRANSITION` is a deprecated no-op (#67): the engine no longer reads it;
+  the name stays allow-listed, so setting it is not an error, and `harness repo` reports a
+  set value as "deprecated, no effect" with where to remove it. `harness repo init` no longer
+  suggests it, and the ticket-workflow manual step no longer lists it.
 - `harness lint` rule `stability` now checks `beta` bundles as well as `stable` ones: a skill
   or CLI without a `tests/run.sh`, or a `coverage_note` admitting a missing suite, warns with
   the level to move to (`beta` → `experimental`, `stable` → `beta`). CONTRIBUTING "Stability
@@ -674,14 +691,23 @@ prints every one between your applied version and the new one.
   `glab api` writes from a subagent: have the subagent hand such a command back, and run it
   from the main thread when the user asks for it. `glab issue reopen` and `glab mr reopen` are
   newly guarded (ask on a human ref; `glab mr reopen` on an agent-labelled MR stays promptless).
-  `WORK_TICKET_ALLOW_TRANSITION` no longer affects GitHub issues (it still turns the Jira
-  transition deny into an ask); a repository that set it only for GitHub issues can drop it.
+  `WORK_TICKET_ALLOW_TRANSITION` no longer affects GitHub issues (and, with the Jira entry
+  below, nothing at all); a repository that set it can drop it.
   Also newly guarded: the glab aliases `mr accept`, `mr unapprove`, `mr|issue open`,
   `mr|issue del` and `mr comment` (each decided like the command it stands for), and GitLab
   quick actions in glab note and description text (ask; deny from a subagent). `gh issue
   delete|transfer`, `glab mr delete` and `glab issue delete` from a subagent are now denied
   (the main thread still asks). Quoted command words such as `gh "pr" comment` now ask instead
   of passing: write gh and glab subcommands unquoted.
+- Guard decisions for Jira (#67): `jira transition` on a human ticket now **asks** on the main
+  thread instead of denying; transitions run from a subagent are now **denied**, on
+  agent-labelled tickets too: have the subagent hand the command back, and run it from the
+  main thread when the user asks for it. `WORK_TICKET_ALLOW_TRANSITION` is a deprecated
+  no-op: remove it from `.harness.toml` `[overrides]` and from any provider `env`
+  (`.claude/settings.json` `"env"`); nothing replaces it, since the main thread now asks
+  without it. A repository whose own workflow transitions tickets owns the `tracker` domain
+  instead. Quoted Jira command words (`jira "comment" …`) now ask instead of passing: write
+  jira subcommands unquoted.
 - Per-provider model names: one new optional config key, `[providers.<name>].model_policy`
   (`plan`, `execute`). Claude needs no edit. For Copilot, `harness apply` now writes agents
   and skills without `model:` (session model); to pin models, add
