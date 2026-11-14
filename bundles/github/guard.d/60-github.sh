@@ -3,9 +3,9 @@
 # Section 60 (bundle github): gh governance.
 # rule: gh api -X non-GET | --input | fields without a method | graphql mutation -> ask : API write; ask the user, or use the matching gh subcommand
 # rule: gh api write (as above) from a subagent -> deny : a raw API write can merge or change state; hand the command back to the main thread
-# rule: gh pr merge|review, gh issue delete|transfer -> ask : merging, reviewing and deleting/transferring issues are human-only; run it only on the user's explicit request (they confirm it), or ask the user instead
+# rule: gh pr merge|review, gh issue delete|transfer -> ask : merging, reviewing and deleting/transferring issues are human decisions; run it only on the user's explicit request (they confirm it), or ask the user instead
 # rule: gh pr merge|review, gh issue delete|transfer from a subagent -> deny : a subagent never merges, reviews or deletes; hand the command back to the main thread
-# rule: (close|fix|resolve) #N in gh pr create|new|edit|merge with -Ro/r or the new alias (forms 41 misses) -> deny : issue state is human-only; mention #N instead (see #N); yields like 41 (tracker)
+# rule: (close|fix|resolve) #N in gh pr create|new|edit|merge with -Ro/r or the new alias (forms 41 misses) -> deny : a closing keyword would change the issue's state as a side effect; mention #N instead (see #N); yields like 41 (tracker)
 # rule: gh with quoted/escaped command words or a $VAR/$(…) subcommand -> ask : the subcommand cannot be checked; write it literally and unquoted instead (a subagent is denied)
 # rule: gh release/repo/workflow/secret/auth/gist/... mutations -> ask : team-visible; ask the user (releases are human-only)
 # rule: gh label create agent-* -> allow : governance label; other labels ask
@@ -68,7 +68,7 @@ GH_ISSUE_BOOL_RE='^--?(e|editor|w|web|edit-last|create-if-none|delete-last|y|yes
 if ! repo_owns github/guard.d/41-github-closing tracker \
    && printf '%s' "$flat" | grep -qiE "$GH_CLOSE_RE" \
    && printf '%s' "$flat" | grep -qE "${GHP}pr\s+${GHR}(create|new|edit|merge)\b"; then
-  deny "closing keyword + GitHub issue ref (#N, owner/repo#N or issue URL) would let GitHub close the issue; issue state is human-only — mention it instead (e.g. 'part of #12')"
+  deny "closing keyword + GitHub issue ref (#N, owner/repo#N or issue URL) would let GitHub close the issue as a side effect (denied even on request) — mention it instead (e.g. 'part of #12')"
 fi
 # gh_words TEXT -> one line per gh command head: 'gh api', or 'gh NOUN VERB' (sorted)
 gh_words() { printf '%s' "$1" | grep -oE "\bgh\s+${GHR}(api|(${GH_NOUNS})\s+${GHR}[A-Za-z-]+)" | sed -E 's/[[:space:]]+/ /g' | sort; }
@@ -137,7 +137,7 @@ EOF
   # -- 3. humans merge/review and delete/transfer issues (a human decision: main thread asks, a
   #       subagent is denied); team-visible actions — releases, repos, workflows, secrets, auth … — ask
   printf '%s' "$flat" | grep -qE "$GH_HUMAN_RE" \
-    && human_decision_defer "gh pr merge/review or gh issue delete/transfer — merging, reviewing and deleting are human-only; run it only on the user's explicit request (they confirm it), or ask the user instead"
+    && human_decision_defer "gh pr merge/review or gh issue delete/transfer — merging, reviewing and deleting are human decisions; run it only on the user's explicit request (they confirm it), or ask the user instead"
   printf '%s' "$flat" | grep -qE "$GH_TEAM_RE" \
     && defer "gh team-visible action (releases/repos/workflows/secrets/auth/gists are not governed) — ask the user instead"
 

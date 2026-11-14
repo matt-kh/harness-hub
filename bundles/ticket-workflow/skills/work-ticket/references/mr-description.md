@@ -159,7 +159,8 @@ Sub-tickets: KEY-a, KEY-b (agent-created; move them with this ticket).   <- only
 Stacked delivery:
 ```
 Stacked MRs opened for KEY: M parts + 1 main. Merge bottom-up in the GitLab UI, in this order
-(`stk plan --stack docker-networks`; the agent never merges). After each merge run
+(`stk plan --stack docker-networks`; the agent never merges on its own — it merges the next
+part only when you explicitly ask it to). After each merge run
 `stk sync --stack docker-networks` (or ask the agent): it retargets, rebases and pushes the next part.
   1. !12 [part 1/M] <task> -> docker-networks
   2. !13 [part 2/M] <task> -> !12's branch (part 2 <- part 1)

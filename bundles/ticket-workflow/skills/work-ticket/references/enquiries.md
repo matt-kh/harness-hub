@@ -60,9 +60,12 @@ agent-worked`), batched sub-ticket creates, GitLab `agent-worked` label creation
 create --label agent-worked` (sub MRs: only when `-b` is a ticket/sub branch), edits to
 agent-labelled tickets/MRs incl. `--description-file`, `--ready`, `--target-branch <ticket
 branch>`, sub-ticket transitions, and `git push` of sub branches from the main checkout.
-Still hook-prompted: MR merge/approve, `git push --force-with-lease` during stack sync, any
-write to a purely human ticket or MR (no agent-* label). Denied: transitions on human tickets;
-a sub MR created against or retargeted to `master|main`. Never ask about ticket state transitions on the parent — the answer is always no.
+Still hook-prompted (main thread, only on the user's explicit request): MR merge/approve, `git push --force-with-lease` during stack sync, any
+write to a purely human ticket or MR (no agent-* label). Hook-prompted on the user's explicit
+main-thread request only: transitions of human tickets. Denied: merges, approvals and state
+changes from a subagent; a sub MR created against or retargeted to `master|main`. Never ask
+about ticket state transitions on the parent — the skill never proposes one; it names the
+command in the handoff and runs it only if the user explicitly asks.
 
 ## Wording rules
 - One question per checkpoint; bundle Q0–Q3 into a single AskUserQuestion call when several

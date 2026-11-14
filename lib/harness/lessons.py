@@ -1153,7 +1153,7 @@ def propose_files(rec: Lesson, tracker: str, repo: Optional[str], label: str, ke
     for where, t in (("title", title), ("body", text)):
         m = CLOSING_RE.search(t)
         if m:
-            raise LessonError("propose: the %s contains a closing keyword (%r): issue state is human-only; "
+            raise LessonError("propose: the %s contains a closing keyword (%r): it would change the issue's state as a side effect; "
                               "reword the lesson so it mentions the issue without closing it" % (where, m.group(0)))
     if ISSUE_REF_RE.search(title):
         raise LessonError("propose: the title contains an issue reference (#N); mention issues in the body only")

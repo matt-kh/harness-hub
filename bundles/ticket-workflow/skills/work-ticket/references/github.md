@@ -19,7 +19,8 @@ the host alone.
 - Closing keywords are denied in commits, PR title/body and `gh api` payloads:
   `close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved` + `#N`, `owner/repo#N` or an
   issues URL (case-insensitive). **Mention** `#N` instead — the issue timeline gets the
-  cross-reference; the human closes the issue after merge.
+  cross-reference; the human closes the issue after merge (or explicitly asks the agent to run
+  `gh issue close N -R OWNER/REPO` in the main thread — the guard asks on a human issue).
 
 ## Command mapping
 
@@ -44,7 +45,7 @@ the host alone.
 | §6 CI exists | `glab api …/pipelines` | `gh pr checks N -R OWNER/REPO` (exit 8 = pending; "no checks reported" = no CI) |
 | §6b/6c edit | `glab mr update IID …` | `gh pr edit N -R OWNER/REPO -F … / -B "$BR" / -t …`; Draft → `gh pr ready N -R OWNER/REPO` |
 | §7 handoff | `jira comment KEY …` | `gh issue comment N -R OWNER/REPO -F "$SCRATCH/N-handoff.md"` |
-| never | `glab mr merge/approve` | `gh pr merge`, `gh pr review --approve`, `gh issue close/reopen` on the parent (hook: ask/deny) |
+| never on own initiative | `glab mr merge/approve`, `jira transition KEY` | `gh pr merge`, `gh pr review --approve`, `gh issue close/reopen` on the parent — name the command; run it only on the user's explicit request (hook: ask (main thread) / deny (subagent)) |
 
 Milestone: the issue's own milestone if it is still open (`preflight.milestones`), else none.
 Never create milestones or labels other than the `agent-*` ones.
@@ -265,7 +266,7 @@ Owned repo (issue agent-labelled):
 gh issue comment 12 -R OWNER/REPO -F "$SCRATCH/12-handoff.md"      # hook: allow (labelled)
 ```
 ```markdown
-PR opened: <url> (`<BR>` -> `<BASE>`). Merge is by a maintainer — the agent never merges.
+PR opened: <url> (`<BR>` -> `<BASE>`). Merge is by a maintainer — the agent never merges on its own.
 CI on PR: <yes — <workflows> | no — checks ran locally once, see PR>.
 Issue state unchanged — **close the issue yourself after merge** (we never use closing keywords).
 Sub-issues: #41, #42 (agent-created; close them with this issue).   <- only if any

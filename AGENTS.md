@@ -96,7 +96,7 @@ make render-check   # render twice into one fresh HOME; diff must be empty
   `/create-ticket` drafts it with `agent-drafted`; a human confirms it and labels it
   `agent-worked` before an agent works it.
 - The branch and the PR come from `/work-ticket #N`. The PR body names the issue as `#N`
-  (first line `Issue: #N`), never after a closing keyword: issue state is human-only.
+  (first line `Issue: #N`), never after a closing keyword: it would close the issue as a side effect.
 - `tools/gate/companions.sh` (check `issue`, CI on the PR body) fails a PR whose body names no
   issue or closes one; a trivial fix waives it with `no-issue: <reason>`.
 - The repository declares this itself: `.harness.toml` `[repo] tracker = "github-issues"`, which

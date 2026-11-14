@@ -1,6 +1,8 @@
 # Subagent protocol — local worktrees; converge (single) or publish (stacked)
 
-Subagents never push, never create MRs, never touch Jira. They work on local sub-branches in
+Subagents never push, never create MRs, never touch Jira, and never merge, approve,
+close/reopen or transition anything (the guard denies it from a subagent, on agent-labelled
+refs too; they report the command back to the main thread). They work on local sub-branches in
 git worktrees. What happens to those branches depends on **Q8b Delivery**:
 - **single** (S/M, or Q8b = single): squash-merged into the ticket branch by the main agent,
   one push, one MR (today's flow).
@@ -38,11 +40,14 @@ delivery: sequential/overlapping work stays on `$BR`.
 > Work only inside `<worktree path>` on branch `<sub-branch>`. Task: <one task>.
 > Commit as `<imperative summary>` — no ticket key in commit messages; keep commits focused.
 > Do NOT `git push`, do NOT create or switch branches, do NOT run `jira`, `glab` or `gh` write
-> commands, do NOT touch files outside your task. Self-check with the narrowest relevant
+> commands, do NOT merge, approve, close, reopen or transition anything (the guard denies it
+> from a subagent — report the command back instead), do NOT touch files outside your task. Self-check with the narrowest relevant
 > command (single test file / lint on changed files). Report: files changed, how you
 > verified, anything unfinished.
 
-The user-level guard hook applies to subagents too (hooks are session-wide).
+The user-level guard hook applies to subagents too (hooks are session-wide): merges,
+approvals and state changes are denied there even when the subagent claims the user asked —
+only the main thread acts on the user's explicit request.
 
 ## Converge (single delivery — main agent, on `$BR`, in the main checkout)
 

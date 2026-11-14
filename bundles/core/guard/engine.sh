@@ -25,7 +25,7 @@
 # Stacked delivery (work-ticket L/XL): sub branches (<short>-sub-NN-<task>) are pushed by the
 # main thread from the main checkout and get their own MR targeting the ticket branch; a push
 # from inside a sub worktree (where subagents run) asks; sub MRs to master|main are denied.
-# Ticket state stays human-only; humans merge MRs. Repo hooks still apply additively.
+# Humans decide merges, approvals and state; agents act only on an explicit main-thread request. Repo hooks still apply additively.
 # Google Workspace (gdoc): the same model keyed on the Drive file property agent_provenance
 # instead of a label — create and mail draft are promptless, import/append/replace/sheet
 # writes are promptless only on files marked agent-* and ask otherwise (or on lookup
