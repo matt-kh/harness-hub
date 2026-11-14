@@ -306,7 +306,7 @@ jira comment KEY "MR opened: <url> ($BR -> $BASE). Merge is by a maintainer. CI 
 # → github.md §7: gh issue comment N -R owner/repo -F handoff.md ("close the issue yourself after merge"); fork flow: final message only
 ```
 Stacked: use the stacked handoff template in `mr-description.md` (merge order, main last, "the
-agent never merges"): humans merge bottom-up in the UI following `stk plan --stack <BR>`;
+agent never merges on its own"): humans decide the merges bottom-up in the UI following `stk plan --stack <BR>`;
 after each merge `stk sync --stack <BR>` (the agent on request, or the human) retargets and
 rebases the next part. No transition on the parent on your own initiative — name the command
 (`jira transition KEY "<name>"`) for the user; run it only on their explicit main-thread request. Final message: MR URL(s) in merge
