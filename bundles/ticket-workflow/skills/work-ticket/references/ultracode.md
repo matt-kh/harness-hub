@@ -42,8 +42,10 @@ Options (defaults: L → subagents, XL → ultracode pre-selected — the user s
   `-sub-` branches → ask; jira/glab writes → gated; closing keywords → deny).
 - No Jira/GitLab writes from workflow agents; the main thread owns all of them.
 - Workflow agents never push and never create MRs; the main thread owns every push and MR
-  (single: one push, one MR; stacked: one push per branch, N+1 MRs). Humans merge everything.
-  Ticket state human-only for human tickets (agent-created sub-tickets: In Progress only, via the main thread).
+  (single: one push, one MR; stacked: one push per branch, N+1 MRs). Humans decide every merge.
+  Workflow agents never merge, approve or change ticket/MR state (the guard denies it from a
+  subagent; they report the command back). The main thread does so only on the user's explicit
+  request (agent-created sub-tickets: In Progress only, via the main thread).
 
 ## First-run check
 On the first ultracode run, confirm in the transcript that a deliberate `git push` attempt

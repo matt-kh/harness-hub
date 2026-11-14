@@ -89,12 +89,13 @@ Preview payloads without sending: `JIRA_DRY_RUN=1` (the hook still applies).
 
 ## Sub-ticket state (user decision)
 
-- Parent stays untouched — always.
+- Parent stays untouched on the skill's initiative: its transition is named for the user and
+  run only on their explicit main-thread request (the guard asks on a human ticket).
 - Agent-created sub-tickets may move to the project's **In-Progress equivalent only**, when
   their work starts: `jira transitions <CHILD>` → one batched
   `jira transition <CHILD-1> "<name>" && jira transition <CHILD-2> "<name>"` (hook: allow —
-  every key carries an agent-* label). No In-Progress state → skip silently.
-- Never Testing/Done/Closed states — the MR is not merged; humans move parent and children
+  every key carries an agent-* label; main thread only, a subagent is denied and hands it back). No In-Progress state → skip silently.
+- Never Testing/Done/Closed states on your own initiative — the MR is not merged; humans move parent and children
   together. Closing keywords stay forbidden everywhere.
 
 ## Reporting
