@@ -4,7 +4,7 @@ description: >-
   Governed Jira-ticket → GitLab-MR workflow for any repo. Verifies the ticket against the code,
   gates every Jira write behind the `{{ core.agent_labels.worked }}` label, implements
   on a `<short-name>` branch (no ticket key in branches or commits), runs only the checks CI
-  lacks, and opens MRs that mention the key (never closes or transitions it). S/M: ONE MR. L/XL:
+  lacks, and opens MRs that mention the key (never closes it; never merges or transitions on its own). S/M: ONE MR. L/XL:
   Plan agent ({{ core.model_policy.plan }}) decomposes, optional sub-tickets, stacked MRs by
   default that humans merge bottom-up. Use when the user
   asks to work on / pick up / start / implement / fix a ticket key ({{ core.ticket_example }},
@@ -49,23 +49,31 @@ github-issues). "KEY" means the Jira key or `#N`; "MR" means PR on GitHub.
    agent-worked` then runs promptless (the hook allows agent-* labelling and any write to an
    already-labelled ticket; unlabelled tickets still prompt). Nobody named the key →
    read-only help only.
-2. **Ticket state is human-only** for human-posted tickets — never `jira transition`, never
-   close/reopen, never write `Closes|Fixes|Resolves|Implements KEY` in commits, MR
-   title/description, or API payloads (the GitLab↔Jira integration transitions on them; the
-   hook denies). *Mention* the key instead. Asked to move a ticket → decline, give the URL.
-   Exception: agent-created sub-tickets may move to **In Progress only** (promptless — the
-   hook allows every write on agent-labelled tickets; the restriction is this skill's rule).
+2. **Ticket state is the user's decision** — this skill never runs `jira transition` or
+   closes/reopens a ticket on its own initiative: at that point it names the exact command for
+   the user. Only when the user explicitly asks for it in the main thread ("move KEY to Done")
+   does the main thread run it (the guard asks on a human ticket; a subagent is denied — it
+   hands the command back). Never write `Closes|Fixes|Resolves|Implements KEY` in commits, MR
+   title/description, or API payloads, even when asked to close the ticket (the GitLab↔Jira
+   integration transitions on them as a side effect; the hook denies). *Mention* the key
+   instead. Exception: agent-created sub-tickets may move to **In Progress only**, from the
+   main thread (promptless — the hook allows state changes on agent-labelled tickets without
+   a request; the restriction is this skill's rule).
 3. **Human tickets** — only *mention* keys of tickets you were not asked to work on. Native
    links exist only between agent-worked tickets (hook denies otherwise); edits to a human
    ticket need an explicit request (which then labels it).
 4. **MRs per repo touched** — S/M: one MR, one push. L/XL with Q8b = stacked: N+1 pushes (one
    per branch, all under the single Q11 consent) and N+1 MRs — every sub MR targets the ticket
    branch (or its blocker's sub branch), **never `$BASE`** (hook denies). The ticket branch is
-   branched off the base chosen in Q3 and its MR targets it back. **Humans merge every MR**,
-   bottom-up; the agent never runs `glab mr merge/approve` (nor `gh pr merge`/`gh pr review`). The key lives only in MR titles/
+   branched off the base chosen in Q3 and its MR targets it back. **Humans decide every merge**,
+   stacked parts bottom-up (usually in the web UI); the agent never merges or approves on its
+   own initiative — it names the command (`glab mr merge N`, `gh pr merge N`) for the user. It
+   runs one only on the user's explicit request in the main thread (the guard asks; never from a
+   subagent, never out of `stk plan` order). The key lives only in MR titles/
    descriptions and Jira — never in branch names or commits.
 5. **Subagents = local worktree sub-branches** (`<short>-sub-NN-<task>`). Subagents never push,
-   never run jira/glab writes. Single delivery: squash-merged locally, never pushed. Stacked
+   never run jira/glab writes, never merge, approve, close/reopen or transition (the guard
+   denies it; they report the command back). Single delivery: squash-merged locally, never pushed. Stacked
    delivery: pushed by the main thread from the main checkout, one MR each. Jira sub-tickets
    only via Step 3b (L/XL, after the label gate, `agent-created`+`agent-worked`, Issue split
    from the parent, only where the project grants create + link).
@@ -85,8 +93,9 @@ github-issues). "KEY" means the Jira key or `#N`; "MR" means PR on GitHub.
    harness (the provider home such as `~/.claude/**` and `~/.claude.json`, or the harness hub
    checkout) from any skill — report the
    needed change to the user instead.
-10. **GitHub specifics** (`github.md`): issue state is human-only exactly like Jira (never
-    `gh issue close/reopen` on the worked issue; never `close[sd]|fix(e[sd])|resolve[sd] #N`,
+10. **GitHub specifics** (`github.md`): issue state is the user's decision exactly like Jira
+    (`gh issue close/reopen` only on the user's explicit main-thread request, otherwise name
+    the command; never `close[sd]|fix(e[sd])|resolve[sd] #N`,
     `owner/repo#N` or an issues URL in commits, PR title/body or API payloads — mention `#N`).
     **Fork flow (`fork_flow: true`) → single delivery only**, no labels, later edits prompt.
     Never `--fill`/`--fill-first`/`--fill-verbose` on `gh pr create` (nor `--fill` on
@@ -159,7 +168,8 @@ Follow `decomposition.md`: one batched Bash call of `jira create <PROJ> <type> "
 [sprint/fixVersions/components/priority from parent] --link "Issue split:KEY"` per sub-ticket
 (hook: allow — every create carries both labels), then read back `jira links KEY` and each child's labels. Hard sibling deps →
 `jira link <BLOCKER> Blocks <BLOCKED>`. When a child's work starts → batched
-`jira transition <CHILD> "<In-Progress name>"` (hook: allow — agent-labelled). Never any other state.
+`jira transition <CHILD> "<In-Progress name>"` (hook: allow — agent-labelled; main thread only, a subagent
+hands it back). Never any other state on your own initiative.
 → github.md §3b (`gh issue create -l agent-created,agent-worked` + `gh issue edit N --add-sub-issue`; no In-Progress on GitHub).
 
 ### Step 4 — Branch + implement (mode from Q8, delivery from Q8b; S/M → single delivery, subagents automatically)
@@ -286,7 +296,9 @@ glab mr update <child-iid> --target-branch "$BR"                          # hook
 ```
 Review fixes: commit in the part's worktree, plain `git push origin <sub>`; nothing else changes.
 Worktrees of merged parts → `subagents.md` lifecycle cleanup. Never `glab mr merge`/`approve`
-(GitHub: never `gh pr merge` / `gh pr review --approve`).
+(GitHub: `gh pr merge` / `gh pr review --approve`) on your own initiative: name the part
+`stk plan --stack <BR>` puts next. Only on the user's explicit request in the main thread run
+the merge of that part (the guard asks), then `stk sync --stack <BR>`.
 
 ### Step 7 — Handoff
 ```bash
@@ -296,7 +308,8 @@ jira comment KEY "MR opened: <url> ($BR -> $BASE). Merge is by a maintainer. CI 
 Stacked: use the stacked handoff template in `mr-description.md` (merge order, main last, "the
 agent never merges"): humans merge bottom-up in the UI following `stk plan --stack <BR>`;
 after each merge `stk sync --stack <BR>` (the agent on request, or the human) retargets and
-rebases the next part. No transition on the parent — ever. Final message: MR URL(s) in merge
+rebases the next part. No transition on the parent on your own initiative — name the command
+(`jira transition KEY "<name>"`) for the user; run it only on their explicit main-thread request. Final message: MR URL(s) in merge
 order, sub-tickets, what CI runs vs ran locally, open questions, deferred asks, and the
 expected `git worktree list` (stacked: main checkout + one worktree per open part).
 
