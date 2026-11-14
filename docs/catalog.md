@@ -20,7 +20,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | [`lessons`](bundles/lessons.md#components) | base | local | govern, workflow, setup | experimental | The lessons loop: a /retro skill that turns a session's journal signals into at most two evidence-backed candidate lessons, a rule that has agents consult them, and hooks that record user corrections and nudge for a retro |
 | [`obs`](bundles/obs.md#components) | operations | read-only | govern, client, investigate, setup | experimental | Read-only observability client (obs CLI + skill) for SigNoz, Prometheus and Grafana, an obs-triage agent, and API-key and raw-backend guards |
 | [`stack`](bundles/stack.md#components) | scm | label-gated | govern, client, setup | experimental | Stacked MRs/PRs on free tiers: the `stk` CLI (plan, status, check, sync) keeps a chain of dependent parts retargeted, rebased and pushed |
-| [`supply-chain`](bundles/supply-chain.md#components) | security | local | govern, client, setup | experimental | Software supply chain: pin what you add, install inside the project, never switch verification off (guard 38; supply CLI, skills and agents follow) |
+| [`supply-chain`](bundles/supply-chain.md#components) | security | local | govern, client, workflow, investigate, plan, review, setup | experimental | Software supply chain: pin what you add, install inside the project, never switch verification off (guard 38, the supply CLI, /pin-deps, /audit-deps and three read-only agents) |
 | [`ticket-workflow`](bundles/ticket-workflow.md#components) | delivery | label-gated | govern, workflow, setup | beta | /work-ticket (ticket → governed MR/PR, stacked delivery) and /create-ticket (one drafted ticket or issue) |
 
 ## Skills
@@ -35,6 +35,8 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | `lessons/skills/retro` | guide | base | workflow | local | execute | declaration | Reflect on the task just finished and record at most two evidence-backed candidate lessons (one invariant, one for the task's domain) in the private lessons li… |
 | `obs/skills/obs` | guide | operations | client | read-only | execute | declaration | Read-only observability client for SigNoz, Prometheus and Grafana via the `obs` CLI. |
 | `stack/skills/stk` | guide | scm | client | label-gated | execute | declaration | Stacked MRs/PRs on free tiers with the `stk` CLI over native glab, gh and git: check a repository's readiness, plan a stack (topology, bottom-up merge order, t… |
+| `supply-chain/skills/audit-deps` | guide | security | workflow | local | execute | declaration | Fix known-vulnerable dependencies within the same major version, as a diff for review: runs `supply audit`, upgrades each vulnerable package to its fixed versi… |
+| `supply-chain/skills/pin-deps` | guide | security | workflow | local | execute | declaration | Pin the moving references in a checkout as a diff for review: GitHub Actions by tag to their commit sha, images by tag to their digest, git dependencies by tag… |
 | `supply-chain/skills/supply` | guide | security | client | read-only | execute | declaration | Read-only software supply-chain client via the `supply` CLI: ecosystem detection, unpinned actions, images and dependencies, CI workflow hardening, vulnerabili… |
 | `ticket-workflow/skills/create-ticket` | guide | delivery | workflow | label-gated | execute | declaration | Create ONE Jira ticket (self-hosted Jira Server 8.x) from the user's free-text ask in any project they can create in (discovered, never hardcoded). |
 | `ticket-workflow/skills/work-ticket` | guide | delivery | workflow | label-gated | execute | declaration | Governed Jira-ticket → GitLab-MR workflow for any repo. |
@@ -52,6 +54,9 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | `k8s/agents/k8s-auditor` | guide | kubernetes | review | read-only | execute | name | Read-only Kubernetes posture review of a context or namespace — pod security, PSA labels, RBAC, Secret hygiene, certificate expiry, capacity headroom, deprecat… |
 | `k8s/agents/k8s-triage` | guide | kubernetes | investigate | read-only | execute | name | Read-only Kubernetes incident triage. |
 | `obs/agents/obs-triage` | guide + sensor (inferential) | operations | investigate | read-only | execute | name | Read-only signal triage across observability backends (SigNoz, Prometheus, Grafana). |
+| `supply-chain/agents/supply-architect` | guide | security | plan | read-only | plan | name | Design-only software supply-chain architect. |
+| `supply-chain/agents/supply-auditor` | guide + sensor (inferential) | security | review | read-only | execute | name | Read-only software supply-chain review of a checkout — unpinned actions, images and dependencies, unverified downloads, CI workflow hardening, known vulnerabil… |
+| `supply-chain/agents/supply-triage` | guide | security | investigate | read-only | execute | name | Read-only investigation of one software supply-chain problem — a vulnerability id (CVE, GHSA, OSV) reported by `supply audit`, a failed `supply verify` signatu… |
 
 ## Rules
 
@@ -280,7 +285,7 @@ Skills, agents, CLIs and MCP servers by domain and posture (the strongest effect
 | kubernetes | `k8s/agents/infra-architect`, `k8s/agents/k8s-auditor`, `k8s/agents/k8s-triage`, `k8s/bin/k8s`, `k8s/skills/k8s` | — | — |
 | workspace | — | — | `gdoc/bin/gdoc`, `gdoc/skills/gdoc` |
 | operations | `obs/agents/obs-triage`, `obs/bin/obs`, `obs/skills/obs` | — | — |
-| security | `supply-chain/bin/supply`, `supply-chain/skills/supply` | — | — |
+| security | `supply-chain/agents/supply-architect`, `supply-chain/agents/supply-auditor`, `supply-chain/agents/supply-triage`, `supply-chain/bin/supply`, `supply-chain/skills/supply` | `supply-chain/skills/audit-deps`, `supply-chain/skills/pin-deps` | — |
 <!-- generated:end -->
 
 Posture says what a component does without a prompt; which writes stay with a human whatever
