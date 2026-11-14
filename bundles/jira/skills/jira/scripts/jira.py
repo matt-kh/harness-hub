@@ -139,6 +139,23 @@ def die(msg, code=1):
     sys.exit(code)
 
 
+# A ticket key is exactly PROJECT-NUMBER. Keys go into REST paths (/rest/api/2/issue/<key>), so
+# anything else (LBL-1/../HUM-2, a query string, a quoted space) could address another resource
+# than the one the guard checked; every keyed command refuses it before any request.
+ISSUE_KEY_RE = re.compile(r"[A-Z][A-Z0-9_]*-[0-9]+")
+# positional arguments that are ticket keys, per command
+KEY_ARGS = {"get": (0,), "attachments": (0,), "download": (0,), "upload": (0,), "comment": (0,),
+            "label": (0,), "links": (0,), "link": (0, 2), "transitions": (0,), "transition": (0,),
+            "set": (0,)}
+
+
+def check_keys(cmd, args):
+    for i in KEY_ARGS.get(cmd, ()):
+        if i < len(args) and not ISSUE_KEY_RE.fullmatch(args[i]):
+            die(f"'{cmd}': {args[i]!r} is not a ticket key; pass a literal key like PROJ-123 "
+                "(letters, digits or _, a dash, then digits; nothing else).")
+
+
 def get_token():
     tok = os.environ.get("JIRA_TOKEN")
     if tok:
@@ -637,6 +654,7 @@ def main():
     fn, n = table[cmd]
     if len(args) < n:
         die(f"'{cmd}' needs {n} argument(s). See the header for usage.")
+    check_keys(cmd, args)
     # search takes an optional 2nd arg (maxResults)
     fn(*args[: n + 1] if cmd == "search" else args[:n])
 

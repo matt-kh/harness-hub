@@ -100,8 +100,9 @@ class Declaration:
 
 
 def load(root: Optional[str], comps: Optional[List[Any]] = None, override_names: Optional[List[str]] = None,
-         home: Optional[str] = None) -> Declaration:
-    """Parse and check ``<root>/.harness.toml``. ``comps``/``override_names`` enable the id/name checks."""
+         home: Optional[str] = None, deprecated: Optional[Dict[str, str]] = None) -> Declaration:
+    """Parse and check ``<root>/.harness.toml``. ``comps``/``override_names`` enable the id/name checks;
+    ``deprecated`` (name -> effect) flags allow-listed overrides that no longer change anything."""
     from . import manifest as M
     from . import schema_lite
     from . import taxonomy as T
@@ -178,6 +179,10 @@ def load(root: Optional[str], comps: Optional[List[Any]] = None, override_names:
                 decl.problems.append(Problem("error", 0, "[overrides] %s is not a repo override; the guard ignores "
                                              "it (allowed: %s; docs/reference/hook-policy.md#repo-overrides)"
                                              % (name, ", ".join(override_names))))
+            elif deprecated and name in deprecated:
+                decl.problems.append(Problem("warning", 0, "[overrides] %s is deprecated and has no effect "
+                                             "(docs/reference/hook-policy.md#repo-overrides); remove the line "
+                                             "from %s" % (name, DECL_NAME)))
     return decl
 
 
@@ -291,13 +296,18 @@ def read_guard_env(path: Optional[str]) -> Dict[str, str]:
 
 
 def effective_overrides(decl: Declaration, overrides: List[Dict[str, str]], environ: Dict[str, str],
-                        settings: List[Tuple[str, Dict[str, Any]]], guard_env: Dict[str, str]) -> List[Dict[str, str]]:
-    """Every allow-listed override with its effective value and where it comes from."""
+                        settings: List[Tuple[str, Dict[str, Any]]], guard_env: Dict[str, str],
+                        config_keys: Optional[Dict[str, List[str]]] = None) -> List[Dict[str, Any]]:
+    """Every allow-listed override with its effective value and where it comes from. ``config_keys``
+    (name -> harness config keys rendered into guard.env) names what to edit for a guard.env value."""
     from . import taxonomy as T
 
     seen: "OrderedDict[str, str]" = OrderedDict()
+    old = set()
     for o in overrides:
         seen.setdefault(o["name"], o["default"])
+        if o.get("deprecated"):
+            old.add(o["name"])
     out = []
     for name, default in sorted(seen.items()):
         chain = []
@@ -314,7 +324,34 @@ def effective_overrides(decl: Declaration, overrides: List[Dict[str, str]], envi
         chain.append(("default", default))
         src, val = chain[0]
         out.append(OrderedDict([("name", name), ("value", val), ("source", src),
-                                ("shadowed", ["%s=%s" % c for c in chain[1:] if c[0] != "default"])]))
+                                ("shadowed", ["%s=%s" % c for c in chain[1:] if c[0] != "default"]),
+                                ("deprecated", name in old),
+                                ("set_in", [c[0] for c in chain if c[0] != "default"]),
+                                ("config_keys", list((config_keys or {}).get(name, [])))]))
+    return out
+
+
+def _where_to_edit(o: Dict[str, Any], source: str) -> str:
+    """What the user edits to drop a value coming from ``source`` (guard.env is rendered by the hub)."""
+    if source == "guard.env":
+        keys = o.get("config_keys") or []
+        return ("the harness config key %s (then `harness apply`)" % ", ".join(keys) if keys
+                else "your harness config (guard.env is rendered from it; then `harness apply`)")
+    if source == "environment":
+        return "your shell environment"
+    return source
+
+
+def deprecated_warnings(overrides: List[Dict[str, Any]]) -> List[str]:
+    """A report warning for each deprecated override set outside .harness.toml (environment, provider
+    env, guard.env), whether or not .harness.toml sets it too: the declaration check covers only
+    the file."""
+    out = []
+    for o in overrides:
+        where = [s for s in o.get("set_in", []) if s != DECL_NAME]
+        if o.get("deprecated") and where:
+            out.append("%s is deprecated and has no effect, but it is set in %s; remove it from %s"
+                       % (o["name"], ", ".join(where), "; ".join(_where_to_edit(o, s) for s in where)))
     return out
 
 
@@ -353,7 +390,7 @@ def template(comps: List[Any]) -> str:
         "[overrides]",
         "# Allow-listed WORK_TICKET_* guard settings (docs/reference/hook-policy.md#repo-overrides); a provider env",
         "# override of the same name (e.g. .claude/settings.json \"env\") wins per key.",
-        "# WORK_TICKET_ALLOW_TRANSITION = \"1\"",
+        "# WORK_TICKET_KEY_IN_BRANCH = \"1\"",
         "",
     ]
     return "\n".join(lines)
@@ -428,25 +465,42 @@ def run(ctx: Any, action: Optional[str], args: List[str], write: bool = False) -
         return 0
     overrides = T.repo_overrides(bundles)
     names = sorted(set(o["name"] for o in overrides))
-    decl = load(root, comps, names, home=hub.home)
+    deprecated = {o["name"]: o["effect"] for o in overrides if o.get("deprecated")}
+    decl = load(root, comps, names, home=hub.home, deprecated=deprecated)
     providers = [hub.providers[n] for n in sorted(hub.providers)]
     settings = _settings(root, providers)
     guard_env = read_guard_env(os.path.join(hub.build_dir, "guard.env"))
+    config_keys: Dict[str, List[str]] = {}
+    for b in bundles:
+        for k, v in b.env().items():
+            config_keys.setdefault(k, []).extend(re.findall(r"\{\{\s*([A-Za-z0-9_.]+)\s*\}\}", str(v)))
+    effective = effective_overrides(decl, overrides, dict(os.environ), settings, guard_env, config_keys)
     report = OrderedDict([
         ("declaration", decl.to_dict()),
         ("yielding", [OrderedDict([("id", c.id), ("kind", c.kind), ("domain", c.domain), ("why", why)])
                       for c, why in yielding(decl, comps)]),
         ("never", sorted(c.id for c in comps if c.yields == "never")),
         ("collisions", collisions(root, bundles, providers)),
-        ("overrides", effective_overrides(decl, overrides, dict(os.environ), settings, guard_env)),
+        ("overrides", effective),
         ("warnings", ["%s sets disableAllHooks: every user-level hook, the hub's guard included, is off in this "
-                      "repository; declare [owns] in %s instead" % (w, DECL_NAME) for w in hooks_disabled(settings)]),
+                      "repository; declare [owns] in %s instead" % (w, DECL_NAME) for w in hooks_disabled(settings)]
+         + deprecated_warnings(effective)),
     ])
     if ctx.json:
         print(json.dumps(report, indent=2))
         return 1 if any(p.level == "error" for p in decl.problems) else 0
     _print_show(report, decl)
     return 1 if any(p.level == "error" for p in decl.problems) else 0
+
+
+def _deprecated_note(o: Dict[str, Any]) -> str:
+    """The show column for a deprecated override: a no-op, and where to remove it when it is set."""
+    if not o.get("deprecated"):
+        return ""
+    where = o.get("set_in") or []
+    if not where:
+        return "deprecated, no effect"
+    return "deprecated, no effect: remove it from %s" % "; ".join(_where_to_edit(o, s) for s in where)
 
 
 def _print_show(report: Dict[str, Any], decl: Declaration) -> None:
@@ -482,7 +536,8 @@ def _print_show(report: Dict[str, Any], decl: Declaration) -> None:
     print("\nrepo overrides (effective value <- source)")
     print("".join("  " + ln + "\n" for ln in format_table(
         [[o["name"], json.dumps(o["value"]), "<- %s" % o["source"],
-          ("(over %s)" % ", ".join(o["shadowed"])) if o["shadowed"] else ""] for o in report["overrides"]]
+          ("(over %s)" % ", ".join(o["shadowed"])) if o["shadowed"] else "",
+          _deprecated_note(o)] for o in report["overrides"]]
     ).splitlines()), end="")
     for w in report["warnings"]:
         print("\nWARN  %s" % w)

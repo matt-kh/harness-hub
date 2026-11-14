@@ -555,6 +555,65 @@ prints every one between your applied version and the new one.
   - closing keywords in the command forms sections 40 and 41 do not parse (`gh -Ro/r pr edit`,
     `gh pr new`, `glab -R g/p mr update`, `glab mr new`) are denied by sections 50 and 60,
     which yield for that check exactly as 40 and 41 do (domain `tracker`).
+- The Jira guard section adopts "humans decide" too (part of #67). `jira transition` on a
+  human ticket **asks** on the main thread (was deny; the ask is deferred, so a later deny in
+  the same command still wins) and stays promptless on an agent-labelled ticket; from a
+  subagent every transition is **denied** before any label lookup, on human and
+  agent-labelled tickets alike. A transition whose ticket cannot be checked still denies:
+  every transition clause needs a literal key (`$VAR`, `xargs` and quoted keys deny, also
+  next to another write that has one), and a failed label lookup denies. A promptless
+  `jira link`, labelled `jira create` or `jira label … add agent-*` in the same command no
+  longer lets a transition through; `2>&1` no longer cuts a `jira label` clause; quoted or
+  escaped command words (`jira "transition"`, `j\ira`) and a `$VAR` / `$(…)` subcommand ask
+  on the main thread and deny in a subagent (a hidden non-transition write asks in both).
+  Other Jira writes are unchanged, and `jira api` is GET-only in the client, so there is no
+  raw API write to gate. A repository owning `tracker` still passes, in a subagent too.
+- The Jira section reads the command with a small shell scanner instead of regexes over the
+  whole text (#67 review). Only a jira call in command position counts: after assignments and
+  wrappers (`env`, `exec`, `command`, `sudo`, `nice`, `timeout`, `xargs`, `find -exec` …), inside
+  `sh|bash -c` strings, `eval`, `$(…)` and backticks, heredoc bodies fed to a shell and text
+  piped into one. Text that only mentions jira (a comment body, a `"$(cat <<'X' … X)"` body, a
+  commit message, a grep pattern, a path argument to `ls`) no longer asks or denies.
+  - A ticket key is a whole literal word: `jira transition LBL-1/../HUM-2` denies and
+    `jira comment LBL-1/../HUM-2` asks (both used LBL-1's labels before); every keyed clause
+    needs its own literal key (`jira comment LBL-1 a && jira comment "$KEY" b` asks, was
+    allow). The `jira` client refuses any key that is not exactly `[A-Z][A-Z0-9_]*-[0-9]+` in
+    every keyed command, lower-case keys included.
+  - jira the guard cannot read is a human decision (ask; deny in a subagent): fed by `xargs`
+    without a verb, a `NAME=jira` variable or alias, `$(which jira)` as the command, a
+    case-changed name (`JIRA`, `jira.PY`), jira code in `python|perl|node -c|-e`; a hidden
+    known read passes and a hidden non-state write asks. A quoted literal key
+    (`jira transition 'HUM-1' Done`) is read as the key (ask, was deny).
+  - `jira set KEY status|resolution` is a state change like a transition (promptless on an
+    agent-labelled ticket, ask on a human one, denied in a subagent).
+  - A promptless `jira link`, labelled `jira create` or `jira label … add agent-*` no longer
+    lets any other write in the same command through (was allow); every `jira link` clause is
+    checked, not only the first.
+  - The literal-key deny for a state change comes before any check that can stop first.
+  - The scanner fails closed: a `jira VERB` call written anywhere outside a known data
+    position is a hidden call. Data positions: the jira client's own arguments (comment
+    bodies), `git commit|log|tag|show|…` arguments, `grep`/`rg` patterns, and `echo`/`printf`
+    output or `cat`/`tee` heredocs and here-strings whose pipeline holds only non-executing
+    stages (`cat`, `tee`, `grep`, `head`, `jq` …). It also reads `${…}` bodies, process
+    substitutions (`<(…)`, `>(…)`), here-strings and heredocs fed to a shell, text piped into
+    a shell through any number of stages, `sh -c CODE ARGS` running its positional words,
+    python value options (`-X`, `-W`), command-string wrappers (`env -S`, `watch`, `script -c`,
+    `su -c`, `parallel`, `git -c alias.x='!…'`), zsh `=jira`, ANSI-C `$'…'` words, globbed or
+    `${VAR}`-built command words in front of a state verb, and backslash-newline splits.
+  - A scanner failure (python3 missing, broken or timed out) asks on the main thread and is
+    denied in a subagent, with its own reason.
+  - Jira allows and asks are deferred (`pending_allow`, `defer`), so a deny in a later section
+    (e.g. `gdoc api -X POST`) wins over a promptless Jira write in the same command.
+  - `jira create` with more than one `--field labels` is denied (the last one wins in Jira).
+  - Latency: the scanner (python3) runs only when the command can hold a jira call; it adds
+    about 20 ms to such a command (`git status` is unaffected).
+  - Known limit: a copied or renamed client (`cp jira x; ./x transition …`) and jira calls built
+    inside other interpreters' code without the `jira VERB` text are not recognised; the
+    provider's permission prompt is the backstop.
+- `WORK_TICKET_ALLOW_TRANSITION` is a deprecated no-op (#67): the engine no longer reads it;
+  the name stays allow-listed, so setting it is not an error, and `harness repo` reports a
+  set value as "deprecated, no effect" with where to remove it. `harness repo init` no longer
+  suggests it, and the ticket-workflow manual step no longer lists it.
 - `harness lint` rule `stability` now checks `beta` bundles as well as `stable` ones: a skill
   or CLI without a `tests/run.sh`, or a `coverage_note` admitting a missing suite, warns with
   the level to move to (`beta` → `experimental`, `stable` → `beta`). CONTRIBUTING "Stability
@@ -674,14 +733,29 @@ prints every one between your applied version and the new one.
   `glab api` writes from a subagent: have the subagent hand such a command back, and run it
   from the main thread when the user asks for it. `glab issue reopen` and `glab mr reopen` are
   newly guarded (ask on a human ref; `glab mr reopen` on an agent-labelled MR stays promptless).
-  `WORK_TICKET_ALLOW_TRANSITION` no longer affects GitHub issues (it still turns the Jira
-  transition deny into an ask); a repository that set it only for GitHub issues can drop it.
+  `WORK_TICKET_ALLOW_TRANSITION` no longer affects GitHub issues (and, with the Jira entry
+  below, nothing at all); a repository that set it can drop it.
   Also newly guarded: the glab aliases `mr accept`, `mr unapprove`, `mr|issue open`,
   `mr|issue del` and `mr comment` (each decided like the command it stands for), and GitLab
   quick actions in glab note and description text (ask; deny from a subagent). `gh issue
   delete|transfer`, `glab mr delete` and `glab issue delete` from a subagent are now denied
   (the main thread still asks). Quoted command words such as `gh "pr" comment` now ask instead
   of passing: write gh and glab subcommands unquoted.
+- Guard decisions for Jira (#67): `jira transition` on a human ticket now **asks** on the main
+  thread instead of denying; transitions run from a subagent are now **denied**, on
+  agent-labelled tickets too: have the subagent hand the command back, and run it from the
+  main thread when the user asks for it. `WORK_TICKET_ALLOW_TRANSITION` is a deprecated
+  no-op: remove it from `.harness.toml` `[overrides]` and from any provider `env`
+  (`.claude/settings.json` `"env"`); nothing replaces it, since the main thread now asks
+  without it. A repository whose own workflow transitions tickets owns the `tracker` domain
+  instead. Quoted Jira command words (`jira "comment" …`) now ask instead of passing: write
+  jira subcommands unquoted. `jira set KEY status|resolution` follows the transition rule. The
+  `jira` client now refuses lower-case or path-like keys (`proj-123`, `PROJ-1/..`): pass
+  `PROJ-123`. Commands that combine a promptless Jira write with another write now go through
+  the label gate for the other write (ask on a human ticket). Text that spells out a jira call
+  and is handed to anything that may execute it (`foo "jira transition …"`, `script -c`,
+  `watch`, a pipe into a shell) now asks, and is denied in a subagent; keep such text in a
+  jira comment, a commit message or a grep pattern, or run the jira command directly.
 - Per-provider model names: one new optional config key, `[providers.<name>].model_policy`
   (`plan`, `execute`). Claude needs no edit. For Copilot, `harness apply` now writes agents
   and skills without `model:` (session model); to pin models, add
