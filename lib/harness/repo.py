@@ -180,9 +180,9 @@ def load(root: Optional[str], comps: Optional[List[Any]] = None, override_names:
                                              "it (allowed: %s; docs/reference/hook-policy.md#repo-overrides)"
                                              % (name, ", ".join(override_names))))
             elif deprecated and name in deprecated:
-                effect = re.sub(r";\s*remove it\.?$", "", deprecated[name])
-                decl.problems.append(Problem("warning", 0, "[overrides] %s is %s; remove the line from %s"
-                                             % (name, effect, DECL_NAME)))
+                decl.problems.append(Problem("warning", 0, "[overrides] %s is deprecated and has no effect "
+                                             "(docs/reference/hook-policy.md#repo-overrides); remove the line "
+                                             "from %s" % (name, DECL_NAME)))
     return decl
 
 
@@ -343,12 +343,13 @@ def _where_to_edit(o: Dict[str, Any], source: str) -> str:
 
 
 def deprecated_warnings(overrides: List[Dict[str, Any]]) -> List[str]:
-    """A report warning for each deprecated override set only outside .harness.toml (environment,
-    provider env, guard.env): the declaration check cannot see those."""
+    """A report warning for each deprecated override set outside .harness.toml (environment, provider
+    env, guard.env), whether or not .harness.toml sets it too: the declaration check covers only
+    the file."""
     out = []
     for o in overrides:
         where = [s for s in o.get("set_in", []) if s != DECL_NAME]
-        if o.get("deprecated") and where and DECL_NAME not in o.get("set_in", []):
+        if o.get("deprecated") and where:
             out.append("%s is deprecated and has no effect, but it is set in %s; remove it from %s"
                        % (o["name"], ", ".join(where), "; ".join(_where_to_edit(o, s) for s in where)))
     return out

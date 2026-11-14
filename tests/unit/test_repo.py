@@ -237,6 +237,13 @@ class RepoCommandTest(HubTestCase):
         res = RP.effective_overrides(decl, ovr, {}, [], {"WORK_TICKET_ALLOW_TRANSITION": "1"})
         self.assertIn("your harness config (guard.env is rendered from it", RP.deprecated_warnings(res)[0])
         self.assertEqual(RP.deprecated_warnings(RP.effective_overrides(decl, ovr, {}, [], {})), [])
+        self.write(self.decl, '[overrides]\nWORK_TICKET_ALLOW_TRANSITION = "1"\n')   # file and environment
+        both = RP.load(self.root, home=REPO)
+        warns = RP.deprecated_warnings(RP.effective_overrides(both, ovr, {"WORK_TICKET_ALLOW_TRANSITION": "0"}, [], {}))
+        self.assertEqual(len(warns), 1, warns)
+        self.assertIn("set in environment;", warns[0])
+        self.assertEqual(RP.deprecated_warnings(RP.effective_overrides(both, ovr, {}, [], {})), [])  # file only
+        os.remove(self.decl)
         self.assertEqual(RP.deprecated_warnings(RP.effective_overrides(
             decl, ovr, {"WORK_TICKET_BASE_BRANCH_RE": "x"}, [], {})), [])        # not deprecated
         os.environ["WORK_TICKET_ALLOW_TRANSITION"] = "1"
@@ -280,8 +287,8 @@ class RepoCommandTest(HubTestCase):
         self.assertIn("alpha/guard.d/40-alpha", out)
         self.assertIn('WORK_TICKET_ALLOW_TRANSITION  "1"', out)
         # #67: a deprecated override is flagged as a no-op (a warning: rc stays 0), not shown as active
-        self.assertIn("[overrides] WORK_TICKET_ALLOW_TRANSITION is deprecated, no effect: transitions ask either "
-                      "way; remove the line from .harness.toml", out)
+        self.assertIn("[overrides] WORK_TICKET_ALLOW_TRANSITION is deprecated and has no effect "
+                      "(docs/reference/hook-policy.md#repo-overrides); remove the line from .harness.toml", out)
         self.assertNotIn("remove it; remove", out)
         self.assertIn("deprecated, no effect: remove it from .harness.toml", out)
         self.assertNotIn("WARN  WORK_TICKET_ALLOW_TRANSITION", out)          # the declaration problem says it
