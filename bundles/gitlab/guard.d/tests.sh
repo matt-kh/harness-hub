@@ -122,9 +122,219 @@ r deny  'git commit -m "Closes LBL-1 parser"'                 # 40-gitlab-closin
 decl '[owns]' 'domains = ["tracker"]'
 r pass  'git commit -m "Closes LBL-1 parser"'
 r ask   'glab mr merge 100'
+# yielding comes first (principle 8): an owned scm domain passes a subagent's human decisions too
+decl '[owns]' 'domains = ["scm"]'
+T_AGENT=a1 r pass 'glab mr merge 100'
+T_AGENT=a1 r pass 'glab issue close 5'
+T_AGENT=a1 r pass 'glab mr close 200'
+T_AGENT=a1 r pass 'glab api -X PUT projects/1/merge_requests/1/merge'
 decl
 # runtime deny/ask messages carry the # rule: alternative (lint guard-messages)
 tr 'matching glab subcommand' 'glab api --method POST projects'
 tr 'human-only.*ask the user instead' 'glab mr merge 100'
+# ---- humans decide (#67): merge, approve and MR/issue state ---------------------------
+# main thread: merge/approve/revoke and issue close/reopen ask; MR state asks on a human MR,
+# an agent-labelled MR keeps allow
+t ask   'glab mr merge 100'
+t ask   'glab mr merge 200'
+t ask   'glab mr approve 100'
+t ask   'glab mr revoke 100'
+t ask   'glab issue close 5'
+t ask   'glab issue reopen 5'                                    # #67: newly guarded (was pass)
+t ask   'glab mr close 200'
+t ask   'glab mr reopen 200'                                     # #67: newly guarded (was pass)
+t ask   'glab mr update 200 --ready'
+t ask   'glab mr update 200 --draft'
+t allow 'glab mr close 100'
+t allow 'glab mr reopen 100'
+t allow 'glab mr update 100 --ready'
+t allow 'glab mr update 100 --draft'
+t ask   'glab mr reopen 300'                                     # unknown MR: lookup fails
+t ask   'glab mr update 200 --ready --label agent-worked'        # labelling never makes a state change free
+T_AGENT=''        t ask   'glab mr merge 100'                    # agent_id "" = main thread
+T_AGENT_NULL=1    t allow 'glab mr close 100'                    # agent_id null = main thread
+T_AGENT_TYPE=Plan t ask   'glab mr merge 100'                    # main thread under --agent
+T_AGENT_TYPE=Plan t allow 'glab mr update 100 --ready'
+# subagent: every merge, approval, state change and raw API write denies (human and agent-labelled refs)
+T_AGENT=a1 t deny 'glab mr merge 100'
+T_AGENT=a1 t deny 'glab mr merge 200'
+T_AGENT=a1 t deny 'glab mr approve 100'
+T_AGENT=a1 t deny 'glab mr revoke 100'
+T_AGENT=a1 t deny 'glab issue close 5'
+T_AGENT=a1 t deny 'glab issue reopen 5'
+T_AGENT=a1 t deny 'glab mr close 100'
+T_AGENT=a1 t deny 'glab mr close 200'
+T_AGENT=a1 t deny 'glab mr reopen 100'
+T_AGENT=a1 t deny 'glab mr reopen 200'
+T_AGENT=a1 t deny 'glab mr update 100 --ready'
+T_AGENT=a1 t deny 'glab mr update 200 --ready'
+T_AGENT=a1 t deny 'glab mr update 110 --draft'
+T_AGENT=a1 t deny 'glab mr update 110 --wip'
+T_AGENT=a1 t deny 'glab mr update 110 -r'
+T_AGENT=a1 t deny 'glab mr close "$IID"'                         # denied before any lookup
+T_AGENT=a1 t deny 'glab mr reopen 300'
+T_AGENT=a1 t deny 'glab mr update 110 --description "x --ready'   # unbalanced quotes: the state flag still denies
+T_AGENT=a1 t deny 'glab api -X PUT projects/1/merge_requests/1/merge'
+T_AGENT=a1 t deny 'glab api projects/1/issues/5 -f state_event=close'
+# subagent: everything else is unchanged
+T_AGENT=a1 t allow 'glab mr note 100 -m "hi"'
+T_AGENT=a1 t allow 'glab mr update 100 --description "new"'
+T_AGENT=a1 t allow 'glab mr update 110 --target-branch feat-x'
+T_AGENT=a1 t allow 'glab mr rebase 110'
+T_AGENT=a1 t ask   'glab mr note 200 -m "hi"'
+T_AGENT=a1 t ask   'glab issue create --title "LBL-1 x"'
+T_AGENT=a1 t pass  'glab mr view 100'
+T_AGENT=a1 t pass  'glab api "projects/:id/milestones?include_parent_milestones=true"'
+T_AGENT=a1 t allow 'glab mr create --title "LBL-1 x" --label agent-worked'
+T_AGENT=a1 t deny  'glab mr update 110 --target-branch master'
+# subagent bypass attempts: still denied
+T_AGENT=a1 t deny 'sh -c "glab mr merge 100"'
+T_AGENT=a1 t deny 'GITLAB_TOKEN=x glab mr merge 100'
+T_AGENT=a1 t deny 'cd sub && glab mr merge 100'
+T_AGENT=a1 t deny "bash -c 'glab issue close 5'"
+T_AGENT=a1 t deny 'glab mr note 100 -m x; glab mr reopen 100'
+T_AGENT=a1 t deny 'glab mr rebase 110 && glab mr update 110 --ready'
+T_AGENT=a1 t deny 'echo 100 | xargs glab mr merge'
+# closing keywords: unchanged (section 40), on either caller
+t deny  'glab mr update 100 --description "Closes LBL-1"'
+T_AGENT=a1 t deny 'glab mr update 100 --description "Closes LBL-1"'
+# reasons: the subagent deny hands the command back; the main-thread ask names the alternative
+T_AGENT=a1 tr 'hand the command back to the main thread' 'glab mr merge 100'
+T_AGENT=a1 tr 'hand the command back to the main thread' 'glab mr close 100'
+T_AGENT=a1 tr 'hand the command back to the main thread' 'glab api -X PUT projects/1/merge_requests/1/merge'
+tr 'explicit request.*ask the user instead' 'glab issue reopen 5'
+tr 'human decision.*ask the user' 'glab mr reopen 200'
 tr 'use an agent-\* name, or ask the user' 'glab label create -n bug'
 tr 'use a title like that instead' 'glab mr create -s f -b main --title="fix parser" --label agent-worked'
+# ---- humans decide (#67), review hardening: hidden forms of the same calls --------------
+# fd duplications no longer cut a clause short (C1)
+T_AGENT=a1 t deny  'glab mr update 100 >&2 --ready'
+T_AGENT=a1 t deny  'glab mr update 100 2>&1 --draft'
+T_AGENT=a1 t deny  'glab api projects/1/merge_requests/1/merge 2>&1 -X PUT'
+t  deny  'glab mr update 110 2>&1 --target-branch master'
+t  deny  'glab mr update 110 &>/dev/null --target-branch master'
+t  ask   'glab mr update 200 2>&1 --ready'
+t  allow 'glab mr note 100 -m hi 2>&1'
+# aliases: accept = merge, unapprove = revoke, open = reopen, del = delete, comment = note, new = create (C2)
+T_AGENT=a1 t deny  'glab mr accept 100'
+T_AGENT=a1 t deny  'glab mr unapprove 100'
+T_AGENT=a1 t deny  'glab issue open 5'
+T_AGENT=a1 t deny  'glab mr open 100'
+T_AGENT=a1 t deny  'glab mr del 100'
+t  ask   'glab mr accept 100'
+t  ask   'glab mr unapprove 100'
+t  ask   'glab issue open 5'
+t  ask   'glab mr open 200'
+t  allow 'glab mr open 100'
+t  ask   'glab mr comment 200 -m hi'
+t  allow 'glab mr comment 100 -m hi'
+t  deny  'glab mr new -s feat-x-sub-01-schema -b main -t "LBL-1 x"'
+t  allow 'glab mr new -s feat-x-sub-01-schema -b feat-x -t "LBL-1 x" --label agent-worked'
+# repo flag before the noun or the verb, separated or attached (C3)
+T_AGENT=a1 t deny  'glab mr -R g/p merge 100'
+T_AGENT=a1 t deny  'glab -R g/p mr merge 100'
+T_AGENT=a1 t deny  'glab -Rg/p mr merge 100'
+T_AGENT=a1 t deny  'glab mr --repo=g/p approve 100'
+T_AGENT=a1 t deny  'glab -R g/p mr close 100'
+T_AGENT=a1 t deny  'glab -R g/p issue close 5'
+T_AGENT=a1 t deny  'glab -R g/p api -X PUT projects/1/merge_requests/1/merge'
+t  ask   'glab -R g/p mr merge 100'
+t  ask   'glab mr -R g/p close 200'
+t  allow 'glab mr -Rg/p close 100'
+t  deny  'glab -R g/p mr update 110 --target-branch master'
+t  deny  'glab -R g/p mr create -s feat-x-sub-01-schema -b main -t "LBL-1 x"'
+# state flags in every spelling; booleans no longer swallow the next flag (C4)
+T_AGENT=a1 t deny  'glab mr update 100 -r=true'
+T_AGENT=a1 t deny  'glab mr update 100 -yr'
+T_AGENT=a1 t deny  'glab mr update 100 -ry'
+T_AGENT=a1 t deny  'glab mr update 100 --ready=true'
+T_AGENT=a1 t deny  'glab mr update 100 -f --ready'
+T_AGENT=a1 t deny  'glab mr update 100 --fill --draft'
+T_AGENT=a1 t deny  'glab mr update 100 --fill-commit-body -r'
+T_AGENT=a1 t deny  'glab mr update 100 --unassign --wip'
+T_AGENT=a1 t allow 'glab mr note 100 -m x -r'                        # -r is a state flag of update only (S4)
+T_AGENT=a1 t allow 'glab mr update 100 --description x'
+t  ask   'glab mr update 200 -yr'
+t  allow 'glab mr update 100 -yr'
+t  ask   'glab mr update 200 --unassign --ready'
+# raw API writes in every spelling (C5)
+T_AGENT=a1 t deny  'glab api -XPUT projects/1/merge_requests/1/merge'
+T_AGENT=a1 t deny  "glab api -X 'PUT' projects/1/merge_requests/1/merge"
+T_AGENT=a1 t deny  'glab api -X"PUT" projects/1/merge_requests/1/merge'
+T_AGENT=a1 t deny  'glab api -X $M projects/1/merge_requests/1/merge'
+T_AGENT=a1 t deny  'glab api --method put projects/1/merge_requests/1/merge'
+T_AGENT=a1 t deny  'glab api projects/1/issues/5 -fstate_event=close'
+T_AGENT=a1 t deny  'glab api projects/1/issues/5 --raw-field=state_event=close'
+T_AGENT=a1 t deny  'glab api projects/1/issues --input body.json'
+T_AGENT=a1 t pass  'glab api projects/1/merge_requests'
+T_AGENT=a1 t pass  'glab api -X GET projects/1/merge_requests'
+t  ask   'glab api --method put projects/1'
+t  ask   'glab api -XPATCH projects/1'
+t  pass  'glab api -X get projects/1'
+# GitLab quick actions in notes, descriptions and titles (C6)
+t  ask   'glab mr note 100 -m "/merge"'
+t  ask   'glab mr note 100 -m "/approve"'
+t  ask   'glab mr comment 100 -m "/close"'
+t  ask   'glab mr update 100 --description "/close"'
+t  ask   'glab mr update 100 -d "/ready"'
+t  ask   'glab issue note 5 -m "/close"'
+t  ask   'glab issue update 5 --description "/reopen"'
+t  ask   $'glab mr note 100 -m "done\n/merge"'
+t  ask   $'glab mr note 100 -m "$(cat <<\'EOF\'\nLooks good.\n/approve\nEOF\n)"'
+T_AGENT=a1 t deny  'glab mr note 100 -m "/merge"'
+T_AGENT=a1 t deny  'glab mr update 100 --description "/close"'
+T_AGENT=a1 t deny  'glab issue note 5 -m "/close"'
+T_AGENT=a1 t deny  'glab mr update 100 --description "/target_branch main"'
+t  allow 'glab mr note 100 -m "see /tmp/merge.log"'                 # a path is not a quick action
+t  allow 'glab mr note 100 -m "merged by hand, closing soon"'
+T_AGENT=a1 t allow 'glab mr note 100 -m "merged by hand"'
+# uninspectable text: denied in a subagent only; the main thread's files are read when they exist
+qaf=$(mktemp); printf '%s\n' 'Ready for review.' '/merge' > "$qaf"
+qok=$(mktemp); printf '%s\n' 'Ready for review.' 'Paths: /tmp/merge.log' > "$qok"
+t  ask   "glab mr update 100 --description-file $qaf"
+t  allow "glab mr update 100 --description-file $qok"
+T_AGENT=a1 t deny  "glab mr update 100 --description-file $qaf"
+T_AGENT=a1 t allow "glab mr update 100 --description-file $qok"
+T_AGENT=a1 t deny  'glab mr update 100 --description-file /nonexistent/d.md'
+T_AGENT=a1 t deny  'glab mr update 100 --description-file -'
+T_AGENT=a1 t deny  'glab mr note 100 -m "$MSG"'
+t  allow 'glab mr update 100 --description-file /nonexistent/d.md'   # main thread: unchanged (work-ticket flow)
+t  allow 'glab mr note 100 -m "$MSG"'
+rm -f "$qaf" "$qok"
+# quoted / escaped command words and $VAR subcommands (W1, W2)
+T_AGENT=a1 t deny  'glab "mr" merge 100'
+T_AGENT=a1 t deny  'glab mr "merge" 100'
+T_AGENT=a1 t deny  "gl'ab' mr merge 100"
+T_AGENT=a1 t deny  'gl\ab mr merge 100'
+T_AGENT=a1 t deny  'a=merge; glab mr $a 100'
+T_AGENT=a1 t deny  'glab mr ${v:-approve} 100'
+t  ask   'glab "mr" merge 100'
+t  ask   'a=merge; glab mr $a 100'
+t  pass  'glab api "projects/:id/merge_requests"'
+t  pass  'glab mr view "$IID"'
+# a later deny still wins over a human-decision ask (W4)
+t  deny  'glab mr merge 100 && glab mr update 110 --target-branch master'
+t  deny  'glab issue close 5; glab mr update 110 --target-branch master'
+t  deny  'glab label create -n agent-x && glab mr update 110 --target-branch master'
+t  deny  'glab label create -n bug && glab mr update 110 --target-branch master'
+t  allow 'glab label create -n agent-x'
+# deletes are human decisions (W6)
+T_AGENT=a1 t deny  'glab mr delete 100'
+T_AGENT=a1 t deny  'glab issue delete 5'
+T_AGENT=a1 t deny  'glab issue del 5'
+t  ask   'glab mr delete 100'
+t  ask   'glab issue delete 5'
+# closing keywords in forms 40 does not parse (backstop in 50, yields like 40)
+t  deny  'glab -R g/p mr update 100 --description "Closes LBL-1"'
+t  deny  'glab mr -R g/p update 100 --description "Fixes LBL-1"'
+t  deny  'glab mr new -s f -b main -t "LBL-1 x" --description "Closes LBL-1"'
+decl '[owns]' 'domains = ["tracker"]'
+r  allow 'glab -R g/p mr update 100 --description "Closes LBL-1"'
+decl
+# reasons
+T_AGENT=a1 tr 'hand the command back to the main thread' 'glab mr accept 100'
+T_AGENT=a1 tr 'hand the command back to the main thread' 'glab mr note 100 -m "/merge"'
+tr 'quick action.*drop it from the text' 'glab mr note 100 -m "/merge"'
+T_AGENT=a1 tr 'pass the text inline or as a readable file' 'glab mr update 100 --description-file -'
+tr 'write the glab subcommand unquoted' 'glab "mr" merge 100'
+tr 'write the subcommand literally' 'a=merge; glab mr $a 100'
