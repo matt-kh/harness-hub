@@ -590,8 +590,25 @@ prints every one between your applied version and the new one.
     lets any other write in the same command through (was allow); every `jira link` clause is
     checked, not only the first.
   - The literal-key deny for a state change comes before any check that can stop first.
+  - The scanner fails closed: a `jira VERB` call written anywhere outside a known data
+    position is a hidden call. Data positions: the jira client's own arguments (comment
+    bodies), `git commit|log|tag|show|…` arguments, `grep`/`rg` patterns, and `echo`/`printf`
+    output or `cat`/`tee` heredocs and here-strings whose pipeline holds only non-executing
+    stages (`cat`, `tee`, `grep`, `head`, `jq` …). It also reads `${…}` bodies, process
+    substitutions (`<(…)`, `>(…)`), here-strings and heredocs fed to a shell, text piped into
+    a shell through any number of stages, `sh -c CODE ARGS` running its positional words,
+    python value options (`-X`, `-W`), command-string wrappers (`env -S`, `watch`, `script -c`,
+    `su -c`, `parallel`, `git -c alias.x='!…'`), zsh `=jira`, ANSI-C `$'…'` words, globbed or
+    `${VAR}`-built command words in front of a state verb, and backslash-newline splits.
+  - A scanner failure (python3 missing, broken or timed out) asks on the main thread and is
+    denied in a subagent, with its own reason.
+  - Jira allows and asks are deferred (`pending_allow`, `defer`), so a deny in a later section
+    (e.g. `gdoc api -X POST`) wins over a promptless Jira write in the same command.
+  - `jira create` with more than one `--field labels` is denied (the last one wins in Jira).
+  - Latency: the scanner (python3) runs only when the command can hold a jira call; it adds
+    about 20 ms to such a command (`git status` is unaffected).
   - Known limit: a copied or renamed client (`cp jira x; ./x transition …`) and jira calls built
-    inside other interpreters' code beyond the `-c|-e` text check are not recognised; the
+    inside other interpreters' code without the `jira VERB` text are not recognised; the
     provider's permission prompt is the backstop.
 - `WORK_TICKET_ALLOW_TRANSITION` is a deprecated no-op (#67): the engine no longer reads it;
   the name stays allow-listed, so setting it is not an error, and `harness repo` reports a
@@ -735,7 +752,10 @@ prints every one between your applied version and the new one.
   jira subcommands unquoted. `jira set KEY status|resolution` follows the transition rule. The
   `jira` client now refuses lower-case or path-like keys (`proj-123`, `PROJ-1/..`): pass
   `PROJ-123`. Commands that combine a promptless Jira write with another write now go through
-  the label gate for the other write (ask on a human ticket).
+  the label gate for the other write (ask on a human ticket). Text that spells out a jira call
+  and is handed to anything that may execute it (`foo "jira transition …"`, `script -c`,
+  `watch`, a pipe into a shell) now asks, and is denied in a subagent; keep such text in a
+  jira comment, a commit message or a grep pattern, or run the jira command directly.
 - Per-provider model names: one new optional config key, `[providers.<name>].model_policy`
   (`plan`, `execute`). Claude needs no edit. For Copilot, `harness apply` now writes agents
   and skills without `model:` (session model); to pin models, add

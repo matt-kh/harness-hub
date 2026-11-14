@@ -73,7 +73,7 @@ Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md
 
 **Guard sections**
 
-- `jira/guard.d/70-jira` — control: sensor · function: govern · decisions: deny 4 · ask 4 · allow 4 · yields: declaration
+- `jira/guard.d/70-jira` — control: sensor · function: govern · decisions: deny 5 · ask 5 · allow 4 · yields: declaration
 
 **Permission lists**
 

@@ -90,6 +90,7 @@ marks the developer's own credentials and the ask on writing `.harness.toml`.
 | 70-jira.sh | jira | `jira set KEY issuelinks \| create --field issuelinks=` | deny | use the governed link commands | owns tracker |
 | 70-jira.sh | jira | `jira link A TYPE B (both agent-labelled, type in HARNESS_JIRA_LINK_TYPES_RE)` | allow | otherwise deny | owns tracker |
 | 70-jira.sh | jira | `jira create without a provenance label (agent-drafted\|agent-created)` | deny | every agent-created ticket is labelled; use labels agent-drafted (or agent-created) instead | owns tracker |
+| 70-jira.sh | jira | `jira create with more than one --field labels` | deny | the last one wins in Jira; pass a single --field labels='["agent-drafted"]' instead | owns tracker |
 | 70-jira.sh | jira | `jira create with a provenance label` | allow | creates are promptless | owns tracker |
 | 70-jira.sh | jira | `jira label KEY add agent-*` | allow | governance labelling is free | owns tracker |
 | 70-jira.sh | jira | `jira set\|comment\|upload\|label KEY on agent-labelled tickets` | allow | promptless (so is a state change, on the main thread) | owns tracker |
@@ -97,7 +98,8 @@ marks the developer's own credentials and the ask on writing `.harness.toml`.
 | 70-jira.sh | jira | `jira transition, jira set KEY status\|resolution from a subagent` | deny | a subagent never changes ticket state, on human and agent-labelled tickets alike; hand the command back to the main thread | owns tracker |
 | 70-jira.sh | jira | `jira state change without a literal key ($VAR, xargs, LBL-1/../X, none) or whose labels cannot be read` | deny | the ticket cannot be checked; type the key literally (e.g. PROJ-123), or ask the user to transition it | owns tracker |
 | 70-jira.sh | jira | `jira write whose key is not a literal PROJ-123 word` | ask | the ticket cannot be checked; use a literal key instead | owns tracker |
-| 70-jira.sh | jira | `jira hidden from the guard (quoted/escaped or case-changed command words, a $VAR/$(…) subcommand, jira fed by xargs, alias, a variable or $(which jira))` | ask | the subcommand cannot be checked; write it literally and unquoted instead (a subagent is denied unless it is a known non-state write) | owns tracker |
+| 70-jira.sh | jira | `jira hidden from the guard (quoted/escaped/ANSI-C/globbed or case-changed command words, a $VAR/$(…) subcommand, jira fed by xargs, alias, a variable or $(which jira), or a jira call written anywhere outside a known data position)` | ask | the subcommand cannot be checked; write it literally and unquoted instead (a subagent is denied unless it is a known non-state write) | owns tracker |
+| 70-jira.sh | jira | `jira guard scanner failure (python3 missing, broken or timed out)` | ask | the command cannot be checked; ask the user to run it, or fix python3 (a subagent is denied) | owns tracker |
 | 70-jira.sh | jira | `jira writes to human tickets` | ask | need an explicit user request; ask the user, or label the ticket agent-worked first | owns tracker |
 | 75-ticket-workflow.sh | ticket-workflow | `git switch -c\|checkout -b\|branch\|worktree add -b NAME with a ticket key or #N in NAME` | ask | keys live on the MR/PR, not the branch; use a <short-name> branch instead (repos opt in with WORK_TICKET_KEY_IN_BRANCH=1) | owns delivery |
 | 75-ticket-workflow.sh | ticket-workflow | `git commit whose first -m/--message starts with a ticket key` | ask | mention the key in the body or MR instead (WORK_TICKET_KEY_IN_BRANCH=1 passes) | owns delivery |

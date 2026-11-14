@@ -211,6 +211,75 @@ t ask   'jira link LBL-1 Relates LBL-2 && jira comment HUM-1 x'
 t ask   "jira create PROJ Task \"x\" --field labels='[\"agent-drafted\"]' && jira comment HUM-1 x"
 t ask   'jira label HUM-1 add agent-worked && jira comment HUM-2 x'
 t allow 'jira link LBL-1 Relates LBL-2 && jira comment LBL-1 x'
+# #67 re-review: the scanner fails closed — every substitution, here-string, pipeline into a shell
+# and command-string wrapper is read, and a jira call written anywhere outside a known data
+# position is a hidden call (main thread asks, a subagent is denied)
+T_AGENT=a1 t deny 'echo ${x:-$(jira transition LBL-1 Done)}'                  # 1. ${…} bodies
+T_AGENT=a1 t deny 'echo "${x:-$(jira transition LBL-1 Done)}"'
+t ask   'echo ${x:-$(jira transition HUM-1 Done)}'
+T_AGENT=a1 t deny 'cat <(jira transition LBL-1 Done)'                         # 2. process substitution
+T_AGENT=a1 t deny 'diff <(jira get LBL-1) >(jira transition LBL-1 Done)'
+t ask   'cat <(jira transition HUM-1 Done)'
+T_AGENT=a1 t deny 'bash <<< "jira transition LBL-1 Done"'                    # 3. here-strings to a shell
+T_AGENT=a1 t deny 'bash -x /dev/stdin <<< "jira transition LBL-1 Done"'
+T_AGENT=a1 t deny 'tee >(sh) <<< "jira transition LBL-1 Done"'
+t ask   'bash <<< "jira transition HUM-1 Done"'
+T_AGENT=a1 t deny 'echo "jira transition LBL-1 Done" | cat | sh'             # 4. multi-stage pipes into a shell
+T_AGENT=a1 t deny 'echo "jira transition LBL-1 Done" | tee /dev/null | bash'
+t ask   'echo "jira transition HUM-1 Done" | cat | sh'
+T_AGENT=a1 t deny "sh -c '\"\$@\"' _ jira transition LBL-1 Done"             # 5. sh -c with positional words
+T_AGENT=a1 t deny "sh -c 'exec \"\$0\" \"\$@\"' jira transition LBL-1 Done"
+T_AGENT=a1 t deny 'bash -c -- "jira transition LBL-1 Done"'
+t ask   "sh -c '\"\$@\"' _ jira transition HUM-1 Done"
+T_AGENT=a1 t deny 'python3 -X dev ~/.local/bin/jira transition LBL-1 Done'   # 6. python value options
+T_AGENT=a1 t deny 'python3 -W ignore jira.py transition LBL-1 Done'
+t ask   'python3 -X dev ~/.local/bin/jira transition HUM-1 Done'
+T_AGENT=a1 t deny 'env -S "jira transition LBL-1 Done"'                       # 7. command-string wrappers
+T_AGENT=a1 t deny 'watch -n1 "jira transition LBL-1 Done"'
+T_AGENT=a1 t deny 'script -qc "jira transition LBL-1 Done" /dev/null'
+T_AGENT=a1 t deny 'su -c "jira transition LBL-1 Done" me'
+T_AGENT=a1 t deny 'parallel "jira transition {} Done" ::: LBL-1'
+T_AGENT=a1 t deny "git -c alias.x='!jira transition LBL-1 Done' x"
+T_AGENT=a1 t deny 'foo "jira transition LBL-1 Done"'                          # any command: fail closed
+t ask   'script -qc "jira transition HUM-1 Done" /dev/null'
+t ask   'su -c "jira transition LBL-1 Done" me'                               # hidden even when agent-labelled
+T_AGENT=a1 t deny '=jira transition LBL-1 Done'                               # 8. zsh =cmd
+t ask   '=jira transition HUM-1 Done'
+# obfuscated client names (the prefilter strips quotes, backslashes and continuations; a state verb
+# after a glob or $VAR command word is hidden)
+T_AGENT=a1 t deny "ji\\${nl}ra transition LBL-1 Done"
+# shellcheck disable=SC2088  # the tilde is part of the command under test
+T_AGENT=a1 t deny '~/.local/bin/jir? transition LBL-1 Done'
+T_AGENT=a1 t deny '/x/j[i]ra transition LBL-1 Done'
+T_AGENT=a1 t deny 'J=ji; ${J}ra transition LBL-1 Done'
+T_AGENT=a1 t deny 'J=ji; ${J}ra set LBL-1 status Done'
+t ask   'J=ji; ${J}ra transition HUM-1 Done'
+T_AGENT=a1 t deny "\$'\\x6aira' transition LBL-1 Done"                        # ANSI-C words are decoded
+T_AGENT=a1 t deny "\$'j\\151ra' transition LBL-1 Done"
+t ask   "\$'\\x6aira' comment LBL-1 x"
+# data positions stay data (the false-positive wins of the scanner)
+t pass  'echo "jira transition HUM-1 Done"'
+t pass  'echo "jira transition HUM-1 Done" | grep jira'
+T_AGENT=a1 t pass 'printf "%s\n" "jira transition LBL-1 Done" | tee notes.txt'
+t pass  'git log --grep "jira transition"'
+T_AGENT=a1 t pass 'rg "jira transition" docs/'
+t pass  "cat <<'X' | grep x${nl}jira transition HUM-1 Done${nl}X"
+T_AGENT=a1 t pass "tee notes.txt <<< 'jira transition LBL-1 Done'"
+# repeated --field labels: the last one wins in Jira, so a second one could drop the provenance
+t deny  "jira create PROJ Task s --field labels='[\"agent-drafted\"]' --field labels='[]'"
+tr 'pass a single --field labels' "jira create PROJ Task s --field labels='[\"agent-drafted\"]' --field labels='[]'"
+# the scanner fails closed (python3 missing, broken or timed out)
+bpy=$(mktemp -d); printf '#!/bin/sh\nexit 3\n' > "$bpy/python3"; chmod +x "$bpy/python3"
+PATH="$bpy:$PATH" t ask 'jira comment LBL-1 x'
+PATH="$bpy:$PATH" T_AGENT=a1 t deny 'jira comment LBL-1 x'
+PATH="$bpy:$PATH" tr 'jira guard scanner failed' 'jira comment LBL-1 x'
+PATH="$bpy:$PATH" t pass 'git status'
+rm -rf "$bpy"
+# promptless jira writes wait for every later section (pending_allow, deferred asks)
+if grep -q '^guard_section_gdoc_80_gdoc()' "$H"; then
+  t deny 'jira comment LBL-1 x && gdoc api -X POST /x'
+  t deny 'jira comment HUM-1 x && gdoc api -X POST /x'
+fi
 # ---- repo overrides (repo .claude/settings.json env) -------------------------------
 # WORK_TICKET_ALLOW_TRANSITION is a deprecated no-op since #67: every row decides as without it
 t ask   'jira transition HUM-1 "In Progress"'                     # #67: was deny
