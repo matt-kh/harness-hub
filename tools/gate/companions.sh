@@ -14,7 +14,7 @@
 #              repo-level pages, docs/runbooks/, SECURITY.md, LICENSE) needs README.md in the diff.
 #   issue      the pull-request body (--markers-file) names the issue it builds on as #N,
 #              owner/repo#N or an issues URL, outside code, and never after a closing keyword
-#              (close/fix/resolve forms: issue state is human-only). Without --markers-file
+#              (close/fix/resolve forms: it would close the issue as a side effect). Without --markers-file
 #              (a local run) it is skipped.
 #
 # Usage: companions.sh [--ci] --range A..B [--markers-file F] [--only rows|changelog|readme|issue]
@@ -213,7 +213,7 @@ check_issue() {
   prose "$markers_file" >"$TMP/body"
   bad=$(grep -iE "$CLOSING$REF" "$TMP/body" | head -1)
   if [ -n "$bad" ]; then
-    hit "issue: pull-request body: a closing keyword precedes an issue reference ($(printf '%s' "$bad" | cut -c1-80)) — mention the issue as #N instead; issue state is human-only (no Closes/Fixes/Resolves before #N)"
+    hit "issue: pull-request body: a closing keyword precedes an issue reference ($(printf '%s' "$bad" | cut -c1-80)) — mention the issue as #N instead; it would close the issue as a side effect (no Closes/Fixes/Resolves before #N)"
   fi
   if ! grep -qE "(^|[^A-Za-z0-9_&/])$REF([^0-9]|$)" "$TMP/body"; then
     hit "issue: pull-request body names no issue — start from a GitHub Issue and mention it as #N (owner/repo#N or an issues URL also count; not inside code), or write 'no-issue: <reason>' for a trivial fix"

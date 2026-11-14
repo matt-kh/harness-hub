@@ -4,7 +4,7 @@
 # rule: (close|fix|resolve|implement) KEY-123 in git commit | glab mr create|update | glab api -> deny : a closing keyword would change the ticket's state as a side effect; mention the key instead (KEY-123 fix parser)
 repo_owns gitlab/guard.d/40-gitlab-closing tracker && return 0   # principle 8: the repository's .harness.toml owns this section or domain tracker
 # ---- Closing keywords: GitLab's Jira integration transitions tickets on them ------
-# Ticket state is human-only, so block them at the source (commits, MR text, API payloads).
+# They would change ticket state as a side effect, so block them at the source (commits, MR text, API payloads).
 CLOSE_RE='\b([Cc]los(e|es|ed|ing)|[Ff]ix(es|ed|ing)?|[Rr]esolv(e|es|ed|ing)|[Ii]mplement(s|ed|ing)?):?\s+([Ii]ssues?\s+)?[A-Z][A-Z0-9_]*-[0-9]+'
 if printf '%s' "$flat" | grep -qE "$CLOSE_RE" \
    && printf '%s' "$flat" | grep -qE '\bgit\s+commit\b|\bglab\s+mr\s+(create|update)\b|\bglab\s+api\b'; then

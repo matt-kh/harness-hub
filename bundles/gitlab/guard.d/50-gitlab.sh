@@ -3,7 +3,7 @@
 # Section 50 (bundle gitlab): glab governance.
 # rule: glab api -X non-GET (any case, quoted, attached, $VAR) | payload flag (-f/-F/--field/--raw-field/--form/--input) -> ask : API write; ask the user, or use the matching glab subcommand
 # rule: glab api write (as above) from a subagent -> deny : a raw API write can merge or change state; hand the command back to the main thread
-# rule: glab mr merge|accept|approve|revoke|unapprove|delete, glab issue close|reopen|open|delete -> ask : merging, approving, deleting and issue state are human-only; run it only on the user's explicit request (they confirm it), or ask the user instead
+# rule: glab mr merge|accept|approve|revoke|unapprove|delete, glab issue close|reopen|open|delete -> ask : merging, approving, deleting and issue state are human decisions; run it only on the user's explicit request (they confirm it), or ask the user instead
 # rule: glab mr merge|accept|approve|revoke|unapprove|delete, glab issue close|reopen|open|delete from a subagent -> deny : a subagent never merges, approves, deletes or changes issue state; hand the command back to the main thread
 # rule: glab quick action (/merge /approve /close /reopen /ready /draft …) in a note, description or title -> ask : it carries out a human decision; drop it from the text, or run the matching glab command on the user's explicit request
 # rule: glab quick action, or note/description text the guard cannot read, from a subagent -> deny : a subagent never merges or changes state; pass the text inline and hand state changes back to the main thread
@@ -96,7 +96,7 @@ if printf '%s' "$flat" | grep -qE "${GLP}(${GL_NOUNS}|api)\b"; then
 $(printf '%s' "$flat" | grep -oE "${GLP}api\b[^;&|]*")
 EOF
   printf '%s' "$flat" | grep -qE "${GLP}(mr\s+${GLR}(merge|accept|approve|revoke|unapprove|delete|del)|issue\s+${GLR}(close|reopen|open|delete|del))\b" \
-    && human_decision_defer "glab MR merge/approve/revoke/delete or issue close/reopen/delete (human-only) — run it only on the user's explicit request (they confirm it), or ask the user instead"
+    && human_decision_defer "glab MR merge/approve/revoke/delete or issue close/reopen/delete (a human decision) — run it only on the user's explicit request (they confirm it), or ask the user instead"
   printf '%s' "$flat" | grep -qE "${GLP}(issue\s+${GLR}(create|new)|release\s+${GLR}(create|delete|upload)|repo\s+${GLR}(delete|archive|fork|create)|label\s+${GLR}(edit|delete))\b" \
     && defer "glab team-visible mutation (issues/releases/repos are not governed) — ask the user instead"
 

@@ -260,8 +260,8 @@ for kw in 'Fixes #12' 'closes: #12' 'Resolved owner/repo#12' 'fix https://github
   body "Summary.\n\n$kw\n"
   out=$(run --only issue --range main..HEAD --markers-file "$T/body.txt"); rc=$?
   expect_rc "15e '$kw' hits" 1 $rc "$out"
-  has   "15e '$kw': message says mention #N, state is human-only" \
-        "^issue: .*closing keyword.*mention the issue as #N instead; issue state is human-only" "$out"
+  has   "15e '$kw': message says mention #N, side effect" \
+        "^issue: .*closing keyword.*mention the issue as #N instead; it would close the issue as a side effect" "$out"
 done
 body 'Prefix #12 and a fixed-width #13: no closing keyword.\n'
 out=$(run --only issue --range main..HEAD --markers-file "$T/body.txt"); rc=$?
