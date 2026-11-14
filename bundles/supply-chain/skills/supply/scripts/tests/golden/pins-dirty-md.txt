@@ -1,0 +1,38 @@
+# exit=1
+# stderr:
+supply: dir=dirty ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,shell tools=cargo-audit,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+# stdout:
+# supply pins — dirty
+
+ecosystems: cargo, docker, github-actions, gitlab-ci, go, npm, pip, shell · tools: cargo-audit, cosign, gh, govulncheck, npm, osv-scanner, pip-audit, syft
+
+## Findings (22)
+
+| sev | id | where | message | fix |
+|---|---|---|---|---|
+| warn | CI006 | .github/workflows/build.yml:6 | job container `node:20` is pinned to a tag, not a digest | pin the image digest: `IMAGE:TAG@sha256:<digest>` (resolve with `docker buildx imagetools inspect` or `crane digest`) |
+| warn | GHA001 | .github/workflows/build.yml:8 | action `actions/checkout` is pinned to the tag `v4`, which can be moved | pin the full 40-character commit sha and keep the tag as a comment: `uses: OWNER/REPO@<sha> # vX.Y.Z` (/pin-deps resolves it) |
+| crit | GHA002 | .github/workflows/build.yml:9 | action `octocat/hello-world-action` follows the branch `main` | pin the full 40-character commit sha of a released tag: `uses: OWNER/REPO@<sha> # vX.Y.Z` |
+| warn | GHA003 | .github/workflows/build.yml:10 | action image `docker://alpine:3.20` has no digest | pin the image digest: `docker://IMAGE@sha256:<digest>` (keep the tag in a comment) |
+| crit | CI008 | .gitlab-ci.yml:2 | include of project `example-group/ci-templates` has no ref: it follows the default branch | pin the include to a full 40-character commit sha (`ref: <sha>`) or a released component version (`@1.2.3`) |
+| warn | CI009 | .gitlab-ci.yml:4 | remote include `https://example.com/ci/common.yml` runs whatever that URL serves | vendor the remote file into the repository, or include it from a project pinned to a commit sha |
+| crit | CGO001 | Cargo.toml:6 | git dependency `hello` follows the branch `main` | pin the commit: `{ git = "URL", rev = "<sha>" }`, or use a released crate |
+| warn | DKR001 | Dockerfile:1 | base image `node:20` is pinned to a tag, not a digest | pin the base image digest: `FROM IMAGE:TAG@sha256:<digest>` |
+| crit | DKR002 | Dockerfile:3 | base image `alpine` has no tag or uses :latest | name a released tag and pin its digest: `FROM IMAGE:TAG@sha256:<digest>` |
+| crit | SH001 | deploy.bash:3 | downloaded code runs unreviewed: `curl -fsSL "https://example.com/install.sh?password=***REDACTED*** \| sh` | download to a file, check its sha256 (`sha256sum -c`) or signature, read it, then run it |
+| warn | SH002 | deploy.bash:4 | download written to a file with no checksum or signature check within the next 8 lines: `curl -fsSLo tool.tgz https://example.com/tool.tgz` | verify the download before use: `sha256sum -c`, `cosign verify-blob`, `gh attestation verify`, or `ADD --checksum=sha256:...` |
+| warn | GO002 | deploy.bash:6 | `go install example.com/tool@latest` installs whatever the ref points at today | install a released version: `go install MODULE@vX.Y.Z` |
+| info | CGO002 | deploy.bash:7 | `cargo install ripgrep` without both --version and --locked resolves fresh dependency versions | install a released version reproducibly: `cargo install NAME --version X.Y.Z --locked` |
+| warn | DKR003 | docker-compose.yml:3 | service `cache` image `redis:7` is pinned to a tag, not a digest | pin the image digest: `image: IMAGE:TAG@sha256:<digest>` |
+| warn | GO001 | go.mod:1 | go.mod requires modules but there is no go.sum next to it | run `go mod tidy` and commit go.sum |
+| info | GO003 | go.mod:7 | replace points at the local path `../lib` | replace with a released version, or keep the local path out of release builds |
+| crit | NPM002 | package.json:5 | `hello` comes from git (`github:octocat/hello-world`) without a commit sha | depend on a released version from the registry, or pin the commit: `github:OWNER/REPO#<sha>` |
+| warn | NPM001 | package.json:6 | 1 dependency range(s) (lodash ^4.17.21) and no lockfile | commit a lockfile (`npm install` writes package-lock.json) and install with `npm ci`; exact versions for applications |
+| info | PIP004 | pyproject.toml:5 | 1 dependency range(s) (httpx) and no lockfile next to it | commit a lockfile (`uv lock`, `poetry lock`, `pdm lock`) so installs resolve the same versions |
+| warn | PIP001 | requirements.txt:1 | `flask>=2.0` is not pinned to an exact version | pin an exact version (`name==X.Y.Z`), or generate the file from a lockfile (`uv pip compile --generate-hashes`) |
+| crit | PIP002 | requirements.txt:2 | requirement `git+https://github.com/octocat/hello-world` follows the default branch | pin the commit (`git+https://HOST/OWNER/REPO@<sha>`), or depend on a released version from the index; URL archives need `--hash` |
+| info | PIP003 | requirements.txt:3 | 1 pinned requirement(s) have no --hash | add `--hash=sha256:...` to every line (`uv pip compile --generate-hashes`, `pip-compile --generate-hashes`) |
+
+## files_scanned
+
+12

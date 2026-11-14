@@ -1,0 +1,32 @@
+# exit=0
+# stderr:
+supply: dir=empty ecosystems=none tools=cargo-audit,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+# stdout:
+{
+  "command": "audit",
+  "data": {
+    "auditors": []
+  },
+  "dir": "empty",
+  "ecosystems": [],
+  "findings": [
+    {
+      "file": "",
+      "fix": "nothing to audit: no lockfile or manifest osv-scanner understands",
+      "id": "AUD002",
+      "line": 0,
+      "message": "osv-scanner found no packages to scan in empty",
+      "severity": "info"
+    }
+  ],
+  "tools": [
+    "cargo-audit",
+    "cosign",
+    "gh",
+    "govulncheck",
+    "npm",
+    "osv-scanner",
+    "pip-audit",
+    "syft"
+  ]
+}

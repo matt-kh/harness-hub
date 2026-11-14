@@ -1,0 +1,111 @@
+# exit=1
+# stderr:
+supply: dir=- ecosystems=gitlab-ci tools=cargo-audit,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+# stdout:
+{
+  "command": "ci",
+  "data": {
+    "files": [
+      {
+        "file": "gitlab-include/.gitlab-ci.yml",
+        "kind": "gitlab-ci"
+      },
+      {
+        "file": "gitlab-include/ci/build.yml",
+        "kind": "gitlab-ci"
+      }
+    ]
+  },
+  "dir": "-",
+  "ecosystems": [
+    "gitlab-ci"
+  ],
+  "findings": [
+    {
+      "file": "gitlab-include/.gitlab-ci.yml",
+      "fix": "pin the include to a full 40-character commit sha (`ref: <sha>`) or a released component version (`@1.2.3`)",
+      "id": "CI008",
+      "line": 5,
+      "message": "include of project `example-group/ci-templates` follows the branch `main`",
+      "ref": "main",
+      "severity": "crit"
+    },
+    {
+      "file": "gitlab-include/.gitlab-ci.yml",
+      "fix": "pin the include to a full 40-character commit sha (`ref: <sha>`) or a released component version (`@1.2.3`)",
+      "id": "CI008",
+      "line": 10,
+      "message": "component `gitlab.example.com/example-group/components/scan@~latest` is not pinned to a released version or a commit sha",
+      "ref": "gitlab.example.com/example-group/components/scan@~latest",
+      "severity": "warn"
+    },
+    {
+      "file": "gitlab-include/.gitlab-ci.yml",
+      "fix": "vendor the remote file into the repository, or include it from a project pinned to a commit sha",
+      "id": "CI009",
+      "line": 13,
+      "message": "remote include `https://example.com/ci/common.yml` runs whatever that URL serves",
+      "severity": "warn"
+    },
+    {
+      "file": "gitlab-include/.gitlab-ci.yml",
+      "fix": "pin the image digest: `IMAGE:TAG@sha256:<digest>` (resolve with `docker buildx imagetools inspect` or `crane digest`)",
+      "id": "CI006",
+      "line": 14,
+      "message": "image `python:3.12` is pinned to a tag, not a digest",
+      "ref": "python:3.12",
+      "severity": "warn"
+    },
+    {
+      "file": "gitlab-include/.gitlab-ci.yml",
+      "fix": "pin the image digest: `IMAGE:TAG@sha256:<digest>` (resolve with `docker buildx imagetools inspect` or `crane digest`)",
+      "id": "CI006",
+      "line": 17,
+      "message": "service `postgres` has no tag or uses :latest",
+      "ref": "postgres",
+      "severity": "crit"
+    },
+    {
+      "file": "gitlab-include/.gitlab-ci.yml",
+      "fix": "let the security job fail the pipeline; triage findings instead of `allow_failure`/`continue-on-error`",
+      "id": "CI007",
+      "line": 20,
+      "message": "security job `dependency_scanning` cannot fail the pipeline (allow_failure: true)",
+      "severity": "warn"
+    },
+    {
+      "file": "gitlab-include/.gitlab-ci.yml",
+      "fix": "pass the value through env: (`env: TITLE: ${{ ... }}`) and use \"$TITLE\" in the script; never expand it into the script text",
+      "id": "CI004",
+      "line": 22,
+      "message": "commit or merge request text `$CI_COMMIT_MESSAGE` runs through eval",
+      "severity": "warn"
+    },
+    {
+      "file": "gitlab-include/.gitlab-ci.yml",
+      "fix": "never print secrets or dump the environment; pass secrets as env variables to the step that needs them",
+      "id": "CI005",
+      "line": 25,
+      "message": "`set` dumps every variable, secrets included, to the job log",
+      "severity": "warn"
+    },
+    {
+      "file": "gitlab-include/ci/build.yml",
+      "fix": "download to a file, check its sha256 (`sha256sum -c`) or signature, read it, then run it",
+      "id": "SH001",
+      "line": 5,
+      "message": "downloaded code runs unreviewed: `curl -fsSL https://example.com/setup.sh | bash`",
+      "severity": "crit"
+    }
+  ],
+  "tools": [
+    "cargo-audit",
+    "cosign",
+    "gh",
+    "govulncheck",
+    "npm",
+    "osv-scanner",
+    "pip-audit",
+    "syft"
+  ]
+}

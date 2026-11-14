@@ -1,0 +1,12 @@
+{
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "creationInfo": {
+    "creators": [
+      "Person: Example Author"
+    ]
+  },
+  "dataLicense": "CC0-1.0",
+  "name": "bad",
+  "packages": [],
+  "spdxVersion": "SPDX-2.1"
+}

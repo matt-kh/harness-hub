@@ -1,0 +1,16 @@
+{
+  "bomFormat": "CycloneDX",
+  "components": [
+    {
+      "name": "left-pad",
+      "type": "library"
+    },
+    {
+      "name": "busybox",
+      "type": "library",
+      "version": "1.36.1"
+    }
+  ],
+  "metadata": {},
+  "specVersion": "1.2"
+}

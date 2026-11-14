@@ -1,0 +1,2 @@
+Error: fetching https://scanner:s3cr3tpass@osv.example.com/v1/querybatch: connection refused
+exit status 127

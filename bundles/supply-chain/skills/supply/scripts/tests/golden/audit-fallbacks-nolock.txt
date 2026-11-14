@@ -1,0 +1,94 @@
+# exit=1
+# stderr:
+supply: dir=dirty ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,shell tools=cargo-audit,govulncheck,npm,pip-audit
+# stdout:
+{
+  "command": "audit",
+  "data": {
+    "auditors": [
+      {
+        "ecosystem": "cargo",
+        "packages": 0,
+        "status": "unavailable",
+        "tool": "cargo-audit"
+      },
+      {
+        "ecosystem": "go",
+        "packages": 1,
+        "status": "ok",
+        "tool": "govulncheck"
+      },
+      {
+        "ecosystem": "npm",
+        "packages": 0,
+        "status": "unavailable",
+        "tool": "npm"
+      },
+      {
+        "ecosystem": "pip",
+        "packages": 0,
+        "status": "unavailable",
+        "tool": "pip-audit"
+      }
+    ]
+  },
+  "dir": "dirty",
+  "ecosystems": [
+    "cargo",
+    "docker",
+    "github-actions",
+    "gitlab-ci",
+    "go",
+    "npm",
+    "pip",
+    "shell"
+  ],
+  "findings": [
+    {
+      "file": "",
+      "fix": "`harness install osv-scanner` (covers every ecosystem), or install the ecosystem's own auditor",
+      "id": "AUD001",
+      "line": 0,
+      "message": "cargo: cargo-audit needs Cargo.lock; cargo is unaudited, not clean",
+      "severity": "info"
+    },
+    {
+      "file": "",
+      "fix": "`harness install osv-scanner` (covers every ecosystem), or install the ecosystem's own auditor",
+      "id": "AUD001",
+      "line": 0,
+      "message": "npm: npm audit needs package-lock.json or npm-shrinkwrap.json; npm is unaudited, not clean",
+      "severity": "info"
+    },
+    {
+      "file": "go.mod",
+      "fix": "upgrade golang.org/x/text to v0.22.0 (/audit-deps applies patch and minor upgrades; a major upgrade is a human decision)",
+      "id": "VUL001",
+      "line": 0,
+      "message": "go golang.org/x/text v0.21.0: GO-2099-0008 (CVE-2099-0008) \u2014 Synthetic HTML parser loop in golang.org/x/text; fixed in v0.22.0; called",
+      "severity": "warn"
+    },
+    {
+      "file": "go.mod",
+      "fix": "no fix published: remove or replace the dependency, mitigate, or accept it with a reason (references/vuln-triage.md)",
+      "id": "VUL001",
+      "line": 0,
+      "message": "go golang.org/x/text v0.21.0: GO-2099-0009 \u2014 Synthetic unused-code issue; no fixed version published; imported, not called",
+      "severity": "info"
+    },
+    {
+      "file": "requirements.txt",
+      "fix": "`harness install osv-scanner` (reads requirements files without building), or audit a hashed requirements file (`uv pip compile --generate-hashes`)",
+      "id": "AUD001",
+      "line": 0,
+      "message": "pip-audit would resolve and build packages from requirements.txt (not every line is pinned with --hash); pip unaudited, not clean",
+      "severity": "info"
+    }
+  ],
+  "tools": [
+    "cargo-audit",
+    "govulncheck",
+    "npm",
+    "pip-audit"
+  ]
+}

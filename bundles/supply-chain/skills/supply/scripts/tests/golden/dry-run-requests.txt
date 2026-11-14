@@ -1,0 +1,50 @@
+# exit=0
+# stderr:
+# stdout:
+osv-scanner scan source --format json -r HERE/fixtures/repos/dirty
+osv-scanner scan source --format json -r HERE/fixtures/repos/dirty
+osv-scanner scan source --format json -r HERE/fixtures/repos/clean
+osv-scanner scan source --format json -r HERE/fixtures/repos/empty
+osv-scanner scan source --format json -r HERE/fixtures/repos/gitlab-include
+osv-scanner scan source --format json -L HERE/fixtures/repos/dirty/requirements.txt
+osv-scanner scan source --format json -L HERE/fixtures/sbom/good.cdx.json
+OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY=/home/u/.cache/osv-db osv-scanner scan source --format json -r HERE/fixtures/repos/dirty --offline-vulnerabilities
+cd <empty-dir> && cargo-audit audit --json --file HERE/fixtures/repos/clean/Cargo.lock
+cd clean && GOFLAGS=-mod=readonly GOTOOLCHAIN=local govulncheck -json ./...
+cd clean && npm audit --json --audit-level=none
+cd <empty-dir> && pip-audit -f json --require-hashes --no-deps --disable-pip -r HERE/fixtures/repos/clean/requirements.txt
+cd <empty-dir> && cargo-audit audit --json --file HERE/fixtures/repos/clean/Cargo.lock
+cd clean && GOFLAGS=-mod=readonly GOTOOLCHAIN=local govulncheck -json ./...
+cd clean && npm audit --json --audit-level=none
+cd <empty-dir> && pip-audit -f json --require-hashes --no-deps --disable-pip -r HERE/fixtures/repos/clean/requirements.txt
+cd <empty-dir> && cargo-audit audit --json --file HERE/fixtures/repos/clean/Cargo.lock
+cd clean && GOFLAGS=-mod=readonly GOTOOLCHAIN=local govulncheck -json ./...
+cd clean && npm audit --json --audit-level=none
+cd <empty-dir> && pip-audit -f json --require-hashes --no-deps --disable-pip -r HERE/fixtures/repos/clean/requirements.txt
+cd dirty && GOFLAGS=-mod=readonly GOTOOLCHAIN=local govulncheck -json ./...
+osv-scanner scan source --format json -r HERE/fixtures/repos/dirty
+osv-scanner scan source --format json -r HERE/fixtures/repos/clean
+cd <empty-dir> && cargo-audit audit --json --file OUT/work/calias/Cargo.lock
+cd calias && GOFLAGS=-mod=readonly GOTOOLCHAIN=local govulncheck -json ./...
+cd calias && npm audit --json --audit-level=none
+cd <empty-dir> && pip-audit -f json --require-hashes --no-deps --disable-pip -r OUT/work/calias/requirements.txt
+syft scan dir:clean -o spdx-json -q
+syft scan registry:ghcr.io/octocat/hello-world:1.0 -o cyclonedx-json -q
+syft scan dir:clean -o spdx-json -q
+syft scan dir:clean -o spdx-json -q
+syft scan registry:ghcr.io/octocat/hello-world:1.0 -o cyclonedx-json -q
+syft scan registry:ghcr.io/octocat/missing:1.0 -o spdx-json -q
+cosign verify --output json --certificate-identity-regexp '^https://github\.com/octocat/hello-world/\.github/workflows/release\.yml@refs/tags/v.*$' --certificate-oidc-issuer https://token.actions.githubusercontent.com -- ghcr.io/octocat/hello-world:1.0
+cosign verify --output json --certificate-identity-regexp '^https://github\.com/octocat/hello-world/\.github/workflows/release\.yml@refs/tags/v.*$' --certificate-oidc-issuer https://token.actions.githubusercontent.com -- ghcr.io/octocat/hello-world:1.0
+cosign verify --output json --certificate-identity-regexp '^https://github\.com/octocat/.*$' --certificate-oidc-issuer https://token.actions.githubusercontent.com -- ghcr.io/octocat/hello-world:1.0
+gh attestation verify -o octocat --format json --bundle deploy.bash.sigstore.json --custom-trusted-root ../tools/trusted-root.json -- dirty/deploy.bash
+cosign verify --output json --certificate-identity-regexp '^https://github\.com/octocat/hello-world/\.github/workflows/release\.yml@refs/tags/v.*$' --certificate-oidc-issuer https://token.actions.githubusercontent.com -- ghcr.io/octocat/nosig:1.0
+cosign verify --output json --key cosign.pub -- ghcr.io/octocat/hello-world:1.0
+cosign verify-attestation --output json --type slsaprovenance1 --certificate-identity-regexp '^https://github\.com/octocat/hello-world/\.github/workflows/release\.yml@refs/tags/v.*$' --certificate-oidc-issuer https://token.actions.githubusercontent.com -- ghcr.io/octocat/hello-world:1.0
+cosign verify-blob --bundle deploy.bash.sigstore.json --certificate-identity-regexp '^https://github\.com/octocat/hello-world/\.github/workflows/release\.yml@refs/tags/v.*$' --certificate-oidc-issuer https://token.actions.githubusercontent.com -- dirty/deploy.bash
+gh attestation verify -R octocat/hello-world --format json -- oci://ghcr.io/octocat/hello-world:1.0
+gh attestation verify -o octocat --format json -- dirty/deploy.bash
+gh attestation verify -R octocat/hello-world --format json -- oci://ghcr.io/octocat/unattested:1.0
+cosign verify --output json --certificate-identity-regexp '^https://github\.com/octocat/hello-world/\.github/workflows/release\.yml@refs/tags/v.*$' --certificate-oidc-issuer https://token.actions.githubusercontent.com -- ghcr.io/octocat/unsigned:1.0
+cosign verify --output json --certificate-identity-regexp '^https://github\.com/octocat/hello-world/\.github/workflows/release\.yml@refs/tags/v.*$' --certificate-oidc-issuer https://token.actions.githubusercontent.com -- ghcr.io/octocat/mirror:1.0
+cosign verify --output json --certificate-identity-regexp '^https://github\.com/octocat/hello-world/\.github/workflows/release\.yml@refs/tags/v.*$' --certificate-oidc-issuer https://token.actions.githubusercontent.com --trusted-root ../tools/trusted-root.json --offline -- ghcr.io/octocat/hello-world:1.0

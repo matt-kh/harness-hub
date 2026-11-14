@@ -1,0 +1,30 @@
+# exit=0
+# stderr:
+supply: dir=- ecosystems=none tools=cargo-audit,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+# stdout:
+# supply sbom — -
+
+ecosystems: none · tools: cargo-audit, cosign, gh, govulncheck, npm, osv-scanner, pip-audit, syft
+
+## Findings (0)
+
+none
+
+## note
+
+summary only: pass --out FILE to write the SBOM
+
+## packages
+
+- busybox 1.36.1
+
+## sbom
+
+| key | value |
+|---|---|
+| bytes | 738 |
+| file |  |
+| format | cyclonedx-json |
+| packages | 1 |
+| source | registry:ghcr.io/octocat/hello-world:1.0 |
+| spec_version | 1.6 |

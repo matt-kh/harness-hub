@@ -1,0 +1,23 @@
+# exit=0
+# stderr:
+supply: dir=empty ecosystems=none tools=none
+# stdout:
+{
+  "command": "audit",
+  "data": {
+    "auditors": []
+  },
+  "dir": "empty",
+  "ecosystems": [],
+  "findings": [
+    {
+      "file": "",
+      "fix": "nothing to audit: no lockfile or manifest osv-scanner understands",
+      "id": "AUD002",
+      "line": 0,
+      "message": "no pip, npm, go or cargo manifest in empty",
+      "severity": "info"
+    }
+  ],
+  "tools": []
+}

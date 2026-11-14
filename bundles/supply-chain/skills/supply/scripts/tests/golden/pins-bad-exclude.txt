@@ -1,0 +1,4 @@
+# exit=2
+# stderr:
+supply pins: SUPPLY_EXCLUDE_RE / supply_chain.exclude_re is not a valid Python regex (missing ), unterminated subpattern at position 0); fix or unset it (it is matched against paths relative to DIR)
+# stdout:

@@ -11,5 +11,9 @@ identities = []
 # Python regex, compiled on its own (a leading (?i) is fine)
 redact_extra_re = ""
 osv_offline_db = ""
+# Python regex on paths relative to DIR that the supply CLI skips
+exclude_re = ""
+# seconds per tool run (osv-scanner, an auditor, syft, cosign, gh)
+timeout = 120
 pin_actions = true
 max_bytes = 65536

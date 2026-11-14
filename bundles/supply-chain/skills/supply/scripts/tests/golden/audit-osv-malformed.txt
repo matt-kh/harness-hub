@@ -1,0 +1,5 @@
+# exit=2
+# stderr:
+supply: dir=dirty ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,shell tools=cargo-audit,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+supply audit: osv-scanner printed unexpected output (AttributeError: 'str' object has no attribute 'get'); the supported version is 2.7.0 (harness install osv-scanner)
+# stdout:

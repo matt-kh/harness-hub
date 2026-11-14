@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Test stub for `gh` (supply CLI suite): logs "gh ARGS" to $STUB_LOG, answers from
+# $SUPPLY_STUB_FIX, and fails loudly on anything that writes, signs or switches verification off.
+name=gh
+printf '%s %s\n' "$name" "$*" >> "${STUB_LOG:-/dev/null}"
+fix=${SUPPLY_STUB_FIX:?SUPPLY_STUB_FIX is not set}
+for a in "$@"; do
+  case "$a" in
+    sign|sign-blob|attest|attest-blob|fix|push|publish|--insecure*|--allow-*-registry|--download-offline-databases)
+      echo "stub $name: refusing a mutating or verification-off argument: $a" >&2; exit 1 ;;
+  esac
+done
+if [ "${STUB_FAIL:-}" = "$name" ]; then
+  echo "stub $name: failing on request (STUB_FAIL)" >&2; exit 2
+fi
+[ "$1 $2" = "attestation verify" ] || { echo "stub gh: only 'gh attestation verify' is supported, got: $*" >&2; exit 1; }
+target=""
+for a in "$@"; do target=$a; done
+case "$target" in
+  -*) echo "stub gh: the subject looks like an option: $target" >&2; exit 1 ;;
+esac
+case "$target" in
+  *unattested*) cat "$fix/gh-fail.txt" >&2; exit 1 ;;
+esac
+cat "$fix/gh-attestation.json"

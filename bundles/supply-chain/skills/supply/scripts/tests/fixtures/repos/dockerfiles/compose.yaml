@@ -1,0 +1,7 @@
+services:
+  db:
+    image: postgres
+  cache:
+    image: "redis:7.4@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+  app:
+    build: .

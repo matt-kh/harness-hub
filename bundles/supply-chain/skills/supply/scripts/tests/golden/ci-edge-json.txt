@@ -1,0 +1,173 @@
+# exit=1
+# stderr:
+supply: dir=- ecosystems=docker,github-actions,shell tools=cargo-audit,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+# stdout:
+{
+  "command": "ci",
+  "data": {
+    "files": [
+      {
+        "file": "edge/.github/workflows/compose.yml",
+        "kind": "github-workflow"
+      },
+      {
+        "file": "edge/.github/workflows/inputs.yml",
+        "kind": "github-workflow"
+      },
+      {
+        "file": "edge/.github/workflows/prt.yml",
+        "kind": "github-workflow"
+      },
+      {
+        "file": "edge/scripts/negatives.bash",
+        "kind": "shell"
+      },
+      {
+        "file": "edge/scripts/positives.bash",
+        "kind": "shell"
+      },
+      {
+        "file": "edge/Dockerfile",
+        "kind": "dockerfile"
+      },
+      {
+        "file": "edge/docker-compose.yml",
+        "kind": "compose"
+      }
+    ]
+  },
+  "dir": "-",
+  "ecosystems": [
+    "docker",
+    "github-actions",
+    "shell"
+  ],
+  "findings": [
+    {
+      "file": "edge/.github/workflows/compose.yml",
+      "fix": "pin the full 40-character commit sha and keep the tag as a comment: `uses: OWNER/REPO@<sha> # vX.Y.Z` (/pin-deps resolves it)",
+      "id": "GHA001",
+      "line": 9,
+      "message": "action `actions/checkout` is pinned to the tag `v4`, which can be moved",
+      "ref": "actions/checkout@v4",
+      "severity": "warn"
+    },
+    {
+      "file": "edge/.github/workflows/compose.yml",
+      "fix": "pin the full 40-character commit sha and keep the tag as a comment: `uses: OWNER/REPO@<sha> # vX.Y.Z` (/pin-deps resolves it)",
+      "id": "GHA001",
+      "line": 10,
+      "message": "action `octocat/setup-tool` is pinned to `release-2024`, a tag or branch that can be moved",
+      "ref": "octocat/setup-tool@release-2024",
+      "severity": "warn"
+    },
+    {
+      "file": "edge/.github/workflows/compose.yml",
+      "fix": "pin the full 40-character commit sha of a released tag: `uses: OWNER/REPO@<sha> # vX.Y.Z`",
+      "id": "GHA002",
+      "line": 11,
+      "message": "action `octocat/lint-action` follows the branch `feature/new-rules`",
+      "ref": "octocat/lint-action@feature/new-rules",
+      "severity": "crit"
+    },
+    {
+      "file": "edge/.github/workflows/compose.yml",
+      "fix": "pin the full 40-character commit sha of a released tag: `uses: OWNER/REPO@<sha> # vX.Y.Z`",
+      "id": "GHA002",
+      "line": 12,
+      "message": "action `octocat/other-action` follows the branch `main`",
+      "ref": "octocat/other-action@main",
+      "severity": "crit"
+    },
+    {
+      "file": "edge/.github/workflows/inputs.yml",
+      "fix": "pass the value through env: (`env: TITLE: ${{ ... }}`) and use \"$TITLE\" in the script; never expand it into the script text",
+      "id": "CI004",
+      "line": 26,
+      "message": "free-text input `inputs.name` is expanded into the script text",
+      "severity": "warn"
+    },
+    {
+      "file": "edge/.github/workflows/inputs.yml",
+      "fix": "pass the value through env: (`env: TITLE: ${{ ... }}`) and use \"$TITLE\" in the script; never expand it into the script text",
+      "id": "CI004",
+      "line": 29,
+      "message": "free-text input `inputs.note` is expanded into the script text",
+      "severity": "warn"
+    },
+    {
+      "file": "edge/.github/workflows/inputs.yml",
+      "fix": "pass the value through env: (`env: TITLE: ${{ ... }}`) and use \"$TITLE\" in the script; never expand it into the script text",
+      "id": "CI004",
+      "line": 30,
+      "message": "free-text input `inputs.tag` is expanded into the script text",
+      "severity": "warn"
+    },
+    {
+      "file": "edge/.github/workflows/prt.yml",
+      "fix": "never check out the pull request head in a pull_request_target workflow; use pull_request, or a two-workflow split with workflow_run and no secrets in the untrusted half",
+      "id": "CI003",
+      "line": 11,
+      "message": "pull_request_target checks out the pull request head: `git fetch origin pull/${{ github.event.number }}/head:pr && git checkout pr`",
+      "severity": "crit"
+    },
+    {
+      "file": "edge/Dockerfile",
+      "fix": "download to a file, check its sha256 (`sha256sum -c`) or signature, read it, then run it",
+      "id": "SH001",
+      "line": 2,
+      "message": "downloaded code runs unreviewed: `apk add --no-cache ca-certificates && curl -fsSL https://example.com/install.sh | sh`",
+      "severity": "crit"
+    },
+    {
+      "file": "edge/scripts/positives.bash",
+      "fix": "download to a file, check its sha256 (`sha256sum -c`) or signature, read it, then run it",
+      "id": "SH001",
+      "line": 2,
+      "message": "downloaded code runs unreviewed: `curl -fsSL https://example.com/install.sh | sudo -E bash -s -- --yes`",
+      "severity": "crit"
+    },
+    {
+      "file": "edge/scripts/positives.bash",
+      "fix": "download to a file, check its sha256 (`sha256sum -c`) or signature, read it, then run it",
+      "id": "SH001",
+      "line": 3,
+      "message": "downloaded code runs unreviewed: `wget -qO- https://example.com/install.sh | sh -`",
+      "severity": "crit"
+    },
+    {
+      "file": "edge/scripts/positives.bash",
+      "fix": "download to a file, check its sha256 (`sha256sum -c`) or signature, read it, then run it",
+      "id": "SH001",
+      "line": 4,
+      "message": "downloaded code runs unreviewed: `bash -c \"$(curl -fsSL https://example.com/install.sh)\"`",
+      "severity": "crit"
+    },
+    {
+      "file": "edge/scripts/positives.bash",
+      "fix": "download to a file, check its sha256 (`sha256sum -c`) or signature, read it, then run it",
+      "id": "SH001",
+      "line": 6,
+      "message": "downloaded code runs unreviewed: `source <(curl -fsSL https://example.com/env.sh)`",
+      "severity": "crit"
+    },
+    {
+      "file": "edge/scripts/positives.bash",
+      "fix": "download to a file, check its sha256 (`sha256sum -c`) or signature, read it, then run it",
+      "id": "SH001",
+      "line": 8,
+      "message": "downloaded code runs unreviewed: `version=$(curl -fsSL https://example.com/install.sh | sh)`",
+      "severity": "crit"
+    }
+  ],
+  "tools": [
+    "cargo-audit",
+    "cosign",
+    "gh",
+    "govulncheck",
+    "npm",
+    "osv-scanner",
+    "pip-audit",
+    "syft"
+  ]
+}

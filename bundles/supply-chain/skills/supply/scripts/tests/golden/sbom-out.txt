@@ -1,0 +1,56 @@
+# exit=0
+# stderr:
+supply: dir=clean ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,shell tools=cargo-audit,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+# stdout:
+{
+  "command": "sbom",
+  "data": {
+    "sbom": {
+      "bytes": 1529,
+      "file": "OUT/clean.spdx.json",
+      "format": "spdx-json",
+      "packages": 3,
+      "source": "dir:clean",
+      "spec_version": "SPDX-2.3"
+    }
+  },
+  "dir": "clean",
+  "ecosystems": [
+    "cargo",
+    "docker",
+    "github-actions",
+    "gitlab-ci",
+    "go",
+    "npm",
+    "pip",
+    "shell"
+  ],
+  "findings": [
+    {
+      "file": "OUT/clean.spdx.json",
+      "fix": "regenerate from a lockfile or the built artefact so versions resolve",
+      "id": "SBM007",
+      "line": 1,
+      "message": "1 of 3 package(s) have no version",
+      "severity": "info"
+    },
+    {
+      "file": "OUT/clean.spdx.json",
+      "fix": "regenerate with purls so scanners can match the packages",
+      "id": "SBM008",
+      "line": 1,
+      "message": "1 of 3 package(s) have no purl",
+      "severity": "info"
+    }
+  ],
+  "tools": [
+    "cargo-audit",
+    "cosign",
+    "gh",
+    "govulncheck",
+    "npm",
+    "osv-scanner",
+    "pip-audit",
+    "syft"
+  ]
+}

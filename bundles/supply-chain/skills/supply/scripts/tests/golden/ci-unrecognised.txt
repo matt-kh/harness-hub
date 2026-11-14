@@ -1,0 +1,38 @@
+# exit=3
+# stderr:
+supply: dir=- ecosystems=none tools=cargo-audit,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+supply ci: no file could be scanned (every one is CI000); pass a workflow, .gitlab-ci.yml, Dockerfile, compose file or shell script, or check it with its own linter
+# stdout:
+{
+  "command": "ci",
+  "data": {
+    "files": [
+      {
+        "file": "clean/package.json",
+        "kind": "unknown"
+      }
+    ]
+  },
+  "dir": "-",
+  "ecosystems": [],
+  "findings": [
+    {
+      "file": "clean/package.json",
+      "fix": "pass a GitHub workflow or action, a .gitlab-ci.yml (or a file it includes), a Dockerfile, a compose file or a shell script",
+      "id": "CI000",
+      "line": 0,
+      "message": "not a recognised CI file",
+      "severity": "info"
+    }
+  ],
+  "tools": [
+    "cargo-audit",
+    "cosign",
+    "gh",
+    "govulncheck",
+    "npm",
+    "osv-scanner",
+    "pip-audit",
+    "syft"
+  ]
+}

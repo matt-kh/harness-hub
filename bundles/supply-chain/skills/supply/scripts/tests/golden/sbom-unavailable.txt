@@ -1,0 +1,5 @@
+# exit=2
+# stderr:
+supply: dir=clean ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,shell tools=none
+supply sbom: syft is not installed: harness install syft (the SBOM is unavailable, not empty)
+# stdout:
