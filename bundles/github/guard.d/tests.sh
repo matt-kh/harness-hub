@@ -202,6 +202,7 @@ t pass  'git commit -m "see #12"'
 t pass  'git commit -m "implements #12"'
 t pass  'git commit -m "prefix #12 cleanup"'
 tr 'GitHub close the issue' 'git commit -m "Fixes #12"'
+tr 'side effect \(denied even on request\)' 'git commit -m "Fixes #12"'
 # ---- repository-level declaration: .harness.toml (principle 8) ----------------------
 decl '[overrides]' 'WORK_TICKET_ALLOW_TRANSITION = "1"'
 r ask   'gh issue close 3'                                    # #67: ask with or without the override

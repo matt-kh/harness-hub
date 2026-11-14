@@ -7,7 +7,7 @@
 # rule: glab mr merge|accept|approve|revoke|unapprove|delete, glab issue close|reopen|open|delete from a subagent -> deny : a subagent never merges, approves, deletes or changes issue state; hand the command back to the main thread
 # rule: glab quick action (/merge /approve /close /reopen /ready /draft …) in a note, description or title -> ask : it carries out a human decision; drop it from the text, or run the matching glab command on the user's explicit request
 # rule: glab quick action, or note/description text the guard cannot read, from a subagent -> deny : a subagent never merges or changes state; pass the text inline and hand state changes back to the main thread
-# rule: (close|fix|resolve|implement) KEY-123 in glab -R g/p mr create|new|update or glab mr new (forms 40 misses) -> deny : ticket state is human-only; mention the key instead (KEY-123 fix parser); yields like 40 (tracker)
+# rule: (close|fix|resolve|implement) KEY-123 in glab -R g/p mr create|new|update or glab mr new (forms 40 misses) -> deny : a closing keyword would change the ticket's state as a side effect; mention the key instead (KEY-123 fix parser); yields like 40 (tracker)
 # rule: glab with quoted/escaped command words or a $VAR/$(…) subcommand -> ask : the subcommand cannot be checked; write it literally and unquoted instead (a subagent is denied)
 # rule: glab issue create, release/repo/label mutations -> ask : team-visible; ask the user instead
 # rule: glab label create -n agent-* -> allow : governance label; other labels ask
@@ -51,7 +51,7 @@ GL_QA='merge|approve|unapprove|close|reopen|ready|draft|wip|submit_review|target
 if [ -n "${CLOSE_RE:-}" ] && ! repo_owns gitlab/guard.d/40-gitlab-closing tracker \
    && printf '%s' "$flat" | grep -qE "$CLOSE_RE" \
    && printf '%s' "$flat" | grep -qE "${GLP}mr\s+${GLR}(create|new|update)\b"; then
-  deny "closing keyword + ticket key would let GitLab transition the Jira ticket; ticket state is human-only — mention the key instead (e.g. '${HARNESS_TICKET_EXAMPLE:-PROJ-123} fix parser')"
+  deny "closing keyword + ticket key would let GitLab transition the Jira ticket as a side effect (denied even on request) — mention the key instead (e.g. '${HARNESS_TICKET_EXAMPLE:-PROJ-123} fix parser')"
 fi
 # gl_words TEXT -> one line per glab command head: 'glab api', or 'glab NOUN VERB' (sorted)
 gl_words() { printf '%s' "$1" | grep -oE "\bglab\s+${GLR}(api|(${GL_NOUNS})\s+${GLR}[A-Za-z-]+)" | sed -E 's/[[:space:]]+/ /g' | sort; }

@@ -71,6 +71,7 @@ t  ask   'glab mr create -s feat-x -b master --title "LBL-1 x" -y && glab mr upd
 # ---- harness parameters: ticket example in reasons (core.ticket_example)
 tr "e\.g\. 'PROJ-123 fix parser'"                           'git commit -m "Closes LBL-1 parser"'
 HARNESS_TICKET_EXAMPLE=ABC-9 tr "e\.g\. 'ABC-9 fix parser'" 'git commit -m "Closes LBL-1 parser"'
+tr 'side effect \(denied even on request\)'                 'git commit -m "Closes LBL-1 parser"'
 # ---- MR title convention (gitlab.mr_title_re), --fill and --related-issue
 t  ask   'glab mr create --fill -y'
 t  ask   'glab mr create -f --label agent-worked -y'
