@@ -33,7 +33,7 @@ runs or yours does. A hub component yields in one of three ways:
 | agent | `name` | your agent of the same name runs instead (where the provider resolves agents by name) |
 | rule | `text` | stays in the agent's context; its text says your instructions win where they differ |
 | permission list | `config` | merged by the provider; you can add entries, never lift a deny |
-| credential denies | `never` | always apply: `core/guard.d/20-credentials`, `core/permissions`, and the `# never-yields:` preludes (commands that print a stored credential; the ask on shell writes to `.harness.toml`) |
+| credential denies | `never` | always apply: `core/guard.d/20-credentials`, `core/permissions`, and the `# never-yields:` preludes (commands that print a stored credential, reads of the developer's Sigstore keys; the ask on shell writes to `.harness.toml`) |
 | CLI, MCP server, installer, doctor check, manual step | `n/a` | nothing repository-level corresponds |
 
 The generated [reference at the end of this page](#reference-what-yields) lists every
@@ -174,6 +174,13 @@ the list in front of you; the [hook policy](reference/hook-policy.md) shows each
   `helm get values` ask, the Secret-value deny (`kubectl get secret … -o yaml`) and the
   kubeconfig-mutation denies (`kubectl config use-context`, `set-*`).
 - **`workspace`** (`gdoc/guard.d/80-gdoc`): the Drive provenance gate and the mail-send ask.
+- **`security`** (`supply-chain/guard.d/38-supply-chain`): the verification-off denies (`pip
+  --trusted-host`, `uv --allow-insecure-host`, `strict-ssl false`, `http.sslVerify=false`,
+  `GIT_SSL_NO_VERIFY`, `GOINSECURE`, `GOSUMDB=off`, `cosign verify --insecure-*`), the read deny on
+  the repository's own `cosign.key`, and the global-install, unpinned-dependency, signing and
+  insecure-download asks. The read deny on the developer's Sigstore keys under `~/.sigstore/`
+  stays (a `# never-yields:` prelude), and so do the credential denies of
+  `core/guard.d/20-credentials`.
 
 To keep one of them, own single components instead of the domain, or set an override
 (`WORK_TICKET_ALLOW_TRANSITION = "1"` turns the transition deny into an ask and keeps the rest
@@ -191,8 +198,9 @@ Never yield, whatever the file says:
 - the `# never-yields:` preludes above a section's `repo_owns` line: in
   `github/guard.d/60-github` the commands that print the stored GitHub token (`gh auth token`,
   `gh auth status --show-token`, `gh config get oauth_token`), in `k8s/guard.d/25-k8s-rules`
-  `kubectl config view --raw`, and in `core/guard.d/30-git` the ask on shell writes to
-  `.harness.toml`.
+  `kubectl config view --raw`, in `supply-chain/guard.d/38-supply-chain` the read deny on
+  Sigstore signing keys under `~/.sigstore/`, and in `core/guard.d/30-git` the ask on shell
+  writes to `.harness.toml`.
 
 They protect the developer who installed the hub, not the repository; a cloned repository's
 committed settings cannot lift them, and `[owns]` naming them is ignored. The guard also
@@ -237,7 +245,7 @@ Components that yield by declaration: listing a domain in `[owns] domains` cover
 | `kubernetes` | `k8s/guard.d/25-k8s-rules` | `k8s/skills/k8s` |
 | `workspace` | `gdoc/guard.d/80-gdoc` | `gdoc/skills/gdoc` |
 | `operations` | `obs/guard.d/32-obs` | `obs/skills/obs` |
-| `security` | — | — |
+| `security` | `supply-chain/guard.d/38-supply-chain` | — |
 
 | id | kind | domain | bundle |
 |---|---|---|---|
@@ -258,11 +266,12 @@ Components that yield by declaration: listing a domain in `[owns] domains` cover
 | `obs/skills/obs` | skill | operations | obs |
 | `stack/guard.d/65-stack` | guard | scm | stack |
 | `stack/skills/stk` | skill | scm | stack |
+| `supply-chain/guard.d/38-supply-chain` | guard | security | supply-chain |
 | `ticket-workflow/guard.d/75-ticket-workflow` | guard | delivery | ticket-workflow |
 | `ticket-workflow/skills/create-ticket` | skill | delivery | ticket-workflow |
 | `ticket-workflow/skills/work-ticket` | skill | delivery | ticket-workflow |
 
-Never yield, whatever the file says: `core/guard.d/20-credentials`, `core/permissions`, and the `# never-yields:` prelude rules of `core/guard.d/30-git`, `github/guard.d/60-github`, `k8s/guard.d/25-k8s-rules`, `obs/guard.d/32-obs` (marked `never` in the [hook policy](reference/hook-policy.md)). Agents yield by name, rules by text and permission lists by config ([taxonomy](reference/taxonomy.md)).
+Never yield, whatever the file says: `core/guard.d/20-credentials`, `core/permissions`, and the `# never-yields:` prelude rules of `core/guard.d/30-git`, `github/guard.d/60-github`, `k8s/guard.d/25-k8s-rules`, `obs/guard.d/32-obs`, `supply-chain/guard.d/38-supply-chain` (marked `never` in the [hook policy](reference/hook-policy.md)). Agents yield by name, rules by text and permission lists by config ([taxonomy](reference/taxonomy.md)).
 <!-- generated:end -->
 
 Override names and defaults: [hook policy → Repo overrides](reference/hook-policy.md#repo-overrides).
