@@ -48,8 +48,9 @@ asks instead of denying). Git remotes stay SSH.
 GitLab via glab: MR-based workflow, agent-label write gates, stacked-MR rules, Jira closing-keyword deny
 
 Wires `glab` into the guard: MR creates are promptless (sub MRs must target the ticket branch),
-edits to agent-labelled MRs are promptless, human MRs ask, merge/approve and other team-visible
-actions ask, `glab api` writes ask. Closing keywords with a ticket key (`Closes KEY`) are denied
+edits to agent-labelled MRs are promptless, human MRs ask, merge/approve, human MR and issue
+state changes and other team-visible actions ask, `glab api` writes ask; from a subagent,
+merges, approvals and state changes are denied. Closing keywords with a ticket key (`Closes KEY`) are denied
 in commits, MR text and API payloads because GitLab's Jira integration would transition the
 ticket (section 40). Adds the GitLab section of the instructions and glab read permissions.
 
@@ -189,10 +190,10 @@ Guides steer the agent before it acts; sensors detect at or after the action. Pa
 
 | side | kind | ref | note | pairs with |
 |---|---|---|---|---|
-| guide | rule | `rules/50-gitlab.md` | MR-based delivery, ticket keys mentioned never closed, stacked sub MRs | `guard.d/40-gitlab-closing.sh`, `guard.d/50-gitlab.sh` |
+| guide | rule | `rules/50-gitlab.md` | MR-based delivery, merges and MR/issue state on explicit main-thread request only, ticket keys mentioned never closed, stacked sub MRs | `guard.d/40-gitlab-closing.sh`, `guard.d/50-gitlab.sh` |
 | guide | permission | `permissions.toml` | read-only glab commands allowed | `permissions-vs-guard` |
 | sensor | guard | `guard.d/40-gitlab-closing.sh` | denies closing keywords with a ticket key | `rules/50-gitlab.md` |
-| sensor | guard | `guard.d/50-gitlab.sh` | API writes, merges/approvals, stacked MR targets, label-gated edits; MR creates with --fill or --related-issue, or a -t title not matching gitlab.mr_title_re, ask | `rules/50-gitlab.md` |
+| sensor | guard | `guard.d/50-gitlab.sh` | API writes, merges/approvals and MR/issue state (main thread asks, subagent denied), stacked MR targets, label-gated edits; MR creates with --fill or --related-issue, or a -t title not matching gitlab.mr_title_re, ask | `rules/50-gitlab.md` |
 | sensor | doctor | `doctor_checks` | glab binary, auth, SSH and token file mode | — |
 | sensor | test | `guard.d/tests.sh` | guard rows with a stubbed glab | — |
 | sensor | test | `tests/run.sh` | this bundle's rows against core + gitlab only | — |
