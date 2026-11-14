@@ -4,7 +4,7 @@ description: >-
   Governed Jira-ticket → GitLab-MR workflow for any repo. Verifies the ticket against the code,
   gates every Jira write behind the `{{ core.agent_labels.worked }}` label, implements
   on a `<short-name>` branch (no ticket key in branches or commits), runs only the checks CI
-  lacks, and opens MRs that mention the key (never closes it; never merges or transitions on its own). S/M: ONE MR. L/XL:
+  lacks, and opens MRs that mention the key (never closes it or merges unasked). S/M: ONE MR. L/XL:
   Plan agent ({{ core.model_policy.plan }}) decomposes, optional sub-tickets, stacked MRs by
   default that humans merge bottom-up. Use when the user
   asks to work on / pick up / start / implement / fix a ticket key ({{ core.ticket_example }},
