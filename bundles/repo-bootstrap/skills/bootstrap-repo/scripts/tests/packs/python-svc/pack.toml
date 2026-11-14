@@ -1,0 +1,68 @@
+# Test pack (a stand-in for an org pack in repo_bootstrap.pack_dirs): a python service on uv.
+[pack]
+id = "python-svc"
+summary = "Python service on uv: pyproject, ruff hooks, a pytest CI job"
+order = 20
+
+[pack.match]
+"architecture.languages" = "python"
+"architecture.kind" = "service"
+
+[pack.covers]
+"architecture.toolchain" = "uv"
+
+[[question]]
+id = "python_version"
+prompt = "Python version?"
+type = "choice"
+choices = ["3.11", "3.12", "3.13"]
+default = "3.12"
+
+[[question]]
+id = "module"
+prompt = "Import package name?"
+default = "{{ repo.name }}"
+pattern = '^[a-z_][a-z0-9_]*$'
+
+[[file]]
+path = "pyproject.toml"
+template = "files/pyproject.toml"
+
+[[file]]
+path = "src/{{ pack.python-svc.module }}/__init__.py"
+template = "files/init.py"
+
+[[fragment]]
+slot = "precommit_repos"
+text = """  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.9
+    hooks:
+      - id: ruff
+      - id: ruff-format
+"""
+
+[[fragment]]
+slot = "gitlab_ci_jobs"
+when = "quality.ci_jobs has test"
+text = """
+pytest:
+  stage: test
+  image: python:{{ pack.python-svc.python_version }}-slim
+  script:
+    - pip install uv && uv sync && uv run pytest
+"""
+
+[[fragment]]
+slot = "github_ci_jobs"
+when = "quality.ci_jobs has test"
+text = """  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - run: uv sync && uv run pytest
+"""
+
+[[fragment]]
+slot = "mr_checklist"
+text = "- [ ] `uv run pytest` passes locally\n"

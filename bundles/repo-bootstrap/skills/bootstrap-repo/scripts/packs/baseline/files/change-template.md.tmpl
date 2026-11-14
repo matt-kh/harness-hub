@@ -1,0 +1,24 @@
+{{#if workflow.tracker == jira}}
+## Ticket
+
+{{ workflow.tracker_project }}-<number>
+
+{{/if}}
+{{#if workflow.tracker == github-issues}}
+Issue: #<number>
+
+{{/if}}
+## Summary
+
+<!-- What changes and why, in a few lines. -->
+
+## Testing
+
+<!-- How it was verified: commands run, environments, screenshots. -->
+
+## Checklist
+
+- [ ] The title {{#if workflow.tracker == jira}}starts with the ticket key{{else}}says what changes{{/if}}
+- [ ] Tests and docs updated where behaviour changed
+- [ ] No secrets, credentials or customer data in the diff
+{{slot mr_checklist}}

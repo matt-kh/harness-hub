@@ -76,6 +76,25 @@ prints every one between your applied version and the new one.
 
 ### Added
 
+- Bundle `repo-bootstrap` (experimental; domain `scm`, posture `label-gated`, function `setup`).
+  `/bootstrap-repo` and the `repoboot` CLI (questions, answer, plan, render, apply, check)
+  bootstrap git repositories to one standard — locally and on GitHub or GitLab — and retrofit
+  existing ones. A standard intake (`questions.toml`) asks only what is still open, in at most
+  two rounds; answers live in the repository's `.repo-standard.toml`. The bundled `baseline`
+  pack writes hygiene files, README, MR/PR and issue templates (ticket mentions, never closing
+  keywords), CODEOWNERS, license, pre-commit config and a CI lint job; architecture-specific
+  packs come from `repo_bootstrap.pack_dirs` (files, slot fragments, their own questions). `apply`
+  creates the repository, makes the first push only after `git ls-remote` shows an empty remote,
+  and sets merge settings, default-branch protection (GitHub ruleset, GitLab protected branch)
+  and the `agent-*` labels; it never writes `.harness.toml` (the plan carries the draft). Guard
+  section `67-repo-bootstrap` asks on `repoboot apply`; the other verbs are allowed by
+  `permissions.toml`. Golden suite against stubbed gh/glab and a real-git sandbox.
+
+  **Migration:** new config keys `repo_bootstrap.pack_dirs`, `.default_visibility`,
+  `.default_merge_method`, `.required_approvals`, `.default_license`, `.github_owner`,
+  `.gitlab_namespace` and `.gitlab_remove_source_branch`, all with defaults; nothing changes
+  until the bundle is added to `hub.bundles`.
+
 - Neutral hook events beyond the guard (ARCHITECTURE §3–§5; roadmap "Provider hooks beyond
   `PreToolUse`"). Bundles register hook scripts with `[[provides.hooks]]` (`event` = `prompt`
   or `stop`, with `session-start` and `session-end` reserved; `script` = `hooks/<name>.sh`;

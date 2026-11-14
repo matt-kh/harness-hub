@@ -1,0 +1,383 @@
+$ repoboot answer --dir SANDBOX/r --infer
+{
+  "verb": "answer",
+  "spec": "SANDBOX/r/.repo-standard.toml",
+  "changed": {
+    "repo.name": "r",
+    "repo.host": "github",
+    "repo.owner": "o",
+    "workflow.default_branch": "main"
+  },
+  "packs": [
+    "baseline"
+  ],
+  "open": [
+    "repo.visibility",
+    "repo.description",
+    "repo.license",
+    "workflow.merge_method",
+    "workflow.required_approvals",
+    "workflow.codeowners",
+    "workflow.tracker",
+    "workflow.agent_labels",
+    "architecture.kind",
+    "architecture.languages",
+    "architecture.notes",
+    "quality.precommit",
+    "quality.ci_jobs"
+  ],
+  "exit": 0
+}
+[rc 0]
+$ repoboot answer --dir SANDBOX/r architecture.kind=docs --accept-defaults
+{
+  "verb": "answer",
+  "spec": "SANDBOX/r/.repo-standard.toml",
+  "changed": {
+    "architecture.kind": "docs",
+    "repo.visibility": "private",
+    "repo.description": "",
+    "repo.license": "none",
+    "workflow.merge_method": "squash",
+    "workflow.required_approvals": 1,
+    "workflow.codeowners": [],
+    "workflow.tracker": "github-issues",
+    "workflow.agent_labels": true,
+    "architecture.languages": [],
+    "architecture.notes": "",
+    "quality.precommit": true,
+    "quality.ci_jobs": [
+      "lint"
+    ],
+    "quality.required_checks": [
+      "lint"
+    ]
+  },
+  "packs": [
+    "baseline"
+  ],
+  "open": [],
+  "exit": 0
+}
+[rc 0]
+$ repoboot check --dir SANDBOX/r --fix --text
+repoboot check — SANDBOX/r
+pack  baseline
+warn  file:.editorconfig: missing (baseline)
+      fix: git switch -c repo-standard && repoboot render, then open an MR/PR
+warn  file:.gitattributes: missing (baseline)
+      fix: git switch -c repo-standard && repoboot render, then open an MR/PR
+warn  file:.github/ISSUE_TEMPLATE/bug.yml: missing (baseline)
+      fix: git switch -c repo-standard && repoboot render, then open an MR/PR
+warn  file:.github/ISSUE_TEMPLATE/config.yml: missing (baseline)
+      fix: git switch -c repo-standard && repoboot render, then open an MR/PR
+warn  file:.github/ISSUE_TEMPLATE/feature.yml: missing (baseline)
+      fix: git switch -c repo-standard && repoboot render, then open an MR/PR
+warn  file:.github/pull_request_template.md: missing (baseline)
+      fix: git switch -c repo-standard && repoboot render, then open an MR/PR
+warn  file:.github/workflows/ci.yml: missing (baseline)
+      fix: git switch -c repo-standard && repoboot render, then open an MR/PR
+warn  file:.gitignore: missing (baseline)
+      fix: git switch -c repo-standard && repoboot render, then open an MR/PR
+warn  file:.pre-commit-config.yaml: missing (baseline)
+      fix: git switch -c repo-standard && repoboot render, then open an MR/PR
+warn  file:README.md: differs from the standard (baseline)
+      fix: git switch -c repo-standard && repoboot render --force, then open an MR/PR
+info  harness: no .harness.toml: the user-level harness applies unchanged
+      fix: harness repo init (prints a draft for you to review and commit)
+ok    setting:allow_auto_merge: false
+warn  setting:allow_merge_commit: true, the standard says false
+      fix: gh api -X PATCH repos/o/r -F allow_merge_commit=false -F allow_rebase_merge=false -F delete_branch_on_merge=true
+warn  setting:allow_rebase_merge: true, the standard says false
+      fix: gh api -X PATCH repos/o/r -F allow_merge_commit=false -F allow_rebase_merge=false -F delete_branch_on_merge=true
+ok    setting:allow_squash_merge: true
+warn  setting:delete_branch_on_merge: false, the standard says true
+      fix: gh api -X PATCH repos/o/r -F allow_merge_commit=false -F allow_rebase_merge=false -F delete_branch_on_merge=true
+warn  protection: the default branch is not protected
+      fix: gh api -X POST repos/o/r/rulesets --input @BODY  (body: repoboot plan --json)
+ok    label:agent-worked: present
+warn  label:agent-created: missing
+      fix: gh label create agent-created -R o/r -c 0e8a16 -d 'Created by an agent'
+warn  label:agent-drafted: missing
+      fix: gh label create agent-drafted -R o/r -c fbca04 -d 'Drafted by an agent; a human confirms it'
+[rc 1]
+$ repoboot render --dir SANDBOX/r --text
+repoboot: SANDBOX/r is on its default branch main: switch to a branch first (git -C SANDBOX/r switch -c repo-standard), render there and open an MR/PR
+[rc 1]
+$ repoboot render --dir SANDBOX/r --text
+repoboot render — SANDBOX/r
+wrote .editorconfig
+wrote .gitattributes
+wrote .github/ISSUE_TEMPLATE/bug.yml
+wrote .github/ISSUE_TEMPLATE/config.yml
+wrote .github/ISSUE_TEMPLATE/feature.yml
+wrote .github/pull_request_template.md
+wrote .github/workflows/ci.yml
+wrote .gitignore
+wrote .pre-commit-config.yaml
+kept  README.md
+note: 1 file(s) differ from the standard and were kept; review `repoboot plan`, then `repoboot render --force` to replace them
+[rc 1]
+$ repoboot render --dir SANDBOX/r --force --text
+repoboot render — SANDBOX/r
+wrote README.md
+[rc 0]
+$ repoboot plan --dir SANDBOX/r
+{
+  "verb": "plan",
+  "dir": "SANDBOX/r",
+  "spec": "SANDBOX/r/.repo-standard.toml",
+  "mode": "existing",
+  "host": "github",
+  "packs": [
+    {
+      "id": "baseline",
+      "summary": "Hygiene files, README, MR/PR and issue templates, CODEOWNERS, license, pre-commit and a CI lint job",
+      "dir": "SCRIPTS/packs/baseline"
+    }
+  ],
+  "uncovered": [],
+  "files": [
+    {
+      "path": ".editorconfig",
+      "pack": "baseline",
+      "status": "same"
+    },
+    {
+      "path": ".gitattributes",
+      "pack": "baseline",
+      "status": "same"
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/bug.yml",
+      "pack": "baseline",
+      "status": "same"
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/config.yml",
+      "pack": "baseline",
+      "status": "same"
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/feature.yml",
+      "pack": "baseline",
+      "status": "same"
+    },
+    {
+      "path": ".github/pull_request_template.md",
+      "pack": "baseline",
+      "status": "same"
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "pack": "baseline",
+      "status": "same"
+    },
+    {
+      "path": ".gitignore",
+      "pack": "baseline",
+      "status": "same"
+    },
+    {
+      "path": ".pre-commit-config.yaml",
+      "pack": "baseline",
+      "status": "same"
+    },
+    {
+      "path": "README.md",
+      "pack": "baseline",
+      "status": "same"
+    }
+  ],
+  "local": [],
+  "remote": [
+    {
+      "id": "settings",
+      "kind": "write",
+      "argv": [
+        "gh",
+        "api",
+        "-X",
+        "PATCH",
+        "repos/o/r",
+        "-F",
+        "allow_merge_commit=false",
+        "-F",
+        "allow_rebase_merge=false",
+        "-F",
+        "delete_branch_on_merge=true"
+      ],
+      "note": "align the merge settings with the standard",
+      "command": "gh api -X PATCH repos/o/r -F allow_merge_commit=false -F allow_rebase_merge=false -F delete_branch_on_merge=true"
+    },
+    {
+      "id": "protection",
+      "kind": "write",
+      "argv": [
+        "gh",
+        "api",
+        "-X",
+        "POST",
+        "repos/o/r/rulesets",
+        "--input",
+        "@BODY"
+      ],
+      "note": "default-branch ruleset 'repo-standard': PRs only, 1 approval(s), no force-push or deletion, required checks",
+      "body": {
+        "name": "repo-standard",
+        "target": "branch",
+        "enforcement": "active",
+        "conditions": {
+          "ref_name": {
+            "include": [
+              "~DEFAULT_BRANCH"
+            ],
+            "exclude": []
+          }
+        },
+        "rules": [
+          {
+            "type": "deletion"
+          },
+          {
+            "type": "non_fast_forward"
+          },
+          {
+            "type": "pull_request",
+            "parameters": {
+              "required_approving_review_count": 1,
+              "dismiss_stale_reviews_on_push": true,
+              "require_code_owner_review": false,
+              "require_last_push_approval": false,
+              "required_review_thread_resolution": true
+            }
+          },
+          {
+            "type": "required_status_checks",
+            "parameters": {
+              "strict_required_status_checks_policy": false,
+              "required_status_checks": [
+                {
+                  "context": "lint"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "tolerate": {
+        "403": "rulesets on a private repository need GitHub Pro, Team or Enterprise (or a public repository); protect the default branch by hand or upgrade the plan"
+      },
+      "command": "gh api -X POST repos/o/r/rulesets --input @BODY"
+    },
+    {
+      "id": "label:agent-created",
+      "kind": "write",
+      "argv": [
+        "gh",
+        "label",
+        "create",
+        "agent-created",
+        "-R",
+        "o/r",
+        "-c",
+        "0e8a16",
+        "-d",
+        "Created by an agent"
+      ],
+      "note": "provenance label agent-created",
+      "command": "gh label create agent-created -R o/r -c 0e8a16 -d 'Created by an agent'"
+    },
+    {
+      "id": "label:agent-drafted",
+      "kind": "write",
+      "argv": [
+        "gh",
+        "label",
+        "create",
+        "agent-drafted",
+        "-R",
+        "o/r",
+        "-c",
+        "fbca04",
+        "-d",
+        "Drafted by an agent; a human confirms it"
+      ],
+      "note": "provenance label agent-drafted",
+      "command": "gh label create agent-drafted -R o/r -c fbca04 -d 'Drafted by an agent; a human confirms it'"
+    }
+  ],
+  "findings": [
+    {
+      "severity": "ok",
+      "key": "setting:allow_auto_merge",
+      "message": "false"
+    },
+    {
+      "severity": "warn",
+      "key": "setting:allow_merge_commit",
+      "message": "true, the standard says false",
+      "fix": "gh api -X PATCH repos/o/r -F allow_merge_commit=false -F allow_rebase_merge=false -F delete_branch_on_merge=true"
+    },
+    {
+      "severity": "warn",
+      "key": "setting:allow_rebase_merge",
+      "message": "true, the standard says false",
+      "fix": "gh api -X PATCH repos/o/r -F allow_merge_commit=false -F allow_rebase_merge=false -F delete_branch_on_merge=true"
+    },
+    {
+      "severity": "ok",
+      "key": "setting:allow_squash_merge",
+      "message": "true"
+    },
+    {
+      "severity": "warn",
+      "key": "setting:delete_branch_on_merge",
+      "message": "false, the standard says true",
+      "fix": "gh api -X PATCH repos/o/r -F allow_merge_commit=false -F allow_rebase_merge=false -F delete_branch_on_merge=true"
+    },
+    {
+      "severity": "warn",
+      "key": "protection",
+      "message": "the default branch is not protected",
+      "fix": "gh api -X POST repos/o/r/rulesets --input @BODY  (body: repoboot plan --json)"
+    },
+    {
+      "severity": "ok",
+      "key": "label:agent-worked",
+      "message": "present"
+    },
+    {
+      "severity": "warn",
+      "key": "label:agent-created",
+      "message": "missing",
+      "fix": "gh label create agent-created -R o/r -c 0e8a16 -d 'Created by an agent'"
+    },
+    {
+      "severity": "warn",
+      "key": "label:agent-drafted",
+      "message": "missing",
+      "fix": "gh label create agent-drafted -R o/r -c fbca04 -d 'Drafted by an agent; a human confirms it'"
+    }
+  ],
+  "notes": [
+    ".harness.toml is drafted for the human to review and commit; repoboot never writes it"
+  ],
+  "remote_state": "o/r exists (private, default branch main)",
+  "harness_toml_draft": "# .harness.toml - repository-level harness declaration (harness-hub, principle 8).\n[repo]\nname = \"r\"\ntracker = \"github-issues\"\n# project = \"PROJ\"   # default Jira project for /create-ticket (tracker = jira only)\n\n[owns]\n# domains = [\"delivery\"]\n",
+  "exit": 0
+}
+[rc 0]
+--- stub calls
+gh api repos/o/r
+gh api repos/o/r/branches?per_page=1
+gh api repos/o/r/rules/branches/main
+gh api repos/o/r/branches/main/protection
+gh api repos/o/r/rulesets
+gh label list -R o/r --json name --limit 500
+gh api repos/o/r
+gh api repos/o/r/branches?per_page=1
+gh api repos/o/r/rules/branches/main
+gh api repos/o/r/branches/main/protection
+gh api repos/o/r/rulesets
+gh label list -R o/r --json name --limit 500

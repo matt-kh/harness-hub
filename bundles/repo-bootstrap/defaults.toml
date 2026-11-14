@@ -1,0 +1,11 @@
+# Defaults for bundle `repo-bootstrap`.
+
+[repo_bootstrap]
+pack_dirs = []
+default_visibility = "private"
+default_merge_method = "squash"
+required_approvals = 1
+default_license = "none"
+github_owner = ""
+gitlab_namespace = ""
+gitlab_remove_source_branch = "auto"
