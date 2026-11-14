@@ -343,6 +343,7 @@ tr "run it only on the user's explicit request \(they confirm it\), or ask the u
 tr 'requires explicit user confirmation' 'jira transition HUM-1 Done'
 tr 'type the key literally' 'jira transition "$KEY" Done'
 tr 'could not verify labels' 'jira transition ERR-1 Done'
+tr 'type a literal key and retry, or ask the user to transition it' 'jira transition ERR-1 Done'
 tr 'write it literally' 'jira "transition" HUM-1 Done'
 tr 'write it literally' 'jira "$VERB" HUM-1 Done'
 tr 'write the jira subcommand literally and unquoted instead' 'jira "comment" HUM-1 x'

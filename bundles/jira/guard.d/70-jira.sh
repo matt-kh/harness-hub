@@ -725,7 +725,7 @@ keys=$(printf '%s\n' $keys | sort -u | tr '\n' ' ' | sed 's/^ *//; s/ *$//')
 all_gov=true; state_human=false
 for k in $keys; do
   lb=$(fetch_labels "$k") || {
-    $is_state && deny "jira state change on $k — could not verify labels; ticket state is human-only, ask the user to transition it instead"
+    $is_state && deny "jira state change on $k — could not verify labels on $k (jira get failed: timeout/auth/403); check 'jira whoami', type a literal key and retry, or ask the user to transition it"
     defer "jira write to $k — could not verify its labels (jira get failed: timeout/auth/403); check 'jira whoami', or ask the user"
     return 0
   }
