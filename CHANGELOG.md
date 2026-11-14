@@ -73,6 +73,16 @@ prints every one between your applied version and the new one.
   `sync_inline.py --check`. Follow-ups (roadmap): `work-ticket` and `gdoc` suites,
   `stability` at `beta`, helper bodies outside markers, shared Jira facts, `tests-boilerplate`.
   Resolves the principle 1 open question on a shared python helper library.
+- `principles_version: 4`: principle 2, **humans decide; an agent acts on an explicit
+  main-thread request** — replaces "agents never merge PRs/MRs and never change ticket or issue
+  state". Merging, approving, closing, reopening or readying a PR/MR, closing or reopening an
+  issue and transitioning a ticket stay human decisions; an agent carries one out only when the
+  user explicitly asks for it in the main thread, and the guard confirms every such call (ask).
+  Subagents never do it: the guard denies when the hook input identifies a subagent caller and
+  falls back to ask on providers that cannot identify one. Closing keywords stay denied.
+  Checks: guard sections 50, 60, 70 rows (main ask, subagent deny), landing with the guard
+  change; until then the current guard decisions apply. Follow-ups (#67): guard, rules and
+  docs, skills.
 
 ### Added
 

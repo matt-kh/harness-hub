@@ -1,6 +1,6 @@
 # Principles
 
-principles_version: 3
+principles_version: 4
 
 The ten principles below are the core of harness-hub. Every change to this repository
 serves at least one of them or is neutral to all of them. Read this page before changing the
@@ -20,7 +20,9 @@ repo; open the linked document when your change touches that area.
    reviewed reason. → [01-lightweight](principles/01-lightweight.md)
 2. **Developer-first.** Harnesses serve developer workflows across all software engineering
    disciplines; every block names the allowed alternative, and the developer's own files and
-   decisions stay theirs. → [02-developer-first](principles/02-developer-first.md)
+   decisions stay theirs: humans decide merges, approvals and PR/MR, issue and ticket state,
+   and an agent carries one out only on the user's explicit main-thread request, confirmed by
+   the guard — never from a subagent. → [02-developer-first](principles/02-developer-first.md)
 3. **A platform for everyone.** Built from a platform developer's perspective to serve an
    organisation's developers, and presented as a platform for anyone: no organisation's values
    in the repo, every org value in config. → [03-platform-for-everyone](principles/03-platform-for-everyone.md)
