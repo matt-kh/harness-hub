@@ -6,7 +6,7 @@
 t deny  'git commit -m "Closes LBL-1 parser"'
 t deny  'git commit -m "Implements LBL-1"'
 t deny  'glab mr create --title "LBL-1 x" --description "Fixes: LBL-1" --label agent-worked'
-# GitLab: create + agent labelling free; existing MR gated on its labels; merge human-only
+# GitLab: create + agent labelling free; existing MR gated on its labels; merge is a human decision (ask; subagent deny)
 t allow 'glab mr create --source-branch b --target-branch master --title "LBL-1 x" --label agent-worked --squash-before-merge --yes'
 t allow 'glab mr create --title "LBL-1 x" --label "agent-worked,bug"'
 t allow 'glab mr create --title "LBL-1 x"'
@@ -132,7 +132,7 @@ T_AGENT=a1 r pass 'glab api -X PUT projects/1/merge_requests/1/merge'
 decl
 # runtime deny/ask messages carry the # rule: alternative (lint guard-messages)
 tr 'matching glab subcommand' 'glab api --method POST projects'
-tr 'human-only.*ask the user instead' 'glab mr merge 100'
+tr 'human decision.*ask the user instead' 'glab mr merge 100'
 # ---- humans decide (#67): merge, approve and MR/issue state ---------------------------
 # main thread: merge/approve/revoke and issue close/reopen ask; MR state asks on a human MR,
 # an agent-labelled MR keeps allow

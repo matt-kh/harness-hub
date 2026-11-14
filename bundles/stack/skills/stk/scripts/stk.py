@@ -41,7 +41,7 @@ Common flags: -R/--repo owner/repo (default: the origin remote), --provider gitl
 --json (the default when stdout is not a TTY) / --text.
 Exit codes: 0 nothing to do or all done, 1 action needed by a human, 2 auth/access error.
 
-Deliberately NOT implemented: merging (humans merge in the UI), `--force` (only
+Deliberately NOT implemented: merging (humans decide merges; see the skill), `--force` (only
 `--force-with-lease`, only sub branches), `reset --hard`, `rebase --continue` on your behalf,
 approving, `glab stack`, local state files.
 

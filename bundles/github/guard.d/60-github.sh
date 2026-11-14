@@ -3,7 +3,7 @@
 # Section 60 (bundle github): gh governance.
 # rule: gh api -X non-GET | --input | fields without a method | graphql mutation -> ask : API write; ask the user, or use the matching gh subcommand
 # rule: gh api write (as above) from a subagent -> deny : a raw API write can merge or change state; hand the command back to the main thread
-# rule: gh pr merge|review, gh issue delete|transfer -> ask : merging, reviewing and deleting/transferring issues are human-only; run it only on the user's explicit request (they confirm it), or ask the user instead
+# rule: gh pr merge|review, gh issue delete|transfer -> ask : merging, reviewing and deleting/transferring issues are human decisions; run it only on the user's explicit request (they confirm it), or ask the user instead
 # rule: gh pr merge|review, gh issue delete|transfer from a subagent -> deny : a subagent never merges, reviews or deletes; hand the command back to the main thread
 # rule: (close|fix|resolve) #N in gh pr create|new|edit|merge with -Ro/r or the new alias (forms 41 misses) -> deny : a closing keyword would change the issue's state as a side effect; mention #N instead (see #N); yields like 41 (tracker)
 # rule: gh with quoted/escaped command words or a $VAR/$(…) subcommand -> ask : the subcommand cannot be checked; write it literally and unquoted instead (a subagent is denied)
@@ -137,7 +137,7 @@ EOF
   # -- 3. humans merge/review and delete/transfer issues (a human decision: main thread asks, a
   #       subagent is denied); team-visible actions — releases, repos, workflows, secrets, auth … — ask
   printf '%s' "$flat" | grep -qE "$GH_HUMAN_RE" \
-    && human_decision_defer "gh pr merge/review or gh issue delete/transfer — merging, reviewing and deleting are human-only; run it only on the user's explicit request (they confirm it), or ask the user instead"
+    && human_decision_defer "gh pr merge/review or gh issue delete/transfer — merging, reviewing and deleting are human decisions; run it only on the user's explicit request (they confirm it), or ask the user instead"
   printf '%s' "$flat" | grep -qE "$GH_TEAM_RE" \
     && defer "gh team-visible action (releases/repos/workflows/secrets/auth/gists are not governed) — ask the user instead"
 
