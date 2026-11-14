@@ -86,6 +86,12 @@ prints every one between your applied version and the new one.
 
 ### Added
 
+- Guard engine: reads the hook input's `agent_id` (set by Claude Code on calls from a subagent
+  or in-process teammate; `agent_type` is never read, since a `--agent` main thread carries it
+  too) into `IN_SUBAGENT`, and offers `human_decision` / `human_decision_defer` for sections:
+  deny inside a subagent (hand the command back to the main thread), else ask / defer. Guard
+  rows gain the `T_AGENT`, `T_AGENT_NULL` and `T_AGENT_TYPE` knobs through one input builder.
+  No guard decision changes yet; sections adopt the helpers in later parts of #67.
 - Neutral hook events beyond the guard (ARCHITECTURE §3–§5; roadmap "Provider hooks beyond
   `PreToolUse`"). Bundles register hook scripts with `[[provides.hooks]]` (`event` = `prompt`
   or `stop`, with `session-start` and `session-end` reserved; `script` = `hooks/<name>.sh`;

@@ -27,6 +27,8 @@
 #                                fresh absolute dir: line expected) or a literal: nothing expected),
 #                                TJ_NOHOME=1 (HOME unset)
 # EXPECTED is allow | ask | deny | pass (pass = no output, the provider decides).
+# Every helper builds its input with t_input (below); T_AGENT=<id> makes the row a subagent
+# call, e.g. `T_AGENT=a1 t deny '…'` (T_AGENT_NULL, T_AGENT_TYPE: see t_input).
 # Prefix env assignments work as usual: `WORK_TICKET_ALLOW_TRANSITION=1 t ask '…'`.
 # NOTE: `tr` shadows the tr(1) command inside the test shell; the guard runs in its own bash.
 #
@@ -44,7 +46,8 @@ export GUARD_GIT="$STUBS/git-stub.sh"   # current branch via GIT_STUB_BRANCH (un
 export WORK_TICKET_GH="$STUBS/gh-stub.sh"
 unset GIT_STUB_BRANCH GIT_STUB_TOPLEVEL WORK_TICKET_ALLOW_DEFAULT_PUSH_RE WORK_TICKET_ALLOW_TRANSITION WORK_TICKET_KEY_IN_BRANCH \
       WORK_TICKET_LABELED_DECISION WORK_TICKET_BASE_BRANCH_RE HARNESS_CRED_EXTRA_RE \
-      HARNESS_LESSONS_JOURNAL HARNESS_GUARD_ID HARNESS_PROVIDER TJ_SESSION TJ_CWD TJ_SITE TJ_JOURNAL_DIR TJ_REPO TJ_STATE TJ_NOHOME
+      HARNESS_LESSONS_JOURNAL HARNESS_GUARD_ID HARNESS_PROVIDER TJ_SESSION TJ_CWD TJ_SITE TJ_JOURNAL_DIR TJ_REPO TJ_STATE TJ_NOHOME \
+      T_AGENT T_AGENT_NULL T_AGENT_TYPE
 # every row's journal (should one ever be written by mistake) lands in a sink, never in ~/.local/state
 tjd=$(mktemp -d)
 export HARNESS_JOURNAL_DIR="$tjd/sink/journal" HARNESS_RETRO_DIR="$tjd/sink/retro" XDG_STATE_HOME="$tjd/sink/state"
@@ -52,9 +55,24 @@ T_REPO="${T_REPO:-shop}"                     # repo directory name used by the r
 T_CWD="/home/u/dev/$T_REPO"                   # default cwd = a main checkout (need not exist)
 pass=${pass:-0}; fail=${fail:-0}
 
+t_input() {  # CWD CMD [SESSION] -> the hook input JSON every row helper sends (one builder)
+  # Caller knobs (prefix env; unset by default and on the unset list above, so never leaking):
+  #   T_AGENT=<id>      a subagent call: "agent_id":"<id>" plus "agent_type":"general-purpose";
+  #                     set but empty (T_AGENT='') sends "agent_id":"" (counts as main thread)
+  #   T_AGENT_NULL=1    "agent_id":null (counts as main thread)
+  #   T_AGENT_TYPE=<n>  "agent_type":"<n>" alone: the main thread of a session started with --agent
+  jq -cn --arg cwd "$1" --arg c "$2" --arg s "${3:-}" \
+     --arg a "${T_AGENT-}" --arg ha "${T_AGENT+1}" --arg an "${T_AGENT_NULL:-}" --arg at "${T_AGENT_TYPE:-}" '
+    (if $s != "" then {session_id:$s} else {} end)
+    + {cwd:$cwd,tool_input:{command:$c}}
+    + (if $ha == "1" then {agent_id:$a,agent_type:"general-purpose"} else {} end)
+    + (if $an == "1" then {agent_id:null} else {} end)
+    + (if $at != "" then {agent_type:$at} else {} end)'
+}
+
 tc() {  # expected cwd command
   local exp="$1" cwd="$2" cmd="$3" out d
-  out=$(jq -cn --arg cwd "$cwd" --arg c "$cmd" '{cwd:$cwd,tool_input:{command:$c}}' | bash "$H")
+  out=$(t_input "$cwd" "$cmd" | bash "$H")
   d=$(jq -r '.hookSpecificOutput.permissionDecision // "pass"' <<<"${out:-{\}}")
   if [ "$d" = "$exp" ]; then pass=$((pass+1)); printf 'PASS %-5s | [%s] %s\n' "$d" "$(basename "$cwd")" "$cmd"
   else fail=$((fail+1)); printf 'FAIL want=%s got=%s | [%s] %s\n   %s\n' "$exp" "$d" "$(basename "$cwd")" "$cmd" "$(jq -r '.hookSpecificOutput.permissionDecisionReason // ""' <<<"${out:-{\}}")"; fi
@@ -62,7 +80,7 @@ tc() {  # expected cwd command
 t() { tc "$1" "$T_CWD" "$2"; }
 tr() {  # reason-regex command  -- asserts the hook reason matches (decision must not be pass)
   local re="$1" cmd="$2" out d r
-  out=$(jq -cn --arg cwd "$T_CWD" --arg c "$cmd" '{cwd:$cwd,tool_input:{command:$c}}' | bash "$H")
+  out=$(t_input "$T_CWD" "$cmd" | bash "$H")
   d=$(jq -r '.hookSpecificOutput.permissionDecision // "pass"' <<<"${out:-{\}}")
   r=$(jq -r '.hookSpecificOutput.permissionDecisionReason // ""' <<<"${out:-{\}}")
   if printf '%s' "$r" | grep -qE "$re"; then pass=$((pass+1)); printf 'PASS %-5s | reason~/%s/ | %s\n' "$d" "$re" "$cmd"
@@ -78,7 +96,7 @@ r() { tc "$1" "$rpd" "$2"; }
 tn() {  # expected stderr-regex cwd command
   local exp="$1" re="$2" cwd="$3" cmd="$4" out err d ef
   ef=$(mktemp)
-  out=$(jq -cn --arg cwd "$cwd" --arg c "$cmd" '{cwd:$cwd,tool_input:{command:$c}}' | bash "$H" 2>"$ef")
+  out=$(t_input "$cwd" "$cmd" | bash "$H" 2>"$ef")
   err=$(cat "$ef"); rm -f "$ef"
   d=$(jq -r '.hookSpecificOutput.permissionDecision // "pass"' <<<"${out:-{\}}")
   if [ "$d" = "$exp" ] && printf '%s' "$err" | grep -qE -e "$re"; then
@@ -104,8 +122,7 @@ tj() {  # on|off|unset expected command
   if [ "$mode" = on ] && [ -z "${TJ_JOURNAL_DIR:-}" ] && { [ "$exp" = ask ] || [ "$exp" = deny ]; }; then
     case "${TJ_STATE:-}" in ''|abs) want_line=1 ;; esac
   fi
-  if [ -n "$sid" ]; then in=$(jq -cn --arg s "$sid" --arg cwd "$cwd" --arg c "$cmd" '{session_id:$s,cwd:$cwd,tool_input:{command:$c}}')
-  else in=$(jq -cn --arg cwd "$cwd" --arg c "$cmd" '{cwd:$cwd,tool_input:{command:$c}}'); fi
+  in=$(t_input "$cwd" "$cmd" "$sid")
   out=$(
     cd "$run/work" || exit 97                 # a relative journal dir would land here
     # (pattern) form: bash 3.2 cannot parse a bare `pat)` case inside $( … )
