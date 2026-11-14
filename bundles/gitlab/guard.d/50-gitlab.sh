@@ -126,7 +126,7 @@ EOF
           printf '%s' "$qt" | grep -qE "(^|[[:space:]])/(${GL_QA})([[:space:]]|$)" && qa_hit=true
         fi
         if [ -n "$qf" ]; then
-          case "$qf" in '~/'*) qf="$HOME/${qf#\~/}" ;; /*) ;; *) qf="${cwd:-.}/$qf" ;; esac
+          case "$qf" in \~/*) qf="$HOME/${qf#\~/}" ;; /*) ;; *) qf="${cwd:-.}/$qf" ;; esac
           case "$qf" in *'$'*|*'`'*|*/-) qa_blind=true; continue ;; esac
           if [ -f "$qf" ] && [ -r "$qf" ]; then
             grep -qE "^[[:space:]]*/(${GL_QA})([[:space:]]|$)" -- "$qf" 2>/dev/null && qa_hit=true
