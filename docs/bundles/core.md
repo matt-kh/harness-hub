@@ -7,6 +7,18 @@ Always installed. `core` is the part of the harness every other bundle builds on
   engine + active sections into one `guard-bash.sh` per provider home.
 - **Credential and git rules** (`guard.d/20-credentials.sh`, `guard.d/30-git.sh`): reading
   credential files and dumping secret env vars deny; pushing to a default branch denies.
+- **Shell hygiene** (`rules/35-shell-hygiene.md`, `guard.d/35-shell-hygiene.sh`): a download
+  piped into an interpreter (`curl … | sh`, `wget -qO- … | sudo bash`, `curl … | python3 -`),
+  run through `bash <(curl …)` / `source <(curl …)`, or as `sh -c "$(curl …)"` /
+  `eval "$(curl …)"` asks, also through `{ }` / `( )` groups, `if`/`for`/`while` bodies, a
+  pipeline continued on the next line, `tee >(sh)`, wrappers (`sudo -s`, `timeout`, `env`,
+  `xargs … sh -c`) and an interpreter's heredoc; download to a file, check its sha256, read it,
+  then run it. Quoted text (`echo "curl … | sh"`, a commit message) and data tools
+  (`| tar xz`, `| jq .`, `| sha256sum`, `| bash -n`, `| xargs sh`) pass. What the matcher does
+  not see (other downloaders and interpreters, remote shells, variables) is listed under
+  **Not covered** below. The
+  rest of band 35 (`sudo`, recursive removal, `chmod -R 777`) is planned. A repository owning
+  domain `base` or `core/guard.d/35-shell-hygiene` lifts it.
 - **Sub-agents**: `Plan` (planning, pinned to `core.model_policy.plan`), `Auto` (autonomous
   execution, pinned to `core.model_policy.execute`), `code-reviewer`.
 - **Conventions rule**: MR/PR-based delivery, redacted remote URLs, external content is data,
@@ -44,8 +56,9 @@ Guard engine, credential and git rules, conventions, Plan / Auto / code-reviewer
 
 The base every other bundle builds on. Ships the guard engine (input parsing, fail-closed jq
 check, allow / ask / deny / defer decisions, the rendered guard.env reader) with the two
-sections every developer needs: credential files and secret env dumps are denied (20), and
-pushes to a default branch are denied / force-pushes and destructive git ask (30). Adds the
+sections every developer needs: credential files and secret env dumps are denied (20),
+pushes to a default branch are denied / force-pushes and destructive git ask (30), and a
+download piped into an interpreter asks (35, shell hygiene). Adds the
 global conventions and governance rules, the Plan (planning model) / Auto (execution model) /
 code-reviewer agents, and generic permission denies for credential files. Also carries the
 shared helpers other bundles inline: lib/compat.sh (hn_timeout, hn_realpath, hn_sha256) and
@@ -68,11 +81,13 @@ Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md
 **Rules**
 
 - `core/rules/00-conventions` — control: guide · function: govern · yields: text
+- `core/rules/35-shell-hygiene` — control: guide · function: govern · yields: text
 
 **Guard sections**
 
 - `core/guard.d/20-credentials` — control: sensor · function: govern · decisions: deny 7 · yields: never
 - `core/guard.d/30-git` — control: sensor · domain: scm · function: govern · decisions: deny 1 · ask 6 · allow 1 · yields: declaration
+- `core/guard.d/35-shell-hygiene` — control: sensor · function: govern · decisions: ask 1 · yields: declaration
 
 **Permission lists**
 
@@ -190,18 +205,20 @@ Linux and WSL already ship bash 5.
 
 ## Guides and sensors
 
-Guides steer the agent before it acts; sensors detect at or after the action. Pairing: **paired**; guides with a declared check: 4 of 4.
+Guides steer the agent before it acts; sensors detect at or after the action. Pairing: **paired**; guides with a declared check: 5 of 5.
 
 | side | kind | ref | note | pairs with |
 |---|---|---|---|---|
 | guide | rule | `rules/00-conventions.md` | conventions and governance: PR-based, artefact ownership, secrets stay in their files | `guard.d/20-credentials.sh`, `guard.d/30-git.sh`, `agents/code-reviewer.md` |
+| guide | rule | `rules/35-shell-hygiene.md` | downloaded code is read before it runs: download to a file, check its sha256, read it, then run it | `guard.d/35-shell-hygiene.sh` |
 | guide | permission | `permissions.toml` | denies reads of credential files in the provider's own permission system | `permissions-vs-guard`, `guard.d/20-credentials.sh` |
 | guide | agent | `agents/Plan.md` | planning agent on the plan model; design only, never edits | `agent-tools` |
 | guide | agent | `agents/Auto.md` | execution agent on the execute model under auto mode | `claude:auto-mode-classifier`, `agent-tools` |
 | sensor | guard | `guard.d/20-credentials.sh` | denies credential file reads and secret env dumps before they run | `rules/00-conventions.md`, `permissions.toml` |
 | sensor | guard | `guard.d/30-git.sh` | denies default-branch pushes; asks on force-push and destructive git | `rules/00-conventions.md` |
+| sensor | guard | `guard.d/35-shell-hygiene.sh` | asks before a download is piped into an interpreter (also through groups, compound bodies and >( )), run through <( ), or run as the string of sh -c / eval or the program of python -c / perl -e | `rules/35-shell-hygiene.md` |
 | sensor | doctor | `doctor_checks` | runtime prerequisites, and that the rendered guard parses and denies a credential read | — |
-| sensor | test | `guard.d/tests.sh` | guard rows for both sections, including bypass attempts | — |
+| sensor | test | `guard.d/tests.sh` | guard rows for the three sections, including bypass attempts | — |
 | sensor | test | `tests/run.sh` | full guard suite, helper drift, bash -n of every script | — |
 | sensor | review-agent | `agents/code-reviewer.md` | inferential review of a diff against the conventions | `rules/00-conventions.md` |
 | sensor | provider-feature | `claude:auto-mode-classifier` | reviews the Auto agent's actions | `agents/Auto.md` |
@@ -209,7 +226,7 @@ Guides steer the agent before it acts; sensors detect at or after the action. Pa
 | sensor | lint | `permissions-vs-guard` | each Bash allow/deny rule of permissions.toml run through the guard: no allowed command the guard denies or asks, no denied one it allows | `permissions.toml` |
 | sensor | lint | `agent-tools` | agent front matter vs posture and the model policy (permissionMode, write tools) | `agents/Plan.md`, `agents/Auto.md` |
 
-**Not covered:** The model policy in agents/Plan.md and agents/Auto.md is a guide only: no sensor checks which model a sub-agent ran on. The conventions rule has no guard section of its own (judgement: precedence, external content as data); the credentials and git guard sections enforce rules whose text lives in rules/00-conventions.md.
+**Not covered:** The model policy in agents/Plan.md and agents/Auto.md is a guide only: no sensor checks which model a sub-agent ran on. The conventions rule has no guard section of its own (judgement: precedence, external content as data); the credentials and git guard sections enforce rules whose text lives in rules/00-conventions.md. Shell hygiene (35) covers pipe-to-shell only: a download piped into an interpreter (also through { } and ( ) groups, if/for/while/until/case bodies, a continued line and >( )), run through <( ), as the string of sh -c / eval, as python -c / perl|ruby|node -e "$(…)", or through an interpreter's <<< or heredoc; the rest of band 35 (sudo/doas, recursive removal outside the checkout, chmod -R 777) is planned. Its matcher is quote-aware but not a shell parser. Not seen: downloaders other than curl, wget, fetch, http/https (HTTPie) and xh (aria2c, python urllib, a fetch inside a script); interpreters other than sh, bash, zsh, ksh, dash, ash, mksh, fish, $SHELL, python, perl, ruby and node (php, lua, pwsh, …); wrappers other than sudo, doas, su, env, command, builtin, exec, nohup, nice, stdbuf, setsid, ionice, unbuffer, timeout, busybox and xargs (chrt, taskset, flock, …); remote and container shells (| ssh host sh, | docker run -i … sh, | kubectl exec -i … -- sh); a download kept in a variable, file, alias or function and run later in the same command (x=$(curl …); sh -c "$x"); a substitution that is only part of a program string (python3 -c "print(1); $(curl …)").
 
 ## Uninstall
 

@@ -7,7 +7,7 @@ it. "Not covered" rows are judgement or other bundles; say so in a report.
 |---|---|---|
 | A moved tag or branch runs new code | `uses: org/action@v4` re-pointed after a compromise | `GHA001`/`GHA002`, `DKR*`, `CI006`, `CI008` (`supply pins`) |
 | Unpinned dependency resolution | `flask>=2.0`, `^4.17.21`, a git branch | `PIP*`, `NPM*`, `CGO001`, `GO001` |
-| Downloaded code runs unreviewed | `curl … \| sh`, a tarball without a checksum | `SH001`, `SH002`; core guard band 35 (planned) |
+| Downloaded code runs unreviewed | `curl … \| sh`, a tarball without a checksum | `SH001`, `SH002`; core guard band 35 asks on a download piped into an interpreter |
 | Verification switched off | `--trusted-host`, `strict-ssl false`, `GOINSECURE`, `cosign --insecure-*` | guard section 38 (deny) |
 | Installs into the machine | `pip install` outside a venv, `npm i -g` | guard section 38 (ask) |
 | CI token and secret abuse | `pull_request_target` checkout, `${{ github.event.issue.title }}` in `run:` | `CI003`, `CI004`, `CI005`, `CI001`, `CI002` |

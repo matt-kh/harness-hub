@@ -49,7 +49,7 @@ ARCHITECTURE §3 is updated when a band is first used.
 | `32` | `32-obs` | obs | observability backends: after `25`–`27` so the k8s, iac and cloud credential denies win |
 | `33` | `33-slo` | slo | reserved; no section in v1 (nothing it wraps mutates) |
 | `34` | `34-incident` | incident | reserved; no section in v1 (its writes are sensed by gdoc `80`, jira `70`, k8s `25` and the closing-keyword sections) |
-| `35` | `35-shell-hygiene` | core | shell-level hazards (pipe to shell, privilege escalation, destructive removal outside the checkout); the pipe-to-shell rows land in a later part of #51 |
+| `35` | `35-shell-hygiene` | core | in use (pipe-to-shell only): asks on a download piped into an interpreter, `<(curl …)`, `sh -c "$(curl …)"` and `eval "$(curl …)"`; privilege escalation and destructive removal outside the checkout stay planned |
 | `36` | `36-containers` | containers | local-workstation tooling |
 | `37` | `37-db` | db | local and remote data tooling |
 | `38` | `38-supply-chain` | supply-chain | in use: verification-off denies, global-install, unpinned-dependency, signing and insecure-download asks; supersedes the planned `38-toolchain` ([Security track](#security-track)) |
@@ -106,7 +106,7 @@ bundle. **Status: planned.**
 | Item | Where | Components | Effort | Who benefits |
 |---|---|---|---|---|
 | Git hygiene | `core` rule + guard `31-git-hygiene` | deny `git add` of credential files (`.env*`, keys, kubeconfig); deny a staged hunk matching a secret shape; ask a staged file above `core.max_staged_kb` (default 5120); ask `--no-verify`, remote branch delete, `checkout -- .`/`restore .`, `stash drop|clear`, `filter-branch`, `reflog expire`; deny credentialed remote URLs; `git clean -n` passes. Needs the git stub to answer staged-file queries | M | all |
-| Shell hygiene | `core` rule + guard `35-shell-hygiene` | ask on a download piped to a shell, on `sudo`/`doas` (`core.sudo_decision = ask|pass`), on recursive removal outside the checkout and the scratch dir, on `chmod -R 777`; regenerable local artefacts (`node_modules`, `.venv`, `dist`, `target`) pass | S | all |
+| Shell hygiene | `core` rule + guard `35-shell-hygiene` | the ask on a download piped to a shell has shipped (#51); still planned: ask on `sudo`/`doas` (`core.sudo_decision = ask|pass`), on recursive removal outside the checkout and the scratch dir, on `chmod -R 777`; regenerable local artefacts (`node_modules`, `.venv`, `dist`, `target`) pass | S | all |
 | `run-checks` skill | `core/skills/run-checks` | one `ci-facts.sh` extracted from the two preflights (GitLab CI and Actions parsing, cost heuristic) plus local-runner discovery (Makefile targets, `package.json` scripts, `pyproject.toml` tools, pre-commit, go, cargo, tox, nox); runs only what CI lacks, diff-scoped; never invents a command | M | app, data, platform |
 | `code-reviewer` standards | `core/agents/code-reviewer.md` | reads the first existing of `core.review.standards_files` (CONTRIBUTING, coding-standards docs, formatter configs; orgs add their own path) and reviews against it; fixed output contract (`Verdict`, findings as severity · path:line · rule · fix) reused by the review skills | S | all |
 | `worktree` skill + CLI | `core/skills/worktree` | `worktree add|ls|gc|status`; layout `core.worktree_path_tmpl` (default `../{repo}_{branch}`, the convention `work-ticket` already uses); `gc` removes only clean worktrees whose branch is merged or whose upstream is gone and prints the commands for dirty ones; guard rows in `31-git-hygiene` ask on `worktree remove --force`, `branch -D` and `rm -rf` of a listed worktree | S/M | anyone running subagents or parallel branches |
@@ -348,14 +348,14 @@ off (deny, with the trust-root fix as the alternative), findings in the `code-re
 contract, output through the shared `redact` block, optional scanners pinned by
 `tools/<tool>.lock.json`, organisation policy as config. The reference page maps nine
 disciplines onto the taxonomy and says what stays out of scope for a user-level harness.
-**Status: in progress** (`supply-chain` shipped, experimental; core `35` and the candidates
-planned).
+**Status: in progress** (`supply-chain` shipped, experimental; core `35` shipped with the
+pipe-to-shell rows; the candidates planned).
 
 | Item | Kind | Domain / posture / function | Prefix | Slice |
 |---|---|---|---|---|
 | [security](reference/security.md), this section, domain `security` | docs + taxonomy | security | — | A (#50) |
 | **`supply-chain`** | new bundle, supersedes `toolchain` | security / local / client (+ `supply-architect` plan, `supply-auditor` review, `supply-triage` investigate, `/pin-deps` and `/audit-deps` workflow) | `38` | S1 (#51, **shipped**, experimental) |
-| core `35-shell-hygiene`, pipe-to-shell rows only | core extension (a later part of S1) | base | `35` | S1 |
+| core `35-shell-hygiene`, pipe-to-shell rows only | core extension (the last part of S1, **shipped**) | base | `35` | S1 (#51) |
 | **`appsec`** | candidate bundle | security / read-only (`appsec-architect` plan, `/draft-threat-model` workflow, `appsec-reviewer` review) | `39` | S2 |
 | **`vuln`** | candidate bundle, after `containers` | security / read-only / client (+ `vuln-triage` investigate) | `42` | S3 |
 | **`iam`** | candidate bundle | security / read-only / client (+ `iam-auditor` review) | `43` | S4 |
