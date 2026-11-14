@@ -73,9 +73,25 @@ prints every one between your applied version and the new one.
   `sync_inline.py --check`. Follow-ups (roadmap): `work-ticket` and `gdoc` suites,
   `stability` at `beta`, helper bodies outside markers, shared Jira facts, `tests-boilerplate`.
   Resolves the principle 1 open question on a shared python helper library.
+- `principles_version: 4`: principle 2, **humans decide; an agent acts on an explicit
+  main-thread request** — replaces "agents never merge PRs/MRs and never change ticket or issue
+  state". Merging, approving, closing, reopening or readying a PR/MR, closing or reopening an
+  issue and transitioning a ticket stay human decisions; an agent carries one out only when the
+  user explicitly asks for it in the main thread, and the guard confirms every such call (ask).
+  Subagents never do it: the guard denies when the hook input identifies a subagent caller and
+  falls back to ask on providers that cannot identify one. Closing keywords stay denied.
+  Checks: guard sections 50, 60, 70 rows (main ask, subagent deny), landing with the guard
+  change; until then the current guard decisions apply. Follow-ups (#67): guard, rules and
+  docs, skills.
 
 ### Added
 
+- Guard engine: reads the hook input's `agent_id` (set by Claude Code on calls from a subagent
+  or in-process teammate; `agent_type` is never read, since a `--agent` main thread carries it
+  too) into `IN_SUBAGENT`, and offers `human_decision` / `human_decision_defer` for sections:
+  deny inside a subagent (hand the command back to the main thread), else ask / defer. Guard
+  rows gain the `T_AGENT`, `T_AGENT_NULL` and `T_AGENT_TYPE` knobs through one input builder.
+  No guard decision changes yet; sections adopt the helpers in later parts of #67.
 - Neutral hook events beyond the guard (ARCHITECTURE §3–§5; roadmap "Provider hooks beyond
   `PreToolUse`"). Bundles register hook scripts with `[[provides.hooks]]` (`event` = `prompt`
   or `stop`, with `session-start` and `session-end` reserved; `script` = `hooks/<name>.sh`;
