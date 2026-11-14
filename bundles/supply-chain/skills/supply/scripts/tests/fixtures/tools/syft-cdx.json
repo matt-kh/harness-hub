@@ -6,6 +6,11 @@
       "purl": "pkg:apk/alpine/busybox@1.36.1",
       "type": "library",
       "version": "1.36.1"
+    },
+    {
+      "bom-ref": "0123456789abcdef",
+      "name": "/src/app/requirements.txt",
+      "type": "file"
     }
   ],
   "metadata": {
@@ -27,6 +32,6 @@
     }
   },
   "serialNumber": "urn:uuid:0123abcd-0000-4000-8000-0123456789ab",
-  "specVersion": "1.6",
+  "specVersion": "1.7",
   "version": 1
 }

@@ -43,6 +43,12 @@ harness verify /media/usb/rel/harness-hub-X.Y.Z.bundle
 
 - `--tools` downloads the `tools/*.lock.json` assets for those platforms with the same
   sha256 check as `harness install`; leave it out if the offline side has its own mirror.
+- Locks marked `"optional": true` (tools only one bundle uses: `osv-scanner`, `cosign`, `syft`
+  for supply-chain) are skipped with a note unless you add `--tools-optional`; ship them when
+  the offline side enables that bundle, then `harness install osv-scanner --from
+  /media/usb/rel/tools/osv-scanner_linux_amd64` (likewise `cosign-linux-amd64`,
+  `syft_<version>_linux_amd64.tar.gz`). Bootstrap never installs an optional binary by itself;
+  doctor WARNs with the `harness install` hint.
 - `pack` refuses a dirty tree and never includes `local/`. Carry your `local/harness.toml`
   separately if you need it (it holds no secrets).
 

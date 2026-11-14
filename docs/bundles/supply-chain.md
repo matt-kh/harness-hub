@@ -4,9 +4,10 @@ The software supply chain for agents: pin what you add, install inside the proje
 verification off. The first bundle of the [security family](../reference/security.md) (domain
 `security`, posture `local`). It lands in parts across #51: the rule, guard section 38, the
 permission list and the read-only `supply` CLI with its client skill (`detect`, `pins`, `ci`,
-`audit`, `sbom`, `verify`, `redact`) are here; the `/pin-deps` and `/audit-deps` skills, the
-`supply-architect`, `supply-auditor` and `supply-triage` agents and the pinned `osv-scanner`,
-`cosign` and `syft` follow.
+`audit`, `sbom`, `verify`, `redact`) and the pinned, optional `osv-scanner`, `cosign` and `syft`
+(`harness install TOOL`; bootstrap never fetches them unasked) are here; the `/pin-deps` and
+`/audit-deps` skills and the `supply-architect`, `supply-auditor` and `supply-triage` agents
+follow.
 
 - Switching TLS or signature verification off is **denied**: `pip|uv --trusted-host` (also a
   unique prefix such as `--trusted`), `uv --allow-insecure-host`, an `http://` index (`-i`,
@@ -84,6 +85,10 @@ and `supply_chain.registries_re`, `supply_chain.identities`, `supply_chain.redac
 | `echo`/`grep` of a guarded command is denied | the line also runs text as code (`$( )`, backticks, `eval`, `sh -c`, a pipe into a shell), so the text exemption is off | split the command, or drop the code-running part |
 | `GOSUMDB=off` is denied | the checksum database is switched off for every module | `GOPRIVATE=<module prefix>`, or a one-shot `GONOSUMDB=<module prefix>` (asks) |
 | `GONOSUMDB=… go mod download` asks | the checksum database is skipped for those modules | set `GOPRIVATE=<module prefix>` for private modules |
+| `supply audit` says `unavailable` / doctor WARNs `bin-supply-chain-osv-scanner` | osv-scanner is optional and bootstrap does not install it | `harness install osv-scanner` (manual step `install-supply-tools`; air-gapped: `--from FILE`) |
+| `supply audit --offline` exits 2 `no offline version of the OSV database` | osv-scanner reads its offline databases from `DIR/osv-scalibr/<Ecosystem>/all.zip` and the CLI never downloads them | download them once by hand (`OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY=DIR osv-scanner scan source --offline-vulnerabilities --download-offline-databases -r .`; `-r .` downloads databases only for the ecosystems found in that directory, so run it in each repository you audit offline) and set `supply_chain.osv_offline_db = "DIR"`, or drop `--offline` |
+| `supply verify IMAGE --offline` exits 3 | cosign 3.1.4 deprecated `--offline` and reads an image's signatures from its registry; nothing keeps it offline | verify a downloaded file: `supply verify FILE --bundle F --trusted-root F --offline`, or `supply verify IMAGE --github OWNER/REPO --bundle F --trusted-root F --offline`; else drop `--offline` |
+| `supply verify IMAGE --bundle F` exits 1 | cosign 3 reads an image's signatures from its registry; `--bundle` is for a file | drop `--bundle`, or use `--github OWNER/REPO --bundle F` |
 
 <!-- generated:begin source=bundles/supply-chain/bundle.toml -->
 ## Summary
@@ -104,8 +109,10 @@ The read-only `supply` CLI and client skill: detect (ecosystems, manifests, lock
 (unpinned actions, images, dependencies and unverified downloads, with an exact-token
 --apply), ci (workflow hardening), audit (osv-scanner, else npm audit, pip-audit, cargo-audit,
 govulncheck), sbom (syft) and sbom lint, verify (cosign, gh attestation verify) and redact.
-The /pin-deps and /audit-deps skills, the supply-architect, supply-auditor and supply-triage
-agents and the pinned osv-scanner, cosign and syft land in later parts.
+Pinned, sha256-verified osv-scanner, cosign and syft are optional (`harness install TOOL`;
+bootstrap never fetches them unasked; `harness pack --tools-optional` ships them air-gapped).
+The /pin-deps and /audit-deps skills and the supply-architect, supply-auditor and supply-triage
+agents land in later parts.
 
 - **Depends on:** `core`
 - **Recommends:** `github`
@@ -136,7 +143,9 @@ Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md
 
 - `supply-chain/bin/supply` — function: client · posture: read-only · yields: n/a
 
-**Doctor checks** (function: setup · posture: read-only; table below): `supply-chain/doctor/supply-cli`, `supply-chain/doctor/supply-detect`
+**Doctor checks** (function: setup · posture: read-only; table below): `supply-chain/doctor/supply-cli`, `supply-chain/doctor/supply-config`, `supply-chain/doctor/supply-detect`
+
+**Manual steps** (function: setup; table below): `supply-chain/steps/configure-identities`, `supply-chain/steps/install-supply-tools`
 
 ## Requirements
 
@@ -144,8 +153,16 @@ Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md
 
 | binary | min version | install | optional | why |
 |---|---|---|---|---|
+| `cargo-audit` | 0 |  | yes | `supply audit` fallback for Cargo.lock when osv-scanner is absent (the binary, never `cargo audit`); used only when already installed. |
+| `cosign` | 3.1.4 | `harness install cosign` | yes | `supply verify` of image signatures, attestations and Sigstore-bundled files (verify* only; signing is the human's release step). Pinned in tools/cosign.lock.json; min_version = the version supply was checked against. |
+| `gh` | 2.49.0 | `harness install gh` | yes | `supply verify --github` runs `gh attestation verify` (gh 2.49 or newer). |
 | `git` | 2.30 |  | no | Pin resolution and history lookups (`git ls-remote`, `git log -S`) run read-only git. |
+| `govulncheck` | 0 |  | yes | `supply audit` fallback for Go modules when osv-scanner is absent; used only when already installed. |
+| `npm` | 0 |  | yes | `supply audit` fallback for npm lockfiles (`npm audit --json`) when osv-scanner is absent; used only when already installed. |
+| `osv-scanner` | 2.7.0 | `harness install osv-scanner` | yes | `supply audit` for every ecosystem and for SBOMs (scan source --all-packages); without it the ecosystem's own auditor, if installed. Pinned in tools/osv-scanner.lock.json; min_version = the version supply was checked against. |
+| `pip-audit` | 0 |  | yes | `supply audit` fallback for fully hashed requirements files when osv-scanner is absent; used only when already installed. |
 | `python3` | 3.9 |  | no | The supply CLI is stdlib python. |
+| `syft` | 1.55.0 | `harness install syft` | yes | `supply sbom` (dir: or registry:, never the docker daemon). Pinned in tools/syft.lock.json; min_version = the version supply was checked against. |
 
 ### Configuration
 
@@ -155,7 +172,7 @@ Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md
 | `supply_chain.exclude_re` | string | no | `""` | Python regex matched against paths relative to DIR that the supply CLI skips (detect, pins, audit, sbom), on top of .git, node_modules, vendor, .venv, venv, target, dist, build, __pycache__ and .tox. Empty = skip nothing more. SUPPLY_EXCLUDE_RE. |
 | `supply_chain.identities` | array | no | `[]` | Signer identities `supply verify --identity NAME` resolves, as [[supply_chain.identities]] tables: name, identity_re (certificate identity regexp), issuer (OIDC issuer URL), match_re (optional regex on the target that selects this entry without --identity). Public values only; never a key. |
 | `supply_chain.max_bytes` | integer | no | `65536` | Default output cap in bytes for the supply CLI (--max-bytes overrides). |
-| `supply_chain.osv_offline_db` | string | no | `""` | Directory of a local OSV vulnerability database that `supply audit --offline` passes to osv-scanner; empty = osv-scanner's own cache. |
+| `supply_chain.osv_offline_db` | string | no | `""` | Directory osv-scanner keeps its offline vulnerability databases under, for `supply audit --offline` (passed as OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY; osv-scanner 2.7.0 reads DIR/osv-scalibr/<Ecosystem>/all.zip); empty = osv-scanner's default, the user cache directory (~/.cache on Linux, ~/Library/Caches on macOS). SUPPLY_OSV_OFFLINE_DB. |
 | `supply_chain.pin_actions` | boolean | no | `true` | Whether `supply pins` reports (and `supply pins --apply` rewrites) GitHub Actions referenced by tag instead of by commit. |
 | `supply_chain.redact_extra_re` | string | no | `""` | Extra Python regex of token shapes every supply output redacts in addition to the built-in list; compiled on its own, so a leading global flag such as (?i) works. |
 | `supply_chain.registries_re` | string | no | `""` | Python regex of allowed registry hosts (no scheme, no port) that `supply pins` and `supply audit` accept for dependencies and images; empty = no registry check. |
@@ -168,7 +185,57 @@ _none_
 
 ## Manual steps
 
-_none_
+<a id="install-supply-tools"></a>
+
+### install-supply-tools — Install the pinned supply-chain scanners you want (osv-scanner, cosign, syft)
+
+*once per machine · needs nothing but a terminal · ~3 min*
+
+**Why:** The supply CLI runs osv-scanner for audit, cosign for verify and syft for sbom; they are optional, so bootstrap never downloads them unasked, and a missing one makes its verb report unavailable, never clean.
+
+**How:**
+
+Install the ones you use; each download is checked against the sha256 in `tools/<tool>.lock.json`
+and lands in `~/.local/bin`:
+```
+harness install osv-scanner
+harness install cosign
+harness install syft
+```
+Air-gapped: fetch the asset named in the lock file on a connected machine (or ship it with
+`harness pack --tools linux/amd64 --tools-optional`), then `harness install osv-scanner --from FILE`
+(the sha256 check still applies). `HARNESS_TOOLS_MIRROR` redirects the download to a mirror.
+Remove them with `harness uninstall --purge-tools`.
+
+**Verify:** `command -v osv-scanner >/dev/null || command -v cosign >/dev/null || command -v syft >/dev/null` (exit 0)
+
+<a id="configure-identities"></a>
+
+### configure-identities — Name the signers `supply verify` trusts in local/harness.toml
+
+*once per machine · needs nothing but a terminal · ~5 min*
+
+**Why:** Keyless verification is only as strong as the identity it checks: without a configured signer, `supply verify` exits 2 and names this step instead of accepting any certificate.
+
+**How:**
+
+Add a `[supply_chain]` block to `local/harness.toml` (documentation values shown; public values
+only, never a key):
+```
+[supply_chain]
+registries_re = '^(ghcr\.io|registry\.example\.com)$'
+# osv_offline_db = "/srv/osv-db"   # for `supply audit --offline`
+
+[[supply_chain.identities]]
+name = "release"
+identity_re = '^https://github\.com/octocat/hello-world/\.github/workflows/release\.yml@refs/tags/v.*$'
+issuer = "https://token.actions.githubusercontent.com"
+match_re = '^ghcr\.io/octocat/'
+```
+Anchor every `identity_re` as `^…$`, name the workflow file and restrict the ref. Then run
+`harness apply` and `supply verify IMAGE --identity release`.
+
+**Verify:** `jq -e '(.supply_chain.identities // []) | length > 0' "$HARNESS_CONFIG_JSON" >/dev/null` (exit 0)
 
 ## Doctor checks
 
@@ -176,6 +243,7 @@ _none_
 |---|---|---|---|
 | `supply-cli` | fail | runs | `harness apply` |
 | `supply-detect` | warn | runs | `harness apply` |
+| `supply-config` | warn | runs | [configure-identities](#configure-identities) |
 
 ## Guides and sensors
 
@@ -184,20 +252,20 @@ Guides steer the agent before it acts; sensors detect at or after the action. Pa
 | side | kind | ref | note | pairs with |
 |---|---|---|---|---|
 | guide | rule | `rules/38-supply-chain.md` | pin what you add, install inside the project, never switch verification off, signing is a human release step | `guard.d/38-supply-chain.sh` |
-| guide | skill | `skills/supply` | the supply CLI: detect, pins (with --apply), ci, audit, sbom, verify, redact; severities from the reference rubrics | `skills/supply/scripts/tests/run.sh`, `doctor_checks` |
+| guide | skill | `skills/supply` | the supply CLI: detect, pins (with --apply), ci, audit, sbom, verify, redact; severities from the reference rubrics; the optional pinned osv-scanner, cosign and syft behind audit, verify and sbom | `skills/supply/scripts/tests/run.sh`, `doctor_checks` |
 | guide | permission | `permissions.toml` | verification and audit tools allowed, cosign signing asks, verification-off config and cosign keys denied | `permissions-vs-guard`, `guard.d/38-supply-chain.sh` |
 | sensor | guard | `guard.d/38-supply-chain.sh` | verification-off denies, global-install and unpinned-dependency asks, cosign signing and insecure-download asks | `rules/38-supply-chain.md`, `permissions.toml` |
 | sensor | test | `guard.d/tests.sh` | guard rows incl. bypasses, ordering against later denies and the security yield | — |
 | sensor | test | `tests/run.sh` | this bundle's rows against core + supply-chain only | — |
 | sensor | test | `skills/supply/scripts/tests/run.sh` | the supply CLI against stub tools and fixture checkouts: goldens per verb, byte-exact --apply, redaction, stub-log invariants (verify only, no fix, no docker), a rubric row per rule id, two identical runs | `skills/supply` |
-| sensor | doctor | `doctor_checks` | the supply CLI on PATH and an offline detect | `skills/supply` |
+| sensor | doctor | `doctor_checks` | the supply CLI on PATH, an offline detect, every signer identity_re anchored as supply requires (warn, fix configure-identities); osv-scanner, cosign and syft missing or older than the verified version WARN through the generic per-binary check (fix harness install TOOL) | `skills/supply` |
 | sensor | lint | `permissions-vs-guard` | each Bash allow/deny rule of permissions.toml run through the guard: no allowed command the guard denies or asks, no denied one it allows | `permissions.toml` |
 
-**Not covered:** Pipe-to-shell (curl … | sh) as a command is core band 35 and lands in a later part of #51 (supply pins and supply ci already report it in files as SH001). Reachability of a vulnerability, major-upgrade safety and licence policy are judgement or organisation-specific and are not sensed. A venv activated outside the provider's process is invisible to the guard (it reads the hook's environment and the command text). Direct writes to configuration files (>> ~/.npmrc, ~/.gitconfig, pip.conf, .yarnrc.yml) and an empty quoted value (git config http.sslVerify '') are out of scope for the guard. The command lexer is a heuristic, not a shell parser. The CLI's own tool runs are not shell commands and are not guarded; the suite's stub log and dry-run log are the read-only proof. YAML is read with a line model: anchors, multi-document files, reusable workflows and extends are not checked. The agents, the /pin-deps and /audit-deps workflow skills and the pinned tools land in later parts of #51.
+**Not covered:** Pipe-to-shell (curl … | sh) as a command is core band 35 and lands in a later part of #51 (supply pins and supply ci already report it in files as SH001). Reachability of a vulnerability, major-upgrade safety and licence policy are judgement or organisation-specific and are not sensed. A venv activated outside the provider's process is invisible to the guard (it reads the hook's environment and the command text). Direct writes to configuration files (>> ~/.npmrc, ~/.gitconfig, pip.conf, .yarnrc.yml) and an empty quoted value (git config http.sslVerify '') are out of scope for the guard. The command lexer is a heuristic, not a shell parser. The CLI's own tool runs are not shell commands and are not guarded; the suite's stub log and dry-run log are the read-only proof. YAML is read with a line model: anchors, multi-document files, reusable workflows and extends are not checked. The real-tool argv is pinned by the stub suite and was checked once against osv-scanner 2.7.0, cosign 3.1.4 and syft 1.55.0 (audit online and --offline, sbom, verify-blob online and --offline); `supply verify IMAGE --offline` with cosign is refused (exit 3), since nothing keeps cosign 3.1.4 offline for an image; the JSON shapes of `cosign verify`/`verify-attestation` on an image and of `gh attestation verify` are checked against fixtures only. Whether a pinned lock is still the latest upstream release is not sensed; bumping a lock is a human PR. The agents and the /pin-deps and /audit-deps workflow skills land in later parts of #51.
 
 ## Uninstall
 
-Kept on uninstall: `~/.sigstore/**`, `~/.cache/osv-scanner/**`, `~/.cache/syft/**`
+Kept on uninstall: `~/.sigstore/**`, `~/.cache/osv-scalibr/**`, `~/.cache/osv-scanner/**`, `~/.cache/syft/**`, `~/Library/Caches/osv-scalibr/**`
 
-Sigstore's trust root and the scanners' caches are the tools' own; uninstall removes only the rendered rule, permissions and guard section.
+Sigstore's trust root (~/.sigstore) and the scanners' caches (osv-scanner 2.7.0's offline databases under the user cache directory's osv-scalibr/, syft's cache) are the tools' own; uninstall removes the rendered rule, permissions and guard section, and `harness uninstall --purge-tools` the binaries `harness install` placed.
 <!-- generated:end -->
