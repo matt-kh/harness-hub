@@ -32,7 +32,8 @@ Errors (exit 1):
   one name with two defaults
 * ``provider-honesty`` (principle 6): a provider whose ``[capabilities]`` contradict its
   ``[targets]``: hooks wired with ``hook_enforced = false`` or ``hook_enforced``/``ask`` without
-  hooks; a ``native``/``inlined``/``none`` capability for skills, agents, mcp, instructions or
+  hooks; ``subagent_identity = true`` without an enforced guard hook; a
+  ``native``/``inlined``/``none`` capability for skills, agents, mcp, instructions or
   permissions whose target mode says otherwise
 * ``shim-fixtures`` (principle 6): a provider with a ``shim`` (guard or event) but no
   ``tests/run.sh``, an ``.in.json`` fixture without its ``.out.json``, or no fixture for one of
@@ -1065,6 +1066,10 @@ def lint_provider_honesty(p: M.Provider, home: str, rep: Report) -> None:
                 % where)
     if not hooks and caps.get("ask"):
         rep.err("%s ask = true without a [targets.hooks] target (only a hook can ask); set ask = false" % where)
+    if caps.get("subagent_identity") and not (hooks and caps.get("hook_enforced")):
+        rep.err("%s subagent_identity = true without an enforced guard hook ([targets.hooks] and hook_enforced = "
+                "true): only the guard reads the hook input's agent_id; wire the hook or set subagent_identity = false"
+                % where)
     for cap in PROVIDER_CAP_TARGETS:
         if cap not in caps:
             continue

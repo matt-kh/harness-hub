@@ -92,6 +92,15 @@ prints every one between your applied version and the new one.
   deny inside a subagent (hand the command back to the main thread), else ask / defer. Guard
   rows gain the `T_AGENT`, `T_AGENT_NULL` and `T_AGENT_TYPE` knobs through one input builder.
   No guard decision changes yet; sections adopt the helpers in later parts of #67.
+- Provider capability `subagent_identity` (`[capabilities]`, optional boolean, default false):
+  the hook input tells a subagent call from a main-thread call, so the guard denies human
+  decisions in a subagent. Set on claude only. The capability matrix (`harness status
+  --matrix`, README, [capability matrix](docs/reference/capability-matrix.md)) gains the row
+  "subagent deny (merge, state)": `native` on claude, `mapped (ask_as)` on copilot and gemini
+  (every caller gets `ask_as`, default deny), `-` on codex and opencode (advisory); `ask only`
+  names a hook that can ask but cannot identify the caller. `harness lint` `provider-honesty`
+  errors on `subagent_identity = true` without an enforced guard hook. Copilot and gemini shim
+  fixtures `ask-agent-id` pin that `agent_id` never reaches the neutral envelope. Part of #67.
 - Neutral hook events beyond the guard (ARCHITECTURE §3–§5; roadmap "Provider hooks beyond
   `PreToolUse`"). Bundles register hook scripts with `[[provides.hooks]]` (`event` = `prompt`
   or `stop`, with `session-start` and `session-end` reserved; `script` = `hooks/<name>.sh`;

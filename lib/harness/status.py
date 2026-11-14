@@ -8,9 +8,25 @@ from typing import Any, Dict, List
 from . import state as S
 from .util import run_argv, tilde
 
+
+def subagent_deny(c: Dict[str, Any]) -> str:
+    """How the guard treats a human decision (merge, approve, PR/MR/issue/ticket state) from a subagent.
+
+    ``native``: the hook input names a subagent caller, which is denied (the main thread is asked).
+    Without ``subagent_identity`` every caller gets the ask: ``ask only`` where the hook can ask,
+    ``mapped (ask_as)`` where the shim maps it (default deny); ``-`` without an enforced hook.
+    """
+    if not c.get("hook_enforced"):
+        return "-"
+    if c.get("subagent_identity"):
+        return "native"
+    return "ask only" if c.get("ask") else "mapped (ask_as)"
+
+
 MATRIX_ROWS = [
     ("guard hook", lambda c: "enforced" if c.get("hook_enforced") else "advisory"),
     ("ask decision", lambda c: "native" if c.get("ask") else "mapped (ask_as)" if c.get("hook_enforced") else "-"),
+    ("subagent deny (merge, state)", subagent_deny),
     ("permission lists", lambda c: c.get("permissions", "none")),
     ("instructions", lambda c: c.get("instructions", "native")),
     ("skills", lambda c: c.get("skills", "none")),

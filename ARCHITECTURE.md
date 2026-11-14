@@ -320,8 +320,16 @@ name = "Stop"; entry = '{"hooks": [{"type": "command", "command": "{command}", "
 shim = ""; timeout_unit = "s"; matcher = ""; note = ""   # all optional
 
 [capabilities]
-hook_enforced = true; permissions = "native"; ask = true; skills = "native"; agents = "native"; models = "core"; mcp = "native"
+hook_enforced = true; permissions = "native"; ask = true; subagent_identity = true; skills = "native"; agents = "native"; models = "core"; mcp = "native"
 ```
+
+`[capabilities]` states what the adapter can do, honestly (`harness lint` `provider-honesty`):
+`hook_enforced` (the guard runs as a blocking pre-tool hook), `ask` (the hook protocol has an
+"ask the user" decision), `subagent_identity` (optional, default false: the hook input tells a
+subagent call from a main-thread call, so the guard can deny human decisions in a subagent;
+only with an enforced guard hook), `permissions`, `skills`, `agents`, `models`, `mcp`,
+`instructions` and free-text `notes`. `harness status --matrix` and the generated
+[capability matrix](docs/reference/capability-matrix.md) render them per provider.
 
 `[targets.hooks.events.<neutral>]` maps a neutral hook event to the provider's event `name`.
 `entry` is the JSON template of one hook entry: `{command}`, `{matcher}`, `{event}` (the
@@ -351,13 +359,26 @@ rows stay valid:
 
 ```
 stdin : {"tool_name":"Bash","tool_input":{"command":"…"},"cwd":"…"}
+        optional: "session_id":"…" (journal), "agent_id":"…" (set only on a subagent's call)
 stdout: {"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow|ask|deny","permissionDecisionReason":"…"}}
         (nothing on stdout = pass, let the provider's own permission system decide)
 exit  : 0 always; malformed input → deny (fail closed)
 ```
 
 `bundles/core/guard/engine.sh` holds the input parsing, decision helpers (`allow`, `ask`,
-`deny`, `defer`, `pending_allow`, `flush`) and the final flush. Each bundle's
+`deny`, `defer`, `pending_allow`, `human_decision`, `human_decision_defer`, `flush`) and the
+final flush.
+
+**Caller identity.** A non-empty `agent_id` sets `IN_SUBAGENT=true`; absent, empty or `null`
+leaves it `false` (`agent_type` is never read: Claude Code also sets it on the main thread of a
+session started with `--agent`). Human decisions — merge, approve, PR/MR, issue and ticket
+state — go through `human_decision` (deny when `IN_SUBAGENT`, else `ask`) or
+`human_decision_defer` (deny when `IN_SUBAGENT`, else `defer`), so the main thread carries one
+out only on the user's explicit, confirmed request. Only providers with `subagent_identity`
+(claude) send `agent_id`. Elsewhere the fallback is the ask path: on copilot and gemini the shim
+builds the envelope from scratch (no `agent_id`, fixtures `ask-agent-id`) and maps `ask`
+through `ask_as` (default deny) for every caller; on codex and opencode the guard is advisory.
+The capability matrix row "subagent deny (merge, state)" shows which. Each bundle's
 `guard.d/NN-*.sh` is a section that only uses those helpers. **Render concatenates**
 `engine.sh` + active sections sorted by prefix + `engine-flush.sh` into one
 `hooks/guard-bash.sh` per provider home, so runtime cost equals today's single file and the
