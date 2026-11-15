@@ -42,7 +42,8 @@ References: `references/prompts.md` (the ONLY place questions are worded), `refe
    `--provider github`). Literal project/type in
    the command. Never `Closes/Fixes/Resolves KEY` in any text. This skill never creates native
    links (`--link`) — related tickets are *mentioned*. GitHub: never close/fix/resolve + `#N`;
-   issue state (close/reopen) is human-only.
+   issue state (close/reopen) is the user's decision — this skill never changes it (a later
+   close or transition runs only on the user's explicit request in the main thread).
 6. Never read/echo token files.
 
 ## Procedure

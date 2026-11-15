@@ -620,6 +620,15 @@ prints every one between your applied version and the new one.
   approvals and PR/MR/issue/ticket state changes run only on the user's explicit main-thread
   request (the guard asks, a subagent is denied) instead of "human-only" / "never"; closing
   keywords stay denied and `WORK_TICKET_ALLOW_TRANSITION` is gone from every example.
+- Skills and the Auto agent state "humans decide" (part of #67): work-ticket, create-ticket,
+  stk and jira never merge, approve or change state on their own initiative — they name the
+  command, and the main thread runs it only on the user's explicit request (the guard asks;
+  stk merges only the part `stk plan` names next, then syncs); subagent briefs and the Auto
+  agent hand such commands back, since the guard denies them in a subagent. Sub-ticket
+  In-Progress moves are main-thread only; the jira skill documents the literal-key refusal.
+- Closing-keyword deny reasons (sections 40, 41, 50, 60) and the `harness lessons propose`
+  refusal no longer say "state is human-only": a closing keyword would change the ticket's or
+  issue's state as a side effect, so it stays denied even on request.
 - `harness lint` rule `stability` now checks `beta` bundles as well as `stable` ones: a skill
   or CLI without a `tests/run.sh`, or a `coverage_note` admitting a missing suite, warns with
   the level to move to (`beta` → `experimental`, `stable` → `beta`). CONTRIBUTING "Stability

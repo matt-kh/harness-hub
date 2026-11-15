@@ -61,7 +61,7 @@ t ask   'gh auth switch'
 t ask   'gh alias set co "pr checkout"'
 t ask   'gh extension install owner/gh-x'
 t ask   'gh release create v1.0.0'
-tr 'human-only' 'gh pr merge 100'
+tr 'human decision' 'gh pr merge 100'
 # gh pr update-branch: decided by the PR label gate (no longer an always-ask team action)
 g allow 'gh pr update-branch 100'
 g allow 'gh pr update-branch 110 --rebase'
@@ -71,7 +71,7 @@ g ask   'gh pr update-branch 120'                                  # fork PR
 g ask   'gh pr update-branch'                                      # no ref: labels cannot be checked
 g ask   'gh pr update-branch "$N"'
 g ask   'GH_REPO=o/r gh pr update-branch 110'
-g ask   'gh pr update-branch 110 && gh pr merge 110'               # merge stays human-only
+g ask   'gh pr update-branch 110 && gh pr merge 110'               # merge stays a human decision (ask)
 g ask   'sh -c "gh pr update-branch 200"'
 # label create (positional name)
 t allow 'gh label create agent-worked -c 7057ff -d "Worked by an AI agent"'
@@ -202,6 +202,7 @@ t pass  'git commit -m "see #12"'
 t pass  'git commit -m "implements #12"'
 t pass  'git commit -m "prefix #12 cleanup"'
 tr 'GitHub close the issue' 'git commit -m "Fixes #12"'
+tr 'side effect \(denied even on request\)' 'git commit -m "Fixes #12"'
 # ---- repository-level declaration: .harness.toml (principle 8) ----------------------
 decl '[overrides]' 'WORK_TICKET_ALLOW_TRANSITION = "1"'
 r ask   'gh issue close 3'                                    # #67: ask with or without the override
@@ -232,7 +233,7 @@ r deny  'sh -c "gh auth token | cat"'
 decl '[owns]' 'components = ["github/guard.d/60-github"]'
 r deny  'gh auth token'
 r pass  'gh auth status'
-# documented consequence: owning scm lifts the human-only merge ask and the issue-state deny
+# documented consequence: owning scm lifts the merge ask and the issue-state ask
 decl '[owns]' 'domains = ["scm", "kubernetes", "tracker", "workspace"]'
 r pass  'gh pr merge 100'
 r pass  'gh issue close 3'
@@ -249,7 +250,7 @@ tr 'matching gh subcommand' 'gh api repos/o/r/issues --input -'
 tr 'pass the query inline' 'gh api graphql -F query=@q.graphql'
 tr 'literal inline query' 'gh api graphql -f query="$(cat q.graphql)"'
 tr 'drop operationName' "gh api graphql -f query='query A { viewer { login } }' -f operationName=A"
-tr 'human-only.*ask the user instead' 'gh pr merge 100 --squash'
+tr 'human decision.*ask the user instead' 'gh pr merge 100 --squash'
 # ---- humans decide (#67): merge, review and PR/issue state ----------------------------
 # main thread: merge/review ask on any ref; state asks on a human ref, an agent-labelled ref keeps allow
 g ask   'gh pr merge 100'

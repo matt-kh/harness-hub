@@ -7,8 +7,8 @@ description: >-
   merged, cascade-rebase chains with `git rebase --update-refs`, lease-push the sub branches,
   refresh one fan-in leaf, mark the main MR/PR ready). Use when the user asks to sync, rebase,
   retarget or restack stacked MRs/PRs, after a part of a stack was merged or amended, or asks
-  in which order to merge a stack. NOT for merging (humans merge in the web UI) and NOT for
-  creating MRs/PRs (work-ticket).
+  in which order to merge a stack. `stk` has no merge verb: humans decide the merges, bottom-up
+  (usually in the web UI). NOT for creating MRs/PRs (work-ticket).
 model: {{ core.model_policy.execute }}
 ---
 
@@ -63,7 +63,13 @@ Exit codes: 0 nothing to do or all done, 1 action needed by a human, 2 auth/acce
    top, a leaf to `git pull --rebase` after its server-side rebase.
 4. A `conflict` was aborted — every worktree is as it was. Do not resolve it unasked; give
    the human the printed commands. Leaves that conflict share files: suggest chaining them.
-5. Never merge, never `--force`, never `reset --hard`, never `rebase --continue` for the human.
+5. Never merge on your own initiative, never `--force`, never `reset --hard`, never
+   `rebase --continue` for the human.
+6. Merges are the human's decision. Only when the user explicitly asks in the main thread
+   ("merge the next part"), run the platform merge command (`glab mr merge N` / `gh pr merge N
+   -R owner/repo`) for the part `stk plan --stack <BR>` names next — the guard asks — then
+   `stk sync --stack <BR>`. Never out of order, never the main MR/PR before its parts, never
+   from a subagent (the guard denies it there: hand the command back to the main thread).
 
 How the cascade works and why: `references/sync-algorithm.md`.
 
