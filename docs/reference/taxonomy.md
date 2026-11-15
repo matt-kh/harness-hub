@@ -149,7 +149,7 @@ A value exists only while a component uses it. To add one:
 | `kubernetes` | clusters, Helm, GitOps, IaC targeting them | 18 (k8s) |
 | `workspace` | docs, drive, sheets, mail | 15 (gdoc) |
 | `operations` | running systems: signals, incidents, reliability targets | 13 (obs) |
-| `security` | security posture of code, dependencies, artefacts and credentials: supply chain, appsec, vulnerabilities | 10 (supply-chain) |
+| `security` | security posture of code, dependencies, artefacts and credentials: supply chain, appsec, vulnerabilities | 15 (supply-chain) |
 
 ### function
 
@@ -157,27 +157,27 @@ A value exists only while a component uses it. To add one:
 |---|---|---|
 | `govern` | constrains the agent and says what to do instead | 39 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, stack, supply-chain, ticket-workflow) |
 | `client` | thin interface to one system | 13 (gdoc, jira, k8s, obs, stack, supply-chain) |
-| `workflow` | multi-step governed procedure | 3 (lessons, ticket-workflow) |
-| `investigate` | diagnoses to a root cause, never applies the fix | 2 (k8s, obs) |
-| `plan` | designs; read-only | 2 (core, k8s) |
+| `workflow` | multi-step governed procedure | 5 (lessons, supply-chain, ticket-workflow) |
+| `investigate` | diagnoses to a root cause, never applies the fix | 3 (k8s, obs, supply-chain) |
+| `plan` | designs; read-only | 3 (core, k8s, supply-chain) |
 | `execute` | implements autonomously | 1 (core) |
-| `review` | assesses and reports | 2 (core, k8s) |
+| `review` | assesses and reports | 3 (core, k8s, supply-chain) |
 | `setup` | installs, verifies or configures once | 80 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, stack, supply-chain, ticket-workflow) |
 
 ### posture
 
 | value | meaning | components using it |
 |---|---|---|
-| `read-only` | reads only | 58 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, stack, supply-chain, ticket-workflow) |
-| `local` | edits the checkout and its own branches; other remote writes pass the guard | 2 (core, lessons) |
+| `read-only` | reads only | 61 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, stack, supply-chain, ticket-workflow) |
+| `local` | edits the checkout and its own branches; other remote writes pass the guard | 4 (core, lessons, supply-chain) |
 | `label-gated` | writes promptlessly only to agent-* artefacts; human ones ask | 8 (gdoc, jira, stack, ticket-workflow) |
 
 ### yields
 
 | value | meaning | components using it |
 |---|---|---|
-| `declaration` | returns early when the repository's .harness.toml owns its id or domain | 22 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, stack, supply-chain, ticket-workflow) |
-| `name` | the provider shadows it with a repository component of the same name | 7 (core, k8s, obs) |
+| `declaration` | returns early when the repository's .harness.toml owns its id or domain | 24 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, stack, supply-chain, ticket-workflow) |
+| `name` | the provider shadows it with a repository component of the same name | 10 (core, k8s, obs, supply-chain) |
 | `text` | concatenated with the repository's instructions, which come last and win | 11 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, stack, supply-chain, ticket-workflow) |
 | `config` | merged by the provider's permission system; a repository can add rules, never lift a deny | 10 (gdoc, github, gitlab, jira, k8s, lessons, obs, stack, supply-chain, ticket-workflow) |
 | `never` | the developer's own credentials: no repository setting lifts it | 2 (core) |

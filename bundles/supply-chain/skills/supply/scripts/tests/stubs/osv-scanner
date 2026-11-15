@@ -28,6 +28,11 @@ case " $* " in
   *" --format json --all-packages "*) ;;
   *) echo "stub osv-scanner: expected --format json --all-packages (2.7.0 lists only vulnerable packages without it), got: $*" >&2; exit 1 ;;
 esac
+case " $* " in
+  *" --offline-vulnerabilities "*)
+    case " $* " in *" --no-resolve "*) ;; *)
+      echo "stub osv-scanner: --offline-vulnerabilities without --no-resolve would resolve manifests over the network, got: $*" >&2; exit 1 ;; esac ;;
+esac
 if [ "${STUB_OSV_OLDFLAG:-}" = 1 ]; then  # an osv-scanner without the flag (1.x)
   case " $* " in *" --offline-vulnerabilities "*)
     echo "Incorrect Usage: flag provided but not defined: -offline-vulnerabilities" >&2; exit 127 ;; esac
@@ -37,6 +42,7 @@ if [ "${STUB_OSV_NODB:-}" = 1 ]; then
 fi
 case "$target" in
   *empty*) cat "$fix/osv-nopackages.txt" >&2; exit 128 ;;
+  *pip-only*) abs=$(cd "$target" && pwd); sed "s#__DIR__#$abs#g" "$fix/osv-clean-pip.json"; exit 0 ;;
   *clean*) abs=$(cd "$target" && pwd); sed "s#__DIR__#$abs#g" "$fix/osv-clean.json"; exit 0 ;;
   *gitlab-include*) cat "$fix/osv-error.txt" >&2; exit 127 ;;
 esac

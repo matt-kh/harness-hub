@@ -158,12 +158,12 @@ JSON
   mkdir -p "$out/work/crlf/.github/workflows"
   printf 'on: push\r\npermissions: {}\r\njobs:\r\n  b:\r\n    steps:\r\n      - uses:   actions/checkout@v4   # pin me\r\n' \
     > "$out/work/crlf/.github/workflows/w.yml"
-  printf 'on: push\r\npermissions: {}\r\njobs:\r\n  b:\r\n    steps:\r\n      - uses:   actions/checkout@%s   # pin me\r\n' "$SHA" \
+  printf 'on: push\r\npermissions: {}\r\njobs:\r\n  b:\r\n    steps:\r\n      - uses:   actions/checkout@%s   # v4 - pin me\r\n' "$SHA" \
     > "$out/work/crlf-expected.yml"
   printf '[{"file": ".github/workflows/w.yml", "line": 6, "old": "actions/checkout@v4", "new": "actions/checkout@%s"}]' "$SHA" \
     > "$out/work/crlf.json"
   (cd "$out/work" && "$PY" "$CLI" pins crlf --apply crlf.json --json > "$out/crlf.out" 2>/dev/null); rc=$?
-  ck "apply keeps CRLF, spacing and the comment (byte-exact)" cmp -s "$out/work/crlf/.github/workflows/w.yml" "$out/work/crlf-expected.yml"
+  ck "apply keeps CRLF, spacing and the comment, prefixed with the tag (byte-exact)" cmp -s "$out/work/crlf/.github/workflows/w.yml" "$out/work/crlf-expected.yml"
   ck "apply then re-scans: the pinned action is clean (exit 0)" [ "$rc" = 0 ]
   mkdir -p "$out/work/noact/.github/workflows"
   cp "$out/work/crlf-expected.yml" "$out/work/noact-expected.yml"
@@ -212,8 +212,36 @@ JSON
   ck "apply across token boundaries succeeds and re-scans clean (exit 0)" [ "$rc" = 0 ]
   ck "a token inside a longer word (alpinebuild) is never rewritten" \
     [ "$(cat "$out/work/tok/Dockerfile")" = "$(printf 'FROM alpine:3.20@sha256:%s AS alpinebuild\nFROM alpinebuild' "$D64")" ]
-  grep -q "uses: actions/checkout@$SHA # was actions/checkout@v4.1\$" "$out/work/tok/.github/workflows/w.yml"
+  grep -q "uses: actions/checkout@$SHA # v4 - was actions/checkout@v4.1\$" "$out/work/tok/.github/workflows/w.yml"
   chk $? "a token followed by . (v4.1 in a comment) is never rewritten"
+
+  # an action pinned from a tag keeps the tag as its comment, in the same write: appended when
+  # the line has none, prefixed to an existing one (`# TAG - old`), a `#` inside quotes is not a
+  # comment, a comment that already starts with the tag is left alone, a branch gets no comment
+  rm -rf "$out/work/tag"; mkdir -p "$out/work/tag/.github/workflows"
+  printf '%s\n' 'on: push' 'permissions: {}' 'jobs:' '  b:' '    runs-on: ubuntu-24.04' '    steps:' \
+    '      - uses: actions/checkout@v4' \
+    '      - uses: actions/cache@v4   # keep this' \
+    "      - uses: 'actions/setup-node@v4' # it's \"#20\"" \
+    '      - uses: "actions/upload-artifact@v4" # v4' \
+    '      - uses: actions/download-artifact@v4.1.0  ' \
+    '      - uses: github/codeql-action/init@v3 #' \
+    '      - uses: octo/thing@main # follow main' > "$out/work/tag/.github/workflows/w.yml"
+  cat > "$out/work/tag.json" <<JSON
+[{"file": ".github/workflows/w.yml", "line": 7, "old": "actions/checkout@v4", "new": "actions/checkout@$SHA"},
+ {"file": ".github/workflows/w.yml", "line": 8, "old": "actions/cache@v4", "new": "actions/cache@$SHA"},
+ {"file": ".github/workflows/w.yml", "line": 9, "old": "actions/setup-node@v4", "new": "actions/setup-node@$SHA"},
+ {"file": ".github/workflows/w.yml", "line": 10, "old": "actions/upload-artifact@v4", "new": "actions/upload-artifact@$SHA"},
+ {"file": ".github/workflows/w.yml", "line": 11, "old": "actions/download-artifact@v4.1.0", "new": "actions/download-artifact@$SHA"},
+ {"file": ".github/workflows/w.yml", "line": 12, "old": "github/codeql-action/init@v3", "new": "github/codeql-action/init@$SHA"},
+ {"file": ".github/workflows/w.yml", "line": 13, "old": "octo/thing@main", "new": "octo/thing@$SHA"}]
+JSON
+  (cd "$out/work" && "$PY" "$CLI" pins tag --apply tag.json --json > "$out/pins-apply-tag.out" 2> "$out/pins-apply-tag.err"; echo $? > "$out/pins-apply-tag.rc")
+  record pins-apply-tag "$(cat "$out/pins-apply-tag.rc")" "$out/pins-apply-tag.out" "$out/pins-apply-tag.err"
+  ck "tag comments: apply re-scans clean (exit 0)" [ "$(cat "$out/pins-apply-tag.rc")" = 0 ]
+  record pins-apply-tag-file 0 "$out/work/tag/.github/workflows/w.yml" "$out/empty.err"
+  (cd "$out/work" && "$PY" "$CLI" pins tag --json > /dev/null 2>&1); rc=$?
+  ck "tag comments: a second scan is still clean (the comment is not a ref)" [ "$rc" = 0 ]
 
   # all-or-nothing: a failure after the first rename rolls the renamed file back
   rm -rf "$out/work/ro"; cp -R dirty "$out/work/ro"
@@ -275,6 +303,11 @@ JSON
   SUPPLY_OSV_OFFLINE_DB=/home/u/.cache/osv-db t audit-osv-offline 1 audit dirty --offline --json
   STUB_OSV_NODB=1 t audit-osv-offline-nodb 2 audit dirty --offline --json
   STUB_OSV_OLDFLAG=1 t audit-osv-offline-oldflag 2 audit dirty --offline --json
+  # one ecosystem audited clean, another detected but unaudited (npm without a lockfile): AUD001 is
+  # a warn, so the run exits 1, never 0 (unaudited is not clean)
+  rm -rf "$out/work/pip-only"; mkdir -p "$out/work/pip-only"
+  cp clean/requirements.txt clean/package.json "$out/work/pip-only/"
+  t audit-osv-partial    1 audit "$out/work/pip-only" --json
   SUPPLY_PATH="$tmp/fallback-path" t audit-fallbacks-json 1 audit clean --json
   SUPPLY_PATH="$tmp/fallback-path" t audit-fallbacks-md   1 audit clean --md
   SUPPLY_PATH="$tmp/fallback-path" STUB_PIP_AUDIT=error t audit-fallback-error 1 audit clean --json
@@ -489,6 +522,8 @@ bad=$(grep '^osv-scanner ' "$L" | grep -v '^osv-scanner scan source --format jso
 ck "every osv-scanner call is 'scan source --format json --all-packages'" [ -z "$bad" ]
 ! grep -qE '^osv-scanner .*(\bfix\b|--download-offline-databases)' "$L"; chk $? "osv-scanner never runs fix or downloads databases"
 grep -q '^osv-scanner .*--offline-vulnerabilities' "$L"; chk $? "--offline maps to --offline-vulnerabilities"
+bad=$(grep '^osv-scanner .*--offline-vulnerabilities' "$L" | grep -v -- ' --no-resolve' | head -3)
+ck "every offline osv-scanner call also carries --no-resolve (no transitive resolution over the network)" [ -z "$bad" ]
 bad=$(grep '^cosign ' "$L" | grep -vE '^cosign verify(-attestation|-blob|-blob-attestation)? ' | head -3)
 ck "every cosign call is verify*" [ -z "$bad" ]
 bad=$(grep -E '^cosign verify(-attestation)? ' "$L" | grep -v -- '--output json' | head -3)

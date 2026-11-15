@@ -5,7 +5,7 @@ diff -r orig/.github/workflows/build.yml dirty/.github/workflows/build.yml
 8c8
 <       - uses: actions/checkout@v4   # keep this comment
 ---
->       - uses: actions/checkout@0123456789abcdef0123456789abcdef01234567   # keep this comment
+>       - uses: actions/checkout@0123456789abcdef0123456789abcdef01234567   # v4 - keep this comment
 diff -r orig/Dockerfile dirty/Dockerfile
 3c3
 < FROM alpine

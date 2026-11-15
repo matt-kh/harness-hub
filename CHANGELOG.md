@@ -127,9 +127,12 @@ prints every one between your applied version and the new one.
   file could be scanned), `audit` (osv-scanner, else `npm audit`, `pip-audit` on fully hashed
   requirements only, `cargo-audit` called directly from an empty directory, `govulncheck` with
   `GOTOOLCHAIN=local`: never code from the checkout; "unavailable" is never "clean": `AUD001`
-  also for an ecosystem osv-scanner read nothing for, exit 3), `sbom DIR|IMAGE` (syft, never
-  the docker daemon; `--out` written exclusively with token-shape redaction only) and `sbom lint
-  FILE` (`SBM001`–`SBM009`), `verify` (cosign keyless, key, attestation and blob-with-bundle;
+  (warn, so exit 1) for every ecosystem or file left unaudited, also one osv-scanner read
+  nothing for, even when the rest audited clean; exit 3 when none could be audited; `--offline`
+  runs osv-scanner with `--offline-vulnerabilities --no-resolve`: no network, neither for the
+  vulnerability lookup nor for resolving a manifest's transitive dependencies),
+  `sbom DIR|IMAGE` (syft, never the docker daemon; `--out` written exclusively with token-shape
+  redaction only) and `sbom lint FILE` (`SBM001`–`SBM009`), `verify` (cosign keyless, key, attestation and blob-with-bundle;
   `gh attestation verify`; the subject after `--`; anchored identity regexps; never an
   `--insecure-*` flag) and `redact`. Unreadable directories are `SUP002`. Exit 0 clean, 1
   findings, 2 access/tool/config error (never a traceback), 3 unsupported; banner
@@ -166,6 +169,32 @@ prints every one between your applied version and the new one.
   document root and, for syft's own output only, CycloneDX `"type": "file"` components (absolute
   manifest paths); `sbom lint` accepts CycloneDX 1.7 (syft 1.55.0's default). `[uninstall]` also keeps
   `~/.cache/osv-scalibr/**`, where osv-scanner 2.7.0 keeps its offline databases.
+- `supply-chain` bundle, part 4 of #51: workflow skills `/pin-deps` (`supply pins` findings →
+  values resolved read-only with `git ls-remote`, `gh api` or `glab api` GETs and an installed
+  `crane`/`docker buildx imagetools` → `supply pins --apply` → `supply pins` again; tags keep
+  today's target, branches and `latest` are suggestions the user accepts, a `CI008` include
+  with no `ref:` goes to the human; never guesses a sha, digest or checksum) and `/audit-deps`
+  (`supply audit` → in-major upgrades to the lowest fixed release that is not a pre-release,
+  never for a `0.0.x` package, with `UV_PYTHON_DOWNLOADS=never uv lock --upgrade-package
+  NAME==X.Y.Z --no-build`, `npm install NAME@SPEC --package-lock-only --ignore-scripts` keeping
+  the manifest's range prefix, `pnpm update --lockfile-only --ignore-pnpmfile --ignore-scripts`
+  with package-manager switching off, `cargo update --precise` unless a `rust-toolchain` file
+  or a `.cargo/config*` program setting is present, `GOTOOLCHAIN=local go get`, poetry always a
+  manual change → `supply audit` again and each locked version checked against the `--fix`
+  limit, an overshoot reverted; majors, no-fix, manual changes and `unavailable`/`offline`/
+  `error` auditors go to the human). Neither
+  runs the checkout's code or tests (the test command is named for the human), downloads a
+  toolchain or interpreter, commits or pushes; both keep intermediate files in a
+  `mktemp -d` scratch directory used as `"${SCRATCH:?}"`. `supply pins --apply` now keeps the
+  tag of an action pinned from a tag as its comment, in the same atomic write (` # TAG`
+  appended, or `# TAG - <old comment>`; `data.applied[].comment`), so no hand edit remains.
+  `supply audit --offline` through osv-scanner reports an audited ecosystem as status `ok` with
+  `"offline": true` (it was `offline`, which now only means a fallback auditor that needs the
+  network did not run). Read-only agents `supply-architect` (plan model, design and decision record),
+  `supply-auditor` (review; Critical / Warnings / Suggestions / Not verified with severities
+  from the rubrics; declared as the bundle's review-agent sensor) and `supply-triage`
+  (investigate one finding, stop after three unresolved hypotheses). Taxonomy overrides
+  (`workflow`; `plan`, `review`, `investigate` at `read-only`) and their guides and sensors.
 - Neutral hook events beyond the guard (ARCHITECTURE §3–§5; roadmap "Provider hooks beyond
   `PreToolUse`"). Bundles register hook scripts with `[[provides.hooks]]` (`event` = `prompt`
   or `stop`, with `session-start` and `session-end` reserved; `script` = `hooks/<name>.sh`;
