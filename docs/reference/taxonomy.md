@@ -149,14 +149,14 @@ A value exists only while a component uses it. To add one:
 | `kubernetes` | clusters, Helm, GitOps, IaC targeting them | 18 (k8s) |
 | `workspace` | docs, drive, sheets, mail | 15 (gdoc) |
 | `operations` | running systems: signals, incidents, reliability targets | 13 (obs) |
-| `infrastructure` | hosts, operating systems, provisioning, cloud accounts, containers, databases and IaC outside Kubernetes | 0 |
+| `infrastructure` | hosts, operating systems, provisioning, cloud accounts, containers, databases and IaC outside Kubernetes | 4 (linux) |
 | `security` | security posture of code, dependencies, artefacts and credentials: supply chain, appsec, vulnerabilities | 15 (supply-chain) |
 
 ### function
 
 | value | meaning | components using it |
 |---|---|---|
-| `govern` | constrains the agent and says what to do instead | 44 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, repo-bootstrap, stack, supply-chain, ticket-workflow) |
+| `govern` | constrains the agent and says what to do instead | 48 (core, gdoc, github, gitlab, jira, k8s, lessons, linux, obs, repo-bootstrap, stack, supply-chain, ticket-workflow) |
 | `client` | thin interface to one system | 14 (gdoc, jira, k8s, obs, repo-bootstrap, stack, supply-chain) |
 | `workflow` | multi-step governed procedure | 5 (lessons, supply-chain, ticket-workflow) |
 | `investigate` | diagnoses to a root cause, never applies the fix | 3 (k8s, obs, supply-chain) |
@@ -177,12 +177,12 @@ A value exists only while a component uses it. To add one:
 
 | value | meaning | components using it |
 |---|---|---|
-| `declaration` | returns early when the repository's .harness.toml owns its id or domain | 27 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, repo-bootstrap, stack, supply-chain, ticket-workflow) |
+| `declaration` | returns early when the repository's .harness.toml owns its id or domain | 28 (core, gdoc, github, gitlab, jira, k8s, lessons, linux, obs, repo-bootstrap, stack, supply-chain, ticket-workflow) |
 | `name` | the provider shadows it with a repository component of the same name | 10 (core, k8s, obs, supply-chain) |
-| `text` | concatenated with the repository's instructions, which come last and win | 13 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, repo-bootstrap, stack, supply-chain, ticket-workflow) |
-| `config` | merged by the provider's permission system; a repository can add rules, never lift a deny | 11 (gdoc, github, gitlab, jira, k8s, lessons, obs, repo-bootstrap, stack, supply-chain, ticket-workflow) |
+| `text` | concatenated with the repository's instructions, which come last and win | 14 (core, gdoc, github, gitlab, jira, k8s, lessons, linux, obs, repo-bootstrap, stack, supply-chain, ticket-workflow) |
+| `config` | merged by the provider's permission system; a repository can add rules, never lift a deny | 12 (gdoc, github, gitlab, jira, k8s, lessons, linux, obs, repo-bootstrap, stack, supply-chain, ticket-workflow) |
 | `never` | the developer's own credentials: no repository setting lifts it | 2 (core) |
-| `n/a` | no repository-level equivalent | 96 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, repo-bootstrap, stack, supply-chain, ticket-workflow) |
+| `n/a` | no repository-level equivalent | 97 (core, gdoc, github, gitlab, jira, k8s, lessons, linux, obs, repo-bootstrap, stack, supply-chain, ticket-workflow) |
 
 ### Facets by kind
 

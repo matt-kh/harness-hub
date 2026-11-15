@@ -1,0 +1,6 @@
+# Defaults for bundle `linux`.
+
+[linux]
+prod_re = "(^|[-_./:])(prod|production)([-_./:]|$)"
+inventory = ""
+ssh_timeout = 10

@@ -1,0 +1,100 @@
+[bundle]
+name = "linux"
+schema_version = "1"
+summary = "Linux hosts over SSH: read-only by default, guards on remote mutations, interactive sessions, tunnels, uploads, disabled host-key checking, copied private keys and local disk / network changes"
+description = """
+Governs Linux hosts reached over SSH aliases, and the destructive local storage and network
+tools. Guard sections 82 (definitions: clause lexer, ssh / scp / rsync parsing, the remote
+read-only allow-list, block-device targets) and 83 (rules): `ssh HOST <command>` passes when every
+clause of the remote command is on a read-only allow-list and asks otherwise (remote sudo,
+`sh -c`, substitutions and redirections included), with `host=<alias> [PROD]` in the reason;
+interactive sessions, `-t`, tunnels and forwarding, uploads, `sftp` and `ssh-copy-id` ask;
+`StrictHostKeyChecking=no`, `UserKnownHostsFile=/dev/null` and `sshpass` deny; copying a private
+key out of `~/.ssh` denies and never yields. Locally, `dd of=/dev/…`, `mkfs`, `wipefs`, partition,
+LVM, ZFS and RAID changes on block devices, and firewall / network changes (`nft`, `ufw`,
+`netplan`, `nmcli`, `ip … add|del|set`, `iptables -A|-D|-F`) ask; the same tools on image files
+pass. Host fixes go into the infrastructure repository through a merge request.
+"""
+depends_on = ["core"]
+recommends = []
+conflicts_with = []
+any_of = []
+owners = []
+docs = "docs/bundles/linux.md"
+stability = "experimental"
+
+[requires.binaries.ssh]
+version_cmd = "ssh -V"
+why = "Hosts are reached through the OpenSSH client and the aliases in ~/.ssh/config."
+
+[requires.binaries.python3]
+min_version = "3.9"
+version_cmd = "python3 --version"
+version_regex = 'Python ([0-9]+\.[0-9]+)'
+why = "The bundle's tooling is stdlib python."
+
+[requires.config."linux.prod_re"]
+type = "string"
+default = "(^|[-_./:])(prod|production)([-_./:]|$)"
+description = "Case-insensitive POSIX ERE on host aliases marking production ([PROD] in guard reasons; remediations become suggestions only). LINUX_PROD_RE."
+example = "(^|[-_.])(prod|prd)([-_.0-9]|$)"
+
+[requires.config."linux.inventory"]
+type = "string"
+default = ""
+description = "Optional path to a host inventory file (one host per line: alias, role, notes); aliases themselves come from ~/.ssh/config. Empty = ~/.ssh/config only. LINUX_INVENTORY."
+example = "~/.config/linux/hosts.tsv"
+
+[requires.config."linux.ssh_timeout"]
+type = "integer"
+default = 10
+minimum = 1
+description = "Connect timeout in seconds for every SSH call the bundle's tooling makes (ConnectTimeout). LINUX_SSH_TIMEOUT."
+example = 5
+
+[requires.secrets.ssh_keys]
+where = "~/.ssh/* (except *.pub)"
+written_by = "human (ssh-keygen)"
+mode = "0600"
+description = "Your SSH private keys and agent setup. Never read or copied by the bundle: reading them is denied by core section 20, copying them off the machine by section 83 (never yields); the public *.pub files are fine."
+rotate = "ssh-keygen -t ed25519 a new key, install its .pub on each host yourself (ssh-copy-id -i KEY.pub HOST), then remove the old line from each host's authorized_keys"
+
+[provides]
+rules = ["rules/82-linux.md"]
+skills = []
+skill_fragments = []
+agents = []
+guard_rules = ["guard.d/82-linux.sh", "guard.d/83-linux-rules.sh"]
+permissions = "permissions.toml"
+mcp = ""
+bin = []
+
+[provides.env]
+LINUX_PROD_RE = "{{ linux.prod_re }}"
+LINUX_INVENTORY = "{{ linux.inventory }}"
+LINUX_SSH_TIMEOUT = "{{ linux.ssh_timeout }}"
+
+[uninstall]
+keeps = ["~/.ssh/**"]
+notes = "Your SSH keys, config and known_hosts are yours; uninstall removes only the rendered rule, permissions and guard sections."
+
+# Component taxonomy (docs/reference/taxonomy.md): bundle defaults, then per-component overrides.
+[taxonomy]
+domain = "infrastructure"
+posture = "read-only"
+function = "client"
+
+# Guides steer the agent before it acts; sensors detect at or after the action (principle 6).
+[harness]
+coverage_note = "The linux-rules guard section enforces rule text that lives in rules/82-linux.md. The remote allow-list judges the command text ssh sends; what an aliased host's ~/.ssh/config adds (ProxyCommand, RemoteCommand, StrictHostKeyChecking) and commands run through other tools (ansible, pssh, mosh) are not sensed. Device targets are judged by path: a relative path is a device only when the command or cwd is in /dev."
+guides = [
+  { kind = "rule", ref = "rules/82-linux.md", checks = ["guard.d/83-linux-rules.sh"], note = "read-only over ssh aliases, prod remediations are suggestions, host fixes through the infra repository" },
+  { kind = "permission", ref = "permissions.toml", checks = ["permissions-vs-guard", "guard.d/83-linux-rules.sh"], note = "local host reads allowed, storage and network changes ask, sshpass and disabled host-key checking denied" },
+]
+sensors = [
+  { kind = "guard", ref = "guard.d/82-linux.sh", note = "clause lexer, ssh/scp/rsync parsing, remote allow-list and device targets shared by the rules section" },
+  { kind = "guard", ref = "guard.d/83-linux-rules.sh", note = "remote mutations, sessions, tunnels, uploads, host-key checking, sshpass, private keys, local disk and network changes" },
+  { kind = "test", ref = "guard.d/tests.sh", note = "guard rows incl. bypasses, the guard.env prod regex and the infrastructure yield" },
+  { kind = "test", ref = "tests/run.sh", note = "this bundle's rows against core + linux only" },
+  { kind = "lint", ref = "permissions-vs-guard", note = "each Bash allow/deny rule of permissions.toml run through the guard: no allowed command the guard denies or asks, no denied one it allows" },
+]

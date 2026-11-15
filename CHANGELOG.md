@@ -169,6 +169,22 @@ prints every one between your applied version and the new one.
   `gh stack sync` is not used, a failed retarget of a linked PR is reported for the human to
   unstack and re-link, and `gh stack merge` runs only on the user's explicit request
   (references `github.md`, `mr-description.md`, `decomposition.md`, SKILL.md Steps 6b/6c).
+- `linux` bundle (#64, part 2: skeleton and governance; experimental, domain `infrastructure`,
+  not in any profile): rule `82-linux` ("Linux hosts"), guard sections `82-linux` (definitions:
+  a quote-aware clause lexer that unwraps `sh -c`, `eval`, `$(…)` and wrappers, ssh / scp /
+  rsync option parsing, a remote-command splitter and its read-only allow-list, block-device
+  targets) and `83-linux-rules`, permissions, rows, `tests/run.sh` and
+  [docs/bundles/linux.md](docs/bundles/linux.md). `ssh HOST <command>` passes only when every
+  clause of the remote command is read-only and asks otherwise (`host=<alias> [PROD]` from
+  `linux.prod_re`); interactive sessions, `-t`, tunnels and forwarding, uploads, `sftp` and
+  `ssh-copy-id` ask; `StrictHostKeyChecking=no|off`, `UserKnownHostsFile=/dev/null` and `sshpass`
+  deny; copying a private key out of `~/.ssh` denies and never yields; `dd of=/dev/…`, `mkfs`,
+  `wipefs`, partitioning, LVM / ZFS / RAID and firewall / network changes ask locally (image
+  files and listing forms pass). Config `linux.prod_re`, `linux.inventory`, `linux.ssh_timeout`
+  (env `LINUX_PROD_RE`, `LINUX_INVENTORY`, `LINUX_SSH_TIMEOUT`). The `lx` CLI, skill, agents and
+  doctor checks follow in the next part; the guard already lets `lx` pass. ARCHITECTURE §3 lists
+  bands `82` and `83`.
+
 - Guard engine: reads the hook input's `agent_id` (set by Claude Code on calls from a subagent
   or in-process teammate; `agent_type` is never read, since a `--agent` main thread carries it
   too) into `IN_SUBAGENT`, and offers `human_decision` / `human_decision_defer` for sections:
@@ -1212,6 +1228,12 @@ prints every one between your applied version and the new one.
   `gh extension exec` of another extension **asks** (and is **denied** from a subagent). Link sub PRs by number
   (`gh stack link --base <ticket branch> N1 N2`), keep stacks in sync with
   `stk sync --stack BR`, and hand `gh stack merge` to the user.
+- `linux` bundle (#64), opt-in: nothing changes until you add `linux` to `[hub].bundles`. Then
+  set `[linux] prod_re` if your production host aliases do not carry a `prod`/`production`
+  segment, and optionally `inventory` and `ssh_timeout`; run `harness apply`. Remote commands
+  that are not read-only, `ssh -t`, tunnels and uploads start to ask, and
+  `StrictHostKeyChecking=no` / `sshpass` are denied.
+
 - Guard decision change (#76), nothing to edit in config. In a repository whose `.harness.toml`
   owns `scm` but not `tracker`, a closing keyword in `gh -Ro/r pr …`, `gh pr new`,
   `glab -R g/p mr …`, `glab mr new`, a repeated repo flag or a quoted / `$VAR` gh or glab

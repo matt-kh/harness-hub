@@ -18,6 +18,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | [`jira`](bundles/jira.md#components) | tracker | label-gated | govern, client, setup | stable | Jira Server client (jira CLI + skill), read-only jira-mcp server, Jira write governance in the guard |
 | [`k8s`](bundles/k8s.md#components) | kubernetes | read-only | govern, client, investigate, plan, review, setup | stable | Read-only Kubernetes client (k8s CLI + skill), triage / audit / architect agents, kubeconfig and Secret guards |
 | [`lessons`](bundles/lessons.md#components) | base | local | govern, workflow, setup | experimental | The lessons loop: a /retro skill that turns a session's journal signals into at most two evidence-backed candidate lessons, a rule that has agents consult them, and hooks that record user corrections and nudge for a retro |
+| [`linux`](bundles/linux.md#components) | infrastructure | read-only | govern | experimental | Linux hosts over SSH: read-only by default, guards on remote mutations, interactive sessions, tunnels, uploads, disabled host-key checking, copied private keys and local disk / network changes |
 | [`obs`](bundles/obs.md#components) | operations | read-only | govern, client, investigate, setup | experimental | Read-only observability client (obs CLI + skill) for SigNoz, Prometheus and Grafana, an obs-triage agent, and API-key and raw-backend guards |
 | [`repo-bootstrap`](bundles/repo-bootstrap.md#components) | scm | label-gated | govern, client, setup | experimental | Bootstrap git repositories to a standard, locally and on GitHub or GitLab: a standard intake, architecture packs, and `repoboot` (questions, answer, plan, render, apply, check) |
 | [`stack`](bundles/stack.md#components) | scm | label-gated | govern, client, setup | experimental | Stacked MRs/PRs on free tiers: the `stk` CLI (plan, status, check, sync) keeps a chain of dependent parts retargeted, rebased and pushed |
@@ -79,6 +80,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | `jira/rules/70-jira` | guide | tracker | text | Jira ({{ jira.url }}) |
 | `ticket-workflow/rules/75-ticket-workflow` | guide | delivery | text | Ticket workflow |
 | `gdoc/rules/80-gdoc` | guide | workspace | text | Google Workspace ({{ google.domain }}) |
+| `linux/rules/82-linux` | guide | infrastructure | text | Linux hosts |
 
 ## Guard sections
 
@@ -103,6 +105,8 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | [`jira/guard.d/70-jira`](reference/hook-policy.md) | sensor | tracker | deny 5 · ask 5 · allow 4 | declaration | label-gated writes, provenance label on create, human-ticket transitions ask, subagent transitions denied |
 | [`ticket-workflow/guard.d/75-ticket-workflow`](reference/hook-policy.md) | sensor | delivery | ask 4 | declaration | key-free branches and subjects, sub worktree paths, squash delivery |
 | [`gdoc/guard.d/80-gdoc`](reference/hook-policy.md) | sensor | workspace | deny 1 · ask 2 · allow 2 | declaration | GET-only api, provenance check before writes, ask on mark and mail send |
+| [`linux/guard.d/82-linux`](reference/hook-policy.md) | sensor | infrastructure | helper (no rules) | n/a | clause lexer, ssh/scp/rsync parsing, remote allow-list and device targets shared by the rules section |
+| [`linux/guard.d/83-linux-rules`](reference/hook-policy.md) | sensor | infrastructure | deny 3 · ask 9 | declaration | remote mutations, sessions, tunnels, uploads, host-key checking, sshpass, private keys, local disk and network changes |
 
 ## Hook scripts
 
@@ -126,6 +130,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | `jira/permissions` | guide | tracker | allow 12 | config | read commands allowed; writes left to the guard |
 | `k8s/permissions` | guide | kubernetes | deny 12 · ask 45 · allow 42 | config | read-only kubectl/helm allowed |
 | `lessons/permissions` | guide | base | ask 2 · allow 1 | config | harness lessons allowed; hand edits of the library ask |
+| `linux/permissions` | guide | infrastructure | deny 5 · ask 21 · allow 8 | config | local host reads allowed, storage and network changes ask, sshpass and disabled host-key checking denied |
 | `obs/permissions` | guide | operations | deny 1 · ask 3 · allow 5 | config | obs and read-only rule tooling allowed, alert-state changes ask, key files denied to Read |
 | `repo-bootstrap/permissions` | guide | scm | allow 5 | config | repoboot questions\|answer\|plan\|render\|check allowed; apply is not (the guard asks); never Bash(repoboot:*) |
 | `stack/permissions` | guide | scm | allow 4 | config | stk plan\|status\|check\|sync allowed; never Bash(stk:*) |

@@ -250,7 +250,7 @@ Components that yield by declaration: listing a domain in `[owns] domains` cover
 | `kubernetes` | `k8s/guard.d/25-k8s-rules` | `k8s/skills/k8s` |
 | `workspace` | `gdoc/guard.d/80-gdoc` | `gdoc/skills/gdoc` |
 | `operations` | `obs/guard.d/32-obs` | `obs/skills/obs` |
-| `infrastructure` | — | — |
+| `infrastructure` | `linux/guard.d/83-linux-rules` | — |
 | `security` | `supply-chain/guard.d/38-supply-chain` | `supply-chain/skills/audit-deps`, `supply-chain/skills/pin-deps`, `supply-chain/skills/supply` |
 
 | id | kind | domain | bundle |
@@ -269,6 +269,7 @@ Components that yield by declaration: listing a domain in `[owns] domains` cover
 | `k8s/skills/k8s` | skill | kubernetes | k8s |
 | `lessons/guard.d/15-lessons` | guard | base | lessons |
 | `lessons/skills/retro` | skill | base | lessons |
+| `linux/guard.d/83-linux-rules` | guard | infrastructure | linux |
 | `obs/guard.d/32-obs` | guard | operations | obs |
 | `obs/skills/obs` | skill | operations | obs |
 | `repo-bootstrap/guard.d/67-repo-bootstrap` | guard | scm | repo-bootstrap |
@@ -283,7 +284,7 @@ Components that yield by declaration: listing a domain in `[owns] domains` cover
 | `ticket-workflow/skills/create-ticket` | skill | delivery | ticket-workflow |
 | `ticket-workflow/skills/work-ticket` | skill | delivery | ticket-workflow |
 
-Never yield, whatever the file says: `core/guard.d/20-credentials`, `core/permissions`, and the `# never-yields:` prelude rules of `core/guard.d/30-git`, `github/guard.d/60-github`, `k8s/guard.d/25-k8s-rules`, `obs/guard.d/32-obs`, `supply-chain/guard.d/38-supply-chain` (marked `never` in the [hook policy](reference/hook-policy.md)). Agents yield by name, rules by text and permission lists by config ([taxonomy](reference/taxonomy.md)).
+Never yield, whatever the file says: `core/guard.d/20-credentials`, `core/permissions`, and the `# never-yields:` prelude rules of `core/guard.d/30-git`, `github/guard.d/60-github`, `k8s/guard.d/25-k8s-rules`, `linux/guard.d/83-linux-rules`, `obs/guard.d/32-obs`, `supply-chain/guard.d/38-supply-chain` (marked `never` in the [hook policy](reference/hook-policy.md)). Agents yield by name, rules by text and permission lists by config ([taxonomy](reference/taxonomy.md)).
 <!-- generated:end -->
 
 Override names and defaults: [hook policy → Repo overrides](reference/hook-policy.md#repo-overrides).
