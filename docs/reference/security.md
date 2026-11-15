@@ -35,12 +35,12 @@ Out of scope by construction:
 
 | Discipline | Domain | Architect (`plan`) | Develop (`workflow`, `client`) | Operate (`review`, `investigate`) | Posture | Covered today / planned | Out of scope here |
 |---|---|---|---|---|---|---|---|
-| Software supply chain | `security` | `supply-architect` | `/pin-deps`, `/audit-deps`, `supply` CLI | `supply-auditor`, `supply-triage` | local | planned: `supply-chain` (38) | publishing, signing with the developer's key, registry administration |
+| Software supply chain | `security` | `supply-architect` | `/pin-deps`, `/audit-deps`, `supply` CLI | `supply-auditor`, `supply-triage` | local | `supply-chain` (38, experimental) | publishing, signing with the developer's key, registry administration |
 | Secrets and credential management | `base` | — | `secrets` CLI | `secrets scan` | read-only | `core/guard.d/20-credentials`; planned: `secrets` (22) | vault administration, rotating someone else's credential |
 | Application security | `security` | `appsec-architect` | `/draft-threat-model` | `appsec-reviewer` | read-only | `core/agents/code-reviewer`; candidate: `appsec` (39) | pip-installed SAST (rejected), DAST against targets you do not own |
 | Infrastructure and cloud posture | the system's own (`kubernetes`, `infrastructure`) | `infra-architect` | chart, overlay and IaC changes | `k8s-auditor`; planned `iac-reviewer` | read-only | `k8s`; planned: `iac`, `cloud`, `containers`, `hosts` | live remediation, `[PROD]` mutations |
 | Identity and access | the system's own; `security` for a cross-system review | — | `iam` CLI | `iam-auditor` | read-only | planned: `k8s rbac`, `iac` IAM diff; candidate: `iam` (43) | creating tokens, keys or role bindings (human-only) |
-| Vulnerability management | `security` | — | `supply audit`; `vuln` CLI | `supply-triage`; `vuln-triage` | read-only | planned: `supply-chain`; candidate: `vuln` (42) | exploitability proofs |
+| Vulnerability management | `security` | — | `supply audit`; `vuln` CLI | `supply-triage`; `vuln-triage` | read-only | `supply-chain` (`supply audit`, experimental); candidate: `vuln` (42) | exploitability proofs |
 | Detection and response | `operations` | — | `incident timeline`, `/postmortem` | `/triage` (`k8s-triage`, `obs-triage`) | label-gated | `obs`; planned: `incident` | SIEM, EDR, paging, containment actions |
 | Data protection and privacy | `security` | — | the shared `redact` block | `privacy-reviewer` | read-only | the `redact` block in every CLI; candidate: `privacy` (44) | data-loss prevention, legal assessments |
 | Governance, risk and compliance | `security` | — | `compliance check` | `compliance-reviewer` | read-only | policy as config in every bundle; candidate: `compliance` (46) | audits, certification, attestations as a service |
@@ -55,7 +55,7 @@ and pins (dependencies by exact version, GitHub Actions by commit, images by dig
 workflow hardening, SBOMs, signatures and provenance (Sigstore, in-toto, SLSA, GitHub artifact
 attestations), and known vulnerabilities in what is locked. The agent installs inside the
 project, never into the machine, and never switches verification off. First bundle of the
-family: `supply-chain`.
+family: [`supply-chain`](../bundles/supply-chain.md) (experimental).
 
 ### Secrets and credential management
 
@@ -177,7 +177,7 @@ family needs no new `function` or `posture` value.
 
 | Bundle | Guard band | Config section | Env prefix | Architect / develop / operate | Status |
 |---|---|---|---|---|---|
-| `supply-chain` | `38` | `supply_chain.*` | `SUPPLY_` | `supply-architect` / `/pin-deps`, `/audit-deps`, `supply` / `supply-auditor`, `supply-triage` | planned (#51); supersedes `toolchain` |
+| `supply-chain` | `38` | `supply_chain.*` | `SUPPLY_` | `supply-architect` / `/pin-deps`, `/audit-deps`, `supply` / `supply-auditor`, `supply-triage` | shipped, experimental (#51); supersedes `toolchain` |
 | `appsec` | `39` | `appsec.*` | `APPSEC_` | `appsec-architect` / `/draft-threat-model` / `appsec-reviewer` | candidate |
 | `vuln` | `42` | `vuln.*` | `VULN_` | — / `vuln` CLI / `vuln-triage` | candidate, after `supply-chain` and `containers` |
 | `iam` | `43` | `iam.*` | `IAM_` | — / `iam` CLI / `iam-auditor` | candidate |
