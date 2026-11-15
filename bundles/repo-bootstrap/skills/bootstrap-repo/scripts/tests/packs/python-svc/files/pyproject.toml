@@ -1,0 +1,9 @@
+[project]
+name = "{{ repo.name }}"
+version = "0.1.0"
+description = "{{ repo.description }}"
+requires-python = ">={{ pack.python-svc.python_version }}"
+dependencies = []
+
+[dependency-groups]
+dev = ["pytest", "ruff"]
