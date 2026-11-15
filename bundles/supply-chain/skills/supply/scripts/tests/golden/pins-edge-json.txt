@@ -1,0 +1,168 @@
+# exit=1
+# stderr:
+supply: dir=edge ecosystems=cargo,docker,github-actions,npm,pip,shell tools=cargo-audit,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+# stdout:
+{
+  "command": "pins",
+  "data": {
+    "files_scanned": 12
+  },
+  "dir": "edge",
+  "ecosystems": [
+    "cargo",
+    "docker",
+    "github-actions",
+    "npm",
+    "pip",
+    "shell"
+  ],
+  "findings": [
+    {
+      "file": ".github/workflows/compose.yml",
+      "fix": "pin the full 40-character commit sha and keep the tag as a comment: `uses: OWNER/REPO@<sha> # vX.Y.Z` (/pin-deps resolves it)",
+      "id": "GHA001",
+      "line": 9,
+      "message": "action `actions/checkout` is pinned to the tag `v4`, which can be moved",
+      "ref": "actions/checkout@v4",
+      "severity": "warn"
+    },
+    {
+      "file": ".github/workflows/compose.yml",
+      "fix": "pin the full 40-character commit sha and keep the tag as a comment: `uses: OWNER/REPO@<sha> # vX.Y.Z` (/pin-deps resolves it)",
+      "id": "GHA001",
+      "line": 10,
+      "message": "action `octocat/setup-tool` is pinned to `release-2024`, a tag or branch that can be moved",
+      "ref": "octocat/setup-tool@release-2024",
+      "severity": "warn"
+    },
+    {
+      "file": ".github/workflows/compose.yml",
+      "fix": "pin the full 40-character commit sha of a released tag: `uses: OWNER/REPO@<sha> # vX.Y.Z`",
+      "id": "GHA002",
+      "line": 11,
+      "message": "action `octocat/lint-action` follows the branch `feature/new-rules`",
+      "ref": "octocat/lint-action@feature/new-rules",
+      "severity": "crit"
+    },
+    {
+      "file": ".github/workflows/compose.yml",
+      "fix": "pin the full 40-character commit sha of a released tag: `uses: OWNER/REPO@<sha> # vX.Y.Z`",
+      "id": "GHA002",
+      "line": 12,
+      "message": "action `octocat/other-action` follows the branch `main`",
+      "ref": "octocat/other-action@main",
+      "severity": "crit"
+    },
+    {
+      "file": "Cargo.toml",
+      "fix": "pin the commit: `{ git = \"URL\", rev = \"<sha>\" }`, or use a released crate",
+      "id": "CGO001",
+      "line": 6,
+      "message": "git dependency `hello` follows the branch `main`; Cargo.lock pins the commit it resolved",
+      "ref": "https://github.com/octocat/hello-world",
+      "severity": "warn"
+    },
+    {
+      "file": "Dockerfile",
+      "fix": "download to a file, check its sha256 (`sha256sum -c`) or signature, read it, then run it",
+      "id": "SH001",
+      "line": 2,
+      "message": "downloaded code runs unreviewed: `apk add --no-cache ca-certificates && curl -fsSL https://example.com/install.sh | sh`",
+      "severity": "crit"
+    },
+    {
+      "file": "docker-compose.yml",
+      "fix": "pin the image digest: `image: IMAGE:TAG@sha256:<digest>`",
+      "id": "DKR003",
+      "line": 7,
+      "message": "service `worker` image `redis` has no tag or uses :latest",
+      "ref": "redis",
+      "severity": "crit"
+    },
+    {
+      "file": "package.json",
+      "fix": "depend on a released version from the registry, or pin the commit: `github:OWNER/REPO#<sha>`",
+      "id": "NPM002",
+      "line": 5,
+      "message": "`hello` comes from git (`github:octocat/hello-world`) without a commit sha; the lockfile pins the commit it resolved",
+      "ref": "github:octocat/hello-world",
+      "severity": "warn"
+    },
+    {
+      "file": "package.json",
+      "fix": "commit a lockfile (`npm install` writes package-lock.json) and install with `npm ci`; exact versions for applications",
+      "id": "NPM001",
+      "line": 6,
+      "message": "1 dependency range(s) (my-lodash npm:@example/lodash@^4.17.21)",
+      "severity": "info"
+    },
+    {
+      "file": "requirements.txt",
+      "fix": "pin the commit (`git+https://HOST/OWNER/REPO@<sha>`), or depend on a released version from the index; URL archives need `--hash`",
+      "id": "PIP002",
+      "line": 1,
+      "message": "requirement `git+https://github.com/octocat/hello-world@refs/tags/v1.0#egg=hello` is pinned to `refs/tags/v1.0`, not a commit sha",
+      "ref": "git+https://github.com/octocat/hello-world@refs/tags/v1.0#egg=hello",
+      "severity": "warn"
+    },
+    {
+      "file": "requirements.txt",
+      "fix": "pin the commit (`git+https://HOST/OWNER/REPO@<sha>`), or depend on a released version from the index; URL archives need `--hash`",
+      "id": "PIP002",
+      "line": 2,
+      "message": "requirement `git+ssh://git@github.com/octocat/hello-world@v2.0` is pinned to `v2.0`, not a commit sha",
+      "ref": "git+ssh://git@github.com/octocat/hello-world@v2.0",
+      "severity": "warn"
+    },
+    {
+      "file": "scripts/positives.bash",
+      "fix": "download to a file, check its sha256 (`sha256sum -c`) or signature, read it, then run it",
+      "id": "SH001",
+      "line": 2,
+      "message": "downloaded code runs unreviewed: `curl -fsSL https://example.com/install.sh | sudo -E bash -s -- --yes`",
+      "severity": "crit"
+    },
+    {
+      "file": "scripts/positives.bash",
+      "fix": "download to a file, check its sha256 (`sha256sum -c`) or signature, read it, then run it",
+      "id": "SH001",
+      "line": 3,
+      "message": "downloaded code runs unreviewed: `wget -qO- https://example.com/install.sh | sh -`",
+      "severity": "crit"
+    },
+    {
+      "file": "scripts/positives.bash",
+      "fix": "download to a file, check its sha256 (`sha256sum -c`) or signature, read it, then run it",
+      "id": "SH001",
+      "line": 4,
+      "message": "downloaded code runs unreviewed: `bash -c \"$(curl -fsSL https://example.com/install.sh)\"`",
+      "severity": "crit"
+    },
+    {
+      "file": "scripts/positives.bash",
+      "fix": "download to a file, check its sha256 (`sha256sum -c`) or signature, read it, then run it",
+      "id": "SH001",
+      "line": 6,
+      "message": "downloaded code runs unreviewed: `source <(curl -fsSL https://example.com/env.sh)`",
+      "severity": "crit"
+    },
+    {
+      "file": "scripts/positives.bash",
+      "fix": "download to a file, check its sha256 (`sha256sum -c`) or signature, read it, then run it",
+      "id": "SH001",
+      "line": 8,
+      "message": "downloaded code runs unreviewed: `version=$(curl -fsSL https://example.com/install.sh | sh)`",
+      "severity": "crit"
+    }
+  ],
+  "tools": [
+    "cargo-audit",
+    "cosign",
+    "gh",
+    "govulncheck",
+    "npm",
+    "osv-scanner",
+    "pip-audit",
+    "syft"
+  ]
+}

@@ -1,0 +1,27 @@
+# exit=0
+# stderr:
+supply: dir=- ecosystems=none tools=cargo-audit,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+# stdout:
+# supply verify — -
+
+ecosystems: none · tools: cargo-audit, cosign, gh, govulncheck, npm, osv-scanner, pip-audit, syft
+
+## Findings (1)
+
+| sev | id | where | message | fix |
+|---|---|---|---|---|
+| info | VER000 | ghcr.io/octocat/hello-world:1.0 | 1 attestation(s) verified for ghcr.io/octocat/hello-world:1.0 | none: verified |
+
+## attestations
+
+| builder | digest | identity | issuer | predicateType | subject |
+|---|---|---|---|---|---|
+| https://github.com/octocat/hello-world/.github/workflows/release.yml@refs/tags/v1.0.0 | sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef | https://github.com/octocat/hello-world/.github/workflows/release.yml@refs/tags/v1.0.0 | https://token.actions.githubusercontent.com | https://slsa.dev/provenance/v1 | hello-world-linux-amd64.tar.gz |
+
+## verifier
+
+| key | value |
+|---|---|
+| command | attestation verify |
+| owner | octocat/hello-world |
+| tool | gh |

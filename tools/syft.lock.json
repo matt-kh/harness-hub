@@ -1,0 +1,35 @@
+{
+  "tool": "syft",
+  "version": "1.55.0",
+  "verified": true,
+  "optional": true,
+  "homepage": "https://github.com/anchore/syft",
+  "license": "Apache-2.0",
+  "checksums_url": "https://github.com/anchore/syft/releases/download/v1.55.0/syft_1.55.0_checksums.txt",
+  "assets": {
+    "linux/amd64": {
+      "url": "https://github.com/anchore/syft/releases/download/v1.55.0/syft_1.55.0_linux_amd64.tar.gz",
+      "sha256": "bb65249542db5fedeeb4d3f9b018b75e7264dbfbbb10486f044581a92f90490d",
+      "archive": "tar.gz",
+      "binary": "syft"
+    },
+    "linux/arm64": {
+      "url": "https://github.com/anchore/syft/releases/download/v1.55.0/syft_1.55.0_linux_arm64.tar.gz",
+      "sha256": "929bd163db2d7cd2255d3bcb8967208079813d7b46b0c952f7b794d8e2c7d304",
+      "archive": "tar.gz",
+      "binary": "syft"
+    },
+    "darwin/amd64": {
+      "url": "https://github.com/anchore/syft/releases/download/v1.55.0/syft_1.55.0_darwin_amd64.tar.gz",
+      "sha256": "e2e5831cbabaec9a36fe65c34755c1113982c842a685edce3ce0b54a0ded8003",
+      "archive": "tar.gz",
+      "binary": "syft"
+    },
+    "darwin/arm64": {
+      "url": "https://github.com/anchore/syft/releases/download/v1.55.0/syft_1.55.0_darwin_arm64.tar.gz",
+      "sha256": "1217c258bd5eb91ef3189cf22a82e02f9cac07e4ce934350f428e93aff674625",
+      "archive": "tar.gz",
+      "binary": "syft"
+    }
+  }
+}

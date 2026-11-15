@@ -1,0 +1,60 @@
+# exit=0
+# stderr:
+supply: dir=dirty ecosystems=cargo,docker,gitlab-ci tools=cargo-audit,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+# stdout:
+{
+  "command": "detect",
+  "data": {
+    "ecosystems": [
+      {
+        "ecosystem": "cargo",
+        "files": [
+          "Cargo.toml"
+        ],
+        "lockfiles": []
+      },
+      {
+        "ecosystem": "docker",
+        "files": [
+          "Dockerfile"
+        ],
+        "lockfiles": []
+      },
+      {
+        "ecosystem": "gitlab-ci",
+        "files": [
+          ".gitlab-ci.yml"
+        ],
+        "lockfiles": []
+      }
+    ],
+    "files_scanned": 3,
+    "skipped_large": []
+  },
+  "dir": "dirty",
+  "ecosystems": [
+    "cargo",
+    "docker",
+    "gitlab-ci"
+  ],
+  "findings": [
+    {
+      "file": "",
+      "fix": "narrow DIR or exclude generated trees with supply_chain.exclude_re; files after the cap were not scanned",
+      "id": "SUP001",
+      "line": 0,
+      "message": "scan stopped at 3 files; the rest of dirty was not scanned",
+      "severity": "warn"
+    }
+  ],
+  "tools": [
+    "cargo-audit",
+    "cosign",
+    "gh",
+    "govulncheck",
+    "npm",
+    "osv-scanner",
+    "pip-audit",
+    "syft"
+  ]
+}

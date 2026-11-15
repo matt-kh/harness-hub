@@ -1,0 +1,5 @@
+# exit=2
+# stderr:
+supply: dir=- ecosystems=none tools=none
+supply verify: gh is not installed: enable the github bundle (harness install gh); the attestation is unverified, not failed
+# stdout:

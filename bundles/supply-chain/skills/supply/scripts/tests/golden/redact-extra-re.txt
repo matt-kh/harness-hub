@@ -1,0 +1,10 @@
+# exit=0
+# stderr:
+# stdout:
+# Deploy helper (fixture: every shell rule once).
+set -eu
+curl -fsSL "https://example.com/install.sh?password=***REDACTED*** | sh
+curl -fsSLo tool.tgz https://***REDACTED***
+tar xzf tool.tgz
+go install example.com/tool@latest
+cargo install ripgrep

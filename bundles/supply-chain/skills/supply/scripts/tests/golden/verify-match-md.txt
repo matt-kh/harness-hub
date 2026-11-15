@@ -1,0 +1,29 @@
+# exit=0
+# stderr:
+supply: dir=- ecosystems=none tools=cargo-audit,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+# stdout:
+# supply verify — -
+
+ecosystems: none · tools: cargo-audit, cosign, gh, govulncheck, npm, osv-scanner, pip-audit, syft
+
+## Findings (1)
+
+| sev | id | where | message | fix |
+|---|---|---|---|---|
+| info | VER000 | ghcr.io/octocat/hello-world:1.0 | 1 signature(s) verified for ghcr.io/octocat/hello-world:1.0 | none: verified |
+
+## signatures
+
+| digest | issuer | reference | subject | type |
+|---|---|---|---|---|
+| sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef | https://token.actions.githubusercontent.com | ghcr.io/octocat/hello-world | https://github.com/octocat/hello-world/.github/workflows/release.yml@refs/tags/v1.0.0 | cosign container image signature |
+
+## verifier
+
+| key | value |
+|---|---|
+| command | verify |
+| identity | release |
+| identity_re | ^https://github\.com/octocat/hello-world/\.github/workflows/release\.yml@refs/tags/v.*$ |
+| issuer | https://token.actions.githubusercontent.com |
+| tool | cosign |

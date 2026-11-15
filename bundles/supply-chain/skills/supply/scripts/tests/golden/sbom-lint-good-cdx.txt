@@ -1,0 +1,19 @@
+# exit=0
+# stderr:
+# stdout:
+# supply sbom lint — -
+
+ecosystems: none · tools: none
+
+## Findings (0)
+
+none
+
+## sbom
+
+| key | value |
+|---|---|
+| file | ../sbom/good.cdx.json |
+| format | cyclonedx-json |
+| packages | 1 |
+| spec_version | 1.6 |

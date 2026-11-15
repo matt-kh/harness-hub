@@ -1,0 +1,4 @@
+# exit=1
+# stderr:
+supply verify: TARGET '-rf' starts with `-` (or holds a NUL), which a verifier would read as an option; for a file of that name pass ./-rf
+# stdout:

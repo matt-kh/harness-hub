@@ -93,15 +93,45 @@ class ToolsTest(unittest.TestCase):
         self.assertEqual(T.mirror_url("https://a/b", None), "https://a/b")
 
     def test_repo_locks_are_complete_and_verified(self):
-        for tool in ("gh", "glab"):
+        tdir = os.path.join(REPO, "tools")
+        tools = sorted(f[:-len(".lock.json")] for f in os.listdir(tdir) if f.endswith(".lock.json"))
+        for must in ("gh", "glab", "osv-scanner", "cosign", "syft"):
+            self.assertIn(must, tools)
+        platforms = ["darwin/amd64", "darwin/arm64", "linux/amd64", "linux/arm64"]
+        for tool in tools:
             lock = T.load_lock(REPO, tool)
-            self.assertTrue(lock["verified"], tool)
-            self.assertEqual(sorted(lock["assets"]), ["darwin/amd64", "darwin/arm64", "linux/amd64", "linux/arm64"])
+            self.assertEqual(lock["tool"], tool)
+            self.assertRegex(lock["version"], r"^[0-9]+\.[0-9]+\.[0-9]+$", tool)
+            self.assertIs(lock["verified"], True, tool)
+            if "optional" in lock:
+                self.assertIsInstance(lock["optional"], bool, tool)
+            self.assertTrue(lock["checksums_url"].startswith("https://"), tool)
+            self.assertIn(lock["version"], lock["checksums_url"], tool)
+            self.assertEqual(sorted(lock["assets"]), platforms, tool)
             for key, asset in lock["assets"].items():
                 self.assertRegex(asset["sha256"], r"^[0-9a-f]{64}$", (tool, key))
-                self.assertTrue(asset["url"].startswith("https://"))
-                self.assertIn(lock["version"], asset["url"])
+                self.assertTrue(asset["url"].startswith("https://"), (tool, key))
+                self.assertIn(lock["version"], asset["url"], (tool, key))
+                self.assertIn(asset.get("archive", "tar.gz"), ("tar.gz", "tgz", "zip", "none", "binary"), (tool, key))
+                self.assertTrue(asset.get("binary"), (tool, key))
 
+    def test_supply_chain_locks_are_optional(self):
+        for tool in ("osv-scanner", "cosign", "syft"):
+            self.assertIs(T.load_lock(REPO, tool).get("optional"), True, tool)
+        for tool in ("gh", "glab"):
+            self.assertFalse(T.load_lock(REPO, tool).get("optional", False), tool)
+
+    def test_bare_binary_install(self):
+        path = os.path.join(self.tmp, "bare")
+        with open(path, "wb") as fh:
+            fh.write(self.payload)
+        lock = {"tool": "tool", "version": "1.2.3", "verified": True,
+                "assets": {"linux/amd64": {"url": "https://example.com/dl/tool-linux-amd64",
+                                           "sha256": hashlib.sha256(self.payload).hexdigest(),
+                                           "archive": "none", "binary": "tool-linux-amd64"}}}
+        info = self.install(lock, from_file=path)
+        self.assertEqual(info["path"], os.path.join(self.dest, "tool"))
+        self.assertTrue(os.access(info["path"], os.X_OK))
 
 if __name__ == "__main__":
     unittest.main()

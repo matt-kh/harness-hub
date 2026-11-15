@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Test stub for `syft` (supply CLI suite): logs "syft ARGS" to $STUB_LOG, answers from
+# $SUPPLY_STUB_FIX, and fails loudly on anything that writes, signs or switches verification off.
+name=syft
+printf '%s %s\n' "$name" "$*" >> "${STUB_LOG:-/dev/null}"
+fix=${SUPPLY_STUB_FIX:?SUPPLY_STUB_FIX is not set}
+for a in "$@"; do
+  case "$a" in
+    sign|sign-blob|attest|attest-blob|fix|push|publish|--insecure*|--allow-*-registry|--download-offline-databases)
+      echo "stub $name: refusing a mutating or verification-off argument: $a" >&2; exit 1 ;;
+  esac
+done
+if [ "${STUB_FAIL:-}" = "$name" ]; then
+  echo "stub $name: failing on request (STUB_FAIL)" >&2; exit 2
+fi
+[ "$1" = scan ] || { echo "stub syft: only 'syft scan' is supported, got: $*" >&2; exit 1; }
+case "$2" in
+  dir:*|registry:*) ;;
+  *) echo "stub syft: source must be dir: or registry:, got: $2" >&2; exit 1 ;;
+esac
+case "$2" in
+  *missing*) echo "could not fetch image: MANIFEST_UNKNOWN: manifest unknown" >&2; exit 1 ;;
+esac
+case "$4" in
+  spdx-json) cat "$fix/syft-spdx.json" ;;
+  cyclonedx-json) cat "$fix/syft-cdx.json" ;;
+  *) echo "stub syft: unsupported format $4" >&2; exit 1 ;;
+esac

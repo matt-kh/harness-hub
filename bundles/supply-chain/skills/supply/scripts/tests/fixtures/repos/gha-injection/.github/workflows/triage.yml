@@ -1,0 +1,47 @@
+name: triage
+on:
+  pull_request_target:
+  issue_comment:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: where to deploy
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  label:
+    runs-on: ubuntu-24.04
+    permissions: write-all
+    container:
+      image: node
+    services:
+      cache:
+        image: redis:latest
+      db: postgres:16.4@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+    steps:
+      - name: checkout the PR
+        run: gh pr checkout ${{ github.event.pull_request.number }}
+      - name: safe through env
+        env:
+          TITLE: ${{ github.event.issue.title }}
+        run: echo "$TITLE"
+      - name: unsafe multi-line
+        run: |
+          echo "branch ${{ github.head_ref }}"
+          echo "safe sha ${{ github.event.pull_request.head.sha }}"
+          ./deploy.sh "${{ inputs.target }}"
+          echo "::add-mask::${{ secrets.DEPLOY_KEY }}"
+          printenv
+      - name: comment body in a script
+        uses: actions/github-script@0123456789abcdef0123456789abcdef01234567 # v7.0.1
+        with:
+          script: |
+            const body = "${{ github.event.comment.body }}"
+      - name: codeql scan
+        uses: github/codeql-action/analyze@v3
+        continue-on-error: true
+  dump:
+    runs-on: ubuntu-24.04
+    steps:
+      - run: env | sort

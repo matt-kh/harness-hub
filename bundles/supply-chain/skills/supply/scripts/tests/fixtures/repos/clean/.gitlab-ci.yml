@@ -1,0 +1,10 @@
+include:
+  - project: example-group/ci-templates
+    ref: 0123456789abcdef0123456789abcdef01234567
+    file: /templates/build.yml
+  - component: gitlab.example.com/example-group/components/lint@1.4.0
+  - template: Jobs/SAST.gitlab-ci.yml
+image: python:3.12@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+test:
+  script:
+    - make test

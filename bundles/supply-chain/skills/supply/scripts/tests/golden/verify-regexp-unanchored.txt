@@ -1,0 +1,5 @@
+# exit=2
+# stderr:
+supply: dir=- ecosystems=none tools=cargo-audit,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+supply verify: --identity: '^https://github\\.com/octocat/' must be anchored as ^...$ and must not match the empty string (e.g. ^https://github\.com/OWNER/REPO/\.github/workflows/release\.yml@refs/tags/v.*$)
+# stdout:

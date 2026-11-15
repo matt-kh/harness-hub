@@ -10,6 +10,21 @@ prints every one between your applied version and the new one.
 
 ### Docs
 
+- [docs/bundles/supply-chain.md](docs/bundles/supply-chain.md): the hand-written body (the
+  `supply` verbs and exit codes, skills and agents, guard section 38, the optional tools, a
+  `[supply_chain]` example with documentation values) and Troubleshooting rows for audit
+  `unavailable`/`partial` (exit 1) and exit 3 (no detected ecosystem could be audited, and the
+  other unsupported inputs), `supply verify` exit 2 (identity, anchoring, `unverifiable`,
+  `--github`), `supply ci` false positives and tags flagged by `supply pins`. `SECURITY.md`: a
+  threat-model row for unpinned or unverified code, outbound-call rows for `supply audit`,
+  `supply verify` and `supply sbom IMAGE`, and `security` among the domains a repository can
+  own (every rule of section 38; the `~/.sigstore/` key deny never yields).
+  [docs/roadmap.md](docs/roadmap.md): `supply-chain` shipped (experimental; the section keeps
+  the design as planned and points to the bundle page), bands `38` and `35` (pipe-to-shell)
+  in use, its config keys moved to the shipped list,
+  S4b covers `supply-architect`;
+  [docs/reference/security.md](docs/reference/security.md) marks it shipped; README names
+  the supply chain and the security track.
 - [docs/roadmap.md](docs/roadmap.md): the Security track. `supply-chain` (#51) is its first
   bundle and supersedes the planned `toolchain` (guard band `38`; the P2 row becomes a pointer,
   the proposed `code` domain is dropped, `toolchain.*` keys become `supply_chain.*`, env prefix
@@ -76,6 +91,153 @@ prints every one between your applied version and the new one.
 
 ### Added
 
+- `core` guard section `35-shell-hygiene` and rule `rules/35-shell-hygiene.md` (#51, the last
+  part; band `35` now in use, pipe-to-shell only): a download (`curl`, `wget`, `fetch`) piped
+  into an interpreter that reads its program from stdin (`| sh`, `| sudo bash`, `| python3 -`,
+  `| bash -s`, `| perl`, `| node`, `| ruby`; not with `-c`/`-m`/`-e`/`-n`/`-p` or a script
+  operand), `sh|bash|source|. <(curl …)`, `sh|bash -c "$(curl …)"` and `eval "$(curl …)"`
+  **ask** (deferred, so a later deny still wins): download to a file, check its sha256, read
+  it, then run it instead. A small quote-aware matcher reads the raw command: quoted text in
+  `echo`, `printf`, `grep` or a commit message is not a command, while `sh -c '…'`,
+  `cd … &&`, `/usr/bin/curl`, `env X=1 curl`, subshells and quoted command words still are,
+  and so are `{ …; } | sh`, `curl … | (sh)`, `if`/`for`/`while`/`case` bodies, a pipeline
+  continued after a trailing `|`, `tee >(sh)`, the wrappers `timeout`, `busybox`, `exec -a`,
+  `sudo -s|-i`, `su`, `xargs … sh -c`, `bash -euo pipefail`, `bash -o pipefail -c "$(curl …)"`,
+  `python3 -c|perl -e|node -e|ruby -e "$(curl …)"`, `source /dev/stdin <<< "$(curl …)"`, an
+  interpreter's heredoc expanding `$(curl …)`, `ash`/`mksh`/`fish`/`$SHELL` and HTTPie / `xh`
+  as downloaders. `| tar xz`, `| jq .`, `| sha256sum`, `| python3 -c '…'`, `| bash -n`,
+  `| bash -s < file`, `| xargs sh` and `-o file && sh file` pass. The matcher runs in the C
+  locale in linear time and on any POSIX awk (the core tests rerun its rows under mawk,
+  busybox awk or BSD awk when installed); what it does not see (other downloaders,
+  interpreters and wrappers, remote and container shells, a download kept in a variable) is
+  listed in the bundle's coverage note. The rest of band `35` (`sudo`/`doas`, recursive
+  removal, `chmod -R 777`) stays planned.
+- `supply-chain` bundle (#51; experimental; domain `security`, posture `local`), the first
+  bundle of the security track: pin what you add, install inside the project, never switch
+  verification off. Guard section 38 with its rule and permission list, the read-only `supply`
+  CLI and client skill, pinned optional `osv-scanner`, `cosign` and `syft`, the workflow skills
+  `/pin-deps` and `/audit-deps` and three read-only agents (the bullets below); docs page
+  [supply-chain](docs/bundles/supply-chain.md). Pipe-to-shell as a command is core band `35`
+  (below).
+- `supply-chain` guard: rule `rules/38-supply-chain.md`, guard section `38-supply-chain` and a
+  permission list.
+  The section lexes the raw command once (newlines, subshells, `{ }`, `if/for` bodies, `$( )`,
+  backticks and `sh -c`/`eval` strings are separate commands; quotes and backslashes removed;
+  heredoc bodies are data unless a shell reads them) and exempts commands that only print or
+  search text (`echo`, `grep`, `rg`, `sed`, `cat`, `git log|commit|…`) unless the line runs
+  text as code. Denies switching verification off: `pip|uv --trusted-host` (and unique
+  prefixes) or an `http://` index (flags, `pip config set`, `PIP_*`/`UV_*` variables),
+  `uv --allow-insecure-host`, npm/pnpm/yarn `strict-ssl false` or an `http://` registry
+  (`config set`, `set`, `--registry`, `--no-strict-ssl`, yarn `enableStrictSsl`,
+  `npmRegistryServer`, `unsafeHttpWhitelist`, `YARN_ENABLE_STRICT_SSL`),
+  `NODE_TLS_REJECT_UNAUTHORIZED=0`, git `-c|--config http.sslVerify=false|no|off|0|<empty>`,
+  `git config http.sslVerify false`, `--config-env`, `GIT_CONFIG_KEY_<n>`, `GIT_SSL_NO_VERIFY`,
+  `GOINSECURE=<value>`, `GOFLAGS=-insecure`, `go get -insecure`, `GOSUMDB=off`, `go env -w
+  GONOSUMDB|GONOSUMCHECK=<value>`, `cosign verify* --insecure-*|--allow-*-registry|
+  --private-infrastructure` (any true value), and a reader taking `cosign.key` or
+  `.sigstore/**/*.key` as a file operand. The `~/.sigstore/**/*.key` read deny is a
+  `# never-yields:` prelude, so owning `security` does not lift it (a repository's own
+  `cosign.key` still yields with the domain); unreleased, so no migration. Asks (deferred, so a later deny still wins) on
+  `pip install` outside a venv (markers: the hook's environment with `CONDA_PREFIX` only outside
+  conda base, an earlier `activate` clause, a runner, a venv's `…/bin/pip` as the command word,
+  `--target|--prefix` inside the checkout; a `VIRTUAL_ENV=` assignment is no marker), with
+  `--user`, `--break-system-packages` or `sudo`, `uv pip install --system` and
+  `UV_SYSTEM_PYTHON=1`; `npm|pnpm -g`, `yarn global add`, `cargo install` without `--locked
+  --version`, `go install …@latest|@main|@master|@HEAD`; unpinned git and URL dependencies (pip,
+  npm/pnpm/yarn incl. every tarball URL, cargo); a one-shot `GONOSUMDB=`/`GONOSUMCHECK=`;
+  `cosign sign|attest|attach|upload|copy|clean|generate-key-pair|import-key-pair`; and `curl -k`
+  or `wget --no-check-certificate` writing a file or piping into `tar|unzip|tee|dd|cpio`.
+  `pipx install`, `uv tool install`, `go install m@v1.2.3` and `cargo install X --locked
+  --version V` pass. `supply_chain.allow_global_re` (anchor it) must match every word after the
+  first install verb. Keys `supply_chain.allow_global_re`
+  (`SUPPLY_ALLOW_GLOBAL_RE`), `supply_chain.venv_markers` (`SUPPLY_VENV_MARKERS`),
+  `supply_chain.registries_re`, `supply_chain.identities`, `supply_chain.redact_extra_re`,
+  `supply_chain.osv_offline_db`, `supply_chain.pin_actions`, `supply_chain.max_bytes` (the last
+  six for the `supply` CLI). Guard rows incl. bypasses, ordering against later denies, the
+  `security` yield and `guard.env`.
+  The guard's `guard.env` parser and the `env-provides` lint accept the `SUPPLY_` prefix; band
+  `38` is listed in ARCHITECTURE §3.
+- `supply-chain` CLI: the read-only `supply` CLI (stdlib python 3.9, inlining
+  the core `harness_config` and `redact` blocks) and its client skill with six reference
+  rubrics. Verbs: `detect` (ecosystems, manifests, lockfiles; never runs a tool), `pins`
+  (unpinned actions, images, dependencies and unverified downloads, `GHA*`, `DKR*`, `PIP*`,
+  `NPM*`, `GO*`, `CGO*`, `SH001`/`SH002`, `CI006`/`CI008`/`CI009`, `REG001`; findings carry the
+  exact `ref` token) with `pins --apply FILE` (exact-token rewrites, all-or-nothing, byte-exact,
+  then a re-scan; only a finding's `ref`, as a whole token, replaced by a digest or sha pin of
+  the same name; no symlinks or `.git`; staged writes rolled back on a failure part-way),
+  `ci FILE...` (GitHub Actions and GitLab CI hardening `CI000`–`CI009`; shell lines are lexed,
+  so quoted strings, `| python -c` and case patterns are not `SH001`/`SH002`; exit 3 when no
+  file could be scanned), `audit` (osv-scanner, else `npm audit`, `pip-audit` on fully hashed
+  requirements only, `cargo-audit` called directly from an empty directory, `govulncheck` with
+  `GOTOOLCHAIN=local`: never code from the checkout; "unavailable" is never "clean": `AUD001`
+  (warn, so exit 1) for every ecosystem or file left unaudited, also one osv-scanner read
+  nothing for, even when the rest audited clean; exit 3 when none could be audited; `--offline`
+  runs osv-scanner with `--offline-vulnerabilities --no-resolve`: no network, neither for the
+  vulnerability lookup nor for resolving a manifest's transitive dependencies),
+  `sbom DIR|IMAGE` (syft, never the docker daemon; `--out` written exclusively with token-shape
+  redaction only) and `sbom lint FILE` (`SBM001`–`SBM009`), `verify` (cosign keyless, key, attestation and blob-with-bundle;
+  `gh attestation verify`; the subject after `--`; anchored identity regexps; never an
+  `--insecure-*` flag) and `redact`. Unreadable directories are `SUP002`. Exit 0 clean, 1
+  findings, 2 access/tool/config error (never a traceback), 3 unsupported; banner
+  `supply: dir= ecosystems= tools=` on stderr; sorted JSON envelope without timestamps. New keys
+  `supply_chain.exclude_re` (`SUPPLY_EXCLUDE_RE`) and `supply_chain.timeout`
+  (`SUPPLY_TIMEOUT`); the CLI also reads `SUPPLY_REGISTRIES_RE`, `SUPPLY_REDACT_EXTRA_RE`,
+  `SUPPLY_OSV_OFFLINE_DB` and `SUPPLY_MAX_BYTES` from the environment. Doctor checks
+  `supply-cli` and `supply-detect`. A golden suite over fixture checkouts with stub tools
+  (`SUPPLY_PATH`): every verb in JSON and Markdown, the unavailable and fallback-only paths,
+  byte-exact `--apply` (CRLF and comments kept), redaction, stub-log invariants (verify only,
+  no `fix`, no docker), one rubric row per rule id, and two identical runs.
+- `supply-chain` tools: pinned, sha256-verified, **optional** lock files
+  `tools/osv-scanner.lock.json` (2.7.0, bare binaries), `tools/cosign.lock.json` (3.1.4, bare
+  binaries) and `tools/syft.lock.json` (1.55.0, tar.gz) for linux/darwin × amd64/arm64, each
+  digest taken from the upstream checksum file (`osv-scanner_SHA256SUMS`,
+  `cosign_checksums.txt`, `syft_1.55.0_checksums.txt`). New lock key `"optional": true`.
+  `harness pack --tools-optional` ships optional locks with `--tools`. The manifest declares
+  `osv-scanner` ≥ 2.7.0, `cosign` ≥ 3.1.4 (`cosign version`), `syft` ≥ 1.55.0 (the versions the
+  argv and output parsing were checked against; older releases lack what supply relies on) and
+  `gh` ≥ 2.49 as optional with `install`, and `npm`, `pip-audit`, `cargo-audit`, `govulncheck` as
+  optional fallbacks (doctor WARNs when one is absent: no manifest field marks a binary
+  fallback-only); manual steps `install-supply-tools` and `configure-identities`; doctor check
+  `supply-config` (warn: every `identity_re` anchored as `supply verify` requires, the same rule
+  as the CLI). The `supply` argv was checked
+  against the real binaries: `audit` passes `--all-packages` (without it osv-scanner 2.7.0
+  lists only vulnerable packages, so clean lockfiles counted 0), names osv-scanner's error line
+  instead of its first progress line and, offline without a database, the human's download
+  command; `verify` no longer passes cosign's deprecated `--offline`: offline is a file with `--bundle`
+  and `--trusted-root`, or `--github` with both; `verify IMAGE --offline` with cosign is refused
+  (exit 3) and `--bundle` with an image and cosign too (exit 1; cosign 3.1.4
+  `verify`/`verify-attestation` have no such flag); cosign and syft failures name their `Error:`
+  line; `sbom` runs syft with
+  `SYFT_CHECK_FOR_APP_UPDATE=false`, and the summary and package counts leave out syft's SPDX
+  document root and, for syft's own output only, CycloneDX `"type": "file"` components (absolute
+  manifest paths); `sbom lint` accepts CycloneDX 1.7 (syft 1.55.0's default). `[uninstall]` also keeps
+  `~/.cache/osv-scalibr/**`, where osv-scanner 2.7.0 keeps its offline databases.
+- `supply-chain` skills and agents: workflow skills `/pin-deps` (`supply pins` findings →
+  values resolved read-only with `git ls-remote`, `gh api` or `glab api` GETs and an installed
+  `crane`/`docker buildx imagetools` → `supply pins --apply` → `supply pins` again; tags keep
+  today's target, branches and `latest` are suggestions the user accepts, a `CI008` include
+  with no `ref:` goes to the human; never guesses a sha, digest or checksum) and `/audit-deps`
+  (`supply audit` → in-major upgrades to the lowest fixed release that is not a pre-release,
+  never for a `0.0.x` package, with `UV_PYTHON_DOWNLOADS=never uv lock --upgrade-package
+  NAME==X.Y.Z --no-build`, `npm install NAME@SPEC --package-lock-only --ignore-scripts` keeping
+  the manifest's range prefix, `pnpm update --lockfile-only --ignore-pnpmfile --ignore-scripts`
+  with package-manager switching off, `cargo update --precise` unless a `rust-toolchain` file
+  or a `.cargo/config*` program setting is present, `GOTOOLCHAIN=local go get`, poetry always a
+  manual change → `supply audit` again and each locked version checked against the `--fix`
+  limit, an overshoot reverted; majors, no-fix, manual changes and `unavailable`/`offline`/
+  `error` auditors go to the human). Neither
+  runs the checkout's code or tests (the test command is named for the human), downloads a
+  toolchain or interpreter, commits or pushes; both keep intermediate files in a
+  `mktemp -d` scratch directory used as `"${SCRATCH:?}"`. `supply pins --apply` now keeps the
+  tag of an action pinned from a tag as its comment, in the same atomic write (` # TAG`
+  appended, or `# TAG - <old comment>`; `data.applied[].comment`), so no hand edit remains.
+  `supply audit --offline` through osv-scanner reports an audited ecosystem as status `ok` with
+  `"offline": true` (it was `offline`, which now only means a fallback auditor that needs the
+  network did not run). Read-only agents `supply-architect` (plan model, design and decision record),
+  `supply-auditor` (review; Critical / Warnings / Suggestions / Not verified with severities
+  from the rubrics; declared as the bundle's review-agent sensor) and `supply-triage`
+  (investigate one finding, stop after three unresolved hypotheses). Taxonomy overrides
+  (`workflow`; `plan`, `review`, `investigate` at `read-only`) and their guides and sensors.
 - Bundle `repo-bootstrap` (experimental; domain `scm`, posture `label-gated`, function `setup`).
   `/bootstrap-repo` and the `repoboot` CLI (questions, answer, plan, render, apply, check)
   bootstrap git repositories to one standard — locally and on GitHub or GitLab — and retrofit
@@ -515,6 +677,12 @@ prints every one between your applied version and the new one.
 
 ### Changed
 
+- `harness pack --tools` skips tool locks marked `"optional": true` (with a note naming
+  `--tools-optional`) unless `--tools-optional` is given (`--tools-optional` without `--tools`
+  is refused, exit 2), and bootstrap no longer auto-installs a
+  binary a bundle declares `optional` (it prints `harness install TOOL`; doctor already WARNs
+  with the same hint). A bundle that requires a binary still gets it installed (`gh` for
+  `github`); `stack` alone no longer pulls in `gh`.
 - `harness lint` rule `stability` now checks `beta` bundles as well as `stable` ones: a skill
   or CLI without a `tests/run.sh`, or a `coverage_note` admitting a missing suite, warns with
   the level to move to (`beta` → `experimental`, `stable` → `beta`). CONTRIBUTING "Stability
@@ -628,6 +796,41 @@ prints every one between your applied version and the new one.
 
 ### Migration
 
+- Guard decision change (core, every install): `curl … | sh` and the other pipe-to-shell forms
+  of core section `35-shell-hygiene` (also inside `{ }` / `( )` groups, compound bodies, a
+  continued line, `tee >(sh)`, `python3 -c "$(curl …)"` and an interpreter's heredoc) used to
+  pass and now **ask**. Download the script to a
+  file, check its sha256, read it, then run it. A repository whose `.harness.toml` owns domain
+  `base` (`[owns] domains = ["base"]`) or the component (`components =
+  ["core/guard.d/35-shell-hygiene"]`) lifts the section there; nothing else changes. No config
+  key was added.
+- `supply-chain` bundle: new keys only when you enable it (`supply-chain` in `[hub] bundles`):
+  `supply_chain.allow_global_re` (`SUPPLY_ALLOW_GLOBAL_RE`), `supply_chain.venv_markers`
+  (`SUPPLY_VENV_MARKERS`), `supply_chain.registries_re`, `supply_chain.identities` (array of
+  tables), `supply_chain.redact_extra_re`, `supply_chain.osv_offline_db`,
+  `supply_chain.pin_actions`, `supply_chain.max_bytes`, and for the `supply` CLI
+  `supply_chain.exclude_re` (default `""`) and `supply_chain.timeout` (default `120`). The guard's `guard.env` parser now also
+  accepts `SUPPLY_` keys (core engine and the `env-provides` lint list); nothing to edit for
+  existing setups. With the bundle enabled, `pip install` outside a venv, global npm/cargo
+  installs and unpinned git dependencies ask. An auto-activated conda `base` is not a venv
+  (`CONDA_PREFIX` counts only when `CONDA_DEFAULT_ENV` names another env and the prefix is not
+  the conda or mamba root), and a `VIRTUAL_ENV=` assignment on the command line is no marker:
+  activate a project env, or use `uv` or `.venv/bin/pip`. Write `supply_chain.allow_global_re`
+  anchored (`^(ruff|black)$`).
+- Optional tool locks (`supply-chain`): a `tools/*.lock.json` may carry `"optional": true`.
+  `harness pack --tools …` leaves such locks out unless you add `--tools-optional`; an
+  air-gapped site that wants osv-scanner, cosign or syft adds the flag to its pack command.
+  Bootstrap no longer installs a missing binary that a bundle declares `optional`: the one
+  existing case is `gh` for `stack` without the `github` bundle (with `github` enabled, gh is
+  required there and still installed); run `harness install gh`, and `harness install
+  osv-scanner|cosign|syft` (or `--from FILE`) for the scanners you use. `supply_chain.osv_offline_db`
+  names the directory osv-scanner keeps its databases under (`DIR/osv-scalibr/<Ecosystem>/all.zip`,
+  osv-scanner 2.7.0): point it at the directory that contains `osv-scalibr/`. Doctor WARNs an
+  osv-scanner older than 2.7.0, cosign older than 3.1.4 or syft older than 1.55.0: `harness
+  install TOOL` puts the pinned version first in `~/.local/bin`. A script running `supply verify
+  IMAGE --offline` with cosign now gets exit 3: verify the image online, or offline a downloaded
+  file with `--bundle F --trusted-root F` or `--github OWNER/REPO --bundle F --trusted-root F`.
+  Nothing to edit otherwise.
 - Per-provider model names: one new optional config key, `[providers.<name>].model_policy`
   (`plan`, `execute`). Claude needs no edit. For Copilot, `harness apply` now writes agents
   and skills without `model:` (session model); to pin models, add

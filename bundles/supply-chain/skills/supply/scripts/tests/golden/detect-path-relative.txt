@@ -1,0 +1,91 @@
+# exit=0
+# stderr:
+supply: dir=clean ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,shell tools=none
+# stdout:
+{
+  "command": "detect",
+  "data": {
+    "ecosystems": [
+      {
+        "ecosystem": "cargo",
+        "files": [
+          "Cargo.toml"
+        ],
+        "lockfiles": [
+          "Cargo.lock"
+        ]
+      },
+      {
+        "ecosystem": "docker",
+        "files": [
+          "Dockerfile",
+          "docker-compose.yml"
+        ],
+        "lockfiles": []
+      },
+      {
+        "ecosystem": "github-actions",
+        "files": [
+          ".github/workflows/ci.yml"
+        ],
+        "lockfiles": []
+      },
+      {
+        "ecosystem": "gitlab-ci",
+        "files": [
+          ".gitlab-ci.yml"
+        ],
+        "lockfiles": []
+      },
+      {
+        "ecosystem": "go",
+        "files": [
+          "go.mod"
+        ],
+        "lockfiles": [
+          "go.sum"
+        ]
+      },
+      {
+        "ecosystem": "npm",
+        "files": [
+          "package.json"
+        ],
+        "lockfiles": [
+          "package-lock.json"
+        ]
+      },
+      {
+        "ecosystem": "pip",
+        "files": [
+          "requirements.txt"
+        ],
+        "lockfiles": [
+          "requirements.txt"
+        ]
+      },
+      {
+        "ecosystem": "shell",
+        "files": [
+          "scripts/install.bash"
+        ],
+        "lockfiles": []
+      }
+    ],
+    "files_scanned": 12,
+    "skipped_large": []
+  },
+  "dir": "clean",
+  "ecosystems": [
+    "cargo",
+    "docker",
+    "github-actions",
+    "gitlab-ci",
+    "go",
+    "npm",
+    "pip",
+    "shell"
+  ],
+  "findings": [],
+  "tools": []
+}
