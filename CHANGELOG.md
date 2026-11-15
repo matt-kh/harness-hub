@@ -670,6 +670,12 @@ prints every one between your applied version and the new one.
   "bundle.tags: is deprecated; use taxonomy.domain". Classify the bundle with `[taxonomy]`.
 
 ### Fixed
+- `repo-bootstrap`: `scripts/repoboot.py` is now committed executable. Before, the
+  `~/.local/bin/repoboot` link failed with "Permission denied" and `harness doctor` reported
+  `link-repoboot` and `repo-bootstrap/repoboot-cli` as FAIL (the golden suite calls the script
+  through `python3`, so it never noticed). Run `harness apply` after updating. `harness lint`
+  (rule `manifest`) now errors on a `[provides] bin` target that is missing or not executable,
+  with the `git update-index --chmod=+x` command to fix it.
 - Model names per provider: agent and skill front matter no longer carries the Claude aliases
   of `core.model_policy` (`fable`, `opus`) into providers that do not know them. Before,
   Copilot's agents and skills were written with `model: fable` / `model: opus`. A provider

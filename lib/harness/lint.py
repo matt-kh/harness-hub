@@ -6,7 +6,7 @@ Errors (exit 1):
   unknown providers in profiles
 * duplicate manual step or doctor check ids; ``doctor_checks[].fix`` that looks like an id
   but names no manual step of the bundle (dangling); ``unblocks`` naming no doctor check
-* ``[provides]`` paths that do not exist; guard sections not named ``NN-*.sh`` or failing
+* ``[provides]`` paths that do not exist, ``[provides] bin`` targets that are not executable; guard sections not named ``NN-*.sh`` or failing
   ``bash -n``; malformed ``# rule:`` comments; provider shims missing or failing ``bash -n``
 * ``{{ key }}`` references to keys no schema knows (templated files and manifest strings)
 * ``tools/gate/private-ids.sh`` (when present) reporting private identifiers
@@ -269,6 +269,7 @@ def lint_bundle(b: M.Bundle, all_bundles: Dict[str, M.Bundle], schema: Dict[str,
             if u not in check_ids:
                 rep.err("%s: manual_steps.%s unblocks unknown doctor check %s" % (where, s.get("id"), u))
     # provides paths
+    lint_bins(b, rep)
     for rel in b.rules() + b.agents():
         if not os.path.isfile(b.rel(rel)):
             rep.err("%s: provides %s which does not exist" % (where, rel))
@@ -327,6 +328,19 @@ def lint_bundle(b: M.Bundle, all_bundles: Dict[str, M.Bundle], schema: Dict[str,
 
 
 PROVIDER_FEATURE_RE = re.compile(r"^(?P<provider>[a-z0-9][a-z0-9-]*):(?P<feature>[a-z0-9][a-z0-9-]*)$")
+
+
+def lint_bins(b: M.Bundle, rep: Report) -> None:
+    """Every ``[provides] bin`` target exists and is executable (the ~/.local/bin link runs it)."""
+    root = os.path.dirname(os.path.dirname(os.path.abspath(b.path)))
+    for name, target in b.bins():
+        tpath = b.rel(target)
+        if not os.path.isfile(tpath):
+            rep.err("%s: provides bin %s -> %s which does not exist" % (b.name, name, target))
+        elif not os.access(tpath, os.X_OK):
+            rep.err("%s: provides bin %s -> %s which is not executable; run `git update-index --chmod=+x %s` "
+                    "and `chmod +x` it so the ~/.local/bin link runs"
+                    % (b.name, name, target, os.path.relpath(tpath, root)))
 
 
 def lint_harness(b: M.Bundle, rep: Report, providers: Optional[Dict[str, M.Provider]] = None) -> None:
