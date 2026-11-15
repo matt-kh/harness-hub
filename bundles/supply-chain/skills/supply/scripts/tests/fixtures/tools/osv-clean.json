@@ -1,3 +1,76 @@
 {
-  "results": []
+  "results": [
+    {
+      "source": {
+        "path": "__DIR__/Cargo.lock",
+        "type": "lockfile"
+      },
+      "packages": [
+        {
+          "package": {
+            "name": "serde",
+            "version": "1.0.215",
+            "ecosystem": "crates.io",
+            "purl": "pkg:cargo/serde@1.0.215"
+          }
+        }
+      ]
+    },
+    {
+      "source": {
+        "path": "__DIR__/go.mod",
+        "type": "lockfile"
+      },
+      "packages": [
+        {
+          "package": {
+            "name": "golang.org/x/text",
+            "version": "0.21.0",
+            "ecosystem": "Go",
+            "purl": "pkg:golang/golang.org/x/text@0.21.0"
+          }
+        }
+      ]
+    },
+    {
+      "source": {
+        "path": "__DIR__/package-lock.json",
+        "type": "lockfile"
+      },
+      "packages": [
+        {
+          "package": {
+            "name": "left-pad",
+            "version": "1.3.0",
+            "ecosystem": "npm",
+            "purl": "pkg:npm/left-pad@1.3.0"
+          }
+        }
+      ]
+    },
+    {
+      "source": {
+        "path": "__DIR__/requirements.txt",
+        "type": "lockfile"
+      },
+      "packages": [
+        {
+          "package": {
+            "name": "requests",
+            "version": "2.32.3",
+            "ecosystem": "PyPI",
+            "purl": "pkg:pypi/requests@2.32.3"
+          }
+        },
+        {
+          "package": {
+            "name": "urllib3",
+            "version": "2.2.3",
+            "ecosystem": "PyPI",
+            "purl": "pkg:pypi/urllib3@2.2.3"
+          }
+        }
+      ]
+    }
+  ]
 }

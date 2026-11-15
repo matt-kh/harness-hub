@@ -194,6 +194,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | [`stack/doctor/stk-git-update-refs`](bundles/stack.md#doctor-checks) | sensor | scm | git supports rebase --update-refs (2.38+) |
 | [`stack/doctor/stk-scm-cli`](bundles/stack.md#doctor-checks) | sensor | scm | An SCM CLI is on PATH (glab or gh) |
 | [`supply-chain/doctor/supply-cli`](bundles/supply-chain.md#doctor-checks) | sensor | security | supply CLI on PATH |
+| [`supply-chain/doctor/supply-config`](bundles/supply-chain.md#doctor-checks) | sensor | security | every signer identity_re is anchored ^...$ and does not match the empty string |
 | [`supply-chain/doctor/supply-detect`](bundles/supply-chain.md#doctor-checks) | sensor | security | supply detect runs offline on the current directory |
 | [`ticket-workflow/doctor/ticket-workflow-scm`](bundles/ticket-workflow.md#doctor-checks) | sensor | delivery | An SCM CLI is on PATH (glab or gh) |
 | [`ticket-workflow/doctor/ticket-workflow-skills`](bundles/ticket-workflow.md#doctor-checks) | sensor | delivery | work-ticket and create-ticket skills rendered |
@@ -237,6 +238,8 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | [`stack/steps/stack-github-repo-settings`](bundles/stack.md#stack-github-repo-settings) | scm | GitHub: repository settings for stacked PRs |
 | [`stack/steps/stack-gitlab-project-settings`](bundles/stack.md#stack-gitlab-project-settings) | scm | GitLab: project settings for stacked MRs |
 | [`stack/steps/stack-read-the-flow`](bundles/stack.md#stack-read-the-flow) | scm | Read how a stack is merged (you merge it) |
+| [`supply-chain/steps/configure-identities`](bundles/supply-chain.md#configure-identities) | security | Name the signers `supply verify` trusts in local/harness.toml |
+| [`supply-chain/steps/install-supply-tools`](bundles/supply-chain.md#install-supply-tools) | security | Install the pinned supply-chain scanners you want (osv-scanner, cosign, syft) |
 | [`ticket-workflow/steps/repo-overrides`](bundles/ticket-workflow.md#repo-overrides) | delivery | Know how a repository yields and overrides (read once) |
 
 ## Providers

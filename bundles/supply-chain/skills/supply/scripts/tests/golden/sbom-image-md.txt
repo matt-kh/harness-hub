@@ -22,9 +22,9 @@ summary only: pass --out FILE to write the SBOM
 
 | key | value |
 |---|---|
-| bytes | 738 |
+| bytes | 852 |
 | file |  |
 | format | cyclonedx-json |
 | packages | 1 |
 | source | registry:ghcr.io/octocat/hello-world:1.0 |
-| spec_version | 1.6 |
+| spec_version | 1.7 |

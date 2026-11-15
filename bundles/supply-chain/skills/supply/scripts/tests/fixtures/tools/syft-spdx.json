@@ -46,6 +46,11 @@
       "name": "authlib",
       "supplier": "Person: Token Author",
       "versionInfo": "1.3.0"
+    },
+    {
+      "SPDXID": "SPDXRef-DocumentRoot-Directory-example",
+      "name": "example",
+      "primaryPackagePurpose": "FILE"
     }
   ],
   "relationships": [

@@ -1,0 +1,5 @@
+# exit=3
+# stderr:
+supply: dir=- ecosystems=none tools=cargo-audit,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+supply verify: --offline cannot verify an image with cosign: cosign 3.1.4 deprecated --offline, and verify / verify-attestation read the image's signatures and the transparency log over the network. Offline, verify a downloaded file with its Sigstore bundle (supply verify FILE --bundle F --trusted-root F --offline), or an attestation with gh (supply verify TARGET --github OWNER/REPO --bundle F --trusted-root F --offline); else drop --offline
+# stdout:

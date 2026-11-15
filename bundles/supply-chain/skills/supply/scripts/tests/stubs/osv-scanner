@@ -24,9 +24,20 @@ case "$target" in
   /*) ;;
   *) echo "stub osv-scanner: -r/-L must be absolute, got: $target" >&2; exit 1 ;;
 esac
+case " $* " in
+  *" --format json --all-packages "*) ;;
+  *) echo "stub osv-scanner: expected --format json --all-packages (2.7.0 lists only vulnerable packages without it), got: $*" >&2; exit 1 ;;
+esac
+if [ "${STUB_OSV_OLDFLAG:-}" = 1 ]; then  # an osv-scanner without the flag (1.x)
+  case " $* " in *" --offline-vulnerabilities "*)
+    echo "Incorrect Usage: flag provided but not defined: -offline-vulnerabilities" >&2; exit 127 ;; esac
+fi
+if [ "${STUB_OSV_NODB:-}" = 1 ]; then
+  case " $* " in *" --offline-vulnerabilities "*) cat "$fix/osv-nodb.txt" >&2; exit 127 ;; esac
+fi
 case "$target" in
   *empty*) cat "$fix/osv-nopackages.txt" >&2; exit 128 ;;
-  *clean*) cat "$fix/osv-clean.json"; exit 0 ;;
+  *clean*) abs=$(cd "$target" && pwd); sed "s#__DIR__#$abs#g" "$fix/osv-clean.json"; exit 0 ;;
   *gitlab-include*) cat "$fix/osv-error.txt" >&2; exit 127 ;;
 esac
 if [ "${STUB_MALFORMED:-}" = 1 ]; then echo '{"results": [{"source": {"path": "x"}, "packages": ["not-an-object"]}]}'; exit 1; fi

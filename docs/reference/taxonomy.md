@@ -149,7 +149,7 @@ A value exists only while a component uses it. To add one:
 | `kubernetes` | clusters, Helm, GitOps, IaC targeting them | 18 (k8s) |
 | `workspace` | docs, drive, sheets, mail | 15 (gdoc) |
 | `operations` | running systems: signals, incidents, reliability targets | 13 (obs) |
-| `security` | security posture of code, dependencies, artefacts and credentials: supply chain, appsec, vulnerabilities | 7 (supply-chain) |
+| `security` | security posture of code, dependencies, artefacts and credentials: supply chain, appsec, vulnerabilities | 10 (supply-chain) |
 
 ### function
 
@@ -162,13 +162,13 @@ A value exists only while a component uses it. To add one:
 | `plan` | designs; read-only | 2 (core, k8s) |
 | `execute` | implements autonomously | 1 (core) |
 | `review` | assesses and reports | 2 (core, k8s) |
-| `setup` | installs, verifies or configures once | 77 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, stack, supply-chain, ticket-workflow) |
+| `setup` | installs, verifies or configures once | 80 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, stack, supply-chain, ticket-workflow) |
 
 ### posture
 
 | value | meaning | components using it |
 |---|---|---|
-| `read-only` | reads only | 57 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, stack, supply-chain, ticket-workflow) |
+| `read-only` | reads only | 58 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, stack, supply-chain, ticket-workflow) |
 | `local` | edits the checkout and its own branches; other remote writes pass the guard | 2 (core, lessons) |
 | `label-gated` | writes promptlessly only to agent-* artefacts; human ones ask | 8 (gdoc, jira, stack, ticket-workflow) |
 
@@ -181,7 +181,7 @@ A value exists only while a component uses it. To add one:
 | `text` | concatenated with the repository's instructions, which come last and win | 11 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, stack, supply-chain, ticket-workflow) |
 | `config` | merged by the provider's permission system; a repository can add rules, never lift a deny | 10 (gdoc, github, gitlab, jira, k8s, lessons, obs, stack, supply-chain, ticket-workflow) |
 | `never` | the developer's own credentials: no repository setting lifts it | 2 (core) |
-| `n/a` | no repository-level equivalent | 87 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, stack, supply-chain, ticket-workflow) |
+| `n/a` | no repository-level equivalent | 90 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, stack, supply-chain, ticket-workflow) |
 
 ### Facets by kind
 

@@ -6,12 +6,12 @@ supply: dir=- ecosystems=none tools=cargo-audit,cosign,gh,govulncheck,npm,osv-sc
   "command": "sbom",
   "data": {
     "sbom": {
-      "bytes": 738,
+      "bytes": 852,
       "file": "OUT/image.cdx.json",
       "format": "cyclonedx-json",
       "packages": 1,
       "source": "registry:ghcr.io/octocat/hello-world:1.0",
-      "spec_version": "1.6"
+      "spec_version": "1.7"
     }
   },
   "dir": "-",

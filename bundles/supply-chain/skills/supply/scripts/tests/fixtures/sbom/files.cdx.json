@@ -1,0 +1,39 @@
+{
+  "bomFormat": "CycloneDX",
+  "components": [
+    {
+      "bom-ref": "file-1",
+      "name": "/etc/os-release",
+      "purl": "pkg:generic/os-release@1.0",
+      "type": "file",
+      "version": "1.0"
+    },
+    {
+      "bom-ref": "file-2",
+      "name": "/usr/lib/libexample.so",
+      "purl": "pkg:generic/libexample@2.1",
+      "type": "file",
+      "version": "2.1"
+    }
+  ],
+  "metadata": {
+    "component": {
+      "name": "firmware-image",
+      "type": "firmware",
+      "version": "2.1"
+    },
+    "timestamp": "2026-01-01T00:00:00Z",
+    "tools": {
+      "components": [
+        {
+          "name": "example-sbom-tool",
+          "type": "application",
+          "version": "1.0"
+        }
+      ]
+    }
+  },
+  "serialNumber": "urn:uuid:0123abcd-0000-4000-8000-0123456789ac",
+  "specVersion": "1.6",
+  "version": 1
+}

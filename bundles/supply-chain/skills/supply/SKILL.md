@@ -83,7 +83,8 @@ FILE`: a directory named `lint` is passed as `./lint`; a `verify` TARGET startin
   stderr line>` — or listing nothing, a bad config regex or an unanchored identity regexp, a
   refused or failed `pins --apply`) · `3` unsupported (no auditor for any detected ecosystem,
   `ci` with no scannable file, `sbom lint` on a non-JSON file, `verify --offline` without
-  `--trusted-root`, or `--github --offline` without `--bundle`). `detect` exits 0 on any
+  `--trusted-root`, `verify IMAGE --offline` with cosign (offline is a FILE with `--bundle`, or
+  `--github … --bundle F --trusted-root F`), or `--github --offline` without `--bundle`). `detect` exits 0 on any
   readable DIR. No command prints a Python traceback.
 - **"Unavailable" is not "clean".** `AUD001` (no auditor), `AUD003` (the auditor errored),
   `SUP002` (a directory or file that could not be read), `CI000`, exit 3 and a missing
