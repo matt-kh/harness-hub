@@ -51,8 +51,8 @@ Rotating the token: [runbook](../runbooks/rotate-github-token.md).
 GitHub CLI, PR-based workflow, GitHub Issues as the tracker, gh governance rules
 
 Installs `gh` (checksum-verified, no sudo), wires the guard rules for gh (token output deny,
-GitHub closing-keyword deny, human-issue state deny, merge/review ask, API writes ask, label
-gate on PR/issue writes, stacked-PR rules) and adds the GitHub section of the instructions and
+GitHub closing-keyword deny, merge/review and human PR/issue state ask, subagent deny of
+merges and state changes, API writes ask, label gate on PR/issue writes, stacked-PR rules) and adds the GitHub section of the instructions and
 the gh read permissions. The ticket-workflow skills drive GitHub Issues → PRs when this bundle
 is active.
 
@@ -200,10 +200,10 @@ Guides steer the agent before it acts; sensors detect at or after the action. Pa
 
 | side | kind | ref | note | pairs with |
 |---|---|---|---|---|
-| guide | rule | `rules/60-github.md` | PR-based delivery, issue state is human-only, -R owner/repo on every call | `guard.d/41-github-closing.sh`, `guard.d/60-github.sh` |
+| guide | rule | `rules/60-github.md` | PR-based delivery, merges and PR/issue state on explicit main-thread request only, -R owner/repo on every call | `guard.d/41-github-closing.sh`, `guard.d/60-github.sh` |
 | guide | permission | `permissions.toml` | read-only gh commands allowed; token printing denied | `guard.d/60-github.sh`, `permissions-vs-guard` |
 | sensor | guard | `guard.d/41-github-closing.sh` | denies closing keywords that would change issue state | `rules/60-github.md` |
-| sensor | guard | `guard.d/60-github.sh` | token printing, API writes, merges/reviews, provenance labels, stacked PR targets; PR creates with --fill* or a -t title matching github.pr_title_forbid_re ask | `rules/60-github.md`, `permissions.toml` |
+| sensor | guard | `guard.d/60-github.sh` | token printing, API writes, merges/reviews and PR/issue state (main thread asks, subagent denied), provenance labels, stacked PR targets; PR creates with --fill* or a -t title matching github.pr_title_forbid_re ask | `rules/60-github.md`, `permissions.toml` |
 | sensor | doctor | `doctor_checks` | gh binary, auth, SSH and token file mode | — |
 | sensor | test | `guard.d/tests.sh` | guard rows with a stubbed gh | — |
 | sensor | test | `tests/run.sh` | this bundle's rows against core + github only | — |

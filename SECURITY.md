@@ -27,9 +27,9 @@ this page is the hub's own threat model.
 |---|---|---|
 | Agent reads secrets (tokens, kubeconfig, SSH keys, `.env`) and echoes them into a transcript, a commit or a ticket | guard denies reads of credential paths and secret-bearing env dumps; permission deny lists; Kubernetes Secret values only through `k8s redact` | core, k8s |
 | Agent pushes to a default branch, bypassing review | guard denies `git push` to branches matching `core.default_branch_re`; delivery is MR/PR only | core |
-| Agent changes ticket state (transition, close, reopen) on human work | guard denies state changes on tickets/issues without an `agent-*` label | jira, github, gitlab |
+| Agent changes ticket, issue or PR/MR state (transition, close, reopen, ready) on human work without being asked | guard asks on state changes of tickets, issues and MRs/PRs without an `agent-*` label, so the user confirms an explicit main-thread request; it denies every state change from a subagent (where the provider identifies one, `subagent_identity`), and a Jira transition whose ticket cannot be checked | jira, github, gitlab |
 | Agent closes tickets indirectly through **closing keywords** in commits, MR/PR titles or bodies (the SCM ↔ tracker integration then transitions them) | guard denies closing-keyword forms in commit messages, `glab`/`gh` create/edit and API payloads | gitlab, github |
-| Agent merges or approves its own MR/PR | guard asks; humans merge — stacks too (`stk` has no merge verb; `stk sync` only retargets, rebases and lease-pushes agent-labelled sub branches) | gitlab, github, stack |
+| Agent merges or approves its own MR/PR | guard asks on every merge, approval and review, so it runs only on the user's explicit main-thread request; a subagent is denied, and so are its raw `gh api` / `glab api` writes and GitLab quick actions; humans decide merges — stacks too (`stk` has no merge verb; `stk sync` only retargets, rebases and lease-pushes agent-labelled sub branches) | gitlab, github, stack |
 | Agent edits human-authored tickets, MRs, docs | writes to artefacts without an `agent-*` label / provenance marker ask | jira, gitlab, github, gdoc |
 | Agent mutates a cluster, execs into pods, reads Secrets | kubectl/helm mutations and exec-class commands ask, prod is flagged, kubeconfig edits deny | k8s |
 | Agent silences alerts, edits dashboards or alert rules live, or pastes an observability API key into a command | the `obs` CLI is read-only by an endpoint allow-list; key files and literal keys on a command line deny; raw requests to backend hosts, `amtool silence add` and `grafana-cli admin` ask | obs |
@@ -77,9 +77,9 @@ to behave, and you should run them with their strictest approval setting.
   the command's target: `git -C ../other push` is judged under the cwd's declaration
   ([repository-level harnesses](docs/repo-level.md)). It can only loosen rules that do not
   protect the developer's own credentials: skip every rule of the guard sections whose domain
-  or id it owns — including the human-only merge and review asks (`scm`), the Secret-value and
-  kubeconfig-mutation denies (`kubernetes`) and the transition and closing-keyword denies
-  (`tracker`) — and set the allow-listed `WORK_TICKET_*` overrides in the
+  or id it owns — including the merge, approval and PR/MR/issue state asks and their subagent
+  denies (`scm`), the Secret-value and kubeconfig-mutation denies (`kubernetes`) and the Jira
+  transition ask, its subagent deny and the closing-keyword denies (`tracker`) — and set the allow-listed `WORK_TICKET_*` overrides in the
   [hook policy](docs/reference/hook-policy.md#repo-overrides). It never lifts:
   - the credential-file denies: `core/guard.d/20-credentials` (shell reads of the kubeconfig,
     `~/.config/{gh,glab-cli,jira,gdoc}`, `~/.aws`, `~/.ssh`, `.env*`, agent credential files,

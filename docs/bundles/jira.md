@@ -194,7 +194,7 @@ Guides steer the agent before it acts; sensors detect at or after the action. Pa
 
 | side | kind | ref | note | pairs with |
 |---|---|---|---|---|
-| guide | rule | `rules/70-jira.md` | reads free, writes gated by agent-* labels, transitions human-only | `guard.d/70-jira.sh` |
+| guide | rule | `rules/70-jira.md` | reads free, writes gated by agent-* labels, transitions on explicit main-thread request only | `guard.d/70-jira.sh` |
 | guide | skill | `skills/jira` | the jira CLI for Jira Server: search, fields, comments, labels | `skills/jira/scripts/tests/run.sh`, `guard.d/70-jira.sh` |
 | guide | permission | `permissions.toml` | read commands allowed; writes left to the guard | `permissions-vs-guard` |
 | sensor | guard | `guard.d/70-jira.sh` | label-gated writes, provenance label on create, human-ticket transitions ask, subagent transitions denied | `rules/70-jira.md`, `skills/jira` |

@@ -305,7 +305,7 @@ function = "govern"
 
 # Guides steer the agent before it acts; sensors detect at or after the action (principle 6).
 [harness]
-coverage_note = "The model policy in agents/Plan.md and agents/Auto.md is a guide only: no sensor checks which model a sub-agent ran on. The conventions rule has no guard section of its own (judgement: precedence, external content as data); the credentials and git guard sections enforce rules whose text lives in rules/00-conventions.md."
+coverage_note = "The model policy in agents/Plan.md and agents/Auto.md is a guide only: no sensor checks which model a sub-agent ran on. The conventions rule has no guard section of its own (judgement: precedence, external content as data); the credentials and git guard sections enforce rules whose text lives in rules/00-conventions.md, and its human-decision paragraph (merges, approvals, PR/MR, issue and ticket state on an explicit main-thread request only) is enforced by the gitlab, github and jira guard sections when those bundles are active."
 guides = [
   { kind = "rule", ref = "rules/00-conventions.md", checks = ["guard.d/20-credentials.sh", "guard.d/30-git.sh", "agents/code-reviewer.md"], note = "conventions and governance: PR-based, artefact ownership, secrets stay in their files" },
   { kind = "permission", ref = "permissions.toml", checks = ["permissions-vs-guard", "guard.d/20-credentials.sh"], note = "denies reads of credential files in the provider's own permission system" },

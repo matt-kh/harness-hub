@@ -163,9 +163,10 @@ the list in front of you; the [hook policy](reference/hook-policy.md) shows each
 
 - **`scm`** (`core/guard.d/30-git`, `gitlab/guard.d/50-gitlab`, `github/guard.d/60-github`):
   the default-branch push deny, the force-push and destructive-git asks, the stacked-delivery
-  rules, the label gates, the `glab api`/`gh api` write asks, the human-only merge, approve and
-  review asks, the PR/MR and issue close/reopen/ready asks (GitHub issues live in `60-github`),
-  and the subagent denies of all of these.
+  rules, the label gates, the `glab api`/`gh api` write asks, the merge, approve and review
+  asks, the PR/MR and issue close/reopen/ready asks (GitHub issues live in `60-github`), the
+  GitLab quick-action asks, and the subagent denies of all of these: the repository's own
+  workflow then decides who merges and changes state.
 - **`tracker`** (`jira/guard.d/70-jira`, `gitlab/guard.d/40-gitlab-closing`,
   `github/guard.d/41-github-closing`): the Jira transition ask (and its subagent deny), the
   label gate and the provenance-label rule on creates, and the closing-keyword denies.
@@ -174,9 +175,10 @@ the list in front of you; the [hook policy](reference/hook-policy.md) shows each
   kubeconfig-mutation denies (`kubectl config use-context`, `set-*`).
 - **`workspace`** (`gdoc/guard.d/80-gdoc`): the Drive provenance gate and the mail-send ask.
 
-To keep one of them, own single components instead of the domain. (`WORK_TICKET_ALLOW_TRANSITION`
-is a deprecated no-op since #67: a transition on a human ticket asks on the main thread
-without it.)
+To keep one of them, own single components instead of the domain. There is no override that
+loosens the human-decision rules short of owning the domain: `WORK_TICKET_ALLOW_TRANSITION` is
+a deprecated no-op since #67, because a transition on a human ticket already asks on the main
+thread without it.
 
 ## The credential exemption
 

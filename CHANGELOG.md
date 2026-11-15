@@ -614,6 +614,12 @@ prints every one between your applied version and the new one.
   the name stays allow-listed, so setting it is not an error, and `harness repo` reports a
   set value as "deprecated, no effect" with where to remove it. `harness repo init` no longer
   suggests it, and the ticket-workflow manual step no longer lists it.
+- Rules and docs state "humans decide" (part of #67): the core, github, gitlab, jira, stack and
+  ticket-workflow rules, the github/gitlab/jira/stack manifest notes, governance, concepts,
+  repository-level harnesses, principle 8, SECURITY and the README now say that merges,
+  approvals and PR/MR/issue/ticket state changes run only on the user's explicit main-thread
+  request (the guard asks, a subagent is denied) instead of "human-only" / "never"; closing
+  keywords stay denied and `WORK_TICKET_ALLOW_TRANSITION` is gone from every example.
 - `harness lint` rule `stability` now checks `beta` bundles as well as `stable` ones: a skill
   or CLI without a `tests/run.sh`, or a `coverage_note` admitting a missing suite, warns with
   the level to move to (`beta` → `experimental`, `stable` → `beta`). CONTRIBUTING "Stability
