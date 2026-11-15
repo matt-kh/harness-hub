@@ -57,10 +57,18 @@ jira comment {{ core.ticket_example }} "text"
 - Writes go through the guard hook. Promptless: `create` carrying a provenance label,
   `label KEY add agent-*`, and every write (`set`/`comment`/`upload`/`label`/`link`/
   `transition`) on tickets that already carry any `agent-*` label. Prompted: writes to purely
-  human tickets (no `agent-*` label). `transition` on a human ticket is **denied** (state is
-  human-only). Native links only between agent-labelled tickets. Don't work around any of this.
+  human tickets (no `agent-*` label). Native links only between agent-labelled tickets.
+  Don't work around any of this.
+- **Ticket state is the user's decision.** `jira transition` runs promptless on an
+  agent-labelled ticket; on a human ticket run it only on the user's explicit request in the
+  main thread ("move KEY to Done") — the guard asks them to confirm. Never transition on your
+  own initiative: name the command (`jira transition KEY "<name>"`) instead. From a subagent
+  the guard denies every transition, agent-labelled tickets included: hand the command back to
+  the main thread. A transition whose key cannot be checked (`$VAR`, `xargs`) is denied.
 - `jira create` is **denied** without a provenance label: `{{ core.agent_labels.drafted }}`
   (from `/create-ticket`) or `{{ core.agent_labels.created }}`+`{{ core.agent_labels.worked }}`
   (work-ticket sub-tickets). Prefer `/create-ticket` for new tickets.
 - Use **literal ticket keys** in write commands (not `$VARS`) — the hook verifies labels
-  from the command text; unexpanded variables degrade to a prompt.
+  from the command text; unexpanded variables degrade to a prompt. The client itself refuses
+  anything but a literal key like `PROJ-123` (e.g. `A-1/../B-2`) on every keyed command,
+  before any request (`is not a ticket key`).

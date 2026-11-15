@@ -26,6 +26,9 @@ The shim translates the envelopes ([ARCHITECTURE §5](../../ARCHITECTURE.md#5-gu
 - `allow` → `{"decision":"allow"}`, `deny` → `{"decision":"deny","reason":…}`
 - `ask` → per `ask_as`: `deny` (default, reason says "run it yourself") or `allow`
 - unknown tool → pass through; malformed JSON → deny (fail closed)
+- no subagent identity: the shim builds the neutral envelope from scratch and never forwards
+  an `agent_id` (fixture `ask-agent-id`), so a human decision (merge, approve, PR/MR, issue or
+  ticket state) gets the `ask_as` answer for every caller
 
 ## Extra hook events
 

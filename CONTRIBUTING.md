@@ -83,9 +83,14 @@ Read [ARCHITECTURE §3](ARCHITECTURE.md#3-bundles-bundlesname) first. Checklist:
 - [ ] Secrets are declared in `[requires.secrets.<id>]` by **path only**, with the tool that
       writes them and a `rotate` runbook. The bundle never reads them.
 - [ ] Guard rules in `guard.d/NN-<topic>.sh` use only the engine helpers (`allow`, `ask`,
-      `deny`, `defer`, `pending_allow`); pick the numeric prefix from the table in §3; every
-      rule has a `# rule: <pattern> -> <decision> : <reason>` comment (feeds
+      `deny`, `defer`, `pending_allow`, `human_decision`, `human_decision_defer`); pick the
+      numeric prefix from the table in §3; every rule has a
+      `# rule: <pattern> -> <decision> : <reason>` comment (feeds
       [hook-policy](docs/reference/hook-policy.md)).
+- [ ] Human decisions (merge, approve, PR/MR, issue or ticket state) go through
+      `human_decision` / `human_decision_defer`, never a plain `ask`/`defer`: they deny a
+      subagent caller and ask the main thread ([ARCHITECTURE §5](ARCHITECTURE.md#5-guard));
+      add rows for both callers (`T_AGENT`).
 - [ ] `guard.d/tests.sh` has rows for every decision a rule can produce, **including the
       bypass attempts** you thought of (`sh -c`, `xargs`, `cd x &&`, env prefixes, quoting).
 - [ ] Every `[[manual_steps]]` has `why`, a click-path or command `how`, and a `verify`
@@ -195,8 +200,10 @@ Read [ARCHITECTURE §4](ARCHITECTURE.md#4-providers-providersname) and
 
 - [ ] `providers/<name>/provider.toml` — every target path, its write mode and the
       `[capabilities]` honestly stated (`hook_enforced = false` when there is no pre-tool hook).
-      `harness lint` rule `provider-honesty` errors when they contradict `[targets]` and warns
-      when the doc's `**Tier: x.**` line disagrees.
+      `harness lint` rule `provider-honesty` errors when they contradict `[targets]` (including
+      `subagent_identity = true` without an enforced guard hook) and warns when the doc's
+      `**Tier: x.**` line disagrees. Set `subagent_identity = true` only when the product's hook
+      input tells a subagent call from a main-thread call and the shim forwards it as `agent_id`.
 - [ ] `shim.sh` if the provider has command hooks: translate its stdin to the neutral
       envelope and the decision back. Map `ask` through `[providers.<name>].ask_as`.
 - [ ] Shim fixtures `tests/*.in.json` → `*.out.json` for allow, deny, ask, an unknown tool

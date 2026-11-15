@@ -7,10 +7,20 @@ rules:
   **deny** — GitLab's Jira integration (and its own issue closing) transitions tickets on
   them
 - `glab mr create` with an `agent-*` label, edits to agent-labelled MRs: promptless
-- edits to human MRs: **ask**; `glab mr merge|approve`: **ask** (humans merge)
+- edits to human MRs: **ask**; `glab mr merge|accept|approve|revoke|unapprove|delete` and
+  `glab issue close|reopen|open|delete`: **ask** (humans decide; run only on the user's
+  explicit request)
+- `glab mr close|reopen|open` and `glab mr update --ready|--draft|--wip|-r`: **ask** on a human
+  MR, promptless on an agent-labelled one
+- GitLab quick actions (`/merge`, `/approve`, `/close`, `/reopen`, `/ready`, `/draft` …) in glab
+  notes, descriptions and titles: **ask**
 - stacked delivery: sub MRs (`<short>-sub-NN-<task>` branches) must target the ticket branch;
   a sub MR aimed at the default branch is **denied**
-- `glab api` GETs pass; writes **ask**
+- `glab api` GETs pass; writes (any other method, any payload flag) **ask**
+- quoted or escaped command words (`glab "mr" merge`) and a `$VAR` subcommand: **ask**
+- from a subagent: merges, approvals, deletes, MR/issue state changes, quick actions, note or
+  description text the guard cannot read, `glab api` writes and hidden subcommands: **deny**
+  (hand the command back to the main thread)
 
 MRs are created with `--squash-before-merge --remove-source-branch` and a title that starts
 with the ticket key; the key is mentioned, never used with a closing keyword.
@@ -38,8 +48,9 @@ asks instead of denying). Git remotes stay SSH.
 GitLab via glab: MR-based workflow, agent-label write gates, stacked-MR rules, Jira closing-keyword deny
 
 Wires `glab` into the guard: MR creates are promptless (sub MRs must target the ticket branch),
-edits to agent-labelled MRs are promptless, human MRs ask, merge/approve and other team-visible
-actions ask, `glab api` writes ask. Closing keywords with a ticket key (`Closes KEY`) are denied
+edits to agent-labelled MRs are promptless, human MRs ask, merge/approve, human MR and issue
+state changes and other team-visible actions ask, `glab api` writes ask; from a subagent,
+merges, approvals and state changes are denied. Closing keywords with a ticket key (`Closes KEY`) are denied
 in commits, MR text and API payloads because GitLab's Jira integration would transition the
 ticket (section 40). Adds the GitLab section of the instructions and glab read permissions.
 
@@ -59,11 +70,11 @@ Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md
 **Guard sections**
 
 - `gitlab/guard.d/40-gitlab-closing` — control: sensor · domain: tracker · function: govern · decisions: deny 1 · yields: declaration
-- `gitlab/guard.d/50-gitlab` — control: sensor · function: govern · decisions: ask 6 · allow 3 · yields: declaration
+- `gitlab/guard.d/50-gitlab` — control: sensor · function: govern · decisions: deny 5 · ask 10 · allow 3 · yields: declaration
 
 **Permission lists**
 
-- `gitlab/permissions` — control: guide · function: govern · decisions: ask 11 · allow 13 · yields: config
+- `gitlab/permissions` — control: guide · function: govern · decisions: ask 20 · allow 13 · yields: config
 
 **Doctor checks** (function: setup · posture: read-only; table below): `gitlab/doctor/gitlab-ssh`, `gitlab/doctor/glab-auth`, `gitlab/doctor/glab-binary`, `gitlab/doctor/glab-token-mode`
 
@@ -179,10 +190,10 @@ Guides steer the agent before it acts; sensors detect at or after the action. Pa
 
 | side | kind | ref | note | pairs with |
 |---|---|---|---|---|
-| guide | rule | `rules/50-gitlab.md` | MR-based delivery, ticket keys mentioned never closed, stacked sub MRs | `guard.d/40-gitlab-closing.sh`, `guard.d/50-gitlab.sh` |
+| guide | rule | `rules/50-gitlab.md` | MR-based delivery, merges and MR/issue state on explicit main-thread request only, ticket keys mentioned never closed, stacked sub MRs | `guard.d/40-gitlab-closing.sh`, `guard.d/50-gitlab.sh` |
 | guide | permission | `permissions.toml` | read-only glab commands allowed | `permissions-vs-guard` |
 | sensor | guard | `guard.d/40-gitlab-closing.sh` | denies closing keywords with a ticket key | `rules/50-gitlab.md` |
-| sensor | guard | `guard.d/50-gitlab.sh` | API writes, merges/approvals, stacked MR targets, label-gated edits; MR creates with --fill or --related-issue, or a -t title not matching gitlab.mr_title_re, ask | `rules/50-gitlab.md` |
+| sensor | guard | `guard.d/50-gitlab.sh` | API writes, merges/approvals and MR/issue state (main thread asks, subagent denied), stacked MR targets, label-gated edits; MR creates with --fill or --related-issue, or a -t title not matching gitlab.mr_title_re, ask | `rules/50-gitlab.md` |
 | sensor | doctor | `doctor_checks` | glab binary, auth, SSH and token file mode | — |
 | sensor | test | `guard.d/tests.sh` | guard rows with a stubbed glab | — |
 | sensor | test | `tests/run.sh` | this bundle's rows against core + gitlab only | — |

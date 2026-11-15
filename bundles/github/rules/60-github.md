@@ -8,11 +8,15 @@
   the body. The guard asks on `--fill*` and on a `-t` title matching the config key
   `github.pr_title_forbid_re` (default `#[0-9]+`; an empty value disables the title check).
 - GitHub Issues are the tracker for GitHub repos: `/work-ticket #N`; `/create-ticket` drafts
-  issues with `{{ core.agent_labels.drafted }}`. Issue state (close/reopen) is human-only; never
-  write `Closes/Fixes/Resolves #N` (or `owner/repo#N`, or an issue URL) — mention `#N` instead.
-- `gh pr create` and edits to agent-labelled PRs/issues run promptless, human ones prompt;
-  `gh pr merge|review` are human-only (ask). `gh api` GETs and read-only GraphQL queries pass;
-  writes prompt.
+  issues with `{{ core.agent_labels.drafted }}`. Never write `Closes/Fixes/Resolves #N` (or
+  `owner/repo#N`, or an issue URL) — mention `#N` instead (denied).
+- `gh pr create` and edits to agent-labelled PRs/issues run promptless, human ones prompt.
+- Humans decide: `gh pr merge|review` and `gh issue delete|transfer` always ask;
+  `gh pr close|reopen|ready` and `gh issue close|reopen` ask on a human PR/issue and run
+  promptless on an agent-labelled one. Run them only on the user's explicit request in the main
+  thread; from a subagent the guard denies them — hand the command back.
+- `gh api` GETs and read-only GraphQL queries pass; writes prompt (denied from a subagent).
+  Write gh subcommands literally and unquoted: `gh "pr" merge` or a `$VAR` subcommand asks.
 - `gh pr update-branch N [--rebase]` (server-side update from the base branch) runs promptless
   on agent-labelled PRs and asks on human and fork PRs; refresh the local worktree afterwards
   with `git pull --rebase`.

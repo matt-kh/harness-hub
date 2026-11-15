@@ -99,6 +99,7 @@ Step by step: [getting started](docs/getting-started.md); tiers and release file
 |---|---|---|---|---|---|
 | guard hook | enforced | advisory | enforced | enforced | advisory |
 | ask decision | native | - | mapped (ask_as) | mapped (ask_as) | - |
+| subagent deny (merge, state) | native | - | mapped (ask_as) | mapped (ask_as) | - |
 | permission lists | native | advisory | advisory | advisory | none |
 | instructions | native | native | native | native | native |
 | skills | native | native | native | native | native |
@@ -110,6 +111,9 @@ Step by step: [getting started](docs/getting-started.md); tiers and release file
 <!-- generated:end -->
 
 Where a provider has no "ask", an ask maps to **deny** (`[providers.<name>].ask_as`).
+"Subagent deny" is how the guard treats a merge, approval or PR/MR/issue/ticket state change:
+`native` denies a sub-agent and asks the main thread; `mapped (ask_as)` cannot tell the caller
+apart, so every caller gets `ask_as` (default deny); `-` is advisory.
 "Extra hook events" are the neutral `prompt` and `stop` events bundles can hook beyond the
 guard; on a provider showing `-` such hooks are not rendered.
 Details per provider: [capability matrix](docs/reference/capability-matrix.md).
@@ -133,16 +137,21 @@ Ten principles govern every change to the hub; each links to its document (check
 
 ## Governance you can audit
 
-- The guard **denies** reading credential files, pushing to a default branch, closing
-  tickets by keyword and changing ticket state. It **asks** before merges, cluster mutations,
-  writes to human-owned tickets and piping a download into a shell (`curl … | sh`). Every reason names what to do instead
-  ([hook policy](docs/reference/hook-policy.md)). With the experimental
+- The guard **denies** reading credential files, pushing to a default branch and closing
+  tickets by keyword. It **asks** before cluster mutations, writes to human-owned tickets,
+  MRs and PRs, and piping a download into a shell (`curl … | sh`). Every reason names what to
+  do instead ([hook policy](docs/reference/hook-policy.md)). With the experimental
   [`supply-chain`](docs/bundles/supply-chain.md) bundle it also denies switching TLS or
   signature verification off and asks before installs into the machine and unpinned
   dependencies; its read-only `supply` CLI reports unpinned actions, images and
   dependencies, known vulnerabilities and unverified signatures, and `/pin-deps` and
   `/audit-deps` turn the findings into a diff you review. It is the first bundle of the
   [security track](docs/reference/security.md).
+- **Humans decide merges, approvals and state.** An agent merges, approves, closes, reopens
+  or readies a PR/MR, closes an issue or transitions a ticket only when you explicitly ask for
+  it in the main thread, and the guard asks you to confirm the call (state changes of
+  agent-labelled artefacts stay promptless). A subagent that tries is denied and hands the
+  command back ([governance](docs/governance.md#3-humans-decide-merges-approvals-and-state)).
 - Agents write without a prompt only to artefacts they own, marked by an `agent-*` label
   ([governance](docs/governance.md)).
 - **User-level by design.** Everything the hub installs is a baseline that yields wholesale

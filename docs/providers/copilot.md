@@ -24,6 +24,9 @@ Copilot can deny but not ask, so ask decisions follow `[providers.copilot].ask_a
   `{"permissionDecision":"deny","permissionDecisionReason":…}`; `ask` → per `ask_as`;
   pass-through (unknown tool, no opinion) prints nothing.
 - Unknown tool → pass through; malformed JSON (outer or inner) → deny.
+- No subagent identity: the shim builds the neutral envelope from scratch and never forwards
+  an `agent_id` (fixture `ask-agent-id`), so a human decision (merge, approve, PR/MR, issue or
+  ticket state) gets the same `ask_as` answer from a sub-agent as from the main thread.
 
 ## Extra hook events
 

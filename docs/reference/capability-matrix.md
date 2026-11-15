@@ -14,6 +14,7 @@ What the tiers mean for security: [SECURITY.md](../../SECURITY.md#what-the-guard
 |---|---|---|---|---|---|
 | guard hook | enforced | advisory | enforced | enforced | advisory |
 | ask decision | native | - | mapped (ask_as) | mapped (ask_as) | - |
+| subagent deny (merge, state) | native | - | mapped (ask_as) | mapped (ask_as) | - |
 | permission lists | native | advisory | advisory | advisory | none |
 | instructions | native | native | native | native | native |
 | skills | native | native | native | native | native |
@@ -21,3 +22,14 @@ What the tiers mean for security: [SECURITY.md](../../SECURITY.md#what-the-guard
 | mcp | native | native | native | native | none |
 | extra hook events (prompt, stop) | prompt, stop | - | prompt, stop | prompt, stop | - |
 <!-- generated:end -->
+
+**subagent deny (merge, state)** — how the guard treats a human decision (merge, approve,
+PR/MR, issue or ticket state) from a sub-agent, from `[capabilities] subagent_identity`
+([ARCHITECTURE §5](../../ARCHITECTURE.md#5-guard)):
+
+| value | meaning |
+|---|---|
+| `native` | the hook input identifies a sub-agent caller (`agent_id`): the guard denies it there and asks the main thread |
+| `ask only` | the hook can ask but cannot tell the caller apart: every caller is asked |
+| `mapped (ask_as)` | the hook cannot ask and cannot tell the caller apart: every caller gets `[providers.<name>].ask_as` (default deny) |
+| `-` | no enforced hook: the rule is advisory (instructions only) |

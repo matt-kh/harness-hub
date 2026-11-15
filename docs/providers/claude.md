@@ -23,6 +23,11 @@ the hook reads `{"tool_name":"Bash","tool_input":{"command":…},"cwd":…}` and
 `hookSpecificOutput.permissionDecision` = `allow | ask | deny` with a reason, or prints
 nothing to let Claude Code's own permission rules decide.
 
+Inside a sub-agent the hook input also carries `agent_id` (`subagent_identity = true`): the
+guard denies human decisions (merge, approve, PR/MR, issue or ticket state) from a sub-agent
+and asks the main thread ([ARCHITECTURE §5](../../ARCHITECTURE.md#5-guard)). `agent_type` is
+not used: Claude Code also sets it on the main thread of a `--agent` session.
+
 Hooks from the user level and from a repository's `.claude/settings.json` all run and the
 most restrictive decision wins, so a repository hook cannot lift a hub deny; the hub's guard
 yields from inside instead, by reading the repository's `.harness.toml`. Skills resolve the
@@ -109,4 +114,5 @@ Neutral hook events beyond the guard this adapter registers for bundle `[[provid
 | models | core |
 | permissions | native |
 | skills | native |
+| subagent_identity | true |
 <!-- generated:end -->

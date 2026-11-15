@@ -135,12 +135,12 @@ Compliant:
 
 - A repository with `[owns] domains = ["delivery"]`: `/work-ticket` and `/create-ticket`
   stop after their read-only preflight and name the repository's workflow; adding
-  `"tracker"` (or the override `WORK_TICKET_ALLOW_TRANSITION = "1"`) lets the repository's
-  workflow transition tickets.
+  `"tracker"` lets the repository's workflow transition tickets without the hub's ask (and
+  without its subagent deny).
 - `k8s/agents/k8s-triage` yields by `name`; the repository ships
   `.claude/agents/k8s-triage.md`; Claude Code runs the repository's.
-- `WORK_TICKET_ALLOW_TRANSITION = "1"` in `.harness.toml`: a transition on a human ticket
-  asks instead of denying; `cat ~/.config/gh/hosts.yml` is still denied in that repository.
+- `WORK_TICKET_KEY_IN_BRANCH = "1"` in `.harness.toml`: key-named branches and key-prefixed
+  commit subjects pass instead of asking; `cat ~/.config/gh/hosts.yml` is still denied in that repository.
 
 Non-compliant:
 
@@ -156,10 +156,10 @@ Non-compliant:
 - Codex and OpenCode have no hook: `[overrides]` has no effect and `[owns]` reaches only
   skills and rules. Whether `harness repo` should say so per active provider.
 - What owning a domain lifts, by design: everything in its sections except the preludes.
-  Owning `scm` lifts the human-only merge, approve and review asks and the GitHub issue
-  close/reopen deny; owning `kubernetes` lifts the Secret-value deny (`kubectl get secret -o
+  Owning `scm` lifts the merge, approve and review asks, the PR/MR and issue state asks and
+  their subagent denies; owning `kubernetes` lifts the Secret-value deny (`kubectl get secret -o
   yaml`) and the kubeconfig-mutation denies (`use-context`, `set-*`); owning `tracker` lifts the
-  transition and closing-keyword denies. Open: whether kubeconfig mutations — they edit the
+  Jira transition ask (and its subagent deny) and the closing-keyword denies. Open: whether kubeconfig mutations — they edit the
   developer's own file — should join the never-yields prelude next to `kubectl config view
   --raw`. Default: no.
 - Whether a repository may extend (never narrow) `HARNESS_CRED_EXTRA_RE`.

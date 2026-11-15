@@ -34,11 +34,15 @@ draft with `harness repo init` and ask the user to review and commit it.
 - Agents write promptless only to tickets / MRs / PRs / documents that carry an `agent-*`
   provenance label or marker (`{{ core.agent_labels.worked }}`, `{{ core.agent_labels.created }}`,
   `{{ core.agent_labels.drafted }}`); writes to purely human artefacts prompt.
-- **Ticket and issue state is human-only** — never transition, close or reopen a human ticket,
-  and never write a closing keyword + ticket reference (`Closes KEY`, `Fixes #N`) anywhere: the
-  SCM integration would change the ticket state. Mention the key instead
-  (e.g. `{{ core.ticket_example }} fix parser`).
-- Merging and approving MRs/PRs is human-only (the guard asks).
+- **Humans decide merges, approvals and state.** Merging, approving or reviewing an MR/PR,
+  closing, reopening or readying an MR/PR, closing or reopening an issue and transitioning a
+  ticket are the user's decisions. Run one only when the user explicitly asks for it in the
+  main thread; the guard asks them to confirm the call. Never on your own initiative, and never
+  from a subagent (the guard denies it there): otherwise hand the decision back with the exact
+  command.
+- Never write a closing keyword + ticket reference (`Closes KEY`, `Fixes #N`) anywhere, even
+  when asked to close the ticket: the SCM integration would change its state as a side effect
+  (the guard denies it). Mention the key instead (e.g. `{{ core.ticket_example }} fix parser`).
 - Every agent-created ticket carries a provenance label; `/create-ticket` drafts with
   `{{ core.agent_labels.drafted }}` and stops there.
 - Skills never modify the user-level harness (the provider home or the harness hub checkout);

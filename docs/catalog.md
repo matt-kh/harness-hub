@@ -96,11 +96,11 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | [`supply-chain/guard.d/38-supply-chain`](reference/hook-policy.md) | sensor | security | deny 8 · ask 8 | declaration | verification-off denies, global-install and unpinned-dependency asks, cosign signing and insecure-download asks |
 | [`gitlab/guard.d/40-gitlab-closing`](reference/hook-policy.md) | sensor | tracker | deny 1 | declaration | denies closing keywords with a ticket key |
 | [`github/guard.d/41-github-closing`](reference/hook-policy.md) | sensor | tracker | deny 1 | declaration | denies closing keywords that would change issue state |
-| [`gitlab/guard.d/50-gitlab`](reference/hook-policy.md) | sensor | scm | ask 6 · allow 3 | declaration | API writes, merges/approvals, stacked MR targets, label-gated edits; MR creates with --fill or --related-issue, or a -t title not matching gitlab.mr_title_re, ask |
-| [`github/guard.d/60-github`](reference/hook-policy.md) | sensor | scm | deny 2 · ask 5 · allow 3 | declaration | token printing, API writes, merges/reviews, provenance labels, stacked PR targets; PR creates with --fill* or a -t title matching github.pr_title_forbid_re ask |
+| [`gitlab/guard.d/50-gitlab`](reference/hook-policy.md) | sensor | scm | deny 5 · ask 10 · allow 3 | declaration | API writes, merges/approvals and MR/issue state (main thread asks, subagent denied), stacked MR targets, label-gated edits; MR creates with --fill or --related-issue, or a -t title not matching gitlab.mr_title_re, ask |
+| [`github/guard.d/60-github`](reference/hook-policy.md) | sensor | scm | deny 6 · ask 8 · allow 3 | declaration | token printing, API writes, merges/reviews and PR/issue state (main thread asks, subagent denied), provenance labels, stacked PR targets; PR creates with --fill* or a -t title matching github.pr_title_forbid_re ask |
 | [`stack/guard.d/65-stack`](reference/hook-policy.md) | sensor | scm | ask 1 · allow 1 | declaration | stk sync --include-human asks; a sole stk sync allows |
 | [`repo-bootstrap/guard.d/67-repo-bootstrap`](reference/hook-policy.md) | sensor | scm | ask 1 | declaration | repoboot apply asks, however it is wrapped |
-| [`jira/guard.d/70-jira`](reference/hook-policy.md) | sensor | tracker | deny 3 · ask 1 · allow 4 | declaration | label-gated writes, provenance label on create, transitions denied on human tickets |
+| [`jira/guard.d/70-jira`](reference/hook-policy.md) | sensor | tracker | deny 5 · ask 5 · allow 4 | declaration | label-gated writes, provenance label on create, human-ticket transitions ask, subagent transitions denied |
 | [`ticket-workflow/guard.d/75-ticket-workflow`](reference/hook-policy.md) | sensor | delivery | ask 4 | declaration | key-free branches and subjects, sub worktree paths, squash delivery |
 | [`gdoc/guard.d/80-gdoc`](reference/hook-policy.md) | sensor | workspace | deny 1 · ask 2 · allow 2 | declaration | GET-only api, provenance check before writes, ask on mark and mail send |
 
@@ -122,7 +122,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | `core/permissions` | guide | base | deny 11 · ask 2 · allow 1 | never | denies reads of credential files in the provider's own permission system |
 | `gdoc/permissions` | guide | workspace | ask 1 · allow 12 | config | read commands allowed, writes left to the guard |
 | `github/permissions` | guide | scm | deny 1 · ask 74 · allow 32 | config | read-only gh commands allowed; token printing denied |
-| `gitlab/permissions` | guide | scm | ask 11 · allow 13 | config | read-only glab commands allowed |
+| `gitlab/permissions` | guide | scm | ask 20 · allow 13 | config | read-only glab commands allowed |
 | `jira/permissions` | guide | tracker | allow 12 | config | read commands allowed; writes left to the guard |
 | `k8s/permissions` | guide | kubernetes | deny 12 · ask 45 · allow 42 | config | read-only kubectl/helm allowed |
 | `lessons/permissions` | guide | base | ask 2 · allow 1 | config | harness lessons allowed; hand edits of the library ask |

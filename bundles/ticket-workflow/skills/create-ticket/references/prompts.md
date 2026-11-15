@@ -35,4 +35,5 @@ Rules
 
 Wording rules: one question per checkpoint; headers ≤ 12 chars; options carry their
 consequence in the description (e.g. "Bug + Affects Version = 1.12"); never ask about ticket
-state — new tickets start in `Open` and stay there until a human moves them.
+state — new tickets start in `Open` and stay there until the user moves them (or explicitly
+asks for a transition later, outside this skill).

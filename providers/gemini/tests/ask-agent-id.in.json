@@ -1,0 +1,1 @@
+{"session_id":"g-1","agent_id":"agent-1","tool_name":"run_shell_command","tool_input":{"command":"ask-me now","agent_id":"agent-1"},"cwd":"/tmp"}

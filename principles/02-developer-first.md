@@ -34,8 +34,14 @@ manual step or a user-facing message.
   ([concepts](../docs/concepts.md#precedence)).
 - **Messages say what to do.** Doctor FAILs name the manual step that fixes them; guard deny
   and ask reasons name the allowed alternative; manual steps carry `why`, `how` and `verify`.
-- **Humans keep human decisions** (merge, approve, ticket state, sending mail), and the agent
-  hands those back with the exact command instead of stalling.
+- **Humans decide; an agent acts on an explicit main-thread request.** Merging, approving,
+  closing, reopening or readying a PR/MR, closing or reopening an issue and transitioning a
+  ticket are human decisions. An agent carries one out only when the user explicitly asks for
+  it in the main thread, and the guard confirms every such call (ask). Subagents never do it:
+  the guard denies when the hook input identifies a subagent caller, and falls back to ask on
+  providers that cannot identify one. Closing keywords stay denied. Without that request the
+  agent hands the decision back with the exact command instead of stalling. Sending mail stays
+  with the human.
 
 ## What it rules out
 
@@ -55,6 +61,7 @@ manual step or a user-facing message.
 | Manual steps carry `why` and `verify` | review | add-a-bundle checklist in [CONTRIBUTING](../CONTRIBUTING.md#adding-a-bundle) |
 | `plan` twice prints `0 changes`; bootstrap works in a fresh home | smoke | `tests/smoke/bootstrap.sh`, CI |
 | Guard rows cover read-only commands as `allow` or pass | test rows | `bundles/*/guard.d/tests.sh` |
+| Merge, approve, PR/MR and issue state, ticket transitions: main thread asks, subagent denied | guard rows | guard sections 50, 60, 70 rows (main ask, subagent deny) |
 
 ## Tensions and how they are resolved
 
@@ -77,10 +84,17 @@ Compliant:
 
 - A deny reason: "pushing to the default branch is denied; push a branch and open a PR".
 - A doctor check whose `fix` is `gh-auth`, a manual step with a click path.
-- A skill that hands a merge back to the human with the exact command to run.
+- A skill that hands a merge back to the human with the exact command to run when the user
+  has not asked for it.
+- The user writes "merge PR 12" in the main thread; the agent runs the merge and the guard
+  asks the user to confirm the call.
 
 Non-compliant:
 
+- A subagent (a reviewer, a work-ticket step) merging a PR, approving an MR or transitioning
+  a ticket on its own initiative, or because its brief says the user approved it.
+- An agent closing an issue because the work looks done, without the user asking.
+- A commit or PR body with a closing keyword (`Closes #N`) instead of naming the issue.
 - A deny reason "not allowed" with no alternative.
 - A rule that asks on every `git status`.
 - An `apply` step that rewrites `~/.claude/settings.json` keys the adapter does not own.

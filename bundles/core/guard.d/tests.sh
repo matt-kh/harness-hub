@@ -145,6 +145,42 @@ for _in in '{}' '{"tool_input":{}}' ''; do
   if [ "$rc" = 0 ] && [ -z "$out" ]; then pass=$((pass+1)); echo "PASS pass  | no command: '$_in'"
   else fail=$((fail+1)); printf 'FAIL no command %s → want silent pass, got rc=%s %s\n' "$_in" "$rc" "$out"; fi
 done
+# ---- caller: agent_id marks a subagent (IN_SUBAGENT); no decision depends on it yet ------
+# The jq call now emits a flag line between the session and the command: inputs without a
+# command must stay a silent pass (the flag is never judged as a command) for every caller,
+# and malformed input still fails closed whatever agent fields it carries.
+for _in in '{"agent_id":"a1"}' '{"agent_id":"a1","agent_type":"general-purpose","tool_input":{}}' \
+           '{"agent_id":"a1","tool_input":{"command":""}}' '{"agent_id":"","tool_input":{}}' \
+           '{"agent_id":null}' '{"agent_type":"reviewer","tool_input":{}}' '{"session_id":"s1","agent_id":"a1"}'; do
+  out=$(printf '%s' "$_in" | bash "$H"); rc=$?
+  if [ "$rc" = 0 ] && [ -z "$out" ]; then pass=$((pass+1)); echo "PASS pass  | no command: '$_in'"
+  else fail=$((fail+1)); printf 'FAIL no command %s → want silent pass, got rc=%s %s\n' "$_in" "$rc" "$out"; fi
+done
+for _in in '{"agent_id":"a1","tool_input":' '{"agent_id":"a1"} trailing' '["agent_id","a1"]'; do
+  out=$(printf '%s' "$_in" | bash "$H")
+  if [ "$(jq -r '.hookSpecificOutput.permissionDecision' <<<"$out" 2>/dev/null)" = deny ] \
+     && jq -r '.hookSpecificOutput.permissionDecisionReason' <<<"$out" | grep -q 'malformed hook input'; then
+    pass=$((pass+1)); echo "PASS deny  | malformed input: $_in"
+  else fail=$((fail+1)); printf 'FAIL malformed input %s → want deny JSON, got: %s\n' "$_in" "$out"; fi
+done
+T_AGENT=a1        t pass 'ls'
+T_AGENT=a1        t pass ''                                   # subagent, empty command: as on the main thread
+T_AGENT=''        t pass 'ls'                                 # agent_id "" = main thread
+T_AGENT_NULL=1    t pass 'ls'                                 # agent_id null = main thread
+T_AGENT_TYPE=reviewer t pass 'ls'                             # agent_type alone (--agent main thread)
+T_AGENT=a1        t pass '1'                                  # a command equal to the flag value stays a command
+T_AGENT=a1        t pass 'git push -u origin feat-x-sub-01-schema'
+# existing decisions are unchanged for a subagent caller and for the other agent_id shapes
+T_AGENT=a1        t ask  'git push --all origin'
+T_AGENT=a1        tc ask '/home/u/dev/shop_feat-x-sub-01-schema' 'git push -u origin feat-x-sub-01-schema'
+T_AGENT=a1        t deny 'git push origin master'
+T_AGENT=a1        t deny 'cat ~/.config/jira'
+T_AGENT=a1        tr 'MR-based workflow — push a feature branch and open an MR' 'git push origin master'
+T_AGENT=''        t deny 'git push origin master'
+T_AGENT_NULL=1    t ask  'git push --all origin'
+T_AGENT_TYPE=reviewer t deny 'git push origin master'
+T_AGENT=a1 TJ_SESSION=s1 tj on deny 'git push origin master'  # journal line unchanged (7 fields, session kept)
+T_AGENT=a1        tj off ask 'git push --all origin'
 # ---- harness parameters: env overrides and the rendered guard.env ------------------
 WORK_TICKET_BASE_BRANCH_RE='^(trunk)$' t deny 'git push origin trunk'
 WORK_TICKET_BASE_BRANCH_RE='^(trunk)$' t pass 'git push origin master'

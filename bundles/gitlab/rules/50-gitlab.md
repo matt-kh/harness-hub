@@ -9,14 +9,20 @@
   `--related-issue` (links, and may close, a GitLab issue) — pass a literal title and a
   description file instead.
 - `glab api "<path>"` is the escape hatch for anything the CLI lacks — GETs only without
-  confirmation; writes prompt.
+  confirmation; writes prompt (denied from a subagent).
 - `glab mr create` and edits to agent-labelled MRs run promptless; edits to un-labelled MRs
-  prompt; merging/approving is human-only (asks).
+  prompt.
+- Humans decide: `glab mr merge|approve|revoke|delete` and `glab issue close|reopen|delete`
+  always ask; `glab mr close|reopen` and `glab mr update --ready|--draft` ask on a human MR and
+  run promptless on an agent-labelled one. Run them only on the user's explicit request in the
+  main thread; from a subagent the guard denies them — hand the command back. GitLab quick
+  actions (`/merge`, `/approve`, `/close`, `/ready` …) in notes or descriptions count too:
+  leave them out of the text.
 - `glab mr rebase N` (server-side rebase onto the target branch) runs promptless on
   agent-labelled MRs and asks on human ones; refresh the local worktree afterwards with
   `git pull --rebase`.
 - Stacked delivery: sub MRs (`<branch>-sub-NN-<task>`) target the ticket branch, never the
-  default branch (the guard denies it); humans merge bottom-up.
+  default branch (the guard denies it); humans decide the merges, bottom-up.
 - Closing keywords + a ticket key (`Closes KEY`, `Fixes KEY`, `Resolves KEY`, `Implements KEY`)
   in commits, MR text or API payloads are denied: GitLab's Jira integration would transition
   the ticket. Mention the key instead.

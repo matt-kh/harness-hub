@@ -8,7 +8,9 @@ bundles you enabled:
   branch named after a short description (no ticket key), runs the checks CI lacks, and opens
   **one MR/PR** that mentions the ticket. Large tickets are decomposed by the Plan agent into
   parts delivered as **stacked MRs/PRs** (one per part, targeting the ticket branch, plus the
-  main one); humans merge bottom-up. It never merges, never transitions or closes the ticket.
+  main one); humans decide the merges, bottom-up. It never merges, transitions or closes the
+  ticket on its own: it names the command, and runs one only on your explicit request in the
+  main thread (the guard asks; a subagent is denied).
 - **`create-ticket`** — drafts one ticket or issue from free text, asks only for the gaps,
   renders the description deterministically, creates it with the `agent-drafted` label, reads
   it back and stops.
@@ -119,8 +121,6 @@ _none_
 In the repository's `.harness.toml` (provider-neutral, committed; `harness repo` shows the effect):
 - `[owns] domains = ["delivery"]` — this repository runs its own ticket → MR/PR workflow;
   `/work-ticket` and `/create-ticket` stop after their read-only preflight and hand over.
-- `[overrides] WORK_TICKET_ALLOW_TRANSITION = "1"` — a transition / close / reopen on a
-  human ticket asks instead of denying.
 - `[overrides] WORK_TICKET_KEY_IN_BRANCH = "1"` — the repository puts ticket keys in branch
   names and commit subjects: the guard lets key-named branches and key-prefixed subjects
   pass instead of asking.

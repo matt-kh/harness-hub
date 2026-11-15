@@ -356,6 +356,18 @@ class ProviderHonestyTest(LintRuleCase):
         self.assertIn("hook_enforced = true without a [targets.hooks] target", rep.errors[0])
         self.assertIn("ask = true without a [targets.hooks] target", rep.errors[1])
 
+    def test_subagent_identity_without_guard_hook(self):
+        unsupported = {"hooks": {"mode": "unsupported"}}
+        rep = self.lint(self.provider(caps={"hook_enforced": False, "subagent_identity": True}, targets=unsupported))
+        self.assertEqual(len(rep.errors), 1, rep.errors)
+        self.assertIn("providers/x: provider-honesty: subagent_identity = true without an enforced guard hook",
+                      rep.errors[0])
+        self.assertIn("set subagent_identity = false", rep.errors[0])
+
+    def test_subagent_identity_with_guard_hook(self):
+        rep = self.lint(self.provider(caps={"hook_enforced": True, "ask": True, "subagent_identity": True}))
+        self.assertEqual((rep.errors, rep.warnings), ([], []))
+
     def test_capability_contradicts_target_mode(self):
         targets = {"hooks": dict(self.HOOKS), "agents": {"path": "~/.x/agents/<name>.md", "mode": "file"},
                    "mcp": {"mode": "unsupported"}, "skills": {"mode": "unsupported"}}

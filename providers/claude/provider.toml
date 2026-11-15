@@ -66,6 +66,7 @@ entry = '{"hooks": [{"type": "command", "command": "{command}", "timeout": {time
 hook_enforced = true
 permissions = "native"
 ask = true
+subagent_identity = true       # PreToolUse input carries agent_id inside a subagent
 skills = "native"
 agents = "native"
 models = "core"

@@ -62,6 +62,15 @@ os.environ["HARNESS_JIRA_GET_EXCLUDE"] = "Story Points"
 assert j.get_extra("OTHER") == {}, j.get_extra("OTHER")               # env list overrides config
 PY
 
+# ticket keys go into REST paths: every keyed command refuses anything but PROJ-123 (no request)
+for args in "transition LBL-1/../HUM-2 Done" "comment LBL-1/../HUM-2 hi" "get LBL-1?x=1" "set lbl-1 labels []" \
+            "label LBL-1x add a" "link LBL-1 Relates HUM-2/.." "upload LBL-1%2F..%2FHUM-2 f" "transitions 'LBL-1 '"; do
+  eval "set -- $args"
+  JIRA_DRY_RUN=1 python3 "$CLI" "$@" > /dev/null 2> "$tmp/key.err"; rc=$?
+  [ "$rc" = 1 ] && grep -q "is not a ticket key; pass a literal key like PROJ-123" "$tmp/key.err"
+  chk $? "jira $args: refused as not a ticket key"
+done
+
 # ============================================================ part 2: fixture-routed goldens
 mkdir -p "$tmp/fakehome" "$tmp/work" "$GOLD"
 DRY_CASES=""; ALL_CASES=""
@@ -166,7 +175,7 @@ w create-bad-link-arg   1 empty create PROJ Task "x" --link PROJ-100
 w create-no-summary     1 empty create PROJ Task
 w link                  0 reads link PROJ-100 relates "$KEY"
 w link-unknown-type     1 reads link PROJ-100 Duplicates "$KEY"
-w link-self             1 empty link "$KEY" Relates proj-123
+w link-self             1 empty link "$KEY" Relates PROJ-123
 w comment               0 empty comment "$KEY" "$(printf 'h3. Update\n* parser fixed\n{noformat}ok{noformat}')"
 w set-friendly          0 empty set "$KEY" "Story Points" 5
 w set-raw-string        0 empty set "$KEY" "Testing Solution" 'unit tests in tests/run.sh'

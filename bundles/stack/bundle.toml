@@ -11,7 +11,7 @@ conflict), pushes the rebased sub branches with `--force-with-lease`, refreshes 
 fan-in leaf server-side when the merge method needs an up-to-date source, and marks the main
 MR/PR ready once every part merged. It writes only to agent-labelled MRs/PRs and prints every
 native command before it runs it. `stk plan|status|check` are reads; `plan` prints the
-bottom-up merge order for the human, who merges in the web UI. Stacks are work-ticket's
+bottom-up merge order for the human, who decides each merge (usually in the web UI). Stacks are work-ticket's
 `<BR>-sub-NN-<task>` branches (`stk sync --stack BR`).
 """
 depends_on = ["core"]
@@ -141,7 +141,7 @@ title = "Read how a stack is merged (you merge it)"
 once_per = "machine"
 needs = []
 minutes = 2
-why = "Merging is human-only: stk keeps the stack mergeable, you merge it."
+why = "Merging is your decision: stk keeps the stack mergeable and has no merge verb; you merge it, or ask the agent to in the main thread (the guard asks)."
 how = """
 - `stk plan --stack <BR>` prints the merge order: parts bottom-up, the main MR/PR last.
 - Merge the first part in the web UI, then run `stk sync --stack <BR>` (or ask the agent to):
@@ -194,7 +194,7 @@ function = "client"
 [harness]
 coverage_note = "`stk sync`'s label gate is enforced inside the CLI (sensed by its golden suite), not by the guard; the guard only asks when the gate is lifted. Lease pushes of -sub- branches typed by hand are core section 30's."
 guides = [
-  { kind = "rule", ref = "rules/65-stack.md", checks = ["guard.d/65-stack.sh"], note = "humans merge bottom-up; stk sync after each merge; agent-labelled parts only" },
+  { kind = "rule", ref = "rules/65-stack.md", checks = ["guard.d/65-stack.sh"], note = "humans decide the merges, bottom-up; stk sync after each merge; agent-labelled parts only" },
   { kind = "skill", ref = "skills/stk", checks = ["skills/stk/scripts/tests/run.sh", "doctor_checks"], note = "the stk CLI: check, plan, status, sync and the merge-order hand-off" },
   { kind = "permission", ref = "permissions.toml", checks = ["permissions-vs-guard", "guard.d/65-stack.sh"], note = "stk plan|status|check|sync allowed; never Bash(stk:*)" },
 ]

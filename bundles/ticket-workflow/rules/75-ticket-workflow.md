@@ -1,7 +1,8 @@
 ## Ticket workflow
 - `/work-ticket KEY` (or `#N` for GitHub Issues) owns the ticket → MR/PR flow: label gate
   (`{{ core.agent_labels.worked }}`), `<short-name>` branches without ticket keys, only the checks
-  CI lacks, MRs/PRs that mention the key and never close it. It yields to a repository-level
+  CI lacks, MRs/PRs that mention the key and never close it; it never merges or transitions on
+  its own, and names the command for the user instead. It yields to a repository-level
   ticket workflow (declared in `.harness.toml` or found at preflight) after its read-only
   preflight (principle 8).
 - The tracker of a repository is declared, never guessed from the host: `.harness.toml [repo]
