@@ -57,6 +57,7 @@ FACETS: Dict[str, "OrderedDict[str, str]"] = {
         ("kubernetes", "clusters, Helm, GitOps, IaC targeting them"),
         ("workspace", "docs, drive, sheets, mail"),
         ("operations", "running systems: signals, incidents, reliability targets"),
+        ("infrastructure", "hosts, operating systems, provisioning, cloud accounts, containers, databases and IaC outside Kubernetes"),
         ("security", "security posture of code, dependencies, artefacts and credentials: supply chain, appsec, vulnerabilities"),
     ]),
     "function": OrderedDict([

@@ -149,6 +149,7 @@ A value exists only while a component uses it. To add one:
 | `kubernetes` | clusters, Helm, GitOps, IaC targeting them | 18 (k8s) |
 | `workspace` | docs, drive, sheets, mail | 15 (gdoc) |
 | `operations` | running systems: signals, incidents, reliability targets | 13 (obs) |
+| `infrastructure` | hosts, operating systems, provisioning, cloud accounts, containers, databases and IaC outside Kubernetes | 0 |
 | `security` | security posture of code, dependencies, artefacts and credentials: supply chain, appsec, vulnerabilities | 15 (supply-chain) |
 
 ### function
