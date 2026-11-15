@@ -340,6 +340,14 @@ r  deny  'glab -R g/p mr update 100 --description "Closes LBL-1"'
 r  deny  'glab mr -R g/p update 100 --description "Fixes LBL-1"'
 r  deny  'glab mr new -s f -b main -t "LBL-1 x" --description "Closes LBL-1"'
 r  pass  'glab -R g/p mr update 100 --description "part of LBL-1"'
+r  deny  'glab -R g/p api projects/1/merge_requests -f "description=Closes LBL-1"'
+r  deny  'glab "mr" update 100 --description "Closes LBL-1"'  # quoted noun: 50 (which asks) is skipped, 40 denies
+r  deny  'glab mr "update" 100 --description "Closes LBL-1"'
+r  deny  'm=mr; glab $m update 100 --description "Closes LBL-1"'
+r  deny  'v=update; glab mr $v 100 --description "Closes LBL-1"'
+r  deny  'glab mr -R g/p -R g/p update 1 -d "Closes LBL-1"'     # repeated repo flag
+r  deny  'glab -R g/p --repo g/p mr update 1 -d "Closes LBL-1"'
+r  pass  'glab mr -R update; echo "Closes LBL-1"'              # a bare -R is no repo flag
 decl '[owns]' 'domains = ["tracker"]'
 r  allow 'glab -R g/p mr update 100 --description "Closes LBL-1"'
 decl

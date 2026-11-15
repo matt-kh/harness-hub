@@ -382,6 +382,14 @@ r deny  'gh pr -Ro/r edit 100 -b "Closes #3"'
 r deny  'gh pr new -H feat-x -B main -t x -b "Fixes #3"'
 r deny  'gh --repo=o/r pr merge 100 -b "Resolves #3"'
 r pass  'gh -Ro/r pr edit 100 -b "part of #3"'
+r deny  'gh "pr" edit 100 -b "Closes #3"'                     # quoted noun: 60 (which asks) is skipped, 41 denies
+r deny  'gh pr "edit" 100 -b "Closes #3"'
+r deny  'p=pr; gh $p edit 100 -b "Closes #3"'                 # $VAR noun
+r deny  'v=edit; gh pr $v 100 -b "Closes #3"'                 # $VAR verb
+r deny  'gh pr -R o/r -R o/r edit 100 -b "Closes #3"'         # repeated repo flag
+r deny  'gh -R o/r --repo o/r pr edit 100 -b "Closes #3"'
+r pass  'gh pr -R list; echo "Closes #3"'                     # a bare -R is no repo flag
+r pass  'gh "pr" view 100'                                    # no closing keyword: 41 does not care
 decl '[owns]' 'domains = ["tracker"]'
 r allow 'gh -Ro/r pr edit 100 -b "Closes #3"'                # yields with 41 when the repository owns tracker
 r allow 'gh pr new -H feat-x -B feat-y -t x -b "Fixes #3"'

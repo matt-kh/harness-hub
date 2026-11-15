@@ -39,7 +39,7 @@ fetch_glab_mr() {
 # (-R g/p, -Rg/p, -R=g/p, --repo g/p, --repo=g/p; before the noun or the verb).
 # shellcheck disable=SC2168  # sections are wrapped in a function by build.sh
 local flat="$flat_split"
-GLR='((-R[= ]?|--repo[= ])\S+\s+)?'
+GLR='((-R[= ]?|--repo[= ])\S+\s+)*'   # same text as CL_GLR in 40-gitlab-closing
 GLP='\bglab\s+'"$GLR"
 GL_NOUNS='mr|issue|release|repo|label'
 # GitLab quick actions that carry out a human decision (or retarget) when posted in a note or a
