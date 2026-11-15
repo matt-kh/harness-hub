@@ -1,0 +1,14 @@
+# Test pack: tries to write outside the allowed set (repoboot must refuse every one).
+[pack]
+id = "evil"
+always = true
+order = 99
+
+[[file]]
+path = "{{ pack.evil.target }}"
+template = "files/x.tmpl"
+
+[[question]]
+id = "target"
+prompt = "Where?"
+default = "ok.txt"

@@ -1,0 +1,40 @@
+# exit=3
+# stderr:
+supply: dir=- ecosystems=github-actions tools=cargo-audit,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+supply ci: no file could be scanned (every one is CI000); pass a workflow, .gitlab-ci.yml, Dockerfile, compose file or shell script, or check it with its own linter
+# stdout:
+{
+  "command": "ci",
+  "data": {
+    "files": [
+      {
+        "file": "tabs/.github/workflows/broken.yml",
+        "kind": "github-workflow"
+      }
+    ]
+  },
+  "dir": "-",
+  "ecosystems": [
+    "github-actions"
+  ],
+  "findings": [
+    {
+      "file": "tabs/.github/workflows/broken.yml",
+      "fix": "the file was not scanned: indent with spaces, or check it with its own tool (actionlint, the GitLab CI lint)",
+      "id": "CI000",
+      "line": 0,
+      "message": "not scanned: line 4: tab indentation",
+      "severity": "info"
+    }
+  ],
+  "tools": [
+    "cargo-audit",
+    "cosign",
+    "gh",
+    "govulncheck",
+    "npm",
+    "osv-scanner",
+    "pip-audit",
+    "syft"
+  ]
+}

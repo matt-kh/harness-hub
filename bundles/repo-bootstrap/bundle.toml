@@ -1,0 +1,179 @@
+[bundle]
+name = "repo-bootstrap"
+schema_version = "1"
+summary = "Bootstrap git repositories to a standard, locally and on GitHub or GitLab: a standard intake, architecture packs, and `repoboot` (questions, answer, plan, render, apply, check)"
+description = """
+One standard for new and existing repositories. `repoboot questions` is the standard intake:
+every requirement still open (host, owner, visibility, default branch, merge method,
+approvals, code owners, tracker, project kind, languages, toolchain, CI jobs…) plus the
+questions of the packs the answers select; `repoboot answer` keeps the answers in the
+repository's `.repo-standard.toml`. The bundled baseline pack writes the hygiene files, README,
+MR/PR and issue templates, CODEOWNERS, license, pre-commit config and a CI lint job; org and
+personal packs (`repo_bootstrap.pack_dirs`) add architecture-specific files, CI jobs and
+questions. `repoboot apply` initialises, commits, creates the GitHub repository or GitLab
+project, makes the first push only into an empty remote, and applies the merge settings,
+default-branch protection and agent-* labels (the guard asks). On an existing repository
+`repoboot check --fix` reports the drift with the fixing commands; files change through an
+MR/PR, never on the default branch. It never writes `.harness.toml` (it prints the draft).
+"""
+depends_on = ["core"]
+recommends = ["ticket-workflow"]
+conflicts_with = []
+any_of = [["gitlab", "github"]]
+owners = []
+docs = "docs/bundles/repo-bootstrap.md"
+stability = "experimental"
+
+[requires.binaries.python3]
+min_version = "3.9"
+version_cmd = "python3 --version"
+version_regex = 'Python ([0-9]+\.[0-9]+)'
+why = "The repoboot CLI is stdlib python (TOML via tomllib, or the hub's vendored tomli below 3.11)."
+
+[requires.binaries.git]
+min_version = "2.28"
+version_cmd = "git --version"
+version_regex = 'git version ([0-9]+\.[0-9]+)'
+why = "`git init -b <branch>` (2.28+), the initial commit and push, `git ls-remote` before the first push."
+
+[requires.binaries.gh]
+min_version = "2.60.0"
+version_cmd = "gh --version"
+version_regex = 'gh version ([0-9]+\.[0-9]+\.[0-9]+)'
+install = "gh"
+optional = true
+why = "GitHub: `gh repo create`, `gh api` (settings, rulesets, reads), `gh label create|list`."
+
+[requires.binaries.glab]
+min_version = "1.40.0"
+version_cmd = "glab --version"
+version_regex = 'glab (?:version )?([0-9]+\.[0-9]+\.[0-9]+)'
+optional = true
+why = "GitLab: `glab repo create`, `glab api` (settings, protected branches, reads), `glab label create`."
+
+[requires.config."repo_bootstrap.pack_dirs"]
+type = "array"
+default = []
+description = "Extra pack directories (each holds <pack>/pack.toml), searched after the bundled baseline; a later directory replaces a pack of the same id. Org packs live in a private overlay. HARNESS_REPO_BOOTSTRAP_PACK_DIRS (':'-separated) wins."
+example = ["~/harness-hub/local/repo-packs"]
+[requires.config."repo_bootstrap.pack_dirs".items]
+type = "string"
+
+[requires.config."repo_bootstrap.default_visibility"]
+type = "string"
+default = "private"
+enum = ["private", "internal", "public"]
+description = "Default answer to repo.visibility. HARNESS_REPO_BOOTSTRAP_DEFAULT_VISIBILITY."
+example = "private"
+
+[requires.config."repo_bootstrap.default_merge_method"]
+type = "string"
+default = "squash"
+enum = ["squash", "merge", "rebase"]
+description = "Default answer to workflow.merge_method. HARNESS_REPO_BOOTSTRAP_DEFAULT_MERGE_METHOD."
+example = "squash"
+
+[requires.config."repo_bootstrap.required_approvals"]
+type = "integer"
+default = 1
+description = "Default answer to workflow.required_approvals (GitHub: enforced by the default-branch ruleset; GitLab CE/Free: recorded only). HARNESS_REPO_BOOTSTRAP_REQUIRED_APPROVALS."
+example = 1
+
+[requires.config."repo_bootstrap.default_license"]
+type = "string"
+default = "none"
+enum = ["none", "MIT", "proprietary"]
+description = "Default answer to repo.license; other licenses come from a pack. HARNESS_REPO_BOOTSTRAP_DEFAULT_LICENSE."
+example = "none"
+
+[requires.config."repo_bootstrap.github_owner"]
+type = "string"
+default = ""
+description = "Default GitHub owner (user or organisation) for repo.owner. HARNESS_REPO_BOOTSTRAP_GITHUB_OWNER."
+example = "octo-org"
+
+[requires.config."repo_bootstrap.gitlab_namespace"]
+type = "string"
+default = ""
+description = "Default GitLab group or namespace path for repo.owner. HARNESS_REPO_BOOTSTRAP_GITLAB_NAMESPACE."
+example = "group/subgroup"
+
+[requires.config."repo_bootstrap.gitlab_remove_source_branch"]
+type = "string"
+default = "auto"
+enum = ["auto", "true", "false"]
+description = "GitLab project default `remove_source_branch_after_merge`. auto: false when the stack bundle is active (GitLab CE retargets a deleted blocker's dependents to the default branch), true otherwise. HARNESS_REPO_BOOTSTRAP_GITLAB_REMOVE_SOURCE_BRANCH."
+example = "auto"
+
+[provides]
+rules = ["rules/67-repo-bootstrap.md"]
+skills = ["skills/bootstrap-repo"]
+skill_fragments = []
+agents = []
+guard_rules = ["guard.d/67-repo-bootstrap.sh"]
+permissions = "permissions.toml"
+mcp = ""
+bin = [{ name = "repoboot", target = "skills/bootstrap-repo/scripts/repoboot.py" }]
+
+[[manual_steps]]
+id = "repo-bootstrap-packs"
+title = "Optional: point repo_bootstrap.pack_dirs at your architecture packs"
+once_per = "machine"
+needs = []
+minutes = 10
+why = "The bundled baseline is architecture-neutral; your org's or your own layouts (service skeletons, CI jobs, MR templates with a ticket section) live in packs you keep in a private overlay."
+how = """
+1. Create a directory outside the public checkout, e.g. `~/harness-hub/local/repo-packs/`.
+2. Add one sub-directory per pack with a `pack.toml` (format: the skill's `references/packs.md`;
+   copy the bundled `baseline` pack as a start). A pack of the same id as a bundled one replaces it.
+3. `harness config set repo_bootstrap.pack_dirs '["~/harness-hub/local/repo-packs"]'` and `harness apply`.
+4. `repoboot questions --dir /tmp/x` lists the pack's questions once your answers select it.
+"""
+[manual_steps.verify]
+cmd = "true"
+expect = { exit = 0 }
+
+[[doctor_checks]]
+id = "repoboot-cli"
+title = "repoboot CLI on PATH and its packs parse"
+severity = "fail"
+cmd = "command -v repoboot >/dev/null && repoboot questions --dir \"$(mktemp -d)\" --json >/dev/null"
+expect = { exit = 0 }
+offline_skip = false
+fix = "harness apply (and fix repo_bootstrap.pack_dirs if the message names it)"
+
+[[doctor_checks]]
+id = "repoboot-scm-cli"
+title = "An SCM CLI is on PATH (gh or glab)"
+severity = "warn"
+cmd = "command -v gh >/dev/null 2>&1 || command -v glab >/dev/null 2>&1"
+expect = { exit = 0 }
+offline_skip = false
+fix = "Activate the github or gitlab bundle (hub.bundles) and run harness apply; local-only bootstraps work without one"
+
+[uninstall]
+keeps = []
+notes = "Removes the repoboot link, the rendered skill, the rule block and guard section 67; repositories, their .repo-standard.toml, remote settings, rulesets, protected branches, labels and your pack directories are untouched."
+
+# Component taxonomy (docs/reference/taxonomy.md): bundle defaults, then per-component overrides.
+[taxonomy]
+domain = "scm"
+posture = "label-gated"
+function = "setup"
+
+# Guides steer the agent before it acts; sensors detect at or after the action (principle 6).
+[harness]
+coverage_note = "The CLI's own invariants (the first push only into an empty remote, never on the default branch of an existing repository, never .harness.toml, never a force-push) are sensed by its golden suite; the guard asks on `repoboot apply`, and hand-typed gh/glab/git writes stay with the github, gitlab and core sections."
+guides = [
+  { kind = "rule", ref = "rules/67-repo-bootstrap.md", checks = ["guard.d/67-repo-bootstrap.sh"], note = "bootstrap through repoboot: intake, plan, apply (asks); existing repositories through check and an MR/PR" },
+  { kind = "skill", ref = "skills/bootstrap-repo", checks = ["skills/bootstrap-repo/scripts/tests/run.sh", "doctor_checks"], note = "the standard intake in at most two rounds, packs, plan review, apply, .harness.toml hand-off, retrofit" },
+  { kind = "permission", ref = "permissions.toml", checks = ["permissions-vs-guard", "guard.d/67-repo-bootstrap.sh"], note = "repoboot questions|answer|plan|render|check allowed; apply is not (the guard asks); never Bash(repoboot:*)" },
+]
+sensors = [
+  { kind = "guard", ref = "guard.d/67-repo-bootstrap.sh", note = "repoboot apply asks, however it is wrapped" },
+  { kind = "doctor", ref = "doctor_checks", note = "the repoboot CLI and its packs, an SCM CLI" },
+  { kind = "test", ref = "tests/run.sh", note = "this bundle's rows against core + repo-bootstrap only, then the repoboot suite" },
+  { kind = "test", ref = "guard.d/tests.sh", note = "rows for section 67 incl. bypasses and repository ownership" },
+  { kind = "test", ref = "skills/bootstrap-repo/scripts/tests/run.sh", note = "golden scenarios for every verb against stubbed gh, glab and harness and a real-git sandbox, plus invariants (plans write nothing, a non-empty remote is never pushed to, no .harness.toml, no force-push)" },
+  { kind = "lint", ref = "permissions-vs-guard", note = "each Bash allow/deny rule of permissions.toml run through the guard: no allowed command the guard denies or asks, no denied one it allows" },
+]

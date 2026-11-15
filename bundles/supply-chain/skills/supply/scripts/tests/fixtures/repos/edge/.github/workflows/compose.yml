@@ -1,0 +1,13 @@
+name: compose
+on: push
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4 # was actions/checkout@v4.1
+      - uses: octocat/setup-tool@release-2024
+      - uses: octocat/lint-action@feature/new-rules
+      - uses: octocat/other-action@main
+      - uses: octocat/pinned-action@0123456789abcdef0123456789abcdef01234567 # v1.0.0

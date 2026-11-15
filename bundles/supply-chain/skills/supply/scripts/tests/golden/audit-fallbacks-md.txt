@@ -1,0 +1,27 @@
+# exit=1
+# stderr:
+supply: dir=clean ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,shell tools=cargo-audit,govulncheck,npm,pip-audit
+# stdout:
+# supply audit — clean
+
+ecosystems: cargo, docker, github-actions, gitlab-ci, go, npm, pip, shell · tools: cargo-audit, govulncheck, npm, pip-audit
+
+## Findings (6)
+
+| sev | id | where | message | fix |
+|---|---|---|---|---|
+| warn | VUL001 | Cargo.lock:4 | cargo serde 1.0.215: RUSTSEC-2099-0007 (CVE-2099-0007) — Synthetic deserialisation issue; fixed in >=1.0.216 | upgrade serde to >=1.0.216 (/audit-deps applies patch and minor upgrades; a major upgrade is a human decision) |
+| warn | VUL001 | go.mod | go golang.org/x/text v0.21.0: GO-2099-0008 (CVE-2099-0008) — Synthetic HTML parser loop in golang.org/x/text; fixed in v0.22.0; called | upgrade golang.org/x/text to v0.22.0 (/audit-deps applies patch and minor upgrades; a major upgrade is a human decision) |
+| info | VUL001 | go.mod | go golang.org/x/text v0.21.0: GO-2099-0009 — Synthetic unused-code issue; no fixed version published; imported, not called | no fix published: remove or replace the dependency, mitigate, or accept it with a reason (references/vuln-triage.md) |
+| crit | VUL001 | package-lock.json | npm lodash <4.17.21: GHSA-0000-0000-0005 — Synthetic prototype pollution in lodash; npm reports a fix within the declared ranges | update lodash within its declared range (`npm update lodash`; /audit-deps applies patch and minor upgrades) |
+| crit | VUL001 | package-lock.json | npm minimist <1.2.6: GHSA-0000-0000-0006 — Synthetic prototype pollution in minimist; fixed in 1.2.8 | upgrade minimist to 1.2.8 (/audit-deps applies patch and minor upgrades; a major upgrade is a human decision) |
+| warn | VUL001 | requirements.txt:2 | pip requests 2.32.3: PYSEC-0000-0002 (CVE-2099-0002) — Synthetic certificate check bypass; fixed in 2.32.4 | upgrade requests to 2.32.4 (/audit-deps applies patch and minor upgrades; a major upgrade is a human decision) |
+
+## auditors
+
+| ecosystem | packages | status | tool |
+|---|---|---|---|
+| cargo | 1 | ok | cargo-audit |
+| go | 1 | ok | govulncheck |
+| npm | 2 | ok | npm |
+| pip | 1 | ok | pip-audit |

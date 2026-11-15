@@ -1,0 +1,55 @@
+# exit=1
+# stderr:
+supply: dir=- ecosystems=none tools=cargo-audit,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+# stdout:
+{
+  "command": "verify",
+  "data": {
+    "signatures": [
+      {
+        "digest": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "issuer": "https://token.actions.githubusercontent.com",
+        "reference": "ghcr.io/octocat/hello-world",
+        "subject": "https://github.com/octocat/hello-world/.github/workflows/release.yml@refs/tags/v1.0.0",
+        "type": "cosign container image signature"
+      }
+    ],
+    "verifier": {
+      "command": "verify",
+      "identity": "release",
+      "identity_re": "^https://github\\.com/octocat/hello-world/\\.github/workflows/release\\.yml@refs/tags/v.*$",
+      "issuer": "https://token.actions.githubusercontent.com",
+      "tool": "cosign"
+    }
+  },
+  "dir": "-",
+  "ecosystems": [],
+  "findings": [
+    {
+      "file": "ghcr.io/octocat/mirror:1.0",
+      "fix": "none: verified",
+      "id": "VER000",
+      "line": 0,
+      "message": "1 signature(s) verified for ghcr.io/octocat/mirror:1.0",
+      "severity": "info"
+    },
+    {
+      "file": "ghcr.io/octocat/mirror:1.0",
+      "fix": "the signature belongs to another reference; verify the image you will run, by digest",
+      "id": "VER001",
+      "line": 0,
+      "message": "signature was made for ghcr.io/octocat/hello-world, not ghcr.io/octocat/mirror",
+      "severity": "warn"
+    }
+  ],
+  "tools": [
+    "cargo-audit",
+    "cosign",
+    "gh",
+    "govulncheck",
+    "npm",
+    "osv-scanner",
+    "pip-audit",
+    "syft"
+  ]
+}

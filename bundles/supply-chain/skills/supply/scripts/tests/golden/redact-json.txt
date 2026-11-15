@@ -1,0 +1,4 @@
+# exit=0
+# stderr:
+# stdout:
+{"auth": {"password": "***REDACTED***", "user": "octocat"}, "note": "fine", "url": "https://***:***@registry.example.com/v2/"}

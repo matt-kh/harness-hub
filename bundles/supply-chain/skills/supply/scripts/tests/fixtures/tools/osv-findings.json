@@ -1,0 +1,236 @@
+{
+  "results": [
+    {
+      "packages": [
+        {
+          "groups": [
+            {
+              "aliases": [
+                "CVE-2099-0001",
+                "GHSA-0000-0000-0001",
+                "PYSEC-0000-0001"
+              ],
+              "ids": [
+                "GHSA-0000-0000-0001",
+                "PYSEC-0000-0001"
+              ],
+              "max_severity": "9.1"
+            }
+          ],
+          "package": {
+            "ecosystem": "PyPI",
+            "name": "flask",
+            "version": "2.0.0"
+          },
+          "vulnerabilities": [
+            {
+              "affected": [
+                {
+                  "package": {
+                    "ecosystem": "PyPI",
+                    "name": "flask"
+                  },
+                  "ranges": [
+                    {
+                      "events": [
+                        {
+                          "introduced": "0"
+                        },
+                        {
+                          "fixed": "2.2.5"
+                        }
+                      ],
+                      "type": "ECOSYSTEM"
+                    },
+                    {
+                      "events": [
+                        {
+                          "introduced": "2.3.0"
+                        },
+                        {
+                          "fixed": "2.3.2"
+                        }
+                      ],
+                      "type": "ECOSYSTEM"
+                    }
+                  ]
+                }
+              ],
+              "aliases": [
+                "CVE-2099-0001",
+                "PYSEC-0000-0001"
+              ],
+              "database_specific": {
+                "severity": "HIGH"
+              },
+              "id": "GHSA-0000-0000-0001",
+              "summary": "Synthetic session cookie disclosure in flask"
+            },
+            {
+              "affected": [
+                {
+                  "package": {
+                    "ecosystem": "PyPI",
+                    "name": "flask"
+                  },
+                  "ranges": [
+                    {
+                      "events": [
+                        {
+                          "introduced": "0"
+                        },
+                        {
+                          "fixed": "2.2.5"
+                        }
+                      ],
+                      "type": "ECOSYSTEM"
+                    }
+                  ]
+                }
+              ],
+              "aliases": [
+                "CVE-2099-0001",
+                "GHSA-0000-0000-0001"
+              ],
+              "id": "PYSEC-0000-0001",
+              "summary": ""
+            }
+          ]
+        },
+        {
+          "groups": [
+            {
+              "aliases": [
+                "CVE-2099-0002"
+              ],
+              "ids": [
+                "GHSA-0000-0000-0002"
+              ],
+              "max_severity": ""
+            }
+          ],
+          "package": {
+            "ecosystem": "PyPI",
+            "name": "requests",
+            "version": "2.32.3"
+          },
+          "vulnerabilities": [
+            {
+              "affected": [
+                {
+                  "package": {
+                    "ecosystem": "PyPI",
+                    "name": "requests"
+                  },
+                  "ranges": [
+                    {
+                      "events": [
+                        {
+                          "introduced": "0"
+                        },
+                        {
+                          "fixed": "2.32.4"
+                        }
+                      ],
+                      "type": "ECOSYSTEM"
+                    }
+                  ]
+                }
+              ],
+              "aliases": [
+                "CVE-2099-0002"
+              ],
+              "database_specific": {
+                "severity": "MODERATE"
+              },
+              "id": "GHSA-0000-0000-0002",
+              "summary": "Synthetic certificate check bypass in requests when token=abc123def456 is set"
+            }
+          ]
+        }
+      ],
+      "source": {
+        "path": "__DIR__/requirements.txt",
+        "type": "lockfile"
+      }
+    },
+    {
+      "packages": [
+        {
+          "groups": [],
+          "package": {
+            "ecosystem": "Go",
+            "name": "example.com/lib",
+            "version": "1.2.3"
+          },
+          "vulnerabilities": [
+            {
+              "affected": [
+                {
+                  "package": {
+                    "ecosystem": "Go",
+                    "name": "example.com/lib"
+                  },
+                  "ranges": [
+                    {
+                      "events": [
+                        {
+                          "introduced": "0"
+                        }
+                      ],
+                      "type": "SEMVER"
+                    }
+                  ]
+                }
+              ],
+              "aliases": [],
+              "database_specific": {
+                "severity": "LOW"
+              },
+              "id": "GO-2099-0003",
+              "summary": "Synthetic low-severity issue in example.com/lib"
+            },
+            {
+              "affected": [
+                {
+                  "package": {
+                    "ecosystem": "Go",
+                    "name": "example.com/lib"
+                  },
+                  "ranges": [
+                    {
+                      "events": [
+                        {
+                          "introduced": "0"
+                        },
+                        {
+                          "fixed": "1.10.0"
+                        },
+                        {
+                          "introduced": "1.11.0"
+                        },
+                        {
+                          "fixed": "1.11.2"
+                        }
+                      ],
+                      "type": "SEMVER"
+                    }
+                  ]
+                }
+              ],
+              "aliases": [
+                "CVE-2099-0004"
+              ],
+              "id": "GO-2099-0004",
+              "summary": "Synthetic issue with no severity data"
+            }
+          ]
+        }
+      ],
+      "source": {
+        "path": "__DIR__/go.mod",
+        "type": "lockfile"
+      }
+    }
+  ]
+}

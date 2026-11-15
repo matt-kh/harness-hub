@@ -1,0 +1,4 @@
+# exit=1
+# stderr:
+supply verify: --key and --github are alternatives; pass one
+# stdout:

@@ -1,0 +1,9 @@
+# exit=2
+# stderr:
+supply: dir=amb ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,shell tools=cargo-audit,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+supply pins: pins --apply: nothing written —
+  entry 1: `/app` is not the ref of a current finding on Dockerfile:4 (copy `ref` from `supply pins DIR --json`)
+  entry 2: `node:22` is not the ref of a current finding on Dockerfile:1 (copy `ref` from `supply pins DIR --json`)
+  entry 3: requirements.txt has no line 9
+  entry 4: file must be a relative path inside DIR, without `..` or NUL
+# stdout:

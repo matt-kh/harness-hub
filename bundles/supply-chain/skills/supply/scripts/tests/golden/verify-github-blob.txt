@@ -1,0 +1,46 @@
+# exit=0
+# stderr:
+supply: dir=- ecosystems=none tools=cargo-audit,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+# stdout:
+{
+  "command": "verify",
+  "data": {
+    "attestations": [
+      {
+        "builder": "https://github.com/octocat/hello-world/.github/workflows/release.yml@refs/tags/v1.0.0",
+        "digest": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "identity": "https://github.com/octocat/hello-world/.github/workflows/release.yml@refs/tags/v1.0.0",
+        "issuer": "https://token.actions.githubusercontent.com",
+        "predicateType": "https://slsa.dev/provenance/v1",
+        "subject": "hello-world-linux-amd64.tar.gz"
+      }
+    ],
+    "verifier": {
+      "command": "attestation verify",
+      "owner": "octocat",
+      "tool": "gh"
+    }
+  },
+  "dir": "-",
+  "ecosystems": [],
+  "findings": [
+    {
+      "file": "dirty/deploy.bash",
+      "fix": "none: verified",
+      "id": "VER000",
+      "line": 0,
+      "message": "1 attestation(s) verified for dirty/deploy.bash",
+      "severity": "info"
+    }
+  ],
+  "tools": [
+    "cargo-audit",
+    "cosign",
+    "gh",
+    "govulncheck",
+    "npm",
+    "osv-scanner",
+    "pip-audit",
+    "syft"
+  ]
+}

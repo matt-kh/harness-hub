@@ -3,8 +3,9 @@
 One governed harness for the AI coding agents your developers already use: the rules,
 skills, sub-agents, permission lists, MCP servers and command guard that make Claude Code,
 Gemini CLI, Copilot CLI, Codex and OpenCode work like a careful colleague on GitHub, GitLab,
-Jira, Kubernetes and Google Workspace. Built for platform teams rolling out one baseline to
-many developers, and for the developer who wants that baseline on their own machine.
+Jira, Kubernetes, Google Workspace and the software supply chain. Built for platform teams
+rolling out one baseline to many developers, and for the developer who wants that baseline on
+their own machine.
 
 Without it, an agent can read a token file, push to `main` or close a ticket with a commit
 message, and five providers get configured five different ways, by hand, on every machine.
@@ -27,10 +28,15 @@ Pick the bundles you need; each one is a capability with its own docs page.
 | [k8s](docs/bundles/k8s.md) | kubernetes / read-only | stable | Read-only Kubernetes client (k8s CLI + skill), triage / audit / architect agents, kubeconfig and Secret guards | [4 steps](docs/bundles/k8s.md#manual-steps) |
 | [lessons](docs/bundles/lessons.md) | base / local | experimental | The lessons loop: a /retro skill that turns a session's journal signals into at most two evidence-backed candidate lessons, a rule that has agents consult them, and hooks that record user corrections and nudge for a retro | [2 steps](docs/bundles/lessons.md#manual-steps) |
 | [obs](docs/bundles/obs.md) | operations / read-only | experimental | Read-only observability client (obs CLI + skill) for SigNoz, Prometheus and Grafana, an obs-triage agent, and API-key and raw-backend guards | [2 steps](docs/bundles/obs.md#manual-steps) |
+| [repo-bootstrap](docs/bundles/repo-bootstrap.md) | scm / label-gated | experimental | Bootstrap git repositories to a standard, locally and on GitHub or GitLab: a standard intake, architecture packs, and `repoboot` (questions, answer, plan, render, apply, check) | [1 step](docs/bundles/repo-bootstrap.md#manual-steps) |
 | [stack](docs/bundles/stack.md) | scm / label-gated | experimental | Stacked MRs/PRs on free tiers: the `stk` CLI (plan, status, check, sync) keeps a chain of dependent parts retargeted, rebased and pushed | [3 steps](docs/bundles/stack.md#manual-steps) |
+| [supply-chain](docs/bundles/supply-chain.md) | security / local | experimental | Software supply chain: pin what you add, install inside the project, never switch verification off (guard 38, the supply CLI, /pin-deps, /audit-deps and three read-only agents) | [2 steps](docs/bundles/supply-chain.md#manual-steps) |
 | [ticket-workflow](docs/bundles/ticket-workflow.md) | delivery / label-gated | beta | /work-ticket (ticket → governed MR/PR, stacked delivery) and /create-ticket (one drafted ticket or issue) | [1 step](docs/bundles/ticket-workflow.md#manual-steps) |
 <!-- generated:end -->
 
+- New repositories start from one standard: `/bootstrap-repo` (bundle `repo-bootstrap`) asks
+  only what is still open, renders the baseline and your architecture packs, and creates and
+  configures the GitHub or GitLab remote; `repoboot check` reports drift on existing ones.
 - Every bundle pairs **guides**, which steer the agent before it acts (rules, skills,
   permissions, agent definitions), with **sensors**, which check at or after the action
   (guard sections, doctor checks, test rows, a code-review agent), after Martin Fowler's
@@ -132,9 +138,15 @@ Ten principles govern every change to the hub; each links to its document (check
 ## Governance you can audit
 
 - The guard **denies** reading credential files, pushing to a default branch and closing
-  tickets by keyword. It **asks** before cluster mutations and writes to human-owned tickets,
-  MRs and PRs. Every reason names what to do instead
-  ([hook policy](docs/reference/hook-policy.md)).
+  tickets by keyword. It **asks** before cluster mutations, writes to human-owned tickets,
+  MRs and PRs, and piping a download into a shell (`curl … | sh`). Every reason names what to
+  do instead ([hook policy](docs/reference/hook-policy.md)). With the experimental
+  [`supply-chain`](docs/bundles/supply-chain.md) bundle it also denies switching TLS or
+  signature verification off and asks before installs into the machine and unpinned
+  dependencies; its read-only `supply` CLI reports unpinned actions, images and
+  dependencies, known vulnerabilities and unverified signatures, and `/pin-deps` and
+  `/audit-deps` turn the findings into a diff you review. It is the first bundle of the
+  [security track](docs/reference/security.md).
 - **Humans decide merges, approvals and state.** An agent merges, approves, closes, reopens
   or readies a PR/MR, closes an issue or transitions a ticket only when you explicitly ask for
   it in the main thread, and the guard asks you to confirm the call (state changes of

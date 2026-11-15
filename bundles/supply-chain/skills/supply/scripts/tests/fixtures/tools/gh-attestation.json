@@ -1,0 +1,25 @@
+[
+  {
+    "verificationResult": {
+      "signature": {
+        "certificate": {
+          "buildSignerURI": "https://github.com/octocat/hello-world/.github/workflows/release.yml@refs/tags/v1.0.0",
+          "issuer": "https://token.actions.githubusercontent.com",
+          "subjectAlternativeName": "https://github.com/octocat/hello-world/.github/workflows/release.yml@refs/tags/v1.0.0"
+        }
+      },
+      "statement": {
+        "_type": "https://in-toto.io/Statement/v1",
+        "predicateType": "https://slsa.dev/provenance/v1",
+        "subject": [
+          {
+            "digest": {
+              "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+            },
+            "name": "hello-world-linux-amd64.tar.gz"
+          }
+        ]
+      }
+    }
+  }
+]

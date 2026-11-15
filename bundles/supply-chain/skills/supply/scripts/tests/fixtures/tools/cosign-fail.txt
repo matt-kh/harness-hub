@@ -1,0 +1,2 @@
+Error: no matching signatures: none of the expected identities matched what was in the certificate
+main.go:74: error during command execution: no matching signatures

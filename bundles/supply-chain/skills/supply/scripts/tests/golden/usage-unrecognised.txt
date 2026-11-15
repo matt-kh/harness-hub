@@ -1,0 +1,6 @@
+# exit=1
+# stderr:
+supply: unrecognized arguments: --nope
+
+Run `supply` with no arguments for the command list.
+# stdout:

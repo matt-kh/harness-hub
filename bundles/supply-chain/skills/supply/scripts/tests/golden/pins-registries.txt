@@ -1,0 +1,109 @@
+# exit=1
+# stderr:
+supply: dir=dockerfiles ecosystems=docker tools=cargo-audit,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+# stdout:
+{
+  "command": "pins",
+  "data": {
+    "files_scanned": 3
+  },
+  "dir": "dockerfiles",
+  "ecosystems": [
+    "docker"
+  ],
+  "findings": [
+    {
+      "file": "Dockerfile",
+      "fix": "pull from an allowed registry (supply_chain.registries_re), or add the host to the allow-list after review",
+      "id": "REG001",
+      "line": 3,
+      "message": "base image `golang:1.23@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef` comes from docker.io, which supply_chain.registries_re does not allow",
+      "severity": "warn"
+    },
+    {
+      "file": "Dockerfile",
+      "fix": "pin the base image digest: `FROM IMAGE:TAG@sha256:<digest>`",
+      "id": "DKR001",
+      "line": 6,
+      "message": "base image `gcr.io/distroless/static:nonroot` is pinned to a tag, not a digest",
+      "ref": "gcr.io/distroless/static:nonroot",
+      "severity": "warn"
+    },
+    {
+      "file": "Dockerfile",
+      "fix": "pull from an allowed registry (supply_chain.registries_re), or add the host to the allow-list after review",
+      "id": "REG001",
+      "line": 6,
+      "message": "base image `gcr.io/distroless/static:nonroot` comes from gcr.io, which supply_chain.registries_re does not allow",
+      "severity": "warn"
+    },
+    {
+      "file": "app.Dockerfile",
+      "fix": "name a released tag and pin its digest: `FROM IMAGE:TAG@sha256:<digest>`",
+      "id": "DKR002",
+      "line": 1,
+      "message": "base image `ubuntu:latest` has no tag or uses :latest",
+      "ref": "ubuntu:latest",
+      "severity": "crit"
+    },
+    {
+      "file": "app.Dockerfile",
+      "fix": "pull from an allowed registry (supply_chain.registries_re), or add the host to the allow-list after review",
+      "id": "REG001",
+      "line": 1,
+      "message": "base image `ubuntu:latest` comes from docker.io, which supply_chain.registries_re does not allow",
+      "severity": "warn"
+    },
+    {
+      "file": "app.Dockerfile",
+      "fix": "verify the download before use: `sha256sum -c`, `cosign verify-blob`, `gh attestation verify`, or `ADD --checksum=sha256:...`",
+      "id": "SH002",
+      "line": 2,
+      "message": "ADD of a URL without --checksum: `ADD https://example.com/tool.tar.gz /opt/`",
+      "severity": "warn"
+    },
+    {
+      "file": "app.Dockerfile",
+      "fix": "verify the download before use: `sha256sum -c`, `cosign verify-blob`, `gh attestation verify`, or `ADD --checksum=sha256:...`",
+      "id": "SH002",
+      "line": 3,
+      "message": "download written to a file with no checksum or signature check within the next 8 lines: `apt-get update && wget https://example.com/agent.deb && dpkg -i agent.deb`",
+      "severity": "warn"
+    },
+    {
+      "file": "compose.yaml",
+      "fix": "pin the image digest: `image: IMAGE:TAG@sha256:<digest>`",
+      "id": "DKR003",
+      "line": 3,
+      "message": "service `db` image `postgres` has no tag or uses :latest",
+      "ref": "postgres",
+      "severity": "crit"
+    },
+    {
+      "file": "compose.yaml",
+      "fix": "pull from an allowed registry (supply_chain.registries_re), or add the host to the allow-list after review",
+      "id": "REG001",
+      "line": 3,
+      "message": "service `db` image `postgres` comes from docker.io, which supply_chain.registries_re does not allow",
+      "severity": "warn"
+    },
+    {
+      "file": "compose.yaml",
+      "fix": "pull from an allowed registry (supply_chain.registries_re), or add the host to the allow-list after review",
+      "id": "REG001",
+      "line": 5,
+      "message": "service `cache` image `redis:7.4@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef` comes from docker.io, which supply_chain.registries_re does not allow",
+      "severity": "warn"
+    }
+  ],
+  "tools": [
+    "cargo-audit",
+    "cosign",
+    "gh",
+    "govulncheck",
+    "npm",
+    "osv-scanner",
+    "pip-audit",
+    "syft"
+  ]
+}

@@ -1,0 +1,315 @@
+[bundle]
+name = "supply-chain"
+schema_version = "1"
+summary = "Software supply chain: pin what you add, install inside the project, never switch verification off (guard 38, the supply CLI, /pin-deps, /audit-deps and three read-only agents)"
+description = """
+Guard section 38 and its rule: switching TLS or signature verification off denies (pip
+--trusted-host, uv --allow-insecure-host or an http:// index or registry, npm strict-ssl
+false, git http.sslVerify=false and GIT_SSL_NO_VERIFY, GOINSECURE, -insecure and GOSUMDB=off,
+cosign verify --insecure-*, reading cosign.key or ~/.sigstore keys, the latter never lifted by a
+repository declaration); installs into the machine ask (pip outside a
+venv or conda base, --user, sudo, uv pip --system, npm|pnpm -g, yarn global add,
+cargo install without --locked --version, go install @latest; pipx, uv tool install and
+pinned installs pass), so do unpinned git and URL dependencies, GONOSUMDB,
+cosign sign|attest and insecure downloads written to a file. supply_chain.allow_global_re
+allow-lists global tools; venv detection reads the hook's environment and the command text.
+The read-only `supply` CLI and client skill: detect (ecosystems, manifests, lockfiles), pins
+(unpinned actions, images, dependencies and unverified downloads, with an exact-token
+--apply), ci (workflow hardening), audit (osv-scanner, else npm audit, pip-audit, cargo-audit,
+govulncheck), sbom (syft) and sbom lint, verify (cosign, gh attestation verify) and redact.
+Pinned, sha256-verified osv-scanner, cosign and syft are optional (`harness install TOOL`;
+bootstrap never fetches them unasked; `harness pack --tools-optional` ships them air-gapped).
+Workflow skills /pin-deps (resolve tags to commit shas and digests read-only, apply them with
+supply pins --apply, re-run supply pins) and /audit-deps (upgrade vulnerable dependencies within
+the same major with the ecosystem's lockfile tool, re-run supply audit); neither commits or
+pushes. Read-only agents supply-architect (design, plan model), supply-auditor (review) and
+supply-triage (one finding to its root cause).
+"""
+depends_on = ["core"]
+recommends = ["github"]
+conflicts_with = []
+any_of = []
+owners = []
+docs = "docs/bundles/supply-chain.md"
+stability = "experimental"
+
+[requires.binaries.python3]
+min_version = "3.9"
+version_cmd = "python3 --version"
+version_regex = 'Python ([0-9]+\.[0-9]+)'
+why = "The supply CLI is stdlib python."
+
+[requires.binaries.git]
+min_version = "2.30"
+version_cmd = "git --version"
+version_regex = 'git version ([0-9]+\.[0-9]+)'
+why = "Pin resolution and history lookups (`git ls-remote`, `git log -S`) run read-only git."
+
+# min_version of osv-scanner, cosign and syft = the version the supply argv and output parsing were
+# checked against (the pinned lock): older releases differ in exactly what supply relies on
+# (osv-scanner --all-packages and DIR/osv-scalibr/ databases, cosign 3's deprecated --offline and
+# no image --bundle, syft's CycloneDX 1.7 and file components). Raise with each lock bump.
+[requires.binaries.osv-scanner]
+min_version = "2.7.0"
+version_cmd = "osv-scanner --version"
+version_regex = 'osv-scanner version: ([0-9]+\.[0-9]+\.[0-9]+)'
+install = "osv-scanner"
+optional = true
+why = "`supply audit` for every ecosystem and for SBOMs (scan source --all-packages); without it the ecosystem's own auditor, if installed. Pinned in tools/osv-scanner.lock.json; min_version = the version supply was checked against."
+
+[requires.binaries.cosign]
+min_version = "3.1.4"
+version_cmd = "cosign version"
+version_regex = 'GitVersion:\s*v?([0-9]+\.[0-9]+\.[0-9]+)'
+install = "cosign"
+optional = true
+why = "`supply verify` of image signatures, attestations and Sigstore-bundled files (verify* only; signing is the human's release step). Pinned in tools/cosign.lock.json; min_version = the version supply was checked against."
+
+[requires.binaries.syft]
+min_version = "1.55.0"
+version_cmd = "SYFT_CHECK_FOR_APP_UPDATE=false syft --version"
+version_regex = 'syft ([0-9]+\.[0-9]+\.[0-9]+)'
+install = "syft"
+optional = true
+why = "`supply sbom` (dir: or registry:, never the docker daemon). Pinned in tools/syft.lock.json; min_version = the version supply was checked against."
+
+[requires.binaries.gh]
+min_version = "2.49.0"
+version_cmd = "gh --version"
+version_regex = 'gh version ([0-9]+\.[0-9]+\.[0-9]+)'
+install = "gh"
+optional = true
+why = "`supply verify --github` runs `gh attestation verify` (gh 2.49 or newer)."
+
+[requires.binaries.npm]
+min_version = "0"
+optional = true
+why = "`supply audit` fallback for npm lockfiles (`npm audit --json`) when osv-scanner is absent; used only when already installed."
+
+[requires.binaries.pip-audit]
+min_version = "0"
+optional = true
+why = "`supply audit` fallback for fully hashed requirements files when osv-scanner is absent; used only when already installed."
+
+[requires.binaries.cargo-audit]
+min_version = "0"
+optional = true
+why = "`supply audit` fallback for Cargo.lock when osv-scanner is absent (the binary, never `cargo audit`); used only when already installed."
+
+[requires.binaries.govulncheck]
+min_version = "0"
+optional = true
+why = "`supply audit` fallback for Go modules when osv-scanner is absent; used only when already installed."
+
+[requires.config."supply_chain.allow_global_re"]
+type = "string"
+default = ""
+description = "POSIX ERE (the guard applies it with grep -E) that every spec of a global install must match for it to pass without a prompt: pip outside a venv or with --user, npm|pnpm -g, yarn global add, cargo install. Matched against each word after the first install verb as typed (name and any version; options and redirections are skipped), so anchor it (^…$). Use [0-9] and [[:space:]], never \\d or \\s. Empty = every global install asks. SUPPLY_ALLOW_GLOBAL_RE."
+example = '^(ripgrep|typescript)$'
+
+[requires.config."supply_chain.venv_markers"]
+type = "string"
+default = "VIRTUAL_ENV CONDA_PREFIX PIPENV_ACTIVE"
+description = "Space-separated environment variable names that mean \"inside a virtual environment\" when set in the guard's own environment (the provider was started from an activated venv); pip install then passes. CONDA_PREFIX counts only when CONDA_DEFAULT_ENV names an env other than base (an auto-activated base is the machine's Python). Empty keeps the default. SUPPLY_VENV_MARKERS."
+example = "VIRTUAL_ENV CONDA_PREFIX PIPENV_ACTIVE POETRY_ACTIVE"
+
+[requires.config."supply_chain.registries_re"]
+type = "string"
+default = ""
+description = "Python regex of allowed registry hosts (no scheme, no port) that `supply pins` and `supply audit` accept for dependencies and images; empty = no registry check."
+example = '^(registry\.npmjs\.org|pypi\.org|ghcr\.io|registry\.example\.com)$'
+
+[requires.config."supply_chain.identities"]
+type = "array"
+default = []
+description = "Signer identities `supply verify --identity NAME` resolves, as [[supply_chain.identities]] tables: name, identity_re (certificate identity regexp), issuer (OIDC issuer URL), match_re (optional regex on the target that selects this entry without --identity). Public values only; never a key."
+example = [{ name = "release", identity_re = '^https://github\.com/octocat/hello-world/\.github/workflows/release\.yml@refs/tags/v.*$', issuer = "https://token.actions.githubusercontent.com", match_re = '^ghcr\.io/octocat/' }]
+[requires.config."supply_chain.identities".items]
+type = "object"
+required = ["name", "identity_re", "issuer"]
+additionalProperties = false
+[requires.config."supply_chain.identities".items.properties.name]
+type = "string"
+pattern = '^[a-z0-9][a-z0-9-]*$'
+[requires.config."supply_chain.identities".items.properties.identity_re]
+type = "string"
+[requires.config."supply_chain.identities".items.properties.issuer]
+type = "string"
+pattern = '^https://[^/\s]+'
+[requires.config."supply_chain.identities".items.properties.match_re]
+type = "string"
+
+[requires.config."supply_chain.redact_extra_re"]
+type = "string"
+default = ""
+description = "Extra Python regex of token shapes every supply output redacts in addition to the built-in list; compiled on its own, so a leading global flag such as (?i) works."
+example = "(?i)x-internal-token=[^ ]+"
+
+[requires.config."supply_chain.osv_offline_db"]
+type = "string"
+default = ""
+description = "Directory osv-scanner keeps its offline vulnerability databases under, for `supply audit --offline` (passed as OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY; osv-scanner 2.7.0 reads DIR/osv-scalibr/<Ecosystem>/all.zip); empty = osv-scanner's default, the user cache directory (~/.cache on Linux, ~/Library/Caches on macOS). SUPPLY_OSV_OFFLINE_DB."
+example = "/srv/osv-db"
+
+[requires.config."supply_chain.pin_actions"]
+type = "boolean"
+default = true
+description = "Whether `supply pins` reports (and `supply pins --apply` rewrites) GitHub Actions referenced by tag instead of by commit."
+
+[requires.config."supply_chain.exclude_re"]
+type = "string"
+default = ""
+description = "Python regex matched against paths relative to DIR that the supply CLI skips (detect, pins, audit, sbom), on top of .git, node_modules, vendor, .venv, venv, target, dist, build, __pycache__ and .tox. Empty = skip nothing more. SUPPLY_EXCLUDE_RE."
+example = '^(third_party|testdata)/'
+
+[requires.config."supply_chain.timeout"]
+type = "integer"
+default = 120
+minimum = 5
+description = "Seconds the supply CLI waits for one tool run (osv-scanner, an auditor, syft, cosign, gh) before exit 2 (--timeout overrides). SUPPLY_TIMEOUT."
+
+[requires.config."supply_chain.max_bytes"]
+type = "integer"
+default = 65536
+minimum = 1024
+description = "Default output cap in bytes for the supply CLI (--max-bytes overrides)."
+
+[provides]
+rules = ["rules/38-supply-chain.md"]
+skills = ["skills/supply", "skills/pin-deps", "skills/audit-deps"]
+skill_fragments = []
+agents = ["agents/supply-architect.md", "agents/supply-auditor.md", "agents/supply-triage.md"]
+guard_rules = ["guard.d/38-supply-chain.sh"]
+permissions = "permissions.toml"
+mcp = ""
+bin = [{ name = "supply", target = "skills/supply/scripts/supply.py" }]
+
+[provides.env]
+SUPPLY_ALLOW_GLOBAL_RE = "{{ supply_chain.allow_global_re }}"
+SUPPLY_VENV_MARKERS = "{{ supply_chain.venv_markers }}"
+
+[[manual_steps]]
+id = "install-supply-tools"
+title = "Install the pinned supply-chain scanners you want (osv-scanner, cosign, syft)"
+once_per = "machine"
+needs = []
+minutes = 3
+why = "The supply CLI runs osv-scanner for audit, cosign for verify and syft for sbom; they are optional, so bootstrap never downloads them unasked, and a missing one makes its verb report unavailable, never clean."
+how = """
+Install the ones you use; each download is checked against the sha256 in `tools/<tool>.lock.json`
+and lands in `~/.local/bin`:
+```
+harness install osv-scanner
+harness install cosign
+harness install syft
+```
+Air-gapped: fetch the asset named in the lock file on a connected machine (or ship it with
+`harness pack --tools linux/amd64 --tools-optional`), then `harness install osv-scanner --from FILE`
+(the sha256 check still applies). `HARNESS_TOOLS_MIRROR` redirects the download to a mirror.
+Remove them with `harness uninstall --purge-tools`.
+"""
+[manual_steps.verify]
+cmd = "command -v osv-scanner >/dev/null || command -v cosign >/dev/null || command -v syft >/dev/null"
+expect = { exit = 0 }
+
+[[manual_steps]]
+id = "configure-identities"
+title = "Name the signers `supply verify` trusts in local/harness.toml"
+once_per = "machine"
+needs = []
+minutes = 5
+why = "Keyless verification is only as strong as the identity it checks: without a configured signer, `supply verify` exits 2 and names this step instead of accepting any certificate."
+how = """
+Add a `[supply_chain]` block to `local/harness.toml` (documentation values shown; public values
+only, never a key):
+```
+[supply_chain]
+registries_re = '^(ghcr\\.io|registry\\.example\\.com)$'
+# osv_offline_db = "/srv/osv-db"   # for `supply audit --offline`
+
+[[supply_chain.identities]]
+name = "release"
+identity_re = '^https://github\\.com/octocat/hello-world/\\.github/workflows/release\\.yml@refs/tags/v.*$'
+issuer = "https://token.actions.githubusercontent.com"
+match_re = '^ghcr\\.io/octocat/'
+```
+Anchor every `identity_re` as `^…$`, name the workflow file and restrict the ref. Then run
+`harness apply` and `supply verify IMAGE --identity release`.
+"""
+[manual_steps.verify]
+cmd = "jq -e '(.supply_chain.identities // []) | length > 0' \"$HARNESS_CONFIG_JSON\" >/dev/null"
+expect = { exit = 0 }
+unblocks = ["supply-config"]
+
+[[doctor_checks]]
+id = "supply-cli"
+title = "supply CLI on PATH"
+severity = "fail"
+cmd = "command -v supply >/dev/null && supply --help >/dev/null"
+expect = { exit = 0 }
+offline_skip = false
+fix = "harness apply"
+
+[[doctor_checks]]
+id = "supply-detect"
+title = "supply detect runs offline on the current directory"
+severity = "warn"
+cmd = "supply detect . --json >/dev/null"
+expect = { exit = 0 }
+offline_skip = false
+fix = "harness apply"
+
+[[doctor_checks]]
+id = "supply-config"
+title = "every signer identity_re is anchored ^...$ and does not match the empty string"
+severity = "warn"
+# mirrors supply.py check_identity_re: starts with ^, ends with an unescaped $, matches no empty string
+cmd = '''jq -e '[.supply_chain.identities[]? | (.identity_re // "") as $r | ($r | startswith("^") and endswith("$") and (endswith("\\$") | not)) and (("" | test($r)) | not)] | all' "$HARNESS_CONFIG_JSON" >/dev/null'''
+expect = { exit = 0 }
+offline_skip = false
+fix = "configure-identities"
+
+[uninstall]
+keeps = ["~/.sigstore/**", "~/.cache/osv-scalibr/**", "~/.cache/osv-scanner/**", "~/.cache/syft/**", "~/Library/Caches/osv-scalibr/**"]
+notes = "Sigstore's trust root (~/.sigstore) and the scanners' caches (osv-scanner 2.7.0's offline databases under the user cache directory's osv-scalibr/, syft's cache) are the tools' own; uninstall removes the rendered rule, permissions and guard section, and `harness uninstall --purge-tools` the binaries `harness install` placed."
+
+# Component taxonomy (docs/reference/taxonomy.md): bundle defaults, then per-component overrides.
+[taxonomy]
+domain = "security"
+posture = "local"
+function = "client"
+
+[taxonomy.components]
+"skills/supply" = { posture = "read-only" }
+"bin/supply" = { posture = "read-only" }
+"skills/pin-deps" = { function = "workflow" }
+"skills/audit-deps" = { function = "workflow" }
+"agents/supply-architect" = { function = "plan", posture = "read-only", note = "design only" }
+"agents/supply-auditor" = { function = "review", posture = "read-only" }
+"agents/supply-triage" = { function = "investigate", posture = "read-only" }
+
+# Guides steer the agent before it acts; sensors detect at or after the action (principle 6).
+[harness]
+coverage_note = "Pipe-to-shell (curl … | sh) as a command is sensed by core's guard band 35 (shell hygiene), not by this bundle; supply pins and supply ci report it in files as SH001. Reachability of a vulnerability, major-upgrade safety and licence policy are judgement or organisation-specific and are not sensed. A venv activated outside the provider's process is invisible to the guard (it reads the hook's environment and the command text). Direct writes to configuration files (>> ~/.npmrc, ~/.gitconfig, pip.conf, .yarnrc.yml) and an empty quoted value (git config http.sslVerify '') are out of scope for the guard. The command lexer is a heuristic, not a shell parser. The CLI's own tool runs are not shell commands and are not guarded; the suite's stub log and dry-run log are the read-only proof. YAML is read with a line model: anchors, multi-document files, reusable workflows and extends are not checked. The real-tool argv is pinned by the stub suite and was checked once against osv-scanner 2.7.0, cosign 3.1.4 and syft 1.55.0 (audit online and --offline, sbom, verify-blob online and --offline); `supply verify IMAGE --offline` with cosign is refused (exit 3), since nothing keeps cosign 3.1.4 offline for an image; the JSON shapes of `cosign verify`/`verify-attestation` on an image and of `gh attestation verify` are checked against fixtures only. Whether a pinned lock is still the latest upstream release is not sensed; bumping a lock is a human PR. Whether a resolved pin or an in-major upgrade is the right one, and the agents' findings and designs, are judgement: /pin-deps and /audit-deps are checked by re-running supply pins and supply audit; their rules against running the checkout's tests, build or scripts and against a tool downloading a toolchain or interpreter are instruction only (the guard does not see an upgrade command's side effects). The agents' read-only stance is sensed by the guard for the shell commands it asks or denies on; against `supply pins --apply` and `supply sbom --out`, which the guard allows as supply subcommands, it is instruction only, with no sensor."
+guides = [
+  { kind = "rule", ref = "rules/38-supply-chain.md", checks = ["guard.d/38-supply-chain.sh"], note = "pin what you add, install inside the project, never switch verification off, signing is a human release step" },
+  { kind = "skill", ref = "skills/supply", checks = ["skills/supply/scripts/tests/run.sh", "doctor_checks"], note = "the supply CLI: detect, pins (with --apply), ci, audit, sbom, verify, redact; severities from the reference rubrics; the optional pinned osv-scanner, cosign and syft behind audit, verify and sbom" },
+  { kind = "skill", ref = "skills/pin-deps", checks = ["skills/supply/scripts/tests/run.sh", "guard.d/38-supply-chain.sh", "skill-description", "yields"], note = "pin tags to commit shas and digests resolved read-only, supply pins --apply, supply pins again as the check; never guesses a value, never commits" },
+  { kind = "skill", ref = "skills/audit-deps", checks = ["skills/supply/scripts/tests/run.sh", "guard.d/38-supply-chain.sh", "skill-description", "yields"], note = "in-major upgrades with the ecosystem's lockfile tool, supply audit again as the check; majors, no-fix and unavailable ecosystems go to the human" },
+  { kind = "permission", ref = "permissions.toml", checks = ["permissions-vs-guard", "guard.d/38-supply-chain.sh"], note = "verification and audit tools allowed, cosign signing asks, verification-off config and cosign keys denied" },
+  { kind = "agent", ref = "agents/supply-architect.md", checks = ["guard.d/38-supply-chain.sh", "agent-tools"], note = "design-only supply-chain posture: pinning, update flow, SBOM, provenance and SLSA target, CI hardening, vulnerability SLAs" },
+  { kind = "agent", ref = "agents/supply-auditor.md", checks = ["guard.d/38-supply-chain.sh", "agent-tools"], note = "read-only posture review in the Critical / Warnings / Suggestions / Not verified contract, severities from the rubrics" },
+  { kind = "agent", ref = "agents/supply-triage.md", checks = ["guard.d/38-supply-chain.sh", "agent-tools"], note = "read-only investigation of one vulnerability, failed verification or suspicious dependency; stops after three unresolved hypotheses" },
+]
+sensors = [
+  { kind = "guard", ref = "guard.d/38-supply-chain.sh", note = "verification-off denies, global-install and unpinned-dependency asks, cosign signing and insecure-download asks" },
+  { kind = "test", ref = "guard.d/tests.sh", note = "guard rows incl. bypasses, ordering against later denies and the security yield" },
+  { kind = "test", ref = "tests/run.sh", note = "this bundle's rows against core + supply-chain only" },
+  { kind = "test", ref = "skills/supply/scripts/tests/run.sh", note = "the supply CLI against stub tools and fixture checkouts: goldens per verb, byte-exact --apply, redaction, stub-log invariants (verify only, no fix, no docker), a rubric row per rule id, two identical runs" },
+  { kind = "doctor", ref = "doctor_checks", note = "the supply CLI on PATH, an offline detect, every signer identity_re anchored as supply requires (warn, fix configure-identities); osv-scanner, cosign and syft missing or older than the verified version WARN through the generic per-binary check (fix harness install TOOL)" },
+  { kind = "lint", ref = "permissions-vs-guard", note = "each Bash allow/deny rule of permissions.toml run through the guard: no allowed command the guard denies or asks, no denied one it allows" },
+  { kind = "review-agent", ref = "agents/supply-auditor.md", note = "evidence-cited supply-chain review of a checkout, independent of /pin-deps and /audit-deps" },
+  { kind = "lint", ref = "agent-tools", note = "read-only agents set no permissionMode, list no write tools and name the model policy" },
+  { kind = "lint", ref = "skill-description", note = "pin-deps and audit-deps: trigger phrase, NOT for scope, argument-hint" },
+  { kind = "lint", ref = "yields", note = "the skills' Step 0, the agents' baseline sentence and the rule's repository sentence" },
+]

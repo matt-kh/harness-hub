@@ -1,0 +1,4 @@
+# exit=3
+# stderr:
+supply sbom: ../sbom/not-json.txt is not JSON: `supply sbom lint` checks SPDX JSON and CycloneDX JSON only (convert tag-value or XML with the generating tool)
+# stdout:

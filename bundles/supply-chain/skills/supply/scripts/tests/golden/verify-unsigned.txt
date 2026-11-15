@@ -1,0 +1,5 @@
+# exit=2
+# stderr:
+supply: dir=- ecosystems=none tools=cargo-audit,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+supply verify: unverifiable: Error: no matching signatures: none of the expected identities matched what was in the certificate
+# stdout:

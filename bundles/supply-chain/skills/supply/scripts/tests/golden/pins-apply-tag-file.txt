@@ -1,0 +1,16 @@
+# exit=0
+# stderr:
+# stdout:
+on: push
+permissions: {}
+jobs:
+  b:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@0123456789abcdef0123456789abcdef01234567 # v4
+      - uses: actions/cache@0123456789abcdef0123456789abcdef01234567   # v4 - keep this
+      - uses: 'actions/setup-node@0123456789abcdef0123456789abcdef01234567' # v4 - it's "#20"
+      - uses: "actions/upload-artifact@0123456789abcdef0123456789abcdef01234567" # v4
+      - uses: actions/download-artifact@0123456789abcdef0123456789abcdef01234567  # v4.1.0
+      - uses: github/codeql-action/init@0123456789abcdef0123456789abcdef01234567 # v3
+      - uses: octo/thing@0123456789abcdef0123456789abcdef01234567 # follow main

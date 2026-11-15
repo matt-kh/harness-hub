@@ -1,0 +1,5 @@
+# exit=2
+# stderr:
+supply: dir=ro ecosystems=cargo,docker,github-actions,gitlab-ci,go,npm,pip,shell tools=cargo-audit,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+supply pins: pins --apply: requirements.txt: injected failure (SUPPLY_TEST_FAIL_AFTER=1); nothing written (1 file(s) rolled back) — fix the cause and rerun
+# stdout:

@@ -19,7 +19,9 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | [`k8s`](bundles/k8s.md#components) | kubernetes | read-only | govern, client, investigate, plan, review, setup | stable | Read-only Kubernetes client (k8s CLI + skill), triage / audit / architect agents, kubeconfig and Secret guards |
 | [`lessons`](bundles/lessons.md#components) | base | local | govern, workflow, setup | experimental | The lessons loop: a /retro skill that turns a session's journal signals into at most two evidence-backed candidate lessons, a rule that has agents consult them, and hooks that record user corrections and nudge for a retro |
 | [`obs`](bundles/obs.md#components) | operations | read-only | govern, client, investigate, setup | experimental | Read-only observability client (obs CLI + skill) for SigNoz, Prometheus and Grafana, an obs-triage agent, and API-key and raw-backend guards |
+| [`repo-bootstrap`](bundles/repo-bootstrap.md#components) | scm | label-gated | govern, client, setup | experimental | Bootstrap git repositories to a standard, locally and on GitHub or GitLab: a standard intake, architecture packs, and `repoboot` (questions, answer, plan, render, apply, check) |
 | [`stack`](bundles/stack.md#components) | scm | label-gated | govern, client, setup | experimental | Stacked MRs/PRs on free tiers: the `stk` CLI (plan, status, check, sync) keeps a chain of dependent parts retargeted, rebased and pushed |
+| [`supply-chain`](bundles/supply-chain.md#components) | security | local | govern, client, workflow, investigate, plan, review, setup | experimental | Software supply chain: pin what you add, install inside the project, never switch verification off (guard 38, the supply CLI, /pin-deps, /audit-deps and three read-only agents) |
 | [`ticket-workflow`](bundles/ticket-workflow.md#components) | delivery | label-gated | govern, workflow, setup | beta | /work-ticket (ticket → governed MR/PR, stacked delivery) and /create-ticket (one drafted ticket or issue) |
 
 ## Skills
@@ -33,7 +35,11 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | `k8s/skills/k8s` | guide | kubernetes | client | read-only | execute | declaration | Read-only Kubernetes operator client for every context in the user's kubeconfig via the `k8s` CLI and explicit-context kubectl. |
 | `lessons/skills/retro` | guide | base | workflow | local | execute | declaration | Reflect on the task just finished and record at most two evidence-backed candidate lessons (one invariant, one for the task's domain) in the private lessons li… |
 | `obs/skills/obs` | guide | operations | client | read-only | execute | declaration | Read-only observability client for SigNoz, Prometheus and Grafana via the `obs` CLI. |
+| `repo-bootstrap/skills/bootstrap-repo` | guide | scm | setup | label-gated | execute | declaration | Bootstrap a git repository to a standard, locally or on GitHub / GitLab, with the `repoboot` CLI. |
 | `stack/skills/stk` | guide | scm | client | label-gated | execute | declaration | Stacked MRs/PRs on free tiers with the `stk` CLI over native glab, gh and git: check a repository's readiness, plan a stack (topology, bottom-up merge order, t… |
+| `supply-chain/skills/audit-deps` | guide | security | workflow | local | execute | declaration | Fix known-vulnerable dependencies within the same major version, as a diff for review: runs `supply audit`, upgrades each vulnerable package to its fixed versi… |
+| `supply-chain/skills/pin-deps` | guide | security | workflow | local | execute | declaration | Pin the moving references in a checkout as a diff for review: GitHub Actions by tag to their commit sha, images by tag to their digest, git dependencies by tag… |
+| `supply-chain/skills/supply` | guide | security | client | read-only | execute | declaration | Read-only software supply-chain client via the `supply` CLI: ecosystem detection, unpinned actions, images and dependencies, CI workflow hardening, vulnerabili… |
 | `ticket-workflow/skills/create-ticket` | guide | delivery | workflow | label-gated | execute | declaration | Create ONE Jira ticket (self-hosted Jira Server 8.x) from the user's free-text ask in any project they can create in (discovered, never hardcoded). |
 | `ticket-workflow/skills/work-ticket` | guide | delivery | workflow | label-gated | execute | declaration | Governed Jira-ticket → GitLab-MR workflow for any repo. |
 
@@ -50,6 +56,9 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | `k8s/agents/k8s-auditor` | guide | kubernetes | review | read-only | execute | name | Read-only Kubernetes posture review of a context or namespace — pod security, PSA labels, RBAC, Secret hygiene, certificate expiry, capacity headroom, deprecat… |
 | `k8s/agents/k8s-triage` | guide | kubernetes | investigate | read-only | execute | name | Read-only Kubernetes incident triage. |
 | `obs/agents/obs-triage` | guide + sensor (inferential) | operations | investigate | read-only | execute | name | Read-only signal triage across observability backends (SigNoz, Prometheus, Grafana). |
+| `supply-chain/agents/supply-architect` | guide | security | plan | read-only | plan | name | Design-only software supply-chain architect. |
+| `supply-chain/agents/supply-auditor` | guide + sensor (inferential) | security | review | read-only | execute | name | Read-only software supply-chain review of a checkout — unpinned actions, images and dependencies, unverified downloads, CI workflow hardening, known vulnerabil… |
+| `supply-chain/agents/supply-triage` | guide | security | investigate | read-only | execute | name | Read-only investigation of one software supply-chain problem — a vulnerability id (CVE, GHSA, OSV) reported by `supply audit`, a failed `supply verify` signatu… |
 
 ## Rules
 
@@ -61,9 +70,12 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | `k8s/rules/10-k8s` | guide | kubernetes | text | Kubernetes |
 | `lessons/rules/15-lessons` | guide | base | text | Lessons (lessons loop) |
 | `obs/rules/32-obs` | guide | operations | text | Observability |
+| `core/rules/35-shell-hygiene` | guide | base | text | Shell hygiene |
+| `supply-chain/rules/38-supply-chain` | guide | security | text | Software supply chain |
 | `gitlab/rules/50-gitlab` | guide | scm | text | GitLab ({{ gitlab.host }}) |
 | `github/rules/60-github` | guide | scm | text | GitHub ({{ github.host }}) |
 | `stack/rules/65-stack` | guide | scm | text | Stacked MRs/PRs (stk) |
+| `repo-bootstrap/rules/67-repo-bootstrap` | guide | scm | text | Repository bootstrap (repoboot) |
 | `jira/rules/70-jira` | guide | tracker | text | Jira ({{ jira.url }}) |
 | `ticket-workflow/rules/75-ticket-workflow` | guide | delivery | text | Ticket workflow |
 | `gdoc/rules/80-gdoc` | guide | workspace | text | Google Workspace ({{ google.domain }}) |
@@ -80,11 +92,14 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | [`k8s/guard.d/25-k8s-rules`](reference/hook-policy.md) | sensor | kubernetes | deny 4 · ask 7 | declaration | kubeconfig, Secret data, cluster, release, GitOps and IaC mutations |
 | [`core/guard.d/30-git`](reference/hook-policy.md) | sensor | scm | deny 1 · ask 6 · allow 1 | declaration | denies default-branch pushes; asks on force-push and destructive git |
 | [`obs/guard.d/32-obs`](reference/hook-policy.md) | sensor | operations | deny 2 · ask 4 | declaration | key files, literal API keys, raw backend requests, amtool/logcli/grafana-cli |
+| [`core/guard.d/35-shell-hygiene`](reference/hook-policy.md) | sensor | base | ask 1 | declaration | asks before a download is piped into an interpreter (also through groups, compound bodies and >( )), run through <( ), or run as the string of sh -c / eval or the program of python -c / perl -e |
+| [`supply-chain/guard.d/38-supply-chain`](reference/hook-policy.md) | sensor | security | deny 8 · ask 8 | declaration | verification-off denies, global-install and unpinned-dependency asks, cosign signing and insecure-download asks |
 | [`gitlab/guard.d/40-gitlab-closing`](reference/hook-policy.md) | sensor | tracker | deny 1 | declaration | denies closing keywords with a ticket key |
 | [`github/guard.d/41-github-closing`](reference/hook-policy.md) | sensor | tracker | deny 1 | declaration | denies closing keywords that would change issue state |
 | [`gitlab/guard.d/50-gitlab`](reference/hook-policy.md) | sensor | scm | deny 5 · ask 10 · allow 3 | declaration | API writes, merges/approvals and MR/issue state (main thread asks, subagent denied), stacked MR targets, label-gated edits; MR creates with --fill or --related-issue, or a -t title not matching gitlab.mr_title_re, ask |
 | [`github/guard.d/60-github`](reference/hook-policy.md) | sensor | scm | deny 6 · ask 8 · allow 3 | declaration | token printing, API writes, merges/reviews and PR/issue state (main thread asks, subagent denied), provenance labels, stacked PR targets; PR creates with --fill* or a -t title matching github.pr_title_forbid_re ask |
 | [`stack/guard.d/65-stack`](reference/hook-policy.md) | sensor | scm | ask 1 · allow 1 | declaration | stk sync --include-human asks; a sole stk sync allows |
+| [`repo-bootstrap/guard.d/67-repo-bootstrap`](reference/hook-policy.md) | sensor | scm | ask 1 | declaration | repoboot apply asks, however it is wrapped |
 | [`jira/guard.d/70-jira`](reference/hook-policy.md) | sensor | tracker | deny 5 · ask 5 · allow 4 | declaration | label-gated writes, provenance label on create, human-ticket transitions ask, subagent transitions denied |
 | [`ticket-workflow/guard.d/75-ticket-workflow`](reference/hook-policy.md) | sensor | delivery | ask 4 | declaration | key-free branches and subjects, sub worktree paths, squash delivery |
 | [`gdoc/guard.d/80-gdoc`](reference/hook-policy.md) | sensor | workspace | deny 1 · ask 2 · allow 2 | declaration | GET-only api, provenance check before writes, ask on mark and mail send |
@@ -112,7 +127,9 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | `k8s/permissions` | guide | kubernetes | deny 12 · ask 45 · allow 42 | config | read-only kubectl/helm allowed |
 | `lessons/permissions` | guide | base | ask 2 · allow 1 | config | harness lessons allowed; hand edits of the library ask |
 | `obs/permissions` | guide | operations | deny 1 · ask 3 · allow 5 | config | obs and read-only rule tooling allowed, alert-state changes ask, key files denied to Read |
+| `repo-bootstrap/permissions` | guide | scm | allow 5 | config | repoboot questions\|answer\|plan\|render\|check allowed; apply is not (the guard asks); never Bash(repoboot:*) |
 | `stack/permissions` | guide | scm | allow 4 | config | stk plan\|status\|check\|sync allowed; never Bash(stk:*) |
+| `supply-chain/permissions` | guide | security | deny 4 · ask 6 · allow 21 | config | verification and audit tools allowed, cosign signing asks, verification-off config and cosign keys denied |
 | `ticket-workflow/permissions` |  | delivery | empty (no rules) | config |  |
 
 ## MCP servers
@@ -133,7 +150,9 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | `jira/bin/jira` | tracker | label-gated | `skills/jira/scripts/jira.py` |
 | `k8s/bin/k8s` | kubernetes | read-only | `skills/k8s/scripts/k8s.py` |
 | `obs/bin/obs` | operations | read-only | `skills/obs/scripts/obs.py` |
+| `repo-bootstrap/bin/repoboot` | scm | label-gated | `skills/bootstrap-repo/scripts/repoboot.py` |
 | `stack/bin/stk` | scm | label-gated | `skills/stk/scripts/stk.py` |
+| `supply-chain/bin/supply` | security | read-only | `skills/supply/scripts/supply.py` |
 
 ## Installers
 
@@ -184,9 +203,14 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | [`obs/doctor/obs-hosts-re`](bundles/obs.md#doctor-checks) | sensor | operations | obs.hosts_re is a POSIX ERE covering every configured backend |
 | [`obs/doctor/obs-keys`](bundles/obs.md#doctor-checks) | sensor | operations | every backend's key file exists |
 | [`obs/doctor/obs-reach`](bundles/obs.md#doctor-checks) | sensor | operations | every backend reachable and accepts its key |
+| [`repo-bootstrap/doctor/repoboot-cli`](bundles/repo-bootstrap.md#doctor-checks) | sensor | scm | repoboot CLI on PATH and its packs parse |
+| [`repo-bootstrap/doctor/repoboot-scm-cli`](bundles/repo-bootstrap.md#doctor-checks) | sensor | scm | An SCM CLI is on PATH (gh or glab) |
 | [`stack/doctor/stk-cli`](bundles/stack.md#doctor-checks) | sensor | scm | stk CLI on PATH |
 | [`stack/doctor/stk-git-update-refs`](bundles/stack.md#doctor-checks) | sensor | scm | git supports rebase --update-refs (2.38+) |
 | [`stack/doctor/stk-scm-cli`](bundles/stack.md#doctor-checks) | sensor | scm | An SCM CLI is on PATH (glab or gh) |
+| [`supply-chain/doctor/supply-cli`](bundles/supply-chain.md#doctor-checks) | sensor | security | supply CLI on PATH |
+| [`supply-chain/doctor/supply-config`](bundles/supply-chain.md#doctor-checks) | sensor | security | every signer identity_re is anchored ^...$ and does not match the empty string |
+| [`supply-chain/doctor/supply-detect`](bundles/supply-chain.md#doctor-checks) | sensor | security | supply detect runs offline on the current directory |
 | [`ticket-workflow/doctor/ticket-workflow-scm`](bundles/ticket-workflow.md#doctor-checks) | sensor | delivery | An SCM CLI is on PATH (glab or gh) |
 | [`ticket-workflow/doctor/ticket-workflow-skills`](bundles/ticket-workflow.md#doctor-checks) | sensor | delivery | work-ticket and create-ticket skills rendered |
 | [`ticket-workflow/doctor/ticket-workflow-tracker`](bundles/ticket-workflow.md#doctor-checks) | sensor | delivery | A tracker CLI is on PATH (jira or gh) |
@@ -226,9 +250,12 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | [`lessons/steps/read-the-loop`](bundles/lessons.md#read-the-loop) | base | Read how the lessons loop works (you confirm, retire and propose) |
 | [`obs/steps/configure-backends`](bundles/obs.md#configure-backends) | operations | Describe your observability backends in local/harness.toml |
 | [`obs/steps/obs-api-key`](bundles/obs.md#obs-api-key) | operations | Create a read-only API key per backend |
+| [`repo-bootstrap/steps/repo-bootstrap-packs`](bundles/repo-bootstrap.md#repo-bootstrap-packs) | scm | Optional: point repo_bootstrap.pack_dirs at your architecture packs |
 | [`stack/steps/stack-github-repo-settings`](bundles/stack.md#stack-github-repo-settings) | scm | GitHub: repository settings for stacked PRs |
 | [`stack/steps/stack-gitlab-project-settings`](bundles/stack.md#stack-gitlab-project-settings) | scm | GitLab: project settings for stacked MRs |
 | [`stack/steps/stack-read-the-flow`](bundles/stack.md#stack-read-the-flow) | scm | Read how a stack is merged (you merge it) |
+| [`supply-chain/steps/configure-identities`](bundles/supply-chain.md#configure-identities) | security | Name the signers `supply verify` trusts in local/harness.toml |
+| [`supply-chain/steps/install-supply-tools`](bundles/supply-chain.md#install-supply-tools) | security | Install the pinned supply-chain scanners you want (osv-scanner, cosign, syft) |
 | [`ticket-workflow/steps/repo-overrides`](bundles/ticket-workflow.md#repo-overrides) | delivery | Know how a repository yields and overrides (read once) |
 
 ## Providers
@@ -263,13 +290,13 @@ Skills, agents, CLIs and MCP servers by domain and posture (the strongest effect
 | domain | read-only | local | label-gated |
 |---|---|---|---|
 | base | `core/agents/Plan`, `core/agents/code-reviewer` | `core/agents/Auto`, `lessons/skills/retro` | — |
-| scm | — | — | `stack/bin/stk`, `stack/skills/stk` |
+| scm | — | — | `repo-bootstrap/bin/repoboot`, `repo-bootstrap/skills/bootstrap-repo`, `stack/bin/stk`, `stack/skills/stk` |
 | tracker | `jira/mcp/jira-mcp` | — | `jira/bin/jira`, `jira/skills/jira` |
 | delivery | — | — | `ticket-workflow/skills/create-ticket`, `ticket-workflow/skills/work-ticket` |
 | kubernetes | `k8s/agents/infra-architect`, `k8s/agents/k8s-auditor`, `k8s/agents/k8s-triage`, `k8s/bin/k8s`, `k8s/skills/k8s` | — | — |
 | workspace | — | — | `gdoc/bin/gdoc`, `gdoc/skills/gdoc` |
 | operations | `obs/agents/obs-triage`, `obs/bin/obs`, `obs/skills/obs` | — | — |
-| security | — | — | — |
+| security | `supply-chain/agents/supply-architect`, `supply-chain/agents/supply-auditor`, `supply-chain/agents/supply-triage`, `supply-chain/bin/supply`, `supply-chain/skills/supply` | `supply-chain/skills/audit-deps`, `supply-chain/skills/pin-deps` | — |
 <!-- generated:end -->
 
 Posture says what a component does without a prompt; which writes stay with a human whatever

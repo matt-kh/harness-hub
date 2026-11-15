@@ -1,0 +1,17 @@
+[
+  {
+    "critical": {
+      "identity": {
+        "docker-reference": "ghcr.io/octocat/hello-world"
+      },
+      "image": {
+        "docker-manifest-digest": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+      },
+      "type": "cosign container image signature"
+    },
+    "optional": {
+      "Issuer": "https://token.actions.githubusercontent.com",
+      "Subject": "https://github.com/octocat/hello-world/.github/workflows/release.yml@refs/tags/v1.0.0"
+    }
+  }
+]

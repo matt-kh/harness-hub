@@ -1,0 +1,32 @@
+{
+  "bomFormat": "CycloneDX",
+  "components": [
+    {
+      "name": "busybox",
+      "purl": "pkg:apk/alpine/busybox@1.36.1",
+      "type": "library",
+      "version": "1.36.1"
+    }
+  ],
+  "metadata": {
+    "component": {
+      "name": "ghcr.io/octocat/hello-world",
+      "type": "container",
+      "version": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    },
+    "timestamp": "2026-01-01T00:00:00Z",
+    "tools": {
+      "components": [
+        {
+          "author": "anchore",
+          "name": "syft",
+          "type": "application",
+          "version": "1.55.0"
+        }
+      ]
+    }
+  },
+  "serialNumber": "urn:uuid:0123abcd-0000-4000-8000-0123456789ab",
+  "specVersion": "1.6",
+  "version": 1
+}

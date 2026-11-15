@@ -1,0 +1,127 @@
+$ repoboot answer --dir SANDBOX/r --infer
+{
+  "verb": "answer",
+  "spec": "SANDBOX/r/.repo-standard.toml",
+  "changed": {
+    "repo.name": "r",
+    "repo.host": "gitlab",
+    "repo.owner": "grp",
+    "repo.server": "gitlab.example.com",
+    "workflow.default_branch": "main"
+  },
+  "packs": [
+    "baseline"
+  ],
+  "open": [
+    "repo.visibility",
+    "repo.description",
+    "repo.license",
+    "workflow.merge_method",
+    "workflow.required_approvals",
+    "workflow.codeowners",
+    "workflow.tracker",
+    "workflow.agent_labels",
+    "architecture.kind",
+    "architecture.languages",
+    "architecture.notes",
+    "quality.precommit",
+    "quality.ci_jobs"
+  ],
+  "exit": 0
+}
+[rc 0]
+$ repoboot answer --dir SANDBOX/r architecture.kind=library workflow.tracker=none --accept-defaults
+{
+  "verb": "answer",
+  "spec": "SANDBOX/r/.repo-standard.toml",
+  "changed": {
+    "architecture.kind": "library",
+    "workflow.tracker": "none",
+    "repo.visibility": "private",
+    "repo.description": "",
+    "repo.license": "none",
+    "workflow.merge_method": "squash",
+    "workflow.required_approvals": 1,
+    "workflow.codeowners": [],
+    "workflow.agent_labels": true,
+    "architecture.languages": [],
+    "architecture.deploy": "none",
+    "architecture.notes": "",
+    "quality.precommit": true,
+    "quality.ci_jobs": [
+      "lint"
+    ]
+  },
+  "packs": [
+    "baseline"
+  ],
+  "open": [],
+  "exit": 0
+}
+[rc 0]
+$ repoboot check --dir SANDBOX/r --fix --text
+repoboot check — SANDBOX/r
+pack  baseline
+warn  file:.editorconfig: missing (baseline)
+      fix: git switch -c repo-standard && repoboot render, then open an MR/PR
+warn  file:.gitattributes: missing (baseline)
+      fix: git switch -c repo-standard && repoboot render, then open an MR/PR
+warn  file:.gitignore: missing (baseline)
+      fix: git switch -c repo-standard && repoboot render, then open an MR/PR
+warn  file:.gitlab-ci.yml: missing (baseline)
+      fix: git switch -c repo-standard && repoboot render, then open an MR/PR
+warn  file:.gitlab/merge_request_templates/Default.md: missing (baseline)
+      fix: git switch -c repo-standard && repoboot render, then open an MR/PR
+warn  file:.pre-commit-config.yaml: missing (baseline)
+      fix: git switch -c repo-standard && repoboot render, then open an MR/PR
+warn  file:README.md: differs from the standard (baseline)
+      fix: git switch -c repo-standard && repoboot render --force, then open an MR/PR
+info  architecture: no pack covers architecture.kind = library (baseline only)
+info  harness: no .harness.toml: the user-level harness applies unchanged
+      fix: harness repo init (prints a draft for you to review and commit)
+ok    setting:merge_method: merge
+warn  setting:only_allow_merge_if_all_discussions_are_resolved: false, the standard says true
+      fix: glab api --hostname gitlab.example.com -X PUT projects/grp%2Fr -F only_allow_merge_if_all_discussions_are_resolved=true -F only_allow_merge_if_pipeline_succeeds=true -f squash_option=always
+warn  setting:only_allow_merge_if_pipeline_succeeds: false, the standard says true
+      fix: glab api --hostname gitlab.example.com -X PUT projects/grp%2Fr -F only_allow_merge_if_all_discussions_are_resolved=true -F only_allow_merge_if_pipeline_succeeds=true -f squash_option=always
+ok    setting:remove_source_branch_after_merge: true
+warn  setting:squash_option: default_off, the standard says always
+      fix: glab api --hostname gitlab.example.com -X PUT projects/grp%2Fr -F only_allow_merge_if_all_discussions_are_resolved=true -F only_allow_merge_if_pipeline_succeeds=true -f squash_option=always
+warn  protection: main: push maintainers, merge maintainers; the standard says push no one, merge maintainers
+      fix: glab api --hostname gitlab.example.com -X DELETE projects/grp%2Fr/protected_branches/main && glab api --hostname gitlab.example.com -X POST projects/grp%2Fr/protected_branches -f name=main -F push_access_level=0 -F merge_access_level=40 -F allow_force_push=false
+ok    label:agent-worked: present
+ok    label:agent-created: present
+warn  label:agent-drafted: missing
+      fix: GITLAB_HOST=gitlab.example.com glab label create -R grp/r -n agent-drafted -c '#fbca04' -d 'Drafted by an agent; a human confirms it'
+[rc 1]
+$ repoboot apply --dir SANDBOX/r --text
+repoboot apply — SANDBOX/r
+mode existing, host gitlab
+done    glab api --hostname gitlab.example.com -X PUT projects/grp%2Fr -F only_allow_merge_if_all_discussions_are_resolved=true -F only_allow_merge_if_pipeline_succeeds=true -f squash_option=always
+done    glab api --hostname gitlab.example.com -X DELETE projects/grp%2Fr/protected_branches/main
+done    glab api --hostname gitlab.example.com -X POST projects/grp%2Fr/protected_branches -f name=main -F push_access_level=0 -F merge_access_level=40 -F allow_force_push=false
+done    GITLAB_HOST=gitlab.example.com glab label create -R grp/r -n agent-drafted -c '#fbca04' -d 'Drafted by an agent; a human confirms it'
+note: no pack covers architecture.kind = library: the baseline is used for them; offer the user a pack in repo_bootstrap.pack_dirs (references/packs.md)
+note: .gitlab-ci.yml is not on the default branch yet: merge the MR/PR with the files first, then apply the remote settings (pipelines must succeed / required checks)
+note: .harness.toml is drafted for the human to review and commit; repoboot never writes it
+--- .harness.toml draft (for the human to review and commit) ---
+# .harness.toml - repository-level harness declaration (harness-hub, principle 8).
+[repo]
+name = "r"
+# tracker = "jira"
+# project = "PROJ"   # default Jira project for /create-ticket (tracker = jira only)
+
+[owns]
+# domains = ["delivery"]
+[rc 0]
+--- stub calls
+glab api --hostname gitlab.example.com projects/grp%2Fr
+glab api --hostname gitlab.example.com projects/grp%2Fr/protected_branches/main
+glab api --hostname gitlab.example.com projects/grp%2Fr/labels?per_page=100
+glab api --hostname gitlab.example.com projects/grp%2Fr
+glab api --hostname gitlab.example.com projects/grp%2Fr/protected_branches/main
+glab api --hostname gitlab.example.com projects/grp%2Fr/labels?per_page=100
+glab api --hostname gitlab.example.com -X PUT projects/grp%2Fr -F only_allow_merge_if_all_discussions_are_resolved=true -F only_allow_merge_if_pipeline_succeeds=true -f squash_option=always
+glab api --hostname gitlab.example.com -X DELETE projects/grp%2Fr/protected_branches/main
+glab api --hostname gitlab.example.com -X POST projects/grp%2Fr/protected_branches -f name=main -F push_access_level=0 -F merge_access_level=40 -F allow_force_push=false
+glab label create -R grp/r -n agent-drafted -c #fbca04 -d Drafted by an agent; a human confirms it

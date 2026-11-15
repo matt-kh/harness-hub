@@ -1,0 +1,1 @@
+ERROR:pip_audit._cli:Failed to resolve: password=hunter2 rejected by https://pypi.example.com

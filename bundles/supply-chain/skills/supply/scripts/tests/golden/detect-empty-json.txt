@@ -1,0 +1,25 @@
+# exit=0
+# stderr:
+supply: dir=empty ecosystems=none tools=cargo-audit,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+# stdout:
+{
+  "command": "detect",
+  "data": {
+    "ecosystems": [],
+    "files_scanned": 1,
+    "skipped_large": []
+  },
+  "dir": "empty",
+  "ecosystems": [],
+  "findings": [],
+  "tools": [
+    "cargo-audit",
+    "cosign",
+    "gh",
+    "govulncheck",
+    "npm",
+    "osv-scanner",
+    "pip-audit",
+    "syft"
+  ]
+}

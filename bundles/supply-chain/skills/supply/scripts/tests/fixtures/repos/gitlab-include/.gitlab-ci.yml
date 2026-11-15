@@ -1,0 +1,25 @@
+stages: [build, test]
+include:
+  - local: /ci/build.yml
+  - project: example-group/ci-templates
+    ref: main
+    file: /templates/test.yml
+  - project: example-group/ci-templates
+    ref: 0123456789abcdef0123456789abcdef01234567
+    file: /templates/lint.yml
+  - component: gitlab.example.com/example-group/components/scan@~latest
+  - component: gitlab.example.com/example-group/components/lint@1.4.0
+  - template: Jobs/SAST.gitlab-ci.yml
+  - remote: https://example.com/ci/common.yml
+image: python:3.12
+default:
+  services:
+    - name: postgres
+      alias: db
+dependency_scanning:
+  allow_failure: true
+  script:
+    - eval "$CI_COMMIT_MESSAGE"
+    - 'echo "quoted: fine"'
+.hidden-template:
+  script: set

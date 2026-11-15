@@ -1,0 +1,35 @@
+{
+  "database": {
+    "advisory-count": 1
+  },
+  "lockfile": {
+    "dependency-count": 2
+  },
+  "vulnerabilities": {
+    "count": 1,
+    "found": true,
+    "list": [
+      {
+        "advisory": {
+          "aliases": [
+            "CVE-2099-0007"
+          ],
+          "id": "RUSTSEC-2099-0007",
+          "package": "serde",
+          "title": "Synthetic deserialisation issue"
+        },
+        "package": {
+          "name": "serde",
+          "version": "1.0.215"
+        },
+        "versions": {
+          "patched": [
+            ">=1.0.216"
+          ],
+          "unaffected": []
+        }
+      }
+    ]
+  },
+  "warnings": {}
+}

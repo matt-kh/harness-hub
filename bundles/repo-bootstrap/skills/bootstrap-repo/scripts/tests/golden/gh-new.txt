@@ -1,0 +1,648 @@
+$ repoboot answer --dir SANDBOX/r repo.host=github repo.owner=o repo.name=r architecture.kind=service architecture.languages=python workflow.codeowners=@o/team quality.ci_jobs=lint,test
+{
+  "verb": "answer",
+  "spec": "SANDBOX/r/.repo-standard.toml",
+  "changed": {
+    "repo.host": "github",
+    "repo.owner": "o",
+    "repo.name": "r",
+    "architecture.kind": "service",
+    "architecture.languages": [
+      "python"
+    ],
+    "workflow.codeowners": [
+      "@o/team"
+    ],
+    "quality.ci_jobs": [
+      "lint",
+      "test"
+    ]
+  },
+  "packs": [
+    "baseline",
+    "python-svc"
+  ],
+  "open": [
+    "repo.visibility",
+    "repo.description",
+    "repo.license",
+    "workflow.default_branch",
+    "workflow.merge_method",
+    "workflow.required_approvals",
+    "workflow.tracker",
+    "workflow.agent_labels",
+    "architecture.toolchain",
+    "architecture.container",
+    "architecture.deploy",
+    "architecture.notes",
+    "quality.precommit",
+    "quality.required_checks",
+    "pack.python-svc.python_version",
+    "pack.python-svc.module"
+  ],
+  "exit": 0
+}
+[rc 0]
+$ repoboot questions --dir SANDBOX/r --text
+repoboot questions — SANDBOX/r/.repo-standard.toml
+  r1 repo.visibility                    Visibility? [private|internal|public] (default: private)
+  r1 repo.description                   One-line description? (default: )
+  r1 repo.license                       License? [none|MIT|proprietary] (default: none)
+  r1 workflow.default_branch            Default branch? (default: main)
+  r1 workflow.merge_method              How are MRs/PRs merged? [squash|merge|rebase] (default: squash)
+  r1 workflow.required_approvals        Approvals required before merge (0 for a one-person repository)? (default: 1)
+  r1 workflow.tracker                   Where are tickets tracked? [github-issues|jira|none] (default: github-issues)
+  r1 workflow.agent_labels              Create the agent provenance labels (agent-worked, agent-created, agent-drafted)? (default: true)
+  r1 architecture.toolchain             Build / package toolchain (e.g. uv, poetry, pnpm, maven, cmake; empty for none)? (default: )
+  r1 architecture.container             Does it ship a container image? (default: false)
+  r1 architecture.deploy                How is it deployed? [none|helm|gitops|package-registry|other] (default: none)
+  r1 architecture.notes                 Anything else the layout must follow (an architecture, a reference repository, constraints)? (default: )
+  r1 quality.precommit                  Use pre-commit hooks (generic hygiene hooks plus the packs' hooks)? (default: true)
+  r1 quality.required_checks            Status checks required before merge (CI job names)? (default: lint)
+  r2 pack.python-svc.python_version     Python version? [3.11|3.12|3.13] (default: 3.12)
+  r2 pack.python-svc.module             Import package name? (default: r)
+next: ask round 1, then `repoboot answer KEY=VALUE…`; pack questions appear in round 2 once the architecture answers select packs
+pack  baseline
+pack  python-svc
+[rc 0]
+$ repoboot answer --dir SANDBOX/r pack.python-svc.python_version=3.13 --accept-defaults
+{
+  "verb": "answer",
+  "spec": "SANDBOX/r/.repo-standard.toml",
+  "changed": {
+    "pack.python-svc.python_version": "3.13",
+    "repo.visibility": "private",
+    "repo.description": "",
+    "repo.license": "none",
+    "workflow.default_branch": "main",
+    "workflow.merge_method": "squash",
+    "workflow.required_approvals": 1,
+    "workflow.tracker": "github-issues",
+    "workflow.agent_labels": true,
+    "architecture.toolchain": "",
+    "architecture.container": false,
+    "architecture.deploy": "none",
+    "architecture.notes": "",
+    "quality.precommit": true,
+    "quality.required_checks": [
+      "lint"
+    ],
+    "pack.python-svc.module": "r"
+  },
+  "packs": [
+    "baseline",
+    "python-svc"
+  ],
+  "open": [],
+  "exit": 0
+}
+[rc 0]
+$ repoboot plan --dir SANDBOX/r
+{
+  "verb": "plan",
+  "dir": "SANDBOX/r",
+  "spec": "SANDBOX/r/.repo-standard.toml",
+  "mode": "new",
+  "host": "github",
+  "packs": [
+    {
+      "id": "baseline",
+      "summary": "Hygiene files, README, MR/PR and issue templates, CODEOWNERS, license, pre-commit and a CI lint job",
+      "dir": "SCRIPTS/packs/baseline"
+    },
+    {
+      "id": "python-svc",
+      "summary": "Python service on uv: pyproject, ruff hooks, a pytest CI job",
+      "dir": "HERE/packs/python-svc"
+    }
+  ],
+  "uncovered": [],
+  "files": [
+    {
+      "path": ".editorconfig",
+      "pack": "baseline",
+      "status": "create"
+    },
+    {
+      "path": ".gitattributes",
+      "pack": "baseline",
+      "status": "create"
+    },
+    {
+      "path": ".github/CODEOWNERS",
+      "pack": "baseline",
+      "status": "create"
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/bug.yml",
+      "pack": "baseline",
+      "status": "create"
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/config.yml",
+      "pack": "baseline",
+      "status": "create"
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/feature.yml",
+      "pack": "baseline",
+      "status": "create"
+    },
+    {
+      "path": ".github/pull_request_template.md",
+      "pack": "baseline",
+      "status": "create"
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "pack": "baseline",
+      "status": "create"
+    },
+    {
+      "path": ".gitignore",
+      "pack": "baseline",
+      "status": "create"
+    },
+    {
+      "path": ".pre-commit-config.yaml",
+      "pack": "baseline",
+      "status": "create"
+    },
+    {
+      "path": "README.md",
+      "pack": "baseline",
+      "status": "create"
+    },
+    {
+      "path": "pyproject.toml",
+      "pack": "python-svc",
+      "status": "create"
+    },
+    {
+      "path": "src/r/__init__.py",
+      "pack": "python-svc",
+      "status": "create"
+    }
+  ],
+  "local": [
+    {
+      "id": "git-init",
+      "kind": "write",
+      "argv": [
+        "git",
+        "-C",
+        "SANDBOX/r",
+        "init",
+        "-b",
+        "main"
+      ],
+      "note": "create the repository",
+      "command": "git -C SANDBOX/r init -b main"
+    },
+    {
+      "id": "git-add",
+      "kind": "write",
+      "argv": [
+        "git",
+        "-C",
+        "SANDBOX/r",
+        "add",
+        "--",
+        ".repo-standard.toml",
+        ".editorconfig",
+        ".gitattributes",
+        ".github/CODEOWNERS",
+        ".github/ISSUE_TEMPLATE/bug.yml",
+        ".github/ISSUE_TEMPLATE/config.yml",
+        ".github/ISSUE_TEMPLATE/feature.yml",
+        ".github/pull_request_template.md",
+        ".github/workflows/ci.yml",
+        ".gitignore",
+        ".pre-commit-config.yaml",
+        "README.md",
+        "pyproject.toml",
+        "src/r/__init__.py"
+      ],
+      "note": "stage the standard's files only",
+      "command": "git -C SANDBOX/r add -- .repo-standard.toml .editorconfig .gitattributes .github/CODEOWNERS .github/ISSUE_TEMPLATE/bug.yml .github/ISSUE_TEMPLATE/config.yml .github/ISSUE_TEMPLATE/feature.yml .github/pull_request_template.md .github/workflows/ci.yml .gitignore .pre-commit-config.yaml README.md pyproject.toml src/r/__init__.py"
+    },
+    {
+      "id": "git-commit",
+      "kind": "write",
+      "argv": [
+        "git",
+        "-C",
+        "SANDBOX/r",
+        "commit",
+        "-m",
+        "Initial commit: repository standard",
+        "-m",
+        "Generated by repoboot from .repo-standard.toml.",
+        "--",
+        ".repo-standard.toml",
+        ".editorconfig",
+        ".gitattributes",
+        ".github/CODEOWNERS",
+        ".github/ISSUE_TEMPLATE/bug.yml",
+        ".github/ISSUE_TEMPLATE/config.yml",
+        ".github/ISSUE_TEMPLATE/feature.yml",
+        ".github/pull_request_template.md",
+        ".github/workflows/ci.yml",
+        ".gitignore",
+        ".pre-commit-config.yaml",
+        "README.md",
+        "pyproject.toml",
+        "src/r/__init__.py"
+      ],
+      "note": "the initial commit (your git identity)",
+      "command": "git -C SANDBOX/r commit -m 'Initial commit: repository standard' -m 'Generated by repoboot from .repo-standard.toml.' -- .repo-standard.toml .editorconfig .gitattributes .github/CODEOWNERS .github/ISSUE_TEMPLATE/bug.yml .github/ISSUE_TEMPLATE/config.yml .github/ISSUE_TEMPLATE/feature.yml .github/pull_request_template.md .github/workflows/ci.yml .gitignore .pre-commit-config.yaml README.md pyproject.toml src/r/__init__.py"
+    }
+  ],
+  "remote": [
+    {
+      "id": "create",
+      "kind": "write",
+      "argv": [
+        "gh",
+        "repo",
+        "create",
+        "o/r",
+        "--private"
+      ],
+      "note": "create the private repository on GitHub",
+      "command": "gh repo create o/r --private"
+    },
+    {
+      "id": "remote",
+      "kind": "write",
+      "argv": [
+        "git",
+        "-C",
+        "SANDBOX/r",
+        "remote",
+        "add",
+        "origin",
+        "git@github.com:o/r.git"
+      ],
+      "note": "origin = git@github.com:o/r.git",
+      "command": "git -C SANDBOX/r remote add origin git@github.com:o/r.git"
+    },
+    {
+      "id": "push",
+      "kind": "write",
+      "argv": [
+        "git",
+        "-C",
+        "SANDBOX/r",
+        "push",
+        "-u",
+        "origin",
+        "HEAD:refs/heads/main"
+      ],
+      "note": "the initial push of main \u2014 only after `git ls-remote` shows the remote has no branches",
+      "command": "git -C SANDBOX/r push -u origin HEAD:refs/heads/main"
+    },
+    {
+      "id": "settings",
+      "kind": "write",
+      "argv": [
+        "gh",
+        "api",
+        "-X",
+        "PATCH",
+        "repos/o/r",
+        "-F",
+        "allow_auto_merge=false",
+        "-F",
+        "allow_merge_commit=false",
+        "-F",
+        "allow_rebase_merge=false",
+        "-F",
+        "allow_squash_merge=true",
+        "-f",
+        "default_branch=main",
+        "-F",
+        "delete_branch_on_merge=true",
+        "-f",
+        "squash_merge_commit_message=PR_BODY",
+        "-f",
+        "squash_merge_commit_title=PR_TITLE"
+      ],
+      "note": "merge settings: squash/merge/rebase, delete branches on merge",
+      "command": "gh api -X PATCH repos/o/r -F allow_auto_merge=false -F allow_merge_commit=false -F allow_rebase_merge=false -F allow_squash_merge=true -f default_branch=main -F delete_branch_on_merge=true -f squash_merge_commit_message=PR_BODY -f squash_merge_commit_title=PR_TITLE"
+    },
+    {
+      "id": "protection",
+      "kind": "write",
+      "argv": [
+        "gh",
+        "api",
+        "-X",
+        "POST",
+        "repos/o/r/rulesets",
+        "--input",
+        "@BODY"
+      ],
+      "note": "default-branch ruleset 'repo-standard': PRs only, 1 approval(s), no force-push or deletion, required checks",
+      "body": {
+        "name": "repo-standard",
+        "target": "branch",
+        "enforcement": "active",
+        "conditions": {
+          "ref_name": {
+            "include": [
+              "~DEFAULT_BRANCH"
+            ],
+            "exclude": []
+          }
+        },
+        "rules": [
+          {
+            "type": "deletion"
+          },
+          {
+            "type": "non_fast_forward"
+          },
+          {
+            "type": "pull_request",
+            "parameters": {
+              "required_approving_review_count": 1,
+              "dismiss_stale_reviews_on_push": true,
+              "require_code_owner_review": true,
+              "require_last_push_approval": false,
+              "required_review_thread_resolution": true
+            }
+          },
+          {
+            "type": "required_status_checks",
+            "parameters": {
+              "strict_required_status_checks_policy": false,
+              "required_status_checks": [
+                {
+                  "context": "lint"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "tolerate": {
+        "403": "rulesets on a private repository need GitHub Pro, Team or Enterprise (or a public repository); protect the default branch by hand or upgrade the plan"
+      },
+      "command": "gh api -X POST repos/o/r/rulesets --input @BODY"
+    },
+    {
+      "id": "label:agent-worked",
+      "kind": "write",
+      "argv": [
+        "gh",
+        "label",
+        "create",
+        "agent-worked",
+        "-R",
+        "o/r",
+        "-c",
+        "7057ff",
+        "-d",
+        "An agent may work this (harness governance: promptless writes)"
+      ],
+      "note": "provenance label agent-worked",
+      "command": "gh label create agent-worked -R o/r -c 7057ff -d 'An agent may work this (harness governance: promptless writes)'"
+    },
+    {
+      "id": "label:agent-created",
+      "kind": "write",
+      "argv": [
+        "gh",
+        "label",
+        "create",
+        "agent-created",
+        "-R",
+        "o/r",
+        "-c",
+        "0e8a16",
+        "-d",
+        "Created by an agent"
+      ],
+      "note": "provenance label agent-created",
+      "command": "gh label create agent-created -R o/r -c 0e8a16 -d 'Created by an agent'"
+    },
+    {
+      "id": "label:agent-drafted",
+      "kind": "write",
+      "argv": [
+        "gh",
+        "label",
+        "create",
+        "agent-drafted",
+        "-R",
+        "o/r",
+        "-c",
+        "fbca04",
+        "-d",
+        "Drafted by an agent; a human confirms it"
+      ],
+      "note": "provenance label agent-drafted",
+      "command": "gh label create agent-drafted -R o/r -c fbca04 -d 'Drafted by an agent; a human confirms it'"
+    }
+  ],
+  "findings": [],
+  "notes": [
+    "private repository: the ruleset needs GitHub Pro/Team/Enterprise; on Free it is reported as a warning, not a failure",
+    ".harness.toml is drafted for the human to review and commit; repoboot never writes it"
+  ],
+  "remote_state": "o/r does not exist",
+  "harness_toml_draft": "# .harness.toml - repository-level harness declaration (harness-hub, principle 8).\n[repo]\nname = \"r\"\ntracker = \"github-issues\"\n# project = \"PROJ\"   # default Jira project for /create-ticket (tracker = jira only)\n\n[owns]\n# domains = [\"delivery\"]\n",
+  "exit": 0
+}
+[rc 0]
+--- stub calls
+gh api repos/o/r
+$ repoboot apply --dir SANDBOX/r
+{
+  "verb": "apply",
+  "dir": "SANDBOX/r",
+  "mode": "new",
+  "host": "github",
+  "results": [
+    {
+      "id": "render",
+      "status": "done",
+      "command": "render 13 file(s)"
+    },
+    {
+      "id": "git-init",
+      "command": "git -C SANDBOX/r init -b main",
+      "status": "done"
+    },
+    {
+      "id": "git-add",
+      "command": "git -C SANDBOX/r add -- .repo-standard.toml .editorconfig .gitattributes .github/CODEOWNERS .github/ISSUE_TEMPLATE/bug.yml .github/ISSUE_TEMPLATE/config.yml .github/ISSUE_TEMPLATE/feature.yml .github/pull_request_template.md .github/workflows/ci.yml .gitignore .pre-commit-config.yaml README.md pyproject.toml src/r/__init__.py",
+      "status": "done"
+    },
+    {
+      "id": "git-commit",
+      "command": "git -C SANDBOX/r commit -m 'Initial commit: repository standard' -m 'Generated by repoboot from .repo-standard.toml.' -- .repo-standard.toml .editorconfig .gitattributes .github/CODEOWNERS .github/ISSUE_TEMPLATE/bug.yml .github/ISSUE_TEMPLATE/config.yml .github/ISSUE_TEMPLATE/feature.yml .github/pull_request_template.md .github/workflows/ci.yml .gitignore .pre-commit-config.yaml README.md pyproject.toml src/r/__init__.py",
+      "status": "done"
+    },
+    {
+      "id": "create",
+      "command": "gh repo create o/r --private",
+      "status": "done"
+    },
+    {
+      "id": "remote",
+      "command": "git -C SANDBOX/r remote add origin git@github.com:o/r.git",
+      "status": "done"
+    },
+    {
+      "id": "push",
+      "command": "git -C SANDBOX/r push -u origin HEAD:refs/heads/main",
+      "status": "done"
+    },
+    {
+      "id": "settings",
+      "command": "gh api -X PATCH repos/o/r -F allow_auto_merge=false -F allow_merge_commit=false -F allow_rebase_merge=false -F allow_squash_merge=true -f default_branch=main -F delete_branch_on_merge=true -f squash_merge_commit_message=PR_BODY -f squash_merge_commit_title=PR_TITLE",
+      "status": "done"
+    },
+    {
+      "id": "protection",
+      "command": "gh api -X POST repos/o/r/rulesets --input @BODY",
+      "status": "done"
+    },
+    {
+      "id": "label:agent-worked",
+      "command": "gh label create agent-worked -R o/r -c 7057ff -d 'An agent may work this (harness governance: promptless writes)'",
+      "status": "done"
+    },
+    {
+      "id": "label:agent-created",
+      "command": "gh label create agent-created -R o/r -c 0e8a16 -d 'Created by an agent'",
+      "status": "done"
+    },
+    {
+      "id": "label:agent-drafted",
+      "command": "gh label create agent-drafted -R o/r -c fbca04 -d 'Drafted by an agent; a human confirms it'",
+      "status": "done"
+    }
+  ],
+  "notes": [
+    "private repository: the ruleset needs GitHub Pro/Team/Enterprise; on Free it is reported as a warning, not a failure",
+    ".harness.toml is drafted for the human to review and commit; repoboot never writes it"
+  ],
+  "harness_toml_draft": "# .harness.toml - repository-level harness declaration (harness-hub, principle 8).\n[repo]\nname = \"r\"\ntracker = \"github-issues\"\n# project = \"PROJ\"   # default Jira project for /create-ticket (tracker = jira only)\n\n[owns]\n# domains = [\"delivery\"]\n",
+  "exit": 0
+}
+[rc 0]
+--- stub calls
+gh api repos/o/r
+gh repo create o/r --private
+gh api -X PATCH repos/o/r -F allow_auto_merge=false -F allow_merge_commit=false -F allow_rebase_merge=false -F allow_squash_merge=true -f default_branch=main -F delete_branch_on_merge=true -f squash_merge_commit_message=PR_BODY -f squash_merge_commit_title=PR_TITLE
+gh api -X POST repos/o/r/rulesets --input BODY
+  BODY {"conditions": {"ref_name": {"exclude": [], "include": ["~DEFAULT_BRANCH"]}}, "enforcement": "active", "name": "repo-standard", "rules": [{"type": "deletion"}, {"type": "non_fast_forward"}, {"parameters": {"dismiss_stale_reviews_on_push": true, "require_code_owner_review": true, "require_last_push_approval": false, "required_approving_review_count": 1, "required_review_thread_resolution": true}, "type": "pull_request"}, {"parameters": {"required_status_checks": [{"context": "lint"}], "strict_required_status_checks_policy": false}, "type": "required_status_checks"}], "target": "branch"}
+gh label create agent-worked -R o/r -c 7057ff -d An agent may work this (harness governance: promptless writes)
+gh label create agent-created -R o/r -c 0e8a16 -d Created by an agent
+gh label create agent-drafted -R o/r -c fbca04 -d Drafted by an agent; a human confirms it
+--- git log
+Initial commit: repository standard
+
+A	.editorconfig
+A	.gitattributes
+A	.github/CODEOWNERS
+A	.github/ISSUE_TEMPLATE/bug.yml
+A	.github/ISSUE_TEMPLATE/config.yml
+A	.github/ISSUE_TEMPLATE/feature.yml
+A	.github/pull_request_template.md
+A	.github/workflows/ci.yml
+A	.gitignore
+A	.pre-commit-config.yaml
+A	.repo-standard.toml
+A	README.md
+A	pyproject.toml
+A	src/r/__init__.py
+--- origin heads
+refs/heads/main
+--- pyproject.toml
+[project]
+name = "r"
+version = "0.1.0"
+description = ""
+requires-python = ">=3.13"
+dependencies = []
+
+[dependency-groups]
+dev = ["pytest", "ruff"]
+--- src/r/__init__.py
+"""r."""
+--- .pre-commit-config.yaml
+# Hooks run on every commit (`pre-commit install`) and in CI (`pre-commit run --all-files`).
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+        args: [--allow-multiple-documents]
+      - id: check-toml
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=1024]
+      - id: detect-private-key
+      - id: mixed-line-ending
+        args: [--fix=lf]
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.9
+    hooks:
+      - id: ruff
+      - id: ruff-format
+--- .github/workflows/ci.yml
+# CI for r (repository standard; jobs from the packs add test and build).
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pre-commit
+      - run: pre-commit run --all-files --show-diff-on-failure
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - run: uv sync && uv run pytest
+--- .github/pull_request_template.md
+Issue: #<number>
+
+## Summary
+
+<!-- What changes and why, in a few lines. -->
+
+## Testing
+
+<!-- How it was verified: commands run, environments, screenshots. -->
+
+## Checklist
+
+- [ ] The title says what changes
+- [ ] Tests and docs updated where behaviour changed
+- [ ] No secrets, credentials or customer data in the diff
+- [ ] `uv run pytest` passes locally
+--- .github/CODEOWNERS
+# Owners review every change (https://docs.github.com/articles/about-code-owners,
+# https://docs.gitlab.com/ee/user/project/codeowners/).
+* @o/team

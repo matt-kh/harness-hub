@@ -1,0 +1,5 @@
+# exit=2
+# stderr:
+supply: dir=- ecosystems=none tools=cargo-audit,cosign,gh,govulncheck,npm,osv-scanner,pip-audit,syft
+supply verify: supply_chain.identities[0]: needs name, identity_re and issuer (manual step configure-identities)
+# stdout:

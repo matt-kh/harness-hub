@@ -1,0 +1,8 @@
+{
+  "name": "example-dirty",
+  "version": "1.0.0",
+  "dependencies": {
+    "hello": "github:octocat/hello-world",
+    "lodash": "^4.17.21"
+  }
+}
