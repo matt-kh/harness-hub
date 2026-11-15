@@ -366,12 +366,25 @@ g ask   'gh -Ro/r pr merge 100'
 g allow 'gh pr -Ro/r close 100'
 g ask   'gh pr close -Ro/r 200'
 g allow 'gh pr comment 100 -Ro/r -b hi'                      # attached -R no longer swallows the next flag
-# closing keywords in forms 41 does not parse (backstop in 60, yields like 41)
+# closing keywords with an attached repo flag or the new alias (section 41 since #76)
 g deny  'gh -Ro/r pr edit 100 -b "Closes #3"'
 g deny  'gh pr -Ro/r edit 100 -b "Closes #3"'
+g deny  'gh -R=o/r pr edit 100 -b "Fixes #3"'
+g deny  'gh --repo=o/r pr merge 100 -b "Resolves #3"'
 g deny  'gh pr new -H feat-x -B main -t x -b "Fixes #3"'
+g deny  'gh -Ro/r pr new -H feat-x -B main -t x -b "Closes o/r#3"'
+T_AGENT=a1 g deny 'gh -Ro/r pr edit 100 -b "Closes #3"'
+tr 'would let GitHub close the issue' 'gh pr new -H feat-x -B main -t x -b "Fixes #3"'
+# #76: a repository that owns scm (not tracker) skips 60 but keeps the closing-keyword deny of 41
+decl '[owns]' 'domains = ["scm"]'
+r deny  'gh -Ro/r pr edit 100 -b "Closes #3"'
+r deny  'gh pr -Ro/r edit 100 -b "Closes #3"'
+r deny  'gh pr new -H feat-x -B main -t x -b "Fixes #3"'
+r deny  'gh --repo=o/r pr merge 100 -b "Resolves #3"'
+r pass  'gh -Ro/r pr edit 100 -b "part of #3"'
 decl '[owns]' 'domains = ["tracker"]'
 r allow 'gh -Ro/r pr edit 100 -b "Closes #3"'                # yields with 41 when the repository owns tracker
+r allow 'gh pr new -H feat-x -B feat-y -t x -b "Fixes #3"'
 decl
 # deletes and transfers are human decisions (W6)
 T_AGENT=a1 g deny  'gh issue delete 1 --yes'

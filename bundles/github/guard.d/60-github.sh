@@ -5,7 +5,6 @@
 # rule: gh api write (as above) from a subagent -> deny : a raw API write can merge or change state; hand the command back to the main thread
 # rule: gh pr merge|review, gh issue delete|transfer -> ask : merging, reviewing and deleting/transferring issues are human decisions; run it only on the user's explicit request (they confirm it), or ask the user instead
 # rule: gh pr merge|review, gh issue delete|transfer from a subagent -> deny : a subagent never merges, reviews or deletes; hand the command back to the main thread
-# rule: (close|fix|resolve) #N in gh pr create|new|edit|merge with -Ro/r or the new alias (forms 41 misses) -> deny : a closing keyword would change the issue's state as a side effect; mention #N instead (see #N); yields like 41 (tracker)
 # rule: gh with quoted/escaped command words or a $VAR/$(…) subcommand -> ask : the subcommand cannot be checked; write it literally and unquoted instead (a subagent is denied)
 # rule: gh release/repo/workflow/secret/auth/gist/... mutations -> ask : team-visible; ask the user (releases are human-only)
 # rule: gh label create agent-* -> allow : governance label; other labels ask
@@ -27,15 +26,11 @@ printf '%s' "$flat" | grep -qE '\bgh\s+auth\s+status\b[^;&|]*[[:space:]](--show-
 printf '%s' "$flat" | grep -qE '\bgh\s+config\s+get\b[^;&|]*\boauth_token\b' && deny "gh config get oauth_token prints the token — check auth with 'gh auth status'"
 repo_owns github/guard.d/60-github scm && return 0   # principle 8: the repository's .harness.toml owns this section or domain scm
 # ---- GitHub (gh) ------------------------------------------------------------------
-# Section-local views (gate_writes, called from here, sees them too): the command without fd
-# duplications (2>&1 would cut a clause at its '&'), and a repo flag that also matches the
-# attached forms -Ro/r and -R=o/r (41's shared GHR keeps the separated forms only).
+# Section-local view (gate_writes, called from here, sees it too): the command without fd
+# duplications (2>&1 would cut a clause at its '&'). GHR/GHP come from 41 and match the attached
+# repo-flag forms (-Ro/r, -R=o/r) too.
 # shellcheck disable=SC2168  # sections are wrapped in a function by build.sh
 local flat="$flat_split"
-# shellcheck disable=SC2168
-local GHR='((-R[= ]?|--repo[= ])\S+\s+)?'
-# shellcheck disable=SC2168
-local GHP='\bgh\s+'"$GHR"
 GH_NOUNS='pr|issue|label|release|repo|run|workflow|secret|variable|gist|auth|config|alias|ext(ension)?s?|ssh-key|gpg-key|project|cache'
 # Reads are free (settings.json allow). Order: token denies (prelude, above) → gh api (per clause) → team-visible
 # ask → label create → pr create (per clause) → issue create (per clause) → PR/issue write gates.
@@ -63,13 +58,6 @@ GH_HUMAN_RE="${GHP}(pr\s+${GHR}(merge|review)|issue\s+${GHR}(delete|transfer))\b
 GH_TEAM_RE="${GHP}(pr\s+${GHR}(lock|unlock)|issue\s+${GHR}(pin|unpin|lock|unlock|develop)|release\s+${GHR}(create|edit|delete|delete-asset|upload)|repo\s+${GHR}(delete|archive|unarchive|fork|create|rename|edit|sync|deploy-key|autolink)|label\s+${GHR}(edit|delete|clone)|workflow\s+${GHR}(run|enable|disable)|run\s+${GHR}(cancel|rerun|delete)|(secret|variable)\s+${GHR}(set|delete)|gist\s+(create|edit|delete|rename)|auth\s+(login|logout|refresh|setup-git|switch)|(ssh-key|gpg-key)\s+(add|delete)|alias\s+(set|import|delete)|ext(ension)?s?\s+(install|upgrade|remove)|project\s+(close|copy|create|delete|edit|field-create|field-delete|item-add|item-archive|item-create|item-delete|item-edit|link|unlink|mark-template)|cache\s+${GHR}delete)\b"
 GH_PR_BOOL_RE='^--?(d|draft|undo|edit-last|create-if-none|delete-last|y|yes|w|web|delete-branch|remove-milestone|dry-run|e|editor|rebase)$'
 GH_ISSUE_BOOL_RE='^--?(e|editor|w|web|edit-last|create-if-none|delete-last|y|yes|remove-milestone|remove-parent)$'
-# Closing-keyword backstop for command forms 41's shared regex does not parse (attached -Ro/r,
-# the gh pr new alias); it yields exactly like 41 (component 41-github-closing, domain tracker).
-if ! repo_owns github/guard.d/41-github-closing tracker \
-   && printf '%s' "$flat" | grep -qiE "$GH_CLOSE_RE" \
-   && printf '%s' "$flat" | grep -qE "${GHP}pr\s+${GHR}(create|new|edit|merge)\b"; then
-  deny "closing keyword + GitHub issue ref (#N, owner/repo#N or issue URL) would let GitHub close the issue as a side effect (denied even on request) — mention it instead (e.g. 'part of #12')"
-fi
 # gh_words TEXT -> one line per gh command head: 'gh api', or 'gh NOUN VERB' (sorted)
 gh_words() { printf '%s' "$1" | grep -oE "\bgh\s+${GHR}(api|(${GH_NOUNS})\s+${GHR}[A-Za-z-]+)" | sed -E 's/[[:space:]]+/ /g' | sort; }
 # -- 0. hidden subcommands: command words in quotes or escapes (gh "pr" merge, g\h pr merge) and

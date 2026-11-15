@@ -70,7 +70,7 @@ Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md
 **Guard sections**
 
 - `gitlab/guard.d/40-gitlab-closing` — control: sensor · domain: tracker · function: govern · decisions: deny 1 · yields: declaration
-- `gitlab/guard.d/50-gitlab` — control: sensor · function: govern · decisions: deny 5 · ask 10 · allow 3 · yields: declaration
+- `gitlab/guard.d/50-gitlab` — control: sensor · function: govern · decisions: deny 4 · ask 10 · allow 3 · yields: declaration
 
 **Permission lists**
 

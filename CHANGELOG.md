@@ -670,6 +670,13 @@ prints every one between your applied version and the new one.
   "bundle.tags: is deprecated; use taxonomy.domain". Classify the bundle with `[taxonomy]`.
 
 ### Fixed
+- Closing-keyword denies (`gitlab` section 40, `github` section 41) now also match a repo flag
+  before the noun or the verb, attached or not (`gh -Ro/r pr edit`, `gh --repo=o/r pr merge`,
+  `glab -R g/p mr update`, `glab mr -Rg/p update`, `glab -R g/p api`), and the `new` aliases
+  (`gh pr new`, `glab mr new`). Since #67 sections 50 and 60 denied these forms instead, but they
+  yield when a repository owns `scm`, so a repository that owns `scm` and not `tracker` lost the
+  deny for these spellings (#76). The duplicate checks in 50 and 60 are removed; section 60 now
+  uses 41's repo-flag pattern, which already matched the attached forms there.
 - `repo-bootstrap`: `scripts/repoboot.py` is now committed executable. Before, the
   `~/.local/bin/repoboot` link failed with "Permission denied" and `harness doctor` reported
   `link-repoboot` and `repo-bootstrap/repoboot-cli` as FAIL (the golden suite calls the script
@@ -935,6 +942,10 @@ prints every one between your applied version and the new one.
 
 ### Migration
 
+- Guard decision change (#76), nothing to edit in config: in a repository whose `.harness.toml`
+  owns `scm` but not `tracker`, a closing keyword in `gh -Ro/r pr …`, `gh pr new`,
+  `glab -R g/p mr …` or `glab mr new` used to pass and is now **denied**, as the plain
+  spellings already were. Mention the ticket instead (`part of #12`, `PROJ-123 fix parser`).
 - Guard decisions for gh and glab (#67), nothing to edit in config: `gh issue close|reopen` on
   a human issue now **asks** on the main thread instead of denying. Merges, approvals, reviews
   and PR/MR/issue state changes run from a subagent are now **denied**, as are raw `gh api` /
