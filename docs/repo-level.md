@@ -250,7 +250,7 @@ Components that yield by declaration: listing a domain in `[owns] domains` cover
 | `kubernetes` | `k8s/guard.d/25-k8s-rules` | `k8s/skills/k8s` |
 | `workspace` | `gdoc/guard.d/80-gdoc` | `gdoc/skills/gdoc` |
 | `operations` | `obs/guard.d/32-obs` | `obs/skills/obs` |
-| `infrastructure` | `linux/guard.d/83-linux-rules` | — |
+| `infrastructure` | `linux/guard.d/83-linux-rules` | `linux/skills/linux` |
 | `security` | `supply-chain/guard.d/38-supply-chain` | `supply-chain/skills/audit-deps`, `supply-chain/skills/pin-deps`, `supply-chain/skills/supply` |
 
 | id | kind | domain | bundle |
@@ -270,6 +270,7 @@ Components that yield by declaration: listing a domain in `[owns] domains` cover
 | `lessons/guard.d/15-lessons` | guard | base | lessons |
 | `lessons/skills/retro` | skill | base | lessons |
 | `linux/guard.d/83-linux-rules` | guard | infrastructure | linux |
+| `linux/skills/linux` | skill | infrastructure | linux |
 | `obs/guard.d/32-obs` | guard | operations | obs |
 | `obs/skills/obs` | skill | operations | obs |
 | `repo-bootstrap/guard.d/67-repo-bootstrap` | guard | scm | repo-bootstrap |

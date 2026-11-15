@@ -1,0 +1,4 @@
+# exit=2
+# stderr:
+unreachable: unreachable: ssh: connect to host 192.0.2.99 port 22: Connection timed out
+# stdout:

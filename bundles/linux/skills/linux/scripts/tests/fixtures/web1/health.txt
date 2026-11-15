@@ -1,0 +1,48 @@
+@@lxcmd health
+@@lx os
+PRETTY_NAME="Ubuntu 24.04.1 LTS"
+NAME="Ubuntu"
+VERSION_ID="24.04"
+VERSION="24.04.1 LTS (Noble Numbat)"
+VERSION_CODENAME=noble
+ID=ubuntu
+ID_LIKE=debian
+HOME_URL="https://www.ubuntu.com/"
+@@lx nproc
+4
+@@lx loadavg
+9.52 7.10 4.33 3/412 98765
+@@lx failed
+certbot-renew.service loaded failed failed Certbot renewal
+nginx-exporter.service loaded failed failed Prometheus nginx exporter
+@@lx df
+Filesystem     Type 1024-blocks     Used Available Capacity Mounted on
+tmpfs          tmpfs     813156     1204    811952       1% /run
+/dev/vda1      ext4    40581564 37122920   3442260      92% /
+tmpfs          tmpfs    4065768        0   4065768       0% /dev/shm
+/dev/vda15     vfat      106832     6186    100646       6% /boot/efi
+/dev/vdb1      xfs    104806400 99566080   5240320      96% /var/lib/docker
+/dev/loop0     squashfs     65536    65536         0     100% /snap/core22/1612
+@@lx dfi
+Filesystem     Type  Inodes  IUsed   IFree IUse% Mounted on
+tmpfs          tmpfs 1016442    912 1015530    1% /run
+/dev/vda1      ext4  2580480 412345 2168135   16% /
+/dev/vda15     vfat        0      0       0     - /boot/efi
+/dev/vdb1      xfs   5242880 120000 5122880    3% /var/lib/docker
+@@lx meminfo
+MemTotal:        8131540 kB
+MemAvailable:     654320 kB
+SwapTotal:       2097148 kB
+SwapFree:         209714 kB
+@@lx psi
+some avg10=12.50 avg60=8.10 avg300=3.20 total=123456789
+full avg10=4.00 avg60=2.00 avg300=1.00 total=23456789
+@@lx reboot
+required=yes
+pkg=linux-image-6.8.0-48-generic
+pkg=libc6
+@@lx timesync
+NTP=yes
+NTPSynchronized=yes
+@@lx oom
+2

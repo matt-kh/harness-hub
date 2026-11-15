@@ -1,0 +1,22 @@
+# exit=1
+# stderr:
+# stdout:
+# lx hosts
+
+## Findings (1)
+
+| sev | kind | name | message |
+|---|---|---|---|
+| warn | inventory | ghost | in the inventory but not a Host alias in the ssh config — lx cannot reach it |
+
+## hosts
+
+| alias | hostname | user | port | role | notes | prod |
+|---|---|---|---|---|---|---|
+| lab-nixos | 203.0.113.5 | u |  |  |  | no |
+| web1 | 192.0.2.10 | deploy |  | web | nginx frontend | no |
+| db-prod-1 | db1.example.com | admin | 2222 | db | postgres primary | yes |
+| db1 | db1.example.com | admin | 2222 |  |  | no |
+| unreachable | 192.0.2.99 |  |  |  |  | no |
+| denied | 192.0.2.98 |  |  |  |  | no |
+| hostkey | 192.0.2.97 |  |  |  |  | no |

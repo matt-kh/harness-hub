@@ -1,0 +1,38 @@
+# exit=0
+# stderr:
+host=web1 os=ubuntu 24.04
+# stdout:
+{
+  "host": "web1",
+  "prod": false,
+  "os": "ubuntu 24.04",
+  "command": "logs",
+  "findings": [
+    {
+      "severity": "info",
+      "kind": "logs",
+      "name": "web1",
+      "message": "journal partly unreadable for this login (not in the adm / systemd-journal group): Hint: You are currently not seeing messages from other users and the system.",
+      "evidence": null
+    }
+  ],
+  "data": {
+    "query": {
+      "source": "journalctl",
+      "since": "1h",
+      "limit": 200,
+      "unit": "",
+      "priority": "",
+      "lines": 7
+    },
+    "lines": [
+      "2026-11-15T09:58:01+00:00 web1 systemd[1]: Starting certbot-renew.service - Certbot renewal...",
+      "2026-11-15T09:58:03+00:00 web1 certbot[4242]: Renewing https://***:***@acme.example.com/directory",
+      "2026-11-15T09:58:04+00:00 web1 app[812]: connecting with password=***REDACTED*** to db1.example.com",
+      "2026-11-15T09:58:05+00:00 web1 app[812]: aws key ***REDACTED*** loaded",
+      "2026-11-15T09:58:06+00:00 web1 app[812]: upstream sent Authorization: ***REDACTED***",
+      "2026-11-15T09:58:07+00:00 web1 app[812]: request id 7f3a served in 12 ms",
+      "2026-11-15T09:58:09+00:00 web1 systemd[1]: certbot-renew.service: ***REDACTED*** with result 'exit-code'."
+    ]
+  }
+}

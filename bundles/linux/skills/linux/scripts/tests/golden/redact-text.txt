@@ -1,0 +1,8 @@
+# exit=0
+# stderr:
+# stdout:
+Nov 15 09:58:03 web1 certbot[4242]: Renewing https://***:***@acme.example.com/directory
+Nov 15 09:58:04 web1 app[812]: connecting with password=***REDACTED*** to db1.example.com
+Nov 15 09:58:05 web1 app[812]: aws key ***REDACTED*** loaded
+Nov 15 09:58:06 web1 app[812]: Authorization: ***REDACTED***
+Nov 15 09:58:07 web1 app[812]: request id 7f3a served in 12 ms

@@ -1,0 +1,47 @@
+@@lxcmd audit
+@@lx os
+PRETTY_NAME="Ubuntu 24.04.1 LTS"
+NAME="Ubuntu"
+VERSION_ID="24.04"
+VERSION="24.04.1 LTS (Noble Numbat)"
+VERSION_CODENAME=noble
+ID=ubuntu
+ID_LIKE=debian
+HOME_URL="https://www.ubuntu.com/"
+@@lx sshd
+@@lx sshdcfg
+PasswordAuthentication yes
+KbdInteractiveAuthentication no
+PermitRootLogin prohibit-password
+X11Forwarding yes
+PasswordAuthentication no
+@@lx ports
+tcp   LISTEN 0      4096       127.0.0.53%lo:53         0.0.0.0:*
+tcp   LISTEN 0      128          0.0.0.0:22           0.0.0.0:*
+tcp   LISTEN 0      511          0.0.0.0:80           0.0.0.0:*
+tcp   LISTEN 0      511          0.0.0.0:443          0.0.0.0:*
+tcp   LISTEN 0      511          0.0.0.0:6379         0.0.0.0:*
+tcp   LISTEN 0      128             [::]:22              [::]:*
+tcp   LISTEN 0      4096       127.0.0.1:9113         0.0.0.0:*
+udp   UNCONN 0      0          127.0.0.53%lo:53         0.0.0.0:*
+@@lx sudo
+uid=1000
+sudoers-mode=440 root:root
+sudoers-readable=no
+sudoers.d=unreadable
+admin-groups=sudo
+@@lx updates
+pm=apt
+upgradable=14
+security=3
+@@lx auto
+apt-conf: APT::Periodic::Unattended-Upgrade "0";
+unattended-upgrades.service=enabled
+apt-daily-upgrade.timer=enabled
+dnf-automatic.timer=
+dnf-automatic-install.timer=
+nixos-upgrade.timer=
+@@lx suid
+21
+@@lx ww
+/etc/app/config.ini

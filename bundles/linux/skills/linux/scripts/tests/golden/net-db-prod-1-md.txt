@@ -1,0 +1,53 @@
+# exit=1
+# stderr:
+host=db-prod-1 os=rocky 9.4 [PROD]
+# stdout:
+# lx net — db-prod-1 [PROD]
+
+os: rocky 9.4
+
+## Findings (1)
+
+| sev | kind | name | message |
+|---|---|---|---|
+| warn | route | db-prod-1 | no IPv4 default route |
+
+## links
+
+| name | state | kind | master | parent | detail | addresses |
+|---|---|---|---|---|---|---|
+| lo | UNKNOWN |  |  |  |  | 127.0.0.1/8 ::1/128 |
+| ens192 | UP |  |  |  |  | 203.0.113.20/24 |
+
+## routes
+
+- 203.0.113.0/24 dev ens192 proto kernel scope link src 203.0.113.20 metric 100
+
+## routes6_default
+
+_none_
+
+## renderer
+
+| key | value |
+|---|---|
+| in_use | NetworkManager |
+| netplan_files | [] |
+| active_services | ["NetworkManager"] |
+
+## firewall
+
+| key | value |
+|---|---|
+| active_services | ["firewalld"] |
+| nft_tables | needs root |
+| ufw |  |
+| firewalld | running |
+
+## dns
+
+| key | value |
+|---|---|
+| nameservers | ["203.0.113.53"] |
+| search | ["example.com"] |
+| resolved | [] |

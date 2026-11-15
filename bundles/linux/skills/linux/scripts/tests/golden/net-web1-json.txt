@@ -1,0 +1,115 @@
+# exit=1
+# stderr:
+host=web1 os=ubuntu 24.04
+# stdout:
+{
+  "host": "web1",
+  "prod": false,
+  "os": "ubuntu 24.04",
+  "command": "net",
+  "findings": [
+    {
+      "severity": "warn",
+      "kind": "link",
+      "name": "eth1",
+      "message": "administratively up but no carrier (cable, switch port or peer down)",
+      "evidence": null
+    }
+  ],
+  "data": {
+    "links": [
+      {
+        "name": "lo",
+        "state": "UNKNOWN",
+        "kind": "",
+        "master": "",
+        "parent": "",
+        "detail": "",
+        "addresses": "127.0.0.1/8 ::1/128"
+      },
+      {
+        "name": "eth0",
+        "state": "UP",
+        "kind": "bond_slave",
+        "master": "bond0",
+        "parent": "",
+        "detail": "",
+        "addresses": ""
+      },
+      {
+        "name": "eth1",
+        "state": "DOWN",
+        "kind": "bond_slave",
+        "master": "bond0",
+        "parent": "",
+        "detail": "",
+        "addresses": ""
+      },
+      {
+        "name": "bond0",
+        "state": "UP",
+        "kind": "bond",
+        "master": "",
+        "parent": "",
+        "detail": "mode active-backup",
+        "addresses": "192.0.2.10/24 2001:db8::10/64"
+      },
+      {
+        "name": "bond0.100",
+        "state": "UP",
+        "kind": "vlan",
+        "master": "",
+        "parent": "bond0",
+        "detail": "id 100",
+        "addresses": "198.51.100.10/24"
+      },
+      {
+        "name": "docker0",
+        "state": "DOWN",
+        "kind": "bridge",
+        "master": "",
+        "parent": "",
+        "detail": "",
+        "addresses": "198.51.100.129/25"
+      }
+    ],
+    "routes": [
+      "default via 192.0.2.1 dev bond0 proto static",
+      "192.0.2.0/24 dev bond0 proto kernel scope link src 192.0.2.10",
+      "198.51.100.0/24 dev bond0.100 proto kernel scope link src 198.51.100.10",
+      "198.51.100.128/25 dev docker0 proto kernel scope link src 198.51.100.129 linkdown"
+    ],
+    "routes6_default": [
+      "default via 2001:db8::1 dev bond0 proto static metric 1024 pref medium"
+    ],
+    "renderer": {
+      "in_use": "netplan -> systemd-networkd",
+      "netplan_files": [
+        "50-cloud-init.yaml"
+      ],
+      "active_services": [
+        "systemd-networkd"
+      ]
+    },
+    "firewall": {
+      "active_services": [
+        "ufw"
+      ],
+      "nft_tables": "needs root",
+      "ufw": "needs root",
+      "firewalld": ""
+    },
+    "dns": {
+      "nameservers": [
+        "127.0.0.53"
+      ],
+      "search": [
+        "example.com"
+      ],
+      "resolved": [
+        "Global:",
+        "Link 2 (bond0): 192.0.2.53 192.0.2.54"
+      ]
+    }
+  }
+}

@@ -1,0 +1,22 @@
+# exit=0
+# stderr:
+host=db-prod-1 os=rocky 9.4 [PROD]
+# stdout:
+{
+  "host": "db-prod-1",
+  "prod": true,
+  "os": "rocky 9.4",
+  "command": "check",
+  "findings": [],
+  "data": {
+    "check": {
+      "reachable": true,
+      "auth": true,
+      "batch_mode": true,
+      "remote_user": "admin",
+      "hostname": "db1.example.com",
+      "kernel": "Linux 5.14.0-427.13.1.el9_4.x86_64",
+      "os": "Rocky Linux 9.4 (Blue Onyx)"
+    }
+  }
+}

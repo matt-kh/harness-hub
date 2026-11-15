@@ -1,0 +1,4 @@
+# exit=2
+# stderr:
+hostkey: host key not verified: Host key verification failed. — compare the fingerprint and add the known_hosts entry yourself; never disable the check
+# stdout:

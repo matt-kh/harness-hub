@@ -4,3 +4,4 @@
 prod_re = "(^|[-_./:])(prod|production)([-_./:]|$)"
 inventory = ""
 ssh_timeout = 10
+redact_extra_re = ""

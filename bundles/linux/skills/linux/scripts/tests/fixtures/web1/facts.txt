@@ -1,0 +1,30 @@
+@@lxcmd facts
+@@lx os
+PRETTY_NAME="Ubuntu 24.04.1 LTS"
+NAME="Ubuntu"
+VERSION_ID="24.04"
+VERSION="24.04.1 LTS (Noble Numbat)"
+VERSION_CODENAME=noble
+ID=ubuntu
+ID_LIKE=debian
+HOME_URL="https://www.ubuntu.com/"
+@@lx kernel
+Linux 6.8.0-45-generic x86_64
+@@lx hostname
+web1.example.com
+@@lx uptime
+1234567.89 2345678.90
+@@lx cpu
+4
+model name	: Intel(R) Xeon(R) Gold 6338 CPU @ 2.00GHz
+@@lx mem
+MemTotal:        8131540 kB
+SwapTotal:       2097148 kB
+@@lx virt
+kvm
+@@lx init
+systemd
+@@lx timezone
+Etc/UTC
+@@lx pve
+@@lx nixos

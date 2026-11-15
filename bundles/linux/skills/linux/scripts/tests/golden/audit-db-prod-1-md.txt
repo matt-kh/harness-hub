@@ -1,0 +1,84 @@
+# exit=1
+# stderr:
+host=db-prod-1 os=rocky 9.4 [PROD]
+# stdout:
+# lx audit — db-prod-1 [PROD]
+
+os: rocky 9.4
+
+## Findings (10)
+
+| sev | kind | name | message |
+|---|---|---|---|
+| crit | sshd | PermitRootLogin | root may log in (any method) — set `PermitRootLogin no` in the host's sshd config (infra repo) |
+| warn | port | tcp/111 | rpcbind listening on all interfaces |
+| warn | sshd | PasswordAuthentication | password logins enabled — keys only |
+| warn | sudoers | /etc/sudoers | readable by this non-root login (mode 440 root:root; only root should read it) |
+| warn | updates | db-prod-1 | dnf-automatic timer not enabled |
+| info | perms | /usr | 28 SUID file(s) — compare with a known-good host of the same release |
+| info | port | db-prod-1 | listening on all interfaces: 2222, 5432 — confirm each is meant to be reachable |
+| info | sshd | MaxAuthTries | MaxAuthTries 10 (default 6) |
+| info | sudoers | db-prod-1 | 2 NOPASSWD rule(s) |
+| info | updates | db-prod-1 | 37 update(s) pending |
+
+## sshd
+
+| key | value |
+|---|---|
+| port | 2222 |
+| permitrootlogin | yes |
+| pubkeyauthentication | yes |
+| passwordauthentication | yes |
+| kbdinteractiveauthentication | no |
+| permitemptypasswords | no |
+| x11forwarding | no |
+| allowtcpforwarding | yes |
+| allowagentforwarding | yes |
+| maxauthtries | 10 |
+| authenticationmethods | any |
+| source | sshd -T |
+
+## listening
+
+| proto | address | port | scope |
+|---|---|---|---|
+| tcp | 0.0.0.0 | 2222 | all |
+| tcp | 0.0.0.0 | 5432 | all |
+| tcp | 0.0.0.0 | 111 | all |
+| tcp | [::] | 2222 | all |
+| tcp | [::] | 5432 | all |
+| udp | 127.0.0.1 | 323 | loopback |
+
+## sudo
+
+| key | value |
+|---|---|
+| login_uid | 1001 |
+| sudoers_mode | 440 root:root |
+| sudoers_readable | yes |
+| sudoers_d_entries | 3 |
+| nopasswd_rules | 2 |
+| login_admin_groups | ["wheel"] |
+
+## updates
+
+| key | value |
+|---|---|
+| package_manager | dnf |
+| upgradable | 37 |
+| security | 0 |
+
+## auto_updates
+
+| key | value |
+|---|---|
+| enabled_units | [] |
+| dnf_automatic | apply_updates = no |
+| on | no |
+
+## files
+
+| key | value |
+|---|---|
+| suid_in_usr | 28 |
+| world_writable_in_etc | [] |

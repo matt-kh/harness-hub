@@ -1,0 +1,4 @@
+# exit=2
+# stderr:
+'deploy@web1' is not a host alias (letters, digits, `._-`; no user@ or options) — run `lx hosts`
+# stdout:

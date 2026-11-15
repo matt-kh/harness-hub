@@ -1,0 +1,79 @@
+# exit=1
+# stderr:
+host=db-prod-1 os=rocky 9.4 [PROD]
+# stdout:
+# lx storage — db-prod-1 [PROD]
+
+os: rocky 9.4
+
+## Findings (4)
+
+| sev | kind | name | message |
+|---|---|---|---|
+| crit | raid | md0 | degraded [_U] |
+| warn | lvm | data/pool | thin pool 92.4% full |
+| info | raid | md0 | recovery at 8.5% |
+| info | smart | sda,sdb,sdc | SMART needs root (for the human: sudo smartctl -H /dev/sda) |
+
+## devices
+
+| name | type | size | fstype | mountpoint | ro | rota | model |
+|---|---|---|---|---|---|---|---|
+| sda | disk | 80G |  |  | no | no | Virtual disk |
+| sda1 | part | 1G | xfs | /boot | no | no |  |
+| sda2 | part | 79G | LVM2_member |  | no | no |  |
+| rl-root | lvm | 70G | xfs | / | no | no |  |
+| sdb | disk | 500G | linux_raid_member |  | no | yes | ST500DM002 |
+| sdc | disk | 500G | linux_raid_member |  | no | yes | ST500DM002 |
+| md0 | raid1 | 500G | LVM2_member |  | no | yes |  |
+| data-pg | lvm | 500G | xfs | /var/lib/pgsql | no | yes |  |
+
+## mounts
+
+| target | source | fstype | ro |
+|---|---|---|---|
+| / | /dev/mapper/rl-root | xfs | no |
+| /boot | /dev/sda1 | xfs | no |
+| /var/lib/pgsql | /dev/mapper/data-pg | xfs | no |
+
+## disks
+
+| mount | fs | type | size | used | avail | use% |
+|---|---|---|---|---|---|---|
+| / | /dev/mapper/rl-root | xfs | 70.0G | 11.8G | 58.2G | 17 |
+| /boot | /dev/sda1 | xfs | 1014.0M | 337.6M | 676.4M | 34 |
+| /var/lib/pgsql | /dev/mapper/data-pg | xfs | 500.0G | 300.0G | 200.0G | 60 |
+
+## lvm_volumes
+
+| lv | vg | attr | size | data% | pool |
+|---|---|---|---|---|---|
+| root | rl | -wi-ao---- | 70.00g |  |  |
+| swap | rl | -wi-a----- | 8.00g |  |  |
+| pool | data | twi-aotz-- | 490.00g | 92.40 |  |
+| pg | data | Vwi-aotz-- | 500.00g | 58.10 | pool |
+
+## lvm_groups
+
+| vg | pvs | lvs | size | free |
+|---|---|---|---|---|
+| data | 1 | 2 | 499.98g | 9.98g |
+| rl | 1 | 2 | 79.00g | 1.00g |
+
+## zfs
+
+_none_
+
+## md_raid
+
+| array | state | level | members | status |
+|---|---|---|---|---|
+| md0 | active | raid1 | sdc[1] sdb[0](F) | _U recovery 8.5% |
+
+## smart
+
+| device | health |
+|---|---|
+| sda | needs root |
+| sdb | needs root |
+| sdc | needs root |

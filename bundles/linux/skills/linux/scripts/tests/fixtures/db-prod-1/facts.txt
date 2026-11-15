@@ -1,0 +1,29 @@
+@@lxcmd facts
+@@lx os
+NAME="Rocky Linux"
+VERSION="9.4 (Blue Onyx)"
+ID="rocky"
+ID_LIKE="rhel centos fedora"
+VERSION_ID="9.4"
+PLATFORM_ID="platform:el9"
+PRETTY_NAME="Rocky Linux 9.4 (Blue Onyx)"
+@@lx kernel
+Linux 5.14.0-427.13.1.el9_4.x86_64 x86_64
+@@lx hostname
+db1.example.com
+@@lx uptime
+86520.00 600000.00
+@@lx cpu
+16
+model name	: AMD EPYC 7313 16-Core Processor
+@@lx mem
+MemTotal:       65536000 kB
+SwapTotal:             0 kB
+@@lx virt
+none
+@@lx init
+systemd
+@@lx timezone
+UTC
+@@lx pve
+@@lx nixos

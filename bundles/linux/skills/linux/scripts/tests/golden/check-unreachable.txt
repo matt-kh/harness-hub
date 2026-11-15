@@ -1,0 +1,19 @@
+# exit=2
+# stderr:
+host=unreachable os=?
+# stdout:
+# lx check — unreachable
+
+## Findings (1)
+
+| sev | kind | name | message |
+|---|---|---|---|
+| crit | access | unreachable | unreachable: unreachable: ssh: connect to host 192.0.2.99 port 22: Connection timed out |
+
+## check
+
+| key | value |
+|---|---|
+| reachable | no |
+| auth | no |
+| error | unreachable: unreachable: ssh: connect to host 192.0.2.99 port 22: Connection timed out |
