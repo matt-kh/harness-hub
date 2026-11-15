@@ -659,3 +659,37 @@ class RepoBundlesTest(LintRuleCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ProvidesBinTest(LintRuleCase):
+    """[provides] bin: the target exists and is executable, or the ~/.local/bin link fails."""
+
+    def bin_bundle(self, mode):
+        path = os.path.join(self.tmp, "bundles", "binx")
+        os.makedirs(os.path.join(path, "scripts"))
+        target = os.path.join(path, "scripts", "tool.py")
+        self.write(target, "#!/usr/bin/env python3\n")
+        os.chmod(target, mode)
+        return M.Bundle(path, {"bundle": {"name": "binx"}, "provides": {"bin": ["scripts/tool.py"]}}, "public")
+
+    def test_executable_target_passes(self):
+        rep = self.run_rule(L.lint_bins, self.bin_bundle(0o755))
+        self.assertEqual((rep.errors, rep.warnings), ([], []))
+
+    def test_non_executable_target_is_an_error(self):
+        rep = self.run_rule(L.lint_bins, self.bin_bundle(0o644))
+        self.assertEqual(len(rep.errors), 1, rep.errors)
+        self.assertIn("provides bin tool -> scripts/tool.py which is not executable", rep.errors[0])
+        self.assertIn("git update-index --chmod=+x bundles/binx/scripts/tool.py", rep.errors[0])
+
+    def test_missing_target_is_an_error(self):
+        b = self.bin_bundle(0o755)
+        os.remove(b.rel("scripts/tool.py"))
+        rep = self.run_rule(L.lint_bins, b)
+        self.assertEqual(rep.errors, ["binx: provides bin tool -> scripts/tool.py which does not exist"])
+
+    def test_hub_bundles_are_clean(self):
+        for name in sorted(os.listdir(os.path.join(REPO, "bundles"))):
+            if os.path.isfile(os.path.join(REPO, "bundles", name, "bundle.toml")):
+                rep = self.run_rule(L.lint_bins, M.load_bundle(os.path.join(REPO, "bundles", name), "public"))
+                self.assertEqual(rep.errors, [], name)
