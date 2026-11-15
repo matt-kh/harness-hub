@@ -85,7 +85,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | [`gitlab/guard.d/50-gitlab`](reference/hook-policy.md) | sensor | scm | deny 5 · ask 10 · allow 3 | declaration | API writes, merges/approvals, stacked MR targets, label-gated edits; MR creates with --fill or --related-issue, or a -t title not matching gitlab.mr_title_re, ask |
 | [`github/guard.d/60-github`](reference/hook-policy.md) | sensor | scm | deny 6 · ask 8 · allow 3 | declaration | token printing, API writes, merges/reviews, provenance labels, stacked PR targets; PR creates with --fill* or a -t title matching github.pr_title_forbid_re ask |
 | [`stack/guard.d/65-stack`](reference/hook-policy.md) | sensor | scm | ask 1 · allow 1 | declaration | stk sync --include-human asks; a sole stk sync allows |
-| [`jira/guard.d/70-jira`](reference/hook-policy.md) | sensor | tracker | deny 3 · ask 1 · allow 4 | declaration | label-gated writes, provenance label on create, transitions denied on human tickets |
+| [`jira/guard.d/70-jira`](reference/hook-policy.md) | sensor | tracker | deny 5 · ask 5 · allow 4 | declaration | label-gated writes, provenance label on create, human-ticket transitions ask, subagent transitions denied |
 | [`ticket-workflow/guard.d/75-ticket-workflow`](reference/hook-policy.md) | sensor | delivery | ask 4 | declaration | key-free branches and subjects, sub worktree paths, squash delivery |
 | [`gdoc/guard.d/80-gdoc`](reference/hook-policy.md) | sensor | workspace | deny 1 · ask 2 · allow 2 | declaration | GET-only api, provenance check before writes, ask on mark and mail send |
 

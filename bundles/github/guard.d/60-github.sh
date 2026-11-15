@@ -18,7 +18,7 @@
 # rule: gh pr close|reopen|ready, gh issue close|reopen on a human ref -> ask : PR/issue state is a human decision; run it only on the user's explicit request (they confirm it), or ask the user instead
 # rule: gh pr close|reopen|ready, gh issue close|reopen from a subagent -> deny : a subagent never changes PR/issue state; hand the command back to the main thread
 # repo-override: WORK_TICKET_BASE_BRANCH_RE = "^(master|main)$" -> default/base branches: pushes to them deny, sub MRs/PRs never target them
-# repo-override: WORK_TICKET_ALLOW_TRANSITION = "" -> =1: a state change (transition, close, reopen) on a purely human ticket or issue asks instead of denying
+# repo-override: WORK_TICKET_ALLOW_TRANSITION = "" -> deprecated, no effect since #67: a state change on a human ticket or issue asks on the main thread (and is denied in a subagent) with or without it; remove it
 # repo-override: WORK_TICKET_LABELED_DECISION = "allow" -> allow|ask: the decision for writes to agent-labelled tickets, issues, MRs and PRs
 # never-yields: prints the developer's stored credential (principle 8 exemption; runs even when the repository owns scm)
 # rule: gh auth token | gh auth status --show-token | gh config get oauth_token -> deny : prints the token; run plain 'gh auth status' instead

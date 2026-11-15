@@ -14,8 +14,8 @@
 # Decisions (JSON permissionDecision):
 #   ask   — escalate to an explicit user confirmation
 #   allow — promptless: creates, labelling with agent-* labels, and EVERY write (incl.
-#           transitions) to tickets / MRs that already carry any agent-* label
-#   deny  — hard block (ticket state changes, closing keywords, unlabelled creates,
+#           transitions on the main thread) to tickets / MRs that already carry any agent-* label
+#   deny  — hard block (uncheckable ticket transitions, closing keywords, unlabelled creates,
 #           stacked-delivery violations: a -sub- MR aimed at master|main, and every human
 #           decision — merge, approve, PR/MR/issue state, raw API writes — from a subagent)
 # Governance model (Jira + GitLab): guards apply ONLY to existing tickets/MRs that are purely
@@ -93,8 +93,9 @@
 #                                   target them and pushes to them deny
 #   WORK_TICKET_ALLOW_DEFAULT_PUSH_RE  regex on the repo top-level path; when it matches, a push
 #                                   to a default branch asks instead of denying (personal repos)
-#   WORK_TICKET_ALLOW_TRANSITION=1  jira transition on a purely human ticket asks instead of
-#                                   denying (repos whose own workflow transitions tickets)
+#   WORK_TICKET_ALLOW_TRANSITION    deprecated, no effect since #67 (still allow-listed so a set
+#                                   value is not reported as unknown): a state change on a human
+#                                   ticket or issue asks on the main thread with or without it
 #   WORK_TICKET_KEY_IN_BRANCH=1     the repo puts ticket keys in branch names/commit subjects:
 #                                   section 75 (ticket-workflow) then lets key-named branches and
 #                                   key-prefixed subjects pass instead of asking
@@ -512,7 +513,6 @@ AGENT_LABEL_RE="${WORK_TICKET_AGENT_LABEL_RE:-^agent-}"        # any agent-* lab
 LABELED_DECISION="${WORK_TICKET_LABELED_DECISION:-allow}"
 BASE_BRANCH_RE="${WORK_TICKET_BASE_BRANCH_RE:-^(master|main)$}"   # sub MRs must never target these
 ALLOW_DEFAULT_PUSH_RE="${WORK_TICKET_ALLOW_DEFAULT_PUSH_RE:-}"   # repo top-level paths where a default-branch push asks
-ALLOW_TRANSITION="${WORK_TICKET_ALLOW_TRANSITION:-}"            # =1: human-ticket transition asks instead of deny
 # shellcheck disable=SC2034  # read by section 75 (ticket-workflow) when that bundle is active
 KEY_IN_BRANCH="${WORK_TICKET_KEY_IN_BRANCH:-}"                  # =1: key-named branches / key-prefixed subjects pass
 KEY_RE='[A-Z][A-Z0-9_]*-[0-9]+'

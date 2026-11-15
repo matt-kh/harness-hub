@@ -69,8 +69,6 @@ components = ["core/guard.d/30-git"]
 [overrides]
 # Allow-listed WORK_TICKET_* guard settings only (docs/reference/hook-policy.md#repo-overrides).
 # A provider env override of the same name (.claude/settings.json "env") wins per key.
-# transitions on human tickets ask instead of deny
-WORK_TICKET_ALLOW_TRANSITION = "1"
 # this repo puts ticket keys in branch names
 WORK_TICKET_KEY_IN_BRANCH = "1"
 # allow | ask for writes to agent-labelled artefacts
@@ -135,7 +133,7 @@ Verified against the Claude Code documentation, 2026-10.
 | sub-agents | project `.claude/agents` wins on a name collision | your agent runs | ship an agent of the same name |
 | hooks | all scopes run; the most restrictive decision wins (deny > defer > ask > allow) | your hook cannot lift a hub deny | declare `[owns]`: the hub's guard yields from inside; `disableAllHooks: true` switches off every user hook (not recommended; `harness repo` warns) |
 | permissions | lists merge; a deny at any scope wins | you can add, not remove | nothing to do (the credential `Read(...)` denies stay) |
-| `env` | ordinary settings key; project overrides user per key; reaches hook commands | per-key overrides | `"env": {"WORK_TICKET_ALLOW_TRANSITION": "1"}` wins over `.harness.toml` |
+| `env` | ordinary settings key; project overrides user per key; reaches hook commands | per-key overrides | `"env": {"WORK_TICKET_KEY_IN_BRANCH": "1"}` wins over `.harness.toml` |
 
 The `skillOverrides` snippet, as `harness repo` prints it for a repository that ships its own
 ticket workflow, goes into the repository's `.claude/settings.json`:
@@ -169,16 +167,16 @@ the list in front of you; the [hook policy](reference/hook-policy.md) shows each
   review asks, the PR/MR and issue close/reopen/ready asks (GitHub issues live in `60-github`),
   and the subagent denies of all of these.
 - **`tracker`** (`jira/guard.d/70-jira`, `gitlab/guard.d/40-gitlab-closing`,
-  `github/guard.d/41-github-closing`): the Jira transition deny, the label gate and the
-  provenance-label rule on creates, and the closing-keyword denies.
+  `github/guard.d/41-github-closing`): the Jira transition ask (and its subagent deny), the
+  label gate and the provenance-label rule on creates, and the closing-keyword denies.
 - **`kubernetes`** (`k8s/guard.d/25-k8s-rules`): the mutation and exec-class asks, the
   `helm get values` ask, the Secret-value deny (`kubectl get secret … -o yaml`) and the
   kubeconfig-mutation denies (`kubectl config use-context`, `set-*`).
 - **`workspace`** (`gdoc/guard.d/80-gdoc`): the Drive provenance gate and the mail-send ask.
 
-To keep one of them, own single components instead of the domain, or set an override
-(`WORK_TICKET_ALLOW_TRANSITION = "1"` turns the transition deny into an ask and keeps the rest
-of `tracker`).
+To keep one of them, own single components instead of the domain. (`WORK_TICKET_ALLOW_TRANSITION`
+is a deprecated no-op since #67: a transition on a human ticket asks on the main thread
+without it.)
 
 ## The credential exemption
 

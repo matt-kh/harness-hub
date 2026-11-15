@@ -90,10 +90,16 @@ marks the developer's own credentials and the ask on writing `.harness.toml`.
 | 70-jira.sh | jira | `jira set KEY issuelinks \| create --field issuelinks=` | deny | use the governed link commands | owns tracker |
 | 70-jira.sh | jira | `jira link A TYPE B (both agent-labelled, type in HARNESS_JIRA_LINK_TYPES_RE)` | allow | otherwise deny | owns tracker |
 | 70-jira.sh | jira | `jira create without a provenance label (agent-drafted\|agent-created)` | deny | every agent-created ticket is labelled; use labels agent-drafted (or agent-created) instead | owns tracker |
+| 70-jira.sh | jira | `jira create with more than one --field labels` | deny | the last one wins in Jira; pass a single --field labels='["agent-drafted"]' instead | owns tracker |
 | 70-jira.sh | jira | `jira create with a provenance label` | allow | creates are promptless | owns tracker |
 | 70-jira.sh | jira | `jira label KEY add agent-*` | allow | governance labelling is free | owns tracker |
-| 70-jira.sh | jira | `jira set\|comment\|upload\|label\|transition KEY on agent-labelled tickets` | allow | promptless | owns tracker |
-| 70-jira.sh | jira | `jira transition KEY on a human ticket` | deny | ticket state is human-only (ask under WORK_TICKET_ALLOW_TRANSITION=1) | owns tracker |
+| 70-jira.sh | jira | `jira set\|comment\|upload\|label KEY on agent-labelled tickets` | allow | promptless (so is a state change, on the main thread) | owns tracker |
+| 70-jira.sh | jira | `jira transition KEY, jira set KEY status\|resolution on a human ticket` | ask | ticket state is a human decision; run it only on the user's explicit request (they confirm it), or ask the user to transition it in Jira instead | owns tracker |
+| 70-jira.sh | jira | `jira transition, jira set KEY status\|resolution from a subagent` | deny | a subagent never changes ticket state, on human and agent-labelled tickets alike; hand the command back to the main thread | owns tracker |
+| 70-jira.sh | jira | `jira state change without a literal key ($VAR, xargs, LBL-1/../X, none) or whose labels cannot be read` | deny | the ticket cannot be checked; type the key literally (e.g. PROJ-123), or ask the user to transition it | owns tracker |
+| 70-jira.sh | jira | `jira write whose key is not a literal PROJ-123 word` | ask | the ticket cannot be checked; use a literal key instead | owns tracker |
+| 70-jira.sh | jira | `jira hidden from the guard (quoted/escaped/ANSI-C/globbed or case-changed command words, a $VAR/$(…) subcommand, jira fed by xargs, alias, a variable or $(which jira), or a jira call written anywhere outside a known data position)` | ask | the subcommand cannot be checked; write it literally and unquoted instead (a subagent is denied unless it is a known non-state write) | owns tracker |
+| 70-jira.sh | jira | `jira guard scanner failure (python3 missing, broken or timed out)` | ask | the command cannot be checked; ask the user to run it, or fix python3 (a subagent is denied) | owns tracker |
 | 70-jira.sh | jira | `jira writes to human tickets` | ask | need an explicit user request; ask the user, or label the ticket agent-worked first | owns tracker |
 | 75-ticket-workflow.sh | ticket-workflow | `git switch -c\|checkout -b\|branch\|worktree add -b NAME with a ticket key or #N in NAME` | ask | keys live on the MR/PR, not the branch; use a <short-name> branch instead (repos opt in with WORK_TICKET_KEY_IN_BRANCH=1) | owns delivery |
 | 75-ticket-workflow.sh | ticket-workflow | `git commit whose first -m/--message starts with a ticket key` | ask | mention the key in the body or MR instead (WORK_TICKET_KEY_IN_BRANCH=1 passes) | owns delivery |
@@ -124,7 +130,7 @@ closing-keyword denies ([what owning a domain lifts](../repo-level.md#what-ownin
 | name | default | effect | honoured by | set from |
 |---|---|---|---|---|
 | `WORK_TICKET_ALLOW_DEFAULT_PUSH_RE` | (empty) | regex on the repo top level; there a default-branch push asks instead of denying (personal repos) | `core/guard.d/30-git` | `.harness.toml` `[overrides]` · provider env (wins) · `guard.env` ← `gitlab.personal_repo_re` |
-| `WORK_TICKET_ALLOW_TRANSITION` | (empty) | =1: a state change (transition, close, reopen) on a purely human ticket or issue asks instead of denying | `github/guard.d/60-github`, `jira/guard.d/70-jira` | `.harness.toml` `[overrides]` · provider env (wins) |
+| `WORK_TICKET_ALLOW_TRANSITION` | (empty) | deprecated, no effect since #67: a state change on a human ticket or issue asks on the main thread (and is denied in a subagent) with or without it; remove it | `github/guard.d/60-github`, `jira/guard.d/70-jira` | `.harness.toml` `[overrides]` · provider env (wins) |
 | `WORK_TICKET_BASE_BRANCH_RE` | `^(master\|main)$` | default/base branches: pushes to them deny, sub MRs/PRs never target them | `core/guard.d/30-git`, `gitlab/guard.d/50-gitlab`, `github/guard.d/60-github` | `.harness.toml` `[overrides]` · provider env (wins) · `guard.env` ← `core.default_branch_re` |
 | `WORK_TICKET_KEY_IN_BRANCH` | (empty) | =1: the repository puts ticket keys in branch names and commit subjects; key-named branches and key-prefixed subjects pass instead of asking | `ticket-workflow/guard.d/75-ticket-workflow` | `.harness.toml` `[overrides]` · provider env (wins) |
 | `WORK_TICKET_LABELED_DECISION` | `allow` | allow\|ask: the decision for writes to agent-labelled tickets, issues, MRs and PRs | `gitlab/guard.d/50-gitlab`, `github/guard.d/60-github`, `jira/guard.d/70-jira` | `.harness.toml` `[overrides]` · provider env (wins) |

@@ -7,8 +7,8 @@ Ships the stdlib `jira` CLI and its skill (read/search/update tickets, sprints, 
 transitions, attachments, links), the read-only `mcp-atlassian` server wired with the token
 read from ~/.config/jira at launch (never stored in a provider config), and guard section 70:
 creates need a provenance label, writes to agent-labelled tickets are promptless, writes to
-human tickets ask and their transitions are denied, native links only between agent-labelled
-tickets. Jira Server / Data Center 8.x with personal access tokens; Cloud is not implemented.
+human tickets ask and so do their transitions (a subagent's transitions are denied), native
+links only between agent-labelled tickets. Jira Server / Data Center 8.x with personal access tokens; Cloud is not implemented.
 """
 depends_on = ["core"]
 recommends = ["ticket-workflow", "gitlab"]
@@ -211,7 +211,7 @@ guides = [
   { kind = "permission", ref = "permissions.toml", checks = ["permissions-vs-guard"], note = "read commands allowed; writes left to the guard" },
 ]
 sensors = [
-  { kind = "guard", ref = "guard.d/70-jira.sh", note = "label-gated writes, provenance label on create, transitions denied on human tickets" },
+  { kind = "guard", ref = "guard.d/70-jira.sh", note = "label-gated writes, provenance label on create, human-ticket transitions ask, subagent transitions denied" },
   { kind = "doctor", ref = "doctor_checks", note = "CLI, token file mode, auth and uvx for the MCP server" },
   { kind = "test", ref = "guard.d/tests.sh", note = "guard rows with a stubbed jira" },
   { kind = "test", ref = "tests/run.sh", note = "this bundle's rows against core + jira only" },

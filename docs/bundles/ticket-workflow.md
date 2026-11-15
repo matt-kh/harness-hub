@@ -119,8 +119,6 @@ _none_
 In the repository's `.harness.toml` (provider-neutral, committed; `harness repo` shows the effect):
 - `[owns] domains = ["delivery"]` — this repository runs its own ticket → MR/PR workflow;
   `/work-ticket` and `/create-ticket` stop after their read-only preflight and hand over.
-- `[overrides] WORK_TICKET_ALLOW_TRANSITION = "1"` — a transition / close / reopen on a
-  human ticket asks instead of denying.
 - `[overrides] WORK_TICKET_KEY_IN_BRANCH = "1"` — the repository puts ticket keys in branch
   names and commit subjects: the guard lets key-named branches and key-prefixed subjects
   pass instead of asking.
