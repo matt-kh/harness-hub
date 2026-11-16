@@ -325,10 +325,29 @@ T_AGENT=a1 t deny  'glab issue delete 5'
 T_AGENT=a1 t deny  'glab issue del 5'
 t  ask   'glab mr delete 100'
 t  ask   'glab issue delete 5'
-# closing keywords in forms 40 does not parse (backstop in 50, yields like 40)
+# closing keywords with a repo flag before the noun or the verb, or the new alias (section 40 since #76)
 t  deny  'glab -R g/p mr update 100 --description "Closes LBL-1"'
 t  deny  'glab mr -R g/p update 100 --description "Fixes LBL-1"'
+t  deny  'glab -Rg/p mr update 100 --description "Resolves LBL-1"'
+t  deny  'glab --repo=g/p mr create -s f -b main -t "LBL-1 x" --description "Implements LBL-1"'
 t  deny  'glab mr new -s f -b main -t "LBL-1 x" --description "Closes LBL-1"'
+t  deny  'glab -R g/p api projects/1/merge_requests -f "description=Closes LBL-1"'
+T_AGENT=a1 t deny 'glab -R g/p mr update 100 --description "Closes LBL-1"'
+tr 'would let GitLab transition the Jira ticket' 'glab mr new -s f -b main -t "LBL-1 x" --description "Closes LBL-1"'
+# #76: a repository that owns scm (not tracker) skips 50 but keeps the closing-keyword deny of 40
+decl '[owns]' 'domains = ["scm"]'
+r  deny  'glab -R g/p mr update 100 --description "Closes LBL-1"'
+r  deny  'glab mr -R g/p update 100 --description "Fixes LBL-1"'
+r  deny  'glab mr new -s f -b main -t "LBL-1 x" --description "Closes LBL-1"'
+r  pass  'glab -R g/p mr update 100 --description "part of LBL-1"'
+r  deny  'glab -R g/p api projects/1/merge_requests -f "description=Closes LBL-1"'
+r  deny  'glab "mr" update 100 --description "Closes LBL-1"'  # quoted noun: 50 (which asks) is skipped, 40 denies
+r  deny  'glab mr "update" 100 --description "Closes LBL-1"'
+r  deny  'm=mr; glab $m update 100 --description "Closes LBL-1"'
+r  deny  'v=update; glab mr $v 100 --description "Closes LBL-1"'
+r  deny  'glab mr -R g/p -R g/p update 1 -d "Closes LBL-1"'     # repeated repo flag
+r  deny  'glab -R g/p --repo g/p mr update 1 -d "Closes LBL-1"'
+r  pass  'glab mr -R update; echo "Closes LBL-1"'              # a bare -R is no repo flag
 decl '[owns]' 'domains = ["tracker"]'
 r  allow 'glab -R g/p mr update 100 --description "Closes LBL-1"'
 decl
