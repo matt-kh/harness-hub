@@ -630,10 +630,20 @@ HARNESS_TICKET_TRACKERS='[{"match":"^github\\.com/other/","tracker":"jira"}]' r 
 HARNESS_TICKET_TRACKERS='[{"match":"^github\\.com/o/r$","tracker":"github-issues"},{"match":"^github\\.com/","tracker":"jira"}]' r allow 'gh pr edit 100 -b "Closes #1"'
 HARNESS_TICKET_TRACKERS='[{"match":"^github\\.com/","tracker":"jira"},{"match":"^github\\.com/o/r$","tracker":"github-issues"}]' r deny 'gh pr edit 100 -b "Closes #1"'
 HARNESS_TICKET_TRACKERS='[{"match":"o/r","tracker":"trello"}]' r deny 'gh pr edit 100 -b "Closes #1"'                     # matching entry, invalid tracker
-HARNESS_TICKET_TRACKERS='[{"tracker":"jira"},{"match":"o/r","tracker":"github-issues"}]' r allow 'gh pr edit 100 -b "Closes #1"'   # no match: skipped
-# an invalid ERE is skipped
-HARNESS_TICKET_TRACKERS='[{"match":"(","tracker":"jira"}]' r allow 'gh pr edit 100 -b "Closes #1"'
+HARNESS_TICKET_TRACKERS='[{"tracker":"jira"},{"match":"o/r","tracker":"github-issues"}]' r deny 'gh pr edit 100 -b "Closes #1"'    # no match: invalid entry (review W2)
+HARNESS_TICKET_TRACKERS='[{"match":"","tracker":"jira"}]' r deny 'gh pr edit 100 -b "Closes #1"'
+# an invalid ERE denies (stricter than rf_tracker, which skips it: a mistyped jira entry must not allow; review W2)
+HARNESS_TICKET_TRACKERS='[{"match":"(","tracker":"jira"}]' r deny 'gh pr edit 100 -b "Closes #1"'
 HARNESS_TICKET_TRACKERS='[{"match":"(","tracker":"github-issues"},{"match":"o/r","tracker":"jira"}]' r deny 'gh pr edit 100 -b "Closes #1"'
+HARNESS_TICKET_TRACKERS='[{"match":"^github\\.com/o/r$","tracker":"github-issues"},{"match":"(","tracker":"jira"}]' r allow 'gh pr edit 100 -b "Closes #1"'   # an earlier match decides first
+HARNESS_TICKET_TRACKERS='[{"match":"(","tracker":"jira"}]' T_CWD=$rpd tr 'match is empty or not a valid ERE; fix it in harness.toml \(harness doctor' 'gh pr edit 100 -b "Closes #1"'
+# a NUL inside match or tracker would shift the fields (review S1); several JSON documents in one value (review S2)
+HARNESS_TICKET_TRACKERS='[{"match":"^x\u0000github-issues\u0000.*","tracker":"jira"}]' r deny 'gh pr edit 100 -b "Closes #1"'
+HARNESS_TICKET_TRACKERS='[{"match":"o/r","tracker":"github-issues\u0000"}]' r deny 'gh pr edit 100 -b "Closes #1"'
+HARNESS_TICKET_TRACKERS='[{"match":"o/r","tracker":7}]' r deny 'gh pr edit 100 -b "Closes #1"'
+HARNESS_TICKET_TRACKERS='[] [{"match":"o/r","tracker":"jira"}]' r deny 'gh pr edit 100 -b "Closes #1"'
+HARNESS_TICKET_TRACKERS='[{"match":"o/r","tracker":"github-issues"}] []' r deny 'gh pr edit 100 -b "Closes #1"'
+HARNESS_TICKET_TRACKERS='[{"match":"o/r","tracker":"github-issues"}]' r allow 'gh pr edit 100 -b "Closes #1"'
 # a malformed HARNESS_TICKET_TRACKERS denies
 HARNESS_TICKET_TRACKERS='not json' r deny 'gh pr edit 100 -b "Closes #1"'
 HARNESS_TICKET_TRACKERS='{"match":"o/r","tracker":"github-issues"}' r deny 'gh pr edit 100 -b "Closes #1"'
@@ -655,8 +665,64 @@ HARNESS_TICKET_TRACKERS='[{"match":"^github\\.com/o/","tracker":"jira"}]' T_CWD=
 # the rendered guard.env carries the trackers (single-quoted one-line JSON)
 genv=$(mktemp); printf '%s\n' "HARNESS_TICKET_TRACKERS='[{\"match\":\"^github\\\\.com/o/\",\"tracker\":\"jira\"}]'" > "$genv"
 HARNESS_GUARD_ENV=$genv r deny 'gh pr edit 100 -b "Closes #1"'
-HARNESS_GUARD_ENV=$genv HARNESS_TICKET_TRACKERS='[]' r allow 'gh pr edit 100 -b "Closes #1"'   # the environment wins over guard.env
+# the environment cannot undo guard.env's list: both are checked (review W1)
+HARNESS_GUARD_ENV=$genv HARNESS_TICKET_TRACKERS='[]' r deny 'gh pr edit 100 -b "Closes #1"'
+HARNESS_GUARD_ENV=$genv HARNESS_TICKET_TRACKERS='' r deny 'gh pr edit 100 -b "Closes #1"'
+HARNESS_GUARD_ENV=$genv HARNESS_TICKET_TRACKERS='[{"match":"^github\\.com/o/r$","tracker":"github-issues"}]' r deny 'gh pr edit 100 -b "Closes #1"'
+HN_GENV_TICKET_TRACKERS='[{"match":"o/r","tracker":"jira"}]' r allow 'gh pr edit 100 -b "Closes #1"'   # engine.sh initialises it: not injectable from the environment
+printf '%s\n' "HARNESS_TICKET_TRACKERS='[{\"match\":\"^github\\\\.com/o/r\$\",\"tracker\":\"github-issues\"}]'" > "$genv"
+HARNESS_GUARD_ENV=$genv r allow 'gh pr edit 100 -b "Closes #1"'
+HARNESS_GUARD_ENV=$genv HARNESS_TICKET_TRACKERS='[{"match":"o/r","tracker":"jira"}]' r deny 'gh pr edit 100 -b "Closes #1"'   # the environment may only add a deny
+HARNESS_GUARD_ENV=$genv HARNESS_TICKET_TRACKERS='[]' r allow 'gh pr edit 100 -b "Closes #1"'
+printf '%s\n' "HARNESS_TICKET_TRACKERS='not json'" > "$genv"
+HARNESS_GUARD_ENV=$genv HARNESS_TICKET_TRACKERS='[]' r deny 'gh pr edit 100 -b "Closes #1"'                # a malformed guard.env list denies
 rm -f "$genv"
+# the remote id must be exactly github.com/<owner>/<repo> (review S3)
+GIT_STUB_REMOTE=https://github.com/o/r.git.git r deny 'gh pr edit 100 -b "Closes #1"'
+GIT_STUB_REMOTE=https://github.com/o/r/extra r deny 'gh pr edit 100 -b "Closes #1"'
+GIT_STUB_REMOTE=https://github.com/o/r.git.git T_CWD=$rpd tr 'no github.com/<owner>/<repo> origin remote' 'gh pr edit 100 -b "Closes #1"'
+GIT_STUB_REMOTE=https://github.com/O/R.git r allow 'gh pr edit 100 -b "Closes #1"'               # owner/repo compare case-insensitively
+# a .harness.toml tracker the guard cannot read denies; a [repo] table without one falls through (review C1)
+decl '[repo]' 'tracker = "jira"  # our Jira'
+r deny  'gh pr edit 100 -b "Closes #1"'
+T_CWD=$rpd tr 'declares a tracker the guard cannot read .* write one plain line tracker = "github-issues" or tracker = "jira" under \[repo\], without a trailing comment' 'gh pr edit 100 -b "Closes #1"'
+decl 'repo.tracker = "jira"'
+r deny  'gh pr edit 100 -b "Closes #1"'
+decl 'repo . "tracker" = "jira"'
+r deny  'gh pr edit 100 -b "Closes #1"'
+decl 'repo = { tracker = "jira" }'
+r deny  'gh pr edit 100 -b "Closes #1"'
+decl '[repo] # tracker' 'tracker = "jira"'
+r deny  'gh pr edit 100 -b "Closes #1"'
+decl '[repo]' '"tracker" = "jira"'
+r deny  'gh pr edit 100 -b "Closes #1"'
+decl '[repo]' "tracker = 'jira' # x"
+r deny  'gh pr edit 100 -b "Closes #1"'
+decl '[repo]' 'tracker = """jira"""'
+r deny  'gh pr edit 100 -b "Closes #1"'
+decl '[repo]' 'tracker = ["jira"]'
+r deny  'gh pr edit 100 -b "Closes #1"'
+decl '[repo]' 'tracker = "github-issues"' 'tracker = "jira"'
+r deny  'gh pr edit 100 -b "Closes #1"'                                         # more than one tracker line
+decl '[repo]' 'tracker = "github-issues"  # ours'
+r deny  'gh pr edit 100 -b "Closes #1"'                                         # unreadable even when it names github-issues
+decl '[other]' 'tracker = "jira"'
+r deny  'gh pr edit 100 -b "Closes #1"'                                         # a tracker line outside [repo]: conservative
+decl '[repo]' 'project = "PROJ"'
+r allow 'gh pr edit 100 -b "Closes #1"'                                         # [repo] without a tracker: config and host decide
+decl '[repo] # the declaration' 'project = "PROJ"'
+r allow 'gh pr edit 100 -b "Closes #1"'
+decl '[owns]' 'components = []' '# tracker = "jira"'
+r allow 'gh pr edit 100 -b "Closes #1"'                                         # a commented-out line declares nothing
+decl '[repo]' "tracker = 'github-issues'"
+r allow 'gh pr edit 100 -b "Closes #1"'                                         # single-quoted plain line is readable
+big=(); _bi=0; while [ "$_bi" -lt 401 ]; do big+=("# filler $_bi"); _bi=$((_bi+1)); done
+decl '[repo]' 'tracker = "jira"' "${big[@]}"
+r deny  'gh pr edit 100 -b "Closes #1"'                                         # a file the engine ignores (over 400 lines) still denies
+decl '[repo]' 'tracker = "github-issues"' "${big[@]}"
+r deny  'gh pr edit 100 -b "Closes #1"'
+unset big _bi
+decl
 # a declaration beats config and host
 decl '[repo]' 'tracker = "jira"'
 r deny  'gh pr edit 100 -b "Closes #1"'                                         # jira declared on github.com
@@ -683,5 +749,19 @@ GIT_STUB_LOG=$gsl GH_STUB_LOG=$hsl r pass 'git commit -m "see #1"'; lk 0 0
 GIT_STUB_LOG=$gsl GH_STUB_LOG=$hsl r allow 'gh pr edit 100 -b "Closes #1"'; lk 1 1
 decl '[repo]' 'tracker = "jira"'
 GIT_STUB_LOG=$gsl GH_STUB_LOG=$hsl r deny 'gh pr edit 100 -b "Closes #1"'; lk 0 0      # a declared jira denies before any lookup
+decl 'repo.tracker = "jira"'
+GIT_STUB_LOG=$gsl GH_STUB_LOG=$hsl r deny 'gh pr edit 100 -b "Closes #1"'; lk 0 0      # so does an unreadable one
 decl
 rm -f "$gsl" "$hsl"
+# 41 inlines rf_remote_id's normalisation (ticket-workflow repo-facts.sh) between rf_remote_norm
+# markers: the copies must match byte for byte, so this bundle's own run catches drift (review S5;
+# bundles/ticket-workflow/tests/run.sh checks the same)
+rfn() { sed -n '/^# >>> rf_remote_norm/,/^# <<< rf_remote_norm$/p' "$1"; }
+_hub=$(cd "$GUARD_TESTS_DIR/../../.." && pwd)
+_rf="$_hub/ticket-workflow/skills/work-ticket/scripts/lib/repo-facts.sh"; _g41="$_hub/github/guard.d/41-github-closing.sh"
+if [ -f "$_rf" ] && [ -n "$(rfn "$_rf")" ] && [ "$(rfn "$_rf")" = "$(rfn "$_g41")" ]; then
+  pass=$((pass+1)); echo "PASS rf_remote_norm: 41-github-closing.sh matches repo-facts.sh"
+else
+  fail=$((fail+1)); echo "FAIL rf_remote_norm: the block in $_g41 differs from $_rf (or one is missing); copy it over from repo-facts.sh"
+fi
+unset _hub _rf _g41

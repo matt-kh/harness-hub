@@ -123,7 +123,9 @@
 #                                   a repository without a .harness.toml [repo] tracker from the
 #                                   first entry whose match (ERE) hits its origin remote id, else
 #                                   from the host (github.com -> github-issues); unset or empty =
-#                                   no entries, malformed = deny
+#                                   no entries, malformed or an invalid match ERE = deny. guard.env's
+#                                   list is kept apart (HN_GENV_TICKET_TRACKERS) and checked too:
+#                                   the environment cannot undo a jira entry of the user's config
 #   HARNESS_GUARD_ENV               path of the env file parsed at start (default <hooks dir>/guard.env)
 #   GUARD_KUBECTL / GUARD_GIT       kubectl / git binaries the hook shells out to (tests: stubs)
 #   K8S_PROD_RE                     regex marking prod contexts/namespaces (same as the k8s CLI)
@@ -183,6 +185,8 @@ _ge="${HARNESS_GUARD_ENV:-$GUARD_DIR/guard.env}"
 _genv_keys=""
 # shellcheck disable=SC2034  # read by section 41 (github): guard.env's github.close_issue_on_merge
 HN_GENV_CLOSE_ON_MERGE=""
+# shellcheck disable=SC2034  # read by section 41 (github): guard.env's ticket_workflow.trackers
+HN_GENV_TICKET_TRACKERS=""
 if [ -r "$_ge" ]; then
   while IFS= read -r _gl || [ -n "$_gl" ]; do
     case "$_gl" in ''|'#'*) continue ;; esac
@@ -196,6 +200,8 @@ if [ -r "$_ge" ]; then
     esac
     # an off switch in guard.env stays off even when the environment sets the key (section 41)
     [ "$_gk" != HARNESS_GITHUB_CLOSE_ISSUE_ON_MERGE ] || HN_GENV_CLOSE_ON_MERGE=$_gv
+    # the user's tracker list counts even when the environment sets its own (section 41)
+    [ "$_gk" != HARNESS_TICKET_TRACKERS ] || HN_GENV_TICKET_TRACKERS=$_gv
     [ -z "${!_gk+x}" ] || continue
     export "$_gk=$_gv"
     _genv_keys="$_genv_keys $_gk"
