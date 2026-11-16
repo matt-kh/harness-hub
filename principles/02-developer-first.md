@@ -39,7 +39,9 @@ manual step or a user-facing message.
   ticket are human decisions. An agent carries one out only when the user explicitly asks for
   it in the main thread, and the guard confirms every such call (ask). Subagents never do it:
   the guard denies when the hook input identifies a subagent caller, and falls back to ask on
-  providers that cannot identify one. Closing keywords stay denied. Without that request the
+  providers that cannot identify one. Closing keywords stay denied, with one exception: in a
+  repository whose tracker is GitHub Issues, the one PR to the default branch may close its
+  agent-worked issue, because the issue then closes only when a human merges that PR. Without that request the
   agent hands the decision back with the exact command instead of stalling. Sending mail stays
   with the human.
 
@@ -62,6 +64,7 @@ manual step or a user-facing message.
 | `plan` twice prints `0 changes`; bootstrap works in a fresh home | smoke | `tests/smoke/bootstrap.sh`, CI |
 | Guard rows cover read-only commands as `allow` or pass | test rows | `bundles/*/guard.d/tests.sh` |
 | Merge, approve, PR/MR and issue state, ticket transitions: main thread asks, subagent denied | guard rows | guard sections 50, 60, 70 rows (main ask, subagent deny) |
+| Closing keywords deny except the default-branch PR of a GitHub Issues repository closing its `agent-worked` `#N`; the PR body is read back through `closingIssuesReferences` | guard rows, golden suite | `bundles/github/guard.d/tests.sh` (section 41), `work-ticket/scripts/tests/run.sh` (`issue.close_on_merge`) |
 
 ## Tensions and how they are resolved
 
@@ -88,13 +91,16 @@ Compliant:
   has not asked for it.
 - The user writes "merge PR 12" in the main thread; the agent runs the merge and the guard
   asks the user to confirm the call.
+- In a GitHub Issues repository, `/work-ticket #12` opens the PR to the default branch with
+  `Closes #12` in its body; the issue closes when the human merges that PR.
 
 Non-compliant:
 
 - A subagent (a reviewer, a work-ticket step) merging a PR, approving an MR or transitioning
   a ticket on its own initiative, or because its brief says the user approved it.
 - An agent closing an issue because the work looks done, without the user asking.
-- A commit or PR body with a closing keyword (`Closes #N`) instead of naming the issue.
+- A commit, PR title, sub PR or issue text with a closing keyword (`Closes #N`), or one on a
+  Jira key, instead of naming the issue.
 - A deny reason "not allowed" with no alternative.
 - A rule that asks on every `git status`.
 - An `apply` step that rewrites `~/.claude/settings.json` keys the adapter does not own.

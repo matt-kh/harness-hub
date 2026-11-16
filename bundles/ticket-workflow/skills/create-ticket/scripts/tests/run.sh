@@ -30,7 +30,9 @@ for bad in bad-summary bad-component; do
   if python3 "$R" --model "$here/fixtures/$bad.json" --facts "$F" --out-dir "$tmp/$bad" --check 2>/dev/null; then echo "FAIL $bad (check should reject)"; fail=1; else echo "PASS $bad rejected"; fi
 done
 bad='bad-gh-closing'
-if python3 "$R" --model "$here/fixtures/$bad.json" --facts "$GF" --out-dir "$tmp/$bad" --check --provider github 2>/dev/null; then echo "FAIL $bad (check should reject)"; fail=1; else echo "PASS $bad rejected"; fi
+if python3 "$R" --model "$here/fixtures/$bad.json" --facts "$GF" --out-dir "$tmp/$bad" --check --provider github 2>"$tmp/$bad.err"; then echo "FAIL $bad (check should reject)"; fail=1
+elif ! grep -q "belongs only in work-ticket's PR to the default branch" "$tmp/$bad.err"; then echo "FAIL $bad (reason should point to work-ticket's default-branch PR)"; cat "$tmp/$bad.err"; fail=1
+else echo "PASS $bad rejected"; fi
 # provenance label must be present in every rendered command
 for fx in defect enhancement chore epic swtask; do
   grep -q -- "--field 'labels=\[\"agent-drafted\"" "$tmp/$fx/create.sh" || { echo "FAIL $fx: no agent-drafted label in create.sh"; fail=1; }

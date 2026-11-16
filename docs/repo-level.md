@@ -171,7 +171,9 @@ the list in front of you; the [hook policy](reference/hook-policy.md) shows each
   workflow then decides who merges and changes state.
 - **`tracker`** (`jira/guard.d/70-jira`, `gitlab/guard.d/40-gitlab-closing`,
   `github/guard.d/41-github-closing`): the Jira transition ask (and its subagent deny), the
-  label gate and the provenance-label rule on creates, and the closing-keyword denies.
+  label gate and the provenance-label rule on creates, and the closing-keyword denies (with
+  the GitHub Issues exception for the PR to the default branch: the repository's own workflow
+  then decides what its PRs close).
 - **`kubernetes`** (`k8s/guard.d/25-k8s-rules`): the mutation and exec-class asks, the
   `helm get values` ask, the Secret-value deny (`kubectl get secret … -o yaml`) and the
   kubeconfig-mutation denies (`kubectl config use-context`, `set-*`).

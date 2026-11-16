@@ -8,7 +8,7 @@
 | `.gitattributes`, `.editorconfig` | always: LF line endings, UTF-8, binary types |
 | `README.md` | always: overview from the architecture answers, development, contributing (MR/PR flow, approvals, merge method, tracker), license |
 | `.pre-commit-config.yaml` | `quality.precommit`: pre-commit-hooks (whitespace, EOF, YAML/TOML/JSON, merge conflicts, large files, private keys, LF) plus pack hooks |
-| `.gitlab/merge_request_templates/Default.md` / `.github/pull_request_template.md` | GitLab / GitHub: ticket section (Jira key or `Issue: #N`, never a closing keyword), summary, testing, checklist |
+| `.gitlab/merge_request_templates/Default.md` / `.github/pull_request_template.md` | GitLab / GitHub: ticket section (Jira key or `Issue: #N`, a mention; only `/work-ticket`'s PR to the default branch of a GitHub Issues repository may write a closing keyword before that `#N`), summary, testing, checklist |
 | `.github/ISSUE_TEMPLATE/{bug,feature,config}.yml` | tracker `github-issues` |
 | `.gitlab/CODEOWNERS` / `.github/CODEOWNERS` | code owners given |
 | `LICENSE` | MIT or proprietary |

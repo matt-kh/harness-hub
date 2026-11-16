@@ -41,8 +41,9 @@ References: `references/prompts.md` (the ONLY place questions are worded), `refe
 5. **Render only with `render-ticket.py`** (Jira wiki, never Markdown/ADF; GitHub Markdown with
    `--provider github`). Literal project/type in
    the command. Never `Closes/Fixes/Resolves KEY` in any text. This skill never creates native
-   links (`--link`) — related tickets are *mentioned*. GitHub: never close/fix/resolve + `#N`;
-   issue state (close/reopen) is the user's decision — this skill never changes it (a later
+   links (`--link`) — related tickets are *mentioned*. GitHub: never close/fix/resolve + `#N`
+   in an issue's title or body (`--check` rejects it); the one place a closing keyword may
+   appear is the PR to the default branch that `/work-ticket` opens, never an issue; issue state (close/reopen) is the user's decision — this skill never changes it (a later
    close or transition runs only on the user's explicit request in the main thread).
 6. Never read/echo token files.
 

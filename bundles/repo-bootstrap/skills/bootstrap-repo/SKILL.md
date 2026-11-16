@@ -79,7 +79,7 @@ Exit codes: 0 means done or nothing to do. 1 means a human is needed (open quest
    1. `git switch -c repo-standard`.
    2. `repoboot render`. For differing files, show the diff, then run `render --force` only for the ones the user accepts.
    3. Commit with `.repo-standard.toml` included.
-   4. Open the MR/PR with the normal governance (`agent-worked` label, no closing keywords).
+   4. Open the MR/PR with the normal governance (`agent-worked` label, no closing keywords: the retrofit MR/PR closes no ticket or issue).
 4. **Remote settings, protection and labels**: show the `remote` steps of `repoboot plan`, then run `repoboot apply` (it asks). If the CI file is not merged yet, apply the pipeline and required-check settings only after the MR/PR merges; `plan` adds a note when this applies.
 
 ## Write a pack

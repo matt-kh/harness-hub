@@ -10,7 +10,9 @@ bundles you enabled:
   parts delivered as **stacked MRs/PRs** (one per part, targeting the ticket branch, plus the
   main one); humans decide the merges, bottom-up. It never merges, transitions or closes the
   ticket on its own: it names the command, and runs one only on your explicit request in the
-  main thread (the guard asks; a subagent is denied).
+  main thread (the guard asks; a subagent is denied). On GitHub Issues the PR to the default
+  branch (the single PR, or a stack's main PR) carries `Closes #N` for the worked issue, so
+  your merge of that PR closes it (`github.close_issue_on_merge`, default on).
 - **`create-ticket`** — drafts one ticket or issue from free text, asks only for the gaps,
   renders the description deterministically, creates it with the `agent-drafted` label, reads
   it back and stops.
