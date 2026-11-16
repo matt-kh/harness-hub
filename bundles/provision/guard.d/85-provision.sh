@@ -73,7 +73,7 @@ prov_talos_tgt() {  # talosctl WORDS… -> PROV_TGT from -n/--nodes, -e/--endpoi
 if [ -n "${READER_RE:-}" ] && printf '%s' "$flat" | grep -qE '\.talos|TALOSCONFIG'; then
   while IFS= read -r pv_c; do
     [ -n "$pv_c" ] || continue
-    pv_c=$(printf '%s' "$pv_c" | sed 's/[[:space:]]/& /g')   # as core 20: \s+ cannot swallow the boundary
+    pv_c=$(printf '%s' "$pv_c" | sed 's/[[:space:]]/& /g')   # as core 20: spaces doubled so the reader regex keeps the boundary
     printf '%s' "$pv_c" | grep -qE "${READER_RE}${PROV_TALOS_RE}" \
       && deny "reading the talosconfig (~/.talos/*, \$TALOSCONFIG) exposes the Talos client key — run 'talosctl config info' or 'talosctl config contexts' instead"
   done <<EOF
