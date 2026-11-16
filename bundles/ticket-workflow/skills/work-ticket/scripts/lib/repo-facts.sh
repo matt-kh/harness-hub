@@ -153,6 +153,7 @@ rf_remote_id() {  # ROOT -> <host>/<path> of origin: no scheme, credentials, por
                   # ssh.github.com / www.github.com read as github.com
   local u h p
   u=$(git -C "${1:-}" remote get-url origin 2>/dev/null) || return 0
+# >>> rf_remote_norm (github guard.d/41-github-closing.sh inlines these lines; ticket-workflow tests/run.sh fails on drift)
   case "$u" in
     [A-Za-z]*://*) u=$(printf '%s\n' "$u" | sed -E 's#^[A-Za-z][A-Za-z0-9+.-]*://([^@/]*@)?##; s#^([^/:]*):[0-9]*#\1#') ;;
     *)             u=$(printf '%s\n' "$u" | sed -E 's#^[^@/:]*@##; s#^([^/:]+):/*#\1/#') ;;
@@ -164,6 +165,7 @@ rf_remote_id() {  # ROOT -> <host>/<path> of origin: no scheme, credentials, por
   h=$(printf '%s' "$h" | LC_ALL=C tr '[:upper:]' '[:lower:]')
   case "$h" in ssh.github.com|www.github.com) h=github.com ;; esac   # aliases of github.com
   printf '%s%s\n' "$h" "$p"
+# <<< rf_remote_norm
 }
 
 rf_tracker() {  # ROOT -> {tracker, tracker_source: repo|config|host|null, project, remote_id[, error][, warnings]}

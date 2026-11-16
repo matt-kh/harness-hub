@@ -42,8 +42,8 @@
 # GraphQL queries pass); from a subagent merge/review, PR/issue state and api writes deny; token output (gh auth token, --show-token, oauth_token)
 # denies; GitHub closing keywords (close/fix/resolve + #N | owner/repo#N | issue URL) deny in
 # commits, gh pr create|edit|merge and gh api, except a bare #N of an agent-worked issue in the
-# PR to the default branch of a repository declaring [repo] tracker = "github-issues"
-# (HARNESS_GITHUB_CLOSE_ISSUE_ON_MERGE). Lookups honour -R/--repo on the command line
+# PR to the default branch of a repository whose tracker is github-issues (.harness.toml [repo]
+# tracker > HARNESS_TICKET_TRACKERS > github.com origin; HARNESS_GITHUB_CLOSE_ISSUE_ON_MERGE). Lookups honour -R/--repo on the command line
 # (before or after the verb) and run in the command's cwd. A GH_REPO=… prefix is invisible to
 # the lookup (it would read the cwd repo), so gated writes with GH_REPO= ask — always pass -R.
 # Credentials: reading credential files (kubeconfig, ~/.config/{jira,glab-cli,gdoc,gh},
@@ -113,11 +113,17 @@
 #   HARNESS_GITHUB_PR_TITLE_FORBID_RE  ERE a `gh pr create -t` title must not match
 #                                   (github.pr_title_forbid_re); both: empty = check disabled
 #   HARNESS_GITHUB_CLOSE_ISSUE_ON_MERGE  unset or exactly `true` (github.close_issue_on_merge, the
-#                                   default): in a repository declaring [repo] tracker =
-#                                   "github-issues", the PR to the default branch may close its
-#                                   agent-worked #N (section 41); anything else keeps the deny, and
-#                                   a value other than `true` in guard.env is final (the
-#                                   environment cannot switch it back on)
+#                                   default): in a repository whose tracker is github-issues, the
+#                                   PR to the default branch may close its agent-worked #N
+#                                   (section 41); anything else keeps the deny, and a value other
+#                                   than `true` in guard.env is final (the environment cannot
+#                                   switch it back on)
+#   HARNESS_TICKET_TRACKERS         ticket_workflow.trackers as one line of JSON (a list of
+#                                   {match, tracker[, project]}): section 41 resolves the tracker of
+#                                   a repository without a .harness.toml [repo] tracker from the
+#                                   first entry whose match (ERE) hits its origin remote id, else
+#                                   from the host (github.com -> github-issues); unset or empty =
+#                                   no entries, malformed = deny
 #   HARNESS_GUARD_ENV               path of the env file parsed at start (default <hooks dir>/guard.env)
 #   GUARD_KUBECTL / GUARD_GIT       kubectl / git binaries the hook shells out to (tests: stubs)
 #   K8S_PROD_RE                     regex marking prod contexts/namespaces (same as the k8s CLI)

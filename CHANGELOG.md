@@ -745,6 +745,21 @@ prints every one between your applied version and the new one.
   lookups `gh_q`, `fetch_gh_pr` and `fetch_gh_issue` moved from 60 into 41's shared definitions
   (above its `repo_owns` line), so both sections use them; 60 keeps its own lookups and clause
   cut, so a body with a quoted `;` that 41 lets through still asks there.
+- Guard section `41-github-closing` (part 02 of #80): a repository without a `.harness.toml`
+  `[repo] tracker` now has its tracker resolved the way `/work-ticket` resolves it
+  (`rf_tracker`): the first `ticket_workflow.trackers` entry whose `match` ERE hits the origin
+  remote id (case-insensitive; an invalid ERE is skipped), else the host (github.com →
+  `github-issues`, any other host → not GitHub Issues). A declared tracker always wins (`jira`
+  declared on a github.com repository denies; an invalid declared value denies as before). A
+  matching entry naming any tracker but `github-issues`, a malformed list, no origin remote or a
+  git failure or timeout deny. The resolution reuses the one origin read the allow path already
+  makes (no extra git call, and no git or gh call at all without a closing keyword); the allow
+  path still needs a github.com origin, so an entry naming `github-issues` for another host
+  denies. The ticket-workflow bundle renders `ticket_workflow.trackers` into `guard.env` as
+  `HARNESS_TICKET_TRACKERS` (one line of JSON). Section 41 carries `rf_remote_id`'s
+  normalisation between `rf_remote_norm` markers; the ticket-workflow suite fails when that copy
+  and `repo-facts.sh` drift. Test stubs gain `GIT_STUB_LOG`, `GH_STUB_LOG` and
+  `GIT_STUB_REMOTE=hang`.
 - Guard section `41-github-closing`: a closing keyword or issue ref written with quotes or
   escapes inside it (the keyword split by quotes, a backslash before the space or the `#`) on a
   `git commit`, `gh pr create|edit|merge` or `gh api` line is now denied like the plain form; it
@@ -989,6 +1004,15 @@ prints every one between your applied version and the new one.
   still apply). Repositories without that declaration, or declaring `jira`, see no change. To
   keep the old deny everywhere, set `close_issue_on_merge = false` under `[github]` in your
   `harness.toml` and run `harness apply`.
+- Guard decision change in section `41-github-closing` (part 02 of #80): more repositories now
+  allow the PR to the default branch to close its `agent-worked` `#N`. Besides those declaring
+  `[repo] tracker = "github-issues"`, every github.com repository without a `.harness.toml`
+  tracker does, unless the first `ticket_workflow.trackers` entry matching its origin names
+  `jira`. To keep the deny for such a repository, declare `[repo] tracker = "jira"` in its
+  `.harness.toml`, or add a `[[ticket_workflow.trackers]]` entry (`match`, `tracker = "jira"`)
+  to your `harness.toml`; to keep it everywhere, set `close_issue_on_merge = false` under
+  `[github]`. Then run `harness apply` (it renders `HARNESS_TICKET_TRACKERS` into `guard.env`;
+  until then the guard sees no entries and the host decides).
 - Guard decision change in section `41-github-closing`, nothing to edit in config: a closing
   keyword or issue ref hidden by quotes or escapes (the keyword split by quotes, a backslash
   before the space or the `#`) in a `git commit`, `gh pr` or `gh api` command used to pass and is

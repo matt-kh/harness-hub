@@ -2,8 +2,8 @@
 
 # Section 41 (bundle github): GitHub closing keywords.
 # rule: (close|fix|resolve) #N | owner/repo#N | issue URL in git commit | gh [-R o/r] pr [-R o/r] create|new|edit|merge | gh api (also quoted or $VAR command words, and a keyword or ref written with quotes or escapes) -> deny : a closing keyword would change the issue's state as a side effect; mention #N instead (see #N, refs #N), or use the PR-to-default-branch form below in a github-issues repository
-# rule: (close|fix|resolve) #N only in the -b/-t text of a top-level literal gh [-R o/r] pr [-R o/r] create|new -B <default branch> (head not -sub-, not a fork) or gh pr edit N of a PR targeting the default branch, in the cwd checkout's own github.com repository, every #N agent-worked, repository declaring [repo] tracker = "github-issues", github.close_issue_on_merge true -> allow : GitHub closes the worked issue when the human merges the PR; 60-github still decides the create/edit. Set github.close_issue_on_merge = false to deny it again and mention #N instead
-# rule: closing keyword in gh pr create|new|edit without a literal -B, with a base that is not the repository's default branch, a -sub- or fork head, a non-agent-worked or unreadable #N, more than 10 refs, a multi-line command, cd/pushd/popd, GH_REPO/GH_HOST, sh -c/eval/xargs/$(…)/backticks, a repeated -B/-H/-R/-t/-b/-F, an unknown flag, -- or a -R other than the checkout's origin -> deny : run gh pr create|edit as its own one-line command from the ticket branch's checkout with -B <default branch> and the body in -b (or -F file); label the issue agent-worked; or mention #N instead
+# rule: (close|fix|resolve) #N only in the -b/-t text of a top-level literal gh [-R o/r] pr [-R o/r] create|new -B <default branch> (head not -sub-, not a fork) or gh pr edit N of a PR targeting the default branch, in the cwd checkout's own github.com repository, every #N agent-worked, the repository's tracker github-issues (.harness.toml [repo] tracker > first matching ticket_workflow.trackers entry > github.com host), github.close_issue_on_merge true -> allow : GitHub closes the worked issue when the human merges the PR; 60-github still decides the create/edit. Set github.close_issue_on_merge = false to deny it again and mention #N instead
+# rule: closing keyword in gh pr create|new|edit without a literal -B, with a base that is not the repository's default branch, a -sub- or fork head, a non-agent-worked or unreadable #N, more than 10 refs, a multi-line command, cd/pushd/popd, GH_REPO/GH_HOST, sh -c/eval/xargs/$(…)/backticks, a repeated -B/-H/-R/-t/-b/-F, an unknown flag, --, a -R other than the checkout's origin, no github.com origin, a tracker that resolves to anything but github-issues (a declared one wins: jira declared on github.com denies) or a malformed ticket_workflow.trackers -> deny : run gh pr create|edit as its own one-line command from the ticket branch's checkout with -B <default branch> and the body in -b (or -F file); label the issue agent-worked; or mention #N instead
 # ---- GitHub shared definitions (used by 41 and 60) ----
 GH="${WORK_TICKET_GH:-gh}"
 GHR='((-R[= ]?|--repo[= ])\S+\s+)*'                             # repo flag(s) between gh words: -R o/r, -Ro/r, -R=o/r, --repo[=]o/r, repeated
@@ -46,20 +46,48 @@ GH_CLOSE_MAX_REFS=10
 GH_CLOSE_MAX_CLAUSES=5
 GH_CLOSE_BUDGET=15        # seconds for every lookup of the allow path together (hooks time out at 20+ s)
 gh_close_why=""
-# gh_close_tracker_ok -> rc 0 when this repository's tracker is GitHub Issues. Today only the
-# repository's own declaration counts (.harness.toml [repo] tracker); no declaration, `jira` or an
-# invalid value → rc 1.
-gh_close_tracker_ok() {
-  local t
+# The tracker, resolved the way work-ticket's rf_tracker does (ticket-workflow repo-facts.sh):
+# the repository's declaration (.harness.toml [repo] tracker) > the first ticket_workflow.trackers
+# entry (HARNESS_TICKET_TRACKERS, one line of JSON from guard.env) whose match (ERE,
+# case-insensitive) hits the origin remote id > the host (github.com -> github-issues, any other
+# host -> not GitHub Issues). An invalid match ERE is skipped; a malformed HARNESS_TICKET_TRACKERS,
+# a matching entry with any tracker but github-issues, or no origin remote denies.
+# gh_close_tracker_decl -> rc 0 when the repository declares a tracker (gh_close_tracker = the
+# value, gh_close_tsrc = repo); rc 1 when it declares none. No git or gh call.
+gh_close_tracker_decl() {
+  gh_close_tracker=""; gh_close_tsrc=""
   [ -n "${REPO_DECL:-}" ] || return 1
-  t=$(hrepo_get "$REPO_DECL" repo tracker 2>/dev/null) || return 1
-  [ "$t" = github-issues ]
+  gh_close_tracker=$(hrepo_get "$REPO_DECL" repo tracker 2>/dev/null) || { gh_close_tracker=""; return 1; }
+  gh_close_tsrc=repo
+}
+# gh_close_tracker_resolve ID -> gh_close_tracker / gh_close_tsrc (config|host|empty) of an
+# undeclared repository whose origin remote id is ID; rc 1 when HARNESS_TICKET_TRACKERS is not a
+# JSON array of objects (unset or empty = no entries).
+gh_close_tracker_resolve() {
+  local id="$1" cfg="${HARNESS_TICKET_TRACKERS:-}" m t rc ge
+  gh_close_tracker=""; gh_close_tsrc=""
+  [ -n "$id" ] || return 0
+  if [ -n "$cfg" ]; then
+    jq -e 'type == "array" and all(.[]; type == "object")' <<<"$cfg" >/dev/null 2>&1 || return 1
+    # match and tracker of every entry, NUL-terminated (an ERE may hold any other byte)
+    while IFS= read -r -d '' m && IFS= read -r -d '' t; do
+      # an invalid ERE: grep exits 2 (GNU, BSD) or 1 with a message (busybox) -> skipped
+      if [ -z "$m" ]; then rc=2; else ge=$(grep -iqE -- "$m" <<<"$id" 2>&1 >/dev/null); rc=$?
+        [ "$rc" != 1 ] || [ -z "$ge" ] || rc=2; fi
+      [ "$rc" = 0 ] || continue
+      gh_close_tracker=$t; gh_close_tsrc=config; return 0
+    done < <(jq -j '.[] | (.match | strings // ""), "\u0000", (.tracker | strings // ""), "\u0000"' <<<"$cfg" 2>/dev/null)
+  fi
+  case "${id%%/*}" in github.com) gh_close_tracker=github-issues; gh_close_tsrc=host ;; esac
+  return 0
 }
 # gh_close_remote_id URL -> <host>/<path> of a git remote URL: no scheme, credentials, port or .git;
-# host lower-case, ssh./www.github.com read as github.com. Same normalisation as rf_remote_id
-# (ticket-workflow repo-facts.sh), minus its git call.
+# host lower-case, ssh./www.github.com read as github.com. The lines between the markers are
+# rf_remote_id's (ticket-workflow repo-facts.sh) after its git call, byte for byte: the
+# ticket-workflow suite (bundles/ticket-workflow/tests/run.sh) fails when they drift.
 gh_close_remote_id() {
   local u="$1" h p
+# >>> rf_remote_norm (github guard.d/41-github-closing.sh inlines these lines; ticket-workflow tests/run.sh fails on drift)
   case "$u" in
     [A-Za-z]*://*) u=$(printf '%s\n' "$u" | sed -E 's#^[A-Za-z][A-Za-z0-9+.-]*://([^@/]*@)?##; s#^([^/:]*):[0-9]*#\1#') ;;
     *)             u=$(printf '%s\n' "$u" | sed -E 's#^[^@/:]*@##; s#^([^/:]+):/*#\1/#') ;;
@@ -69,8 +97,9 @@ gh_close_remote_id() {
   h=${u%%/*}; p=${u#"$h"}; h=${h##*@}
   [ -n "$h$p" ] || return 0
   h=$(printf '%s' "$h" | LC_ALL=C tr '[:upper:]' '[:lower:]')
-  case "$h" in ssh.github.com|www.github.com) h=github.com ;; esac
+  case "$h" in ssh.github.com|www.github.com) h=github.com ;; esac   # aliases of github.com
   printf '%s%s\n' "$h" "$p"
+# <<< rf_remote_norm
 }
 # gh_close_repo_name REPO -> lower-case owner/repo of a -R value or a remote id on github.com
 # (owner/repo, github.com/owner/repo, a github.com URL); rc 1 for any other host or shape
@@ -238,14 +267,17 @@ gh_close_batch() {
 }
 # gh_close_allowed -> rc 0 when every closing ref of the command takes the allowed form
 gh_close_allowed() {
-  local heads h n_heads n_dq rc total total_dq in_text k start c n v issues="" prs="" n_cl=0 url origin repo dflt j
+  local heads h n_heads n_dq rc total total_dq in_text k start c n v issues="" prs="" n_cl=0 url id origin repo dflt j
   local -a cl_verb cl_repo cl_head cl_base cl_pr
   gh_close_t0=$SECONDS
   case "${HARNESS_GITHUB_CLOSE_ISSUE_ON_MERGE:-true}/${HN_GENV_CLOSE_ON_MERGE:-true}" in
     true/true) ;;
     *) gh_close_why="github.close_issue_on_merge is off; mention #N instead"; return 1 ;;
   esac
-  gh_close_tracker_ok || { gh_close_why="this repository declares no GitHub Issues tracker; mention #N instead, or (if its tickets are GitHub Issues) declare [repo] tracker = \"github-issues\" in .harness.toml and close an agent-worked issue from the PR to the default branch"; return 1; }
+  # a declared tracker decides here, before any lookup; an undeclared one is resolved in step 3
+  if gh_close_tracker_decl && [ "$gh_close_tracker" != github-issues ]; then
+    gh_close_why="this repository's .harness.toml declares a [repo] tracker other than \"github-issues\" (its tickets are not GitHub Issues); mention #N instead"; return 1
+  fi
   # 1. the text: one line, no repository or host override, no substitution, nothing hidden by quotes
   case "$cmd" in *"$_gh_nl"*|*$'\r'*)
     gh_close_why="a multi-line command lets the next line's words read as flags; write gh pr create|edit on one line and pass a long body with -F file"; return 1 ;;
@@ -307,11 +339,23 @@ EOF
   [ "$in_text" = "$total" ] || { gh_close_why="a closing ref outside the -t/-b text of gh pr create|edit (another command, a comment, a redirection or another flag); put it only in the PR body (-b or -F file) of that command"; return 1; }
   [ "$(printf '%s\n' $issues | grep -c .)" -le "$GH_CLOSE_MAX_REFS" ] \
     || { gh_close_why="more than $GH_CLOSE_MAX_REFS closing refs in one command; close the rest by hand, or mention them instead"; return 1; }
-  # 3. the repository: the cwd checkout's github.com origin; a -R must name that same repository
+  # 3. the repository: the cwd checkout's origin remote (its one git read) resolves an undeclared
+  # tracker; the origin must be on github.com and a -R must name that same repository
   v=$(gh_close_secs 5) || { gh_close_why="the lookups ran out of time; mention #N instead, or retry"; return 1; }
   url=$(hn_timeout "$v" "${GUARD_GIT:-git}" -C "${cwd:-.}" remote get-url origin 2>/dev/null) || url=""
-  origin=$(gh_close_repo_name "$(gh_close_remote_id "$url")" 2>/dev/null) \
-    || { gh_close_why="the cwd checkout has no github.com origin remote; run gh pr create|edit from the repository's own checkout, or mention #N instead"; return 1; }
+  id=$(gh_close_remote_id "$url")
+  [ -n "$id" ] || { gh_close_why="the cwd checkout has no origin remote (or git did not answer); run gh pr create|edit from the repository's own checkout, or mention #N instead"; return 1; }
+  if [ "$gh_close_tsrc" != repo ]; then
+    gh_close_tracker_resolve "$id" \
+      || { gh_close_why="ticket_workflow.trackers (HARNESS_TICKET_TRACKERS) is not a JSON list of tables; fix it in harness.toml (harness doctor names the entry) and run harness apply, or mention #N instead"; return 1; }
+    case "$gh_close_tsrc/$gh_close_tracker" in
+      */github-issues) ;;
+      config/*) gh_close_why="the first ticket_workflow.trackers entry matching $id names a tracker other than github-issues; mention #N instead, or declare [repo] tracker = \"github-issues\" in the repository's .harness.toml"; return 1 ;;
+      *) gh_close_why="no GitHub Issues tracker for $id (no .harness.toml [repo] tracker, no matching ticket_workflow.trackers entry, not a github.com remote); mention #N instead"; return 1 ;;
+    esac
+  fi
+  origin=$(gh_close_repo_name "$id" 2>/dev/null) \
+    || { gh_close_why="the cwd checkout has no github.com origin remote (the allow path covers github.com repositories only); run gh pr create|edit from the repository's own checkout, or mention #N instead"; return 1; }
   j=0
   while [ "$j" -lt "${#cl_verb[@]}" ]; do
     if [ -n "${cl_repo[j]}" ]; then
