@@ -205,6 +205,34 @@ prints every one between your applied version and the new one.
   BatchMode and ConnectTimeout on every call, no `-t`, no host-key override, no follow mode, no
   mutating command in any script).
 
+- `provision` bundle (#64, part 4; experimental, domain `infrastructure`, depends on `linux`,
+  not in any profile): governance and workflow for installing hosts with the external `prov`
+  renderer (the public provision-hub tool; Ubuntu autoinstall today, Proxmox VE, NixOS and
+  Talos planned), which never applies anything. Rule `85-provision` ("Provisioning"), guard
+  section `85-provision` (reads the linux definitions): `prov` and the read forms of `qm`, `pct`,
+  `pvesh`, `pvecm`, `pvesm`, `pveum`, `ha-manager`, `talosctl` (`gen`, `validate`, `get`, `logs`
+  without `-f`, `apply-config --dry-run`), `nixos-rebuild build|build-vm`, `nixos-anywhere
+  --vm-test`, `disko --dry-run`, `virsh` and `virt-install --dry-run --print-xml` pass; every
+  apply step asks (Proxmox VE changes, `talosctl apply-config` incl. `--mode=try`, `reset`,
+  `upgrade`, `bootstrap`, `nixos-rebuild switch` or any `--target-host`, `nixos-anywhere` and
+  `disko` also through `nix run` / `nix shell -c` / `nix-shell --run`, `virsh` changes,
+  `virt-install`, QEMU or `qemu-img` on `/dev/…`, `prov plan | sh`), with `host=<target> [PROD]`
+  from `linux.prod_re`, the Proxmox VE node and the infrastructure repository in the reason;
+  `talosctl kubeconfig` and `talosctl config merge|context|…` deny; reading `~/.talos/*` and
+  `talosctl kubeconfig -` deny in a never-yields prelude. The `provision` workflow skill
+  (`prov init` → render → validate → local VM test → MR → `prov plan` → the human applies →
+  `lx` verifies) with references (workflow, ubuntu, proxmox, nixos, talos, local-vm), the
+  design-only `provision-planner` agent (plan model), permissions, manual steps `install-prov`
+  and `infra-root`, warn-only doctor checks (`prov-cli`, `infra-root`, `kvm`, `talosctl`, `nix`,
+  `qemu`, `virsh`, `seed-iso`, `pve-assistant`), config `provision.infra_root`,
+  `provision.pve_host`, `provision.tool_source` (env `PROVISION_INFRA_ROOT`,
+  `PROVISION_PVE_HOST`, `PROVISION_TOOL_SOURCE`), rows, `tests/run.sh` (core + linux + provision)
+  and [docs/bundles/provision.md](docs/bundles/provision.md). ARCHITECTURE §3 and the roadmap
+  list band `85` as in use. The linux bundle: `linux_scan` takes an optional word list for later
+  sections, and the ssh remote allow-list accepts the Proxmox VE read forms (`qm`/`pct
+  list|config|status`, `pvesh get`, `pvecm status`, `pvesm status`, `pveum … list`, `ha-manager
+  status`, `pveversion`); their writes keep asking.
+
 - Guard engine: reads the hook input's `agent_id` (set by Claude Code on calls from a subagent
   or in-process teammate; `agent_type` is never read, since a `--agent` main thread carries it
   too) into `IN_SUBAGENT`, and offers `human_decision` / `human_decision_defer` for sections:
@@ -1255,6 +1283,16 @@ prints every one between your applied version and the new one.
   `lx` onto `PATH` and installs the `linux` skill and the `linux-triage` / `linux-auditor` agents. Remote commands
   that are not read-only, `ssh -t`, tunnels and uploads start to ask, and
   `StrictHostKeyChecking=no` / `sshpass` are denied.
+
+- `provision` bundle (#64), opt-in: nothing changes until you add `provision` (it pulls in
+  `linux`) to `[hub].bundles`. Then optionally set `[provision] infra_root` (your hosts repository),
+  `pve_host` (the `~/.ssh/config` alias of a Proxmox VE node) and `tool_source` (how to install
+  `prov`, pinned to a commit you reviewed), and run `harness apply`. Provisioning apply steps
+  (`qm` writes, `talosctl apply-config|reset|upgrade|bootstrap`, `nixos-rebuild switch`,
+  `nixos-anywhere`, `disko`, `virsh` changes, QEMU on block devices) start to ask, and
+  `talosctl kubeconfig`, talosconfig edits and reading `~/.talos/*` are denied. With `linux`
+  alone, `ssh NODE qm list|config`, `pvesh get` and the other Proxmox VE reads now pass instead
+  of asking.
 
 - Guard decision change (#76), nothing to edit in config. In a repository whose `.harness.toml`
   owns `scm` but not `tracker`, a closing keyword in `gh -Ro/r pr …`, `gh pr new`,
