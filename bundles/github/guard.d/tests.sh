@@ -414,3 +414,98 @@ T_AGENT=a1 tr 'hand the command back to the main thread' 'gh "pr" merge 100'
 tr 'write the gh subcommand unquoted' 'gh "pr" merge 100'
 tr 'write the subcommand literally' 'a=merge; gh pr $a 100'
 T_AGENT=a1 tr 'hand the command back to the main thread' 'gh issue delete 1 --yes'
+# ---- closing an issue from the PR to the default branch (issue 80, part 01) ------------
+# allowed only where the repository declares [repo] tracker = "github-issues", the knob
+# github.close_issue_on_merge is on (default) and every #N is agent-worked (stub: 1 agent-worked,
+# 2 agent-drafted, 3 bug, 9 unknown; PR 100 -> main, 110 sub -> feat-x, 120 fork)
+decl '[repo]' 'tracker = "github-issues"'
+r allow 'gh pr create -R o/r -H feat-x -B main -t x -b "Closes #1"'
+r allow 'gh pr new -R o/r -H feat-x -B main -t x -b "Closes #1"'
+r allow 'gh pr create -Ro/r -H feat-x -B main -t x -b "Fixes #1"'
+r allow 'gh pr create --repo=o/r -H feat-x --base=main -t x -b "Resolves: #1"'
+r allow 'gh -R o/r pr create -H feat-x -B master -t x -b "closes #1, part of #3"'
+r allow 'gh pr create -H feat-x -Bmain -t x -b "Closes #1" -l agent-worked'
+r allow 'gh pr edit 100 -b "Closes #1"'
+r allow 'gh pr edit 100 -R o/r -B main -b "Closes #1"'
+r allow 'gh pr create -R o/r -H feat-x -B main -t x -b "Closes #1" 2>&1'
+GIT_STUB_BRANCH=feat-x r allow 'gh pr create -B main -t x -b "Closes #1"'      # head from the current branch
+r deny  'gh pr edit 110 -b "Closes #1"'                                        # sub PR
+r deny  'gh pr edit 120 -b "Closes #1"'                                        # fork PR
+r deny  'gh pr edit 300 -b "Closes #1"'                                        # unreadable PR
+r deny  'gh pr edit 100 -B feat-y -b "Closes #1"'                              # retargeted away from the default branch
+r deny  'gh pr edit "$N" -b "Closes #1"'
+r deny  'gh pr edit -b "Closes #1"'                                            # no PR number
+# the knob switches the allow off
+HARNESS_GITHUB_CLOSE_ISSUE_ON_MERGE=false r deny 'gh pr create -R o/r -H feat-x -B main -t x -b "Closes #1"'
+HARNESS_GITHUB_CLOSE_ISSUE_ON_MERGE=false r deny 'gh pr new -R o/r -H feat-x -B main -t x -b "Closes #1"'
+HARNESS_GITHUB_CLOSE_ISSUE_ON_MERGE=false r deny 'gh pr edit 100 -b "Closes #1"'
+HARNESS_GITHUB_CLOSE_ISSUE_ON_MERGE=0     r deny 'gh pr edit 100 -b "Closes #1"'   # anything but exactly true is off
+HARNESS_GITHUB_CLOSE_ISSUE_ON_MERGE=true  r allow 'gh pr edit 100 -b "Closes #1"'
+genv=$(mktemp); printf '%s\n' "HARNESS_GITHUB_CLOSE_ISSUE_ON_MERGE=false" > "$genv"
+HARNESS_GUARD_ENV=$genv r deny 'gh pr create -R o/r -H feat-x -B main -t x -b "Closes #1"'
+rm -f "$genv"
+# base and head
+r deny  'gh pr create -R o/r -H feat-x -B feat-y -t x -b "Closes #1"'
+r deny  'gh pr create -R o/r -H feat-x -t x -b "Closes #1"'                     # no -B
+r deny  'gh pr create -R o/r -H feat-x -B "$BASE" -t x -b "Closes #1"'
+r deny  'gh pr create -R o/r -H x-sub-01-y -B main -t x -b "Closes #1"'
+r deny  'gh pr create -R o/r -H me:feat-x -B main -t x -b "Closes #1"'
+r deny  'gh pr create -R o/r -H "$BR" -B main -t x -b "Closes #1"'
+r deny  'gh pr create -R "$R" -H feat-x -B main -t x -b "Closes #1"'
+r deny  'gh pr create -B main -t x -b "Closes #1"'                             # head unknown (not a repo)
+# the issues
+r deny  'gh pr create -R o/r -H feat-x -B main -t x -b "Closes #2"'            # agent-drafted
+r deny  'gh pr create -R o/r -H feat-x -B main -t x -b "Closes #3"'            # human
+r deny  'gh pr create -R o/r -H feat-x -B main -t x -b "Closes #9"'            # unknown
+r deny  'gh pr create -R o/r -H feat-x -B main -t x -b "Closes #1, closes #3"'
+r deny  'gh pr create -R o/r -H feat-x -B main -t x -b "Closes o/r#1"'
+r deny  'gh pr create -R o/r -H feat-x -B main -t x -b "Closes https://github.com/o/r/issues/1"'
+r deny  'gh pr create -R o/r -H feat-x -B main -t x -b "Closes #1 fixes #11 fixes #12 fixes #13 fixes #14 fixes #15 fixes #16 fixes #17 fixes #18 fixes #19 fixes #20"'
+# bypass attempts
+r deny  'gh "pr" create -R o/r -H feat-x -B main -t x -b "Closes #1"'
+r deny  'gh pr "create" -R o/r -H feat-x -B main -t x -b "Closes #1"'
+r deny  'g\h pr create -R o/r -H feat-x -B main -t x -b "Closes #1"'
+r deny  'p=pr; gh $p create -R o/r -H feat-x -B main -t x -b "Closes #1"'
+r deny  'v=create; gh pr $v -R o/r -H feat-x -B main -t x -b "Closes #1"'
+r deny  'GH_REPO=o/r gh pr create -H feat-x -B main -t x -b "Closes #1"'
+r deny  'echo "Closes #1"; gh pr create -R o/r -H feat-x -B main -t x'
+r deny  'gh pr create -R o/r -H feat-x -B main -t x -b "Closes #1" && git commit -m "Fixes #1"'
+r deny  'gh pr create -R o/r -H feat-x -B main -t x -b "Closes #1" && git commit -m "wip"'
+r deny  'gh pr merge 100 -b "Closes #1"'
+r deny  'gh api repos/o/r/issues/1/comments -f body="Fixes #1"'
+r deny  'gh pr create -R o/r -H feat-x -B main -t x -b "Closes #1" && gh pr create -R o/r -H g -B feat-y -t y'
+r deny  'gh pr create -R o/r -H feat-x -B main -t x -b "Closes #1" && gh pr edit 110 -b "Closes #1"'
+r deny  'gh pr create -R o/r -H feat-x -B main -t x -b "Closes #1" && gh pr merge 100'
+r deny  'gh pr create -R o/r -H feat-x -B main -t x -b "done; closes #1"'      # ref cut off from its clause
+r deny  $'gh pr create -R o/r -H feat-x -B main -t x -b ok\ngh pr edit 110 -b "Closes #1"'
+r deny  'sh -c "gh \"pr\" create -R o/r -H feat-x -B main -t x -b \"Closes #1\""'
+r pass  'gh pr create -R o/r -H feat-x -B main -t x -b "part of #3" --web'
+# subagent: the create behaves as on the main thread; the edit follows 60's label gate
+T_AGENT=a1 r allow 'gh pr create -R o/r -H feat-x -B main -t x -b "Closes #1"'
+T_AGENT=a1 r allow 'gh pr edit 100 -b "Closes #1"'
+T_AGENT=a1 r deny  'gh pr create -R o/r -H feat-x -B feat-y -t x -b "Closes #1"'
+T_AGENT=a1 r deny  'gh pr merge 100 -b "Closes #1"'
+# reasons
+T_CWD=$rpd tr 'pass -B <default branch> explicitly' 'gh pr create -R o/r -H feat-x -t x -b "Closes #1"'
+T_CWD=$rpd tr 'not labelled agent-worked' 'gh pr create -R o/r -H feat-x -B main -t x -b "Closes #3"'
+T_CWD=$rpd tr 'sub PR .* main PR to the default branch instead' 'gh pr edit 110 -b "Closes #1"'
+T_CWD=$rpd tr 'only a bare #N' 'gh pr create -R o/r -H feat-x -B main -t x -b "Closes o/r#1"'
+T_CWD=$rpd tr 'outside the gh pr create\|edit text' 'echo "Closes #1"; gh pr create -R o/r -H feat-x -B main -t x'
+HARNESS_GITHUB_CLOSE_ISSUE_ON_MERGE=false T_CWD=$rpd tr 'close_issue_on_merge is off; mention #N instead' 'gh pr edit 100 -b "Closes #1"'
+# tracker jira, an invalid value or no declaration: the deny is unchanged
+decl '[repo]' 'tracker = "jira"'
+r deny  'gh pr create -R o/r -H feat-x -B main -t x -b "Closes #1"'
+r deny  'gh pr edit 100 -b "Closes #1"'
+decl '[repo]' 'tracker = "gitlab"'
+r deny  'gh pr create -R o/r -H feat-x -B main -t x -b "Closes #1"'
+decl '[owns]' 'domains = ["scm"]'
+r deny  'gh pr create -R o/r -H feat-x -B main -t x -b "Closes #1"'
+decl '[repo]' 'tracker = "github-issues"' '[owns]' 'domains = ["scm"]'
+r pass  'gh pr create -R o/r -H feat-x -B main -t x -b "Closes #1"'           # 41 allows, 60 is owned: the provider decides
+r deny  'gh pr create -R o/r -H feat-x -B feat-y -t x -b "Closes #1"'          # owns scm keeps 41 deciding
+decl '[repo]' 'tracker = "github-issues"' '[owns]' 'domains = ["tracker"]'
+r allow 'gh pr create -R o/r -H feat-x -B feat-y -t x -b "Closes #2"'          # owns tracker: 41 yields
+decl
+r deny  'gh pr create -R o/r -H feat-x -B main -t x -b "Closes #1"'
+g deny  'gh pr edit 100 -b "Closes #1"'
+tr 'declare \[repo\] tracker = "github-issues"' 'gh pr create -R o/r -H feat-x -B main -t x -b "Closes #1"'

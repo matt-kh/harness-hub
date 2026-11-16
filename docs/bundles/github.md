@@ -51,7 +51,8 @@ Rotating the token: [runbook](../runbooks/rotate-github-token.md).
 GitHub CLI, PR-based workflow, GitHub Issues as the tracker, gh governance rules
 
 Installs `gh` (checksum-verified, no sudo), wires the guard rules for gh (token output deny,
-GitHub closing-keyword deny, merge/review and human PR/issue state ask, subagent deny of
+GitHub closing-keyword deny except the PR to the default branch closing its agent-worked issue
+in a repository whose tracker is GitHub Issues, merge/review and human PR/issue state ask, subagent deny of
 merges and state changes, API writes ask, label gate on PR/issue writes, stacked-PR rules) and adds the GitHub section of the instructions and
 the gh read permissions. The ticket-workflow skills drive GitHub Issues → PRs when this bundle
 is active.
@@ -71,7 +72,7 @@ Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md
 
 **Guard sections**
 
-- `github/guard.d/41-github-closing` — control: sensor · domain: tracker · function: govern · decisions: deny 1 · yields: declaration
+- `github/guard.d/41-github-closing` — control: sensor · domain: tracker · function: govern · decisions: deny 2 · allow 1 · yields: declaration
 - `github/guard.d/60-github` — control: sensor · function: govern · decisions: deny 5 · ask 8 · allow 3 · yields: declaration
 
 **Permission lists**
@@ -99,6 +100,7 @@ Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md
 
 | key | type | required | default | description |
 |---|---|---|---|---|
+| `github.close_issue_on_merge` | boolean | no | `true` | In a repository that declares [repo] tracker = "github-issues", let the PR to the default branch carry a closing keyword for its agent-worked issue(s) (#N only) so GitHub closes them when a human merges it; false denies it like every other closing keyword. HARNESS_GITHUB_CLOSE_ISSUE_ON_MERGE. |
 | `github.host` | string | no | `"github.com"` | GitHub host: github.com or your GHES hostname. |
 | `github.login` | string | yes |  | Your GitHub login. Shown in the instructions; repos you own are trusted in the provider's auto-mode trust text. |
 | `github.pr_title_forbid_re` | string | no | `"#[0-9]+"` | ERE a PR title must NOT match (issue refs belong in the body); empty disables. HARNESS_GITHUB_PR_TITLE_FORBID_RE. |
@@ -202,7 +204,7 @@ Guides steer the agent before it acts; sensors detect at or after the action. Pa
 |---|---|---|---|---|
 | guide | rule | `rules/60-github.md` | PR-based delivery, merges and PR/issue state on explicit main-thread request only, -R owner/repo on every call | `guard.d/41-github-closing.sh`, `guard.d/60-github.sh` |
 | guide | permission | `permissions.toml` | read-only gh commands allowed; token printing denied | `guard.d/60-github.sh`, `permissions-vs-guard` |
-| sensor | guard | `guard.d/41-github-closing.sh` | denies closing keywords that would change issue state | `rules/60-github.md` |
+| sensor | guard | `guard.d/41-github-closing.sh` | denies closing keywords that would change issue state; lets only the PR to the default branch close its agent-worked #N in a github-issues repository (github.close_issue_on_merge) | `rules/60-github.md` |
 | sensor | guard | `guard.d/60-github.sh` | token printing, API writes, merges/reviews and PR/issue state (main thread asks, subagent denied), provenance labels, stacked PR targets; PR creates with --fill* or a -t title matching github.pr_title_forbid_re ask | `rules/60-github.md`, `permissions.toml` |
 | sensor | doctor | `doctor_checks` | gh binary, auth, SSH and token file mode | — |
 | sensor | test | `guard.d/tests.sh` | guard rows with a stubbed gh | — |

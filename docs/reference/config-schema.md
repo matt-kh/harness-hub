@@ -22,6 +22,7 @@ Environment override for any key: `HARNESS_<SECTION>_<KEY>` (e.g. `HARNESS_JIRA_
 | `core.ticket_example` | string | `"PROJ-123"` | core | Example ticket key used in guard reasons, instructions and skill docs. |
 | `credentials.extra_paths_re` | string | `""` | core | Extra ERE of credential paths the guard denies for readers (cat, grep, jq, cp, ...), on top of the built-in list (HARNESS_CRED_EXTRA_RE). Empty = none. |
 | `doctor.warn_only` | array | `[]` |  | Doctor check ids downgraded from FAIL to WARN. |
+| `github.close_issue_on_merge` | boolean | `true` | github | In a repository that declares [repo] tracker = "github-issues", let the PR to the default branch carry a closing keyword for its agent-worked issue(s) (#N only) so GitHub closes them when a human merges it; false denies it like every other closing keyword. HARNESS_GITHUB_CLOSE_ISSUE_ON_MERGE. |
 | `github.host` | string | `"github.com"` | github | GitHub host: github.com or your GHES hostname. |
 | `github.login` | string |  | github | Your GitHub login. Shown in the instructions; repos you own are trusted in the provider's auto-mode trust text. |
 | `github.pr_title_forbid_re` | string | `"#[0-9]+"` | github | ERE a PR title must NOT match (issue refs belong in the body); empty disables. HARNESS_GITHUB_PR_TITLE_FORBID_RE. |

@@ -9,7 +9,13 @@
   `github.pr_title_forbid_re` (default `#[0-9]+`; an empty value disables the title check).
 - GitHub Issues are the tracker for GitHub repos: `/work-ticket #N`; `/create-ticket` drafts
   issues with `{{ core.agent_labels.drafted }}`. Never write `Closes/Fixes/Resolves #N` (or
-  `owner/repo#N`, or an issue URL) — mention `#N` instead (denied).
+  `owner/repo#N`, or an issue URL) — mention `#N` instead (denied). One exception: in a
+  repository that declares `[repo] tracker = "github-issues"` in `.harness.toml`, the body of the
+  PR to the default branch (`gh pr create -R owner/repo -H <ticket branch> -B <default branch>`,
+  `-B` written out, or `gh pr edit N` of such a PR) may say `Closes #N` for issues labelled
+  `{{ core.agent_labels.worked }}`, so GitHub closes them when a human merges it. Never in
+  commits, sub PRs, fork PRs, `gh pr merge` or `gh api`; `github.close_issue_on_merge = false`
+  turns the exception off.
 - `gh pr create` and edits to agent-labelled PRs/issues run promptless, human ones prompt.
 - Humans decide: `gh pr merge|review` and `gh issue delete|transfer` always ask;
   `gh pr close|reopen|ready` and `gh issue close|reopen` ask on a human PR/issue and run
