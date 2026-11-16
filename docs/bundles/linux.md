@@ -64,7 +64,8 @@ journal) is reported as `needs root` with the command for you to run; `lx` never
   `iptables -L|-S`, `ufw status`, `resolvectl status|query`, `networkctl status|list`, `netplan
   get|status`, `nmcli` show forms, `zpool status|list|get|iostat`, `zfs list|get`, `lvs`/`vgs`/
   `pvs`, `mdadm --detail|--examine`, `smartctl -a|-H|-i`, `sshd -T`, `apt list`, `dpkg -l`,
-  `rpm -q`, `top -b -n1` and a few more.
+  `rpm -q`, `top -b -n1`, the Proxmox VE read forms (`qm`/`pct list|config|status`, `pvesh get`,
+  `pvecm status`, `pvesm status`, `pveum … list`, `ha-manager status`, `pveversion`) and a few more.
 - Everything else on a host **asks**, with `host=<alias>` and `[PROD]` (alias matching
   `linux.prod_re`) in the reason: a clause off the allow-list, remote `sudo`, `sh -c`, `eval`,
   `$(…)`, backticks, `$VAR`, redirections (except `2>/dev/null`, `2>&1`), heredocs and

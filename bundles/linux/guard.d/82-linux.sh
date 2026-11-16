@@ -215,11 +215,12 @@ linux_cmd0() {  # LW -> LI = index of the command word (past keywords, assignmen
   done
   return 0
 }
-linux_scan() {  # -> LQ = the lexed clauses of $cmd, sh -c / su -c / eval strings appended; rc 1 when no linux word appears
+linux_scan() {  # [PRE_RE] -> LQ = the lexed clauses of $cmd, sh -c / su -c / eval strings appended; rc 1 when no word of
+  # PRE_RE (default LINUX_PRE_RE; later sections such as 85-provision pass their own) appears
   local n i=0 k t j w e=0
   LQ=()
   n=${cmd//\\/}; n=${n//\"/}; n=${n//\'/}
-  printf '%s' "$n" | grep -qiE "$LINUX_PRE_RE" || return 1
+  printf '%s' "$n" | grep -qiE "${1:-$LINUX_PRE_RE}" || return 1
   linux_lex_into "$cmd"
   while [ "$i" -lt "${#LQ[@]}" ]; do
     k=${LQ[i]%%"$LINUX_TABC"*}; t=${LQ[i]#*"$LINUX_TABC"}; i=$((i+1))
@@ -466,6 +467,33 @@ linux_nmcli_ro() {  # nmcli WORDS… -> rc 0 for the show forms (general|device|
   LR_WHY="'nmcli ${LP[*]}' changes the network configuration"
   return 1
 }
+linux_pve_ro() {  # TOOL WORDS… -> rc 0 for the read forms of the Proxmox VE tools (also used locally by 85-provision);
+  # LR_WHY otherwise. qm|pct list|config|status|showcmd|pending|listsnapshot|help (qm cloudinit dump|pending),
+  # pvesh get|ls|usage|help, pvecm status|nodes, pvesm status|list|path, pveum <object> list|permissions,
+  # pvenode config get / task list|log|status / cert info, ha-manager status|config|groupconfig.
+  local c=$1 a b
+  shift
+  linux_pos '-n|--node|--output-format|--noborder|--noheader|--vmid|--type|--content|--storage|--target|--path|--userid|--typefilter|--limit|--start|--source|--since|--until' "$@"
+  a=${LP[0]:-}; b=${LP[1]:-}
+  case "$c:$a" in
+    qm:|pct:|pvesh:|pvecm:|pvesm:|pveum:|pvenode:|ha-manager:) return 0 ;;   # bare: prints the usage
+    qm:list|qm:config|qm:status|qm:showcmd|qm:pending|qm:listsnapshot|qm:help) return 0 ;;
+    qm:cloudinit) case "$b" in dump|pending) return 0 ;; esac ;;
+    pct:list|pct:config|pct:status|pct:pending|pct:listsnapshot|pct:help) return 0 ;;
+    pvesh:get|pvesh:ls|pvesh:usage|pvesh:help) return 0 ;;
+    pvecm:status|pvecm:nodes|pvecm:help) return 0 ;;
+    pvesm:status|pvesm:list|pvesm:path|pvesm:help) return 0 ;;
+    pveum:help) return 0 ;;
+    pveum:*) case "$b:${LP[2]:-}" in list:*|permissions:*|token:list) return 0 ;; esac ;;
+    pvenode:help) return 0 ;;
+    pvenode:config) [ "$b" = get ] && return 0 ;;
+    pvenode:task) case "$b" in list|log|status) return 0 ;; esac ;;
+    pvenode:cert) [ "$b" = info ] && return 0 ;;
+    ha-manager:status|ha-manager:config|ha-manager:groupconfig|ha-manager:help) return 0 ;;
+  esac
+  LR_WHY="'$c${a:+ $a}${b:+ $b}' changes Proxmox VE guests, storage, users or the cluster"
+  return 1
+}
 linux_ro_cmd() {  # WORD… (the first is the command) -> rc 0 when it is on the read-only allow-list; LR_WHY otherwise
   local c=${1##*/} w has=false skip=false re
   shift
@@ -628,6 +656,8 @@ linux_ro_cmd() {  # WORD… (the first is the command) -> rc 0 when it is on the
       linux_pos '-o|-s|-S|-t|-d' "$@"
       case "${LP[0]:-}" in list|get) return 0 ;; esac
       LR_WHY="'zfs ${LP[0]:-}' changes a dataset"; return 1 ;;
+    qm|pct|pvesh|pvecm|pvesm|pveum|pvenode|ha-manager) linux_pve_ro "$c" "$@"; return ;;
+    pveversion) return 0 ;;
     sudo|doas|su|pkexec) LR_WHY="remote $c (privilege escalation)"; return 1 ;;
     sh|bash|zsh|dash|ksh|ash|mksh|fish|python*|perl|ruby|node|eval|exec|source|.|env|xargs|nohup|timeout|watch)
       LR_WHY="remote '$c' runs other commands"; return 1 ;;
