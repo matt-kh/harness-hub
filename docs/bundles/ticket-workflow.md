@@ -47,7 +47,8 @@ runs only its read-only preflight and hands over completely
 Two skills on top of a tracker bundle and an SCM bundle. `/work-ticket KEY|#N` verifies the
 ticket against the code, sizes it, gates every tracker write behind the agent-worked label,
 implements on key-free branches (subagents in local worktrees), runs only the checks CI lacks
-and opens MRs/PRs that mention the key without closing it; large tickets are planned by the
+and opens MRs/PRs that mention the key without closing it (GitHub Issues: the PR to the default
+branch may close the worked issue when github.close_issue_on_merge is on); large tickets are planned by the
 Plan agent and delivered as stacked MRs/PRs. `/create-ticket <text>` renders ONE ticket or
 GitHub issue deterministically (render-ticket.py), creates it with the agent-drafted label,
 reads it back and stops. Works with Jira + GitLab, Jira + GitHub, or GitHub alone; the skills
@@ -148,14 +149,14 @@ Guides steer the agent before it acts; sensors detect at or after the action. Pa
 | side | kind | ref | note | pairs with |
 |---|---|---|---|---|
 | guide | rule | `rules/75-ticket-workflow.md` | ticket to MR/PR flow, label gate, key-free branches, stacked delivery; the tracker is declared per repository (sensed by the work-ticket golden suite and the ticket-workflow-trackers doctor check) | `guard.d/75-ticket-workflow.sh`, `doctor_checks`, `skills/work-ticket/scripts/tests/run.sh` |
-| guide | skill | `skills/work-ticket` | the governed ticket workflow and its preflight scripts; Step 8 runs the retro skill only when harness lessons review is due (lessons bundle) | `guard.d/75-ticket-workflow.sh`, `skills/work-ticket/scripts/tests/run.sh` |
+| guide | skill | `skills/work-ticket` | the governed ticket workflow and its preflight scripts (github preflight issue.close_on_merge decides whether the default-branch PR carries a closing keyword; the closingIssuesReferences read-back is its sensor, since the guard cannot read -F files); Step 8 runs the retro skill only when harness lessons review is due (lessons bundle) | `guard.d/75-ticket-workflow.sh`, `skills/work-ticket/scripts/tests/run.sh` |
 | guide | skill | `skills/create-ticket` | one drafted ticket or issue, rendered deterministically; Step 9 runs the retro skill only when harness lessons review is due (lessons bundle) | `skills/create-ticket/scripts/tests/run.sh` |
 | sensor | guard | `guard.d/75-ticket-workflow.sh` | key-free branches and subjects, sub worktree paths, squash delivery | `rules/75-ticket-workflow.md`, `skills/work-ticket` |
 | sensor | doctor | `doctor_checks` | a tracker CLI and an SCM CLI on PATH, both skills rendered | `rules/75-ticket-workflow.md` |
 | sensor | doctor | `ticket-workflow-trackers` | every ticket_workflow.trackers match compiles, tracker is known, project only with jira | — |
 | sensor | test | `tests/run.sh` | this bundle's guard rows against core + ticket-workflow only, then every skill suite, then the ticket-workflow-trackers doctor script (lib/check-trackers.sh) per input, then the github guard's inlined rf_remote_norm block (section 41) against repo-facts.sh | — |
 | sensor | test | `guard.d/tests.sh` | rows for section 75 incl. bypasses | — |
-| sensor | test | `skills/work-ticket/scripts/tests/run.sh` | preflight dispatch, GitHub and GitLab preflights, issue and Jira facts, repo-facts incl. the rf-tracker table (repo > config > host): one JSON object per run, goldens per fixture repository with and without PyYAML, read-only stub-log invariants | `rules/75-ticket-workflow.md`, `skills/work-ticket` |
+| sensor | test | `skills/work-ticket/scripts/tests/run.sh` | preflight dispatch, GitHub and GitLab preflights, issue and Jira facts, repo-facts incl. the rf-tracker table (repo > config > host), issue.close_on_merge (default on; knob off in config or env, jira tracker, fork flow, issue in another repository -> off): one JSON object per run, goldens per fixture repository with and without PyYAML, read-only stub-log invariants | `rules/75-ticket-workflow.md`, `skills/work-ticket` |
 | sensor | test | `skills/create-ticket/scripts/tests/run.sh` | golden renders of every ticket class; create-facts goldens for Jira and GitHub (config, unreachable, unauthenticated, not installed, GitHub Enterprise templates, --repo tracker); the inlined rf_tracker block matches work-ticket's | `skills/create-ticket` |
 
 **Not covered:** The size rubric, Q-checklist and MR body content are judgement calls (inferential: code-reviewer); SCM verb conventions are sensed by the gitlab/github guard sections; the preflight and facts scripts are sensed by golden suites against stubbed gh, glab and jira.

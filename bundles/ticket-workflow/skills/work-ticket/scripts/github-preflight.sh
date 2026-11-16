@@ -381,6 +381,22 @@ fi
 ci_cost=$(json_or "$ci_cost" '{"heuristic":"failed"}')
 
 tracker=$(rf_tracker "$root"); [ -n "$tracker" ] || tracker=null
+
+# ---- close on merge: may the PR to the default branch carry a closing keyword for the issue?
+# github.close_issue_on_merge (default true; HARNESS_GITHUB_CLOSE_ISSUE_ON_MERGE, the guard's
+# copy: anything but exactly `true` from either source is off) AND the tracker is GitHub Issues
+# AND not the fork flow (an unknown fork_flow, e.g. without auth, counts as fork: fail closed)
+# AND the issue lives in the base repository (the guard allows a bare #N only).
+# The guard (github section 41) decides the command; this only tells the skill which text to write.
+# hcfg reads a JSON false as absent (`// empty`), so the boolean is read from the github table
+close_knob=$(jq -r 'if type == "object" and has("close_issue_on_merge") then .close_issue_on_merge | tostring
+                    else "true" end' <<<"$(hcfg github '{}')" 2>/dev/null) || close_knob=false
+[ "${HARNESS_GITHUB_CLOSE_ISSUE_ON_MERGE:-true}" = true ] || close_knob=false
+close_on_merge=false
+if [ "$close_knob" = true ] && [ "$fork_flow" = false ] \
+   && [ "$(jq -r '.tracker // empty' <<<"$tracker" 2>/dev/null)" = github-issues ]; then
+  close_on_merge=true
+fi
 warn_json=$(printf '%s\n' "${warnings[@]+"${warnings[@]}"}" | jq -R 'select(length>0)' | jq -sc .)
 jq -n --arg root "$root" --arg host "$host" --arg def "$def" --arg tmpl "$tmpl" --arg skill "$repo_skill" \
       --arg rdecl "$repo_decl" --argjson rowns "$repo_owns" \
@@ -392,7 +408,7 @@ jq -n --arg root "$root" --arg host "$host" --arg def "$def" --arg tmpl "$tmpl" 
       --argjson prmulti "$pr_multi" --argjson itmpl "$issue_tmpls" --argjson labels "$labels" \
       --argjson ms "$milestones" --argjson prs "$prs" --argjson checks "$ci_checks" --argjson cost "$ci_cost" \
       --argjson precommit "$precommit" --argjson dirty "$dirty" --argjson warn "$warn_json" \
-      --argjson tracker "$tracker" '
+      --argjson tracker "$tracker" --argjson closeom "$close_on_merge" '
 def nn: if . == "" then null else . end;
 {provider:"github", repo_root:$root, remote_host:$host, default_branch:($def|nn), dirty_files:$dirty,
  gh_installed:$gh, auth_ok:$auth, me:($me|nn), plan:($plan|nn),
@@ -413,7 +429,8 @@ def nn: if . == "" then null else . end;
  agent_labels:{"agent-worked":($labels|index("agent-worked") != null), "agent-created":($labels|index("agent-created") != null),
                "agent-drafted":($labels|index("agent-drafted") != null), "agent-wip":($labels|index("agent-wip") != null)},
  milestones:$ms,
- issue:(if $inum == "" then null else {ref:$iref, repo:(($irepo|nn) // ($base|nn)), number:($inum|tonumber)} end),
+ issue:(if $inum == "" then null else {ref:$iref, repo:(($irepo|nn) // ($base|nn)), number:($inum|tonumber),
+        close_on_merge:($closeom and ((($irepo|nn) // $base | ascii_downcase) == ($base | ascii_downcase)))} end),
  existing_prs:$prs, stack_detected:([$prs[].headRefName | select(test("-sub-"))] | length > 0),
  ci:({checks:$checks, precommit:$precommit} + $cost),
  repo_skill:($skill|nn), repo_declaration:($rdecl|nn), repo_owns:$rowns, tracker:$tracker,

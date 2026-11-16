@@ -16,11 +16,19 @@ the host alone.
   always from a file with `-F` (`--body-file`); `-B` base, `-H` head (`user:branch` for forks).
 - `gh api` is GET-only for this skill: never `-X/--method`, `-f/-F/--input` (any field
   auto-POSTs).
-- Closing keywords are denied in commits, PR title/body and `gh api` payloads:
-  `close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved` + `#N`, `owner/repo#N` or an
-  issues URL (case-insensitive). **Mention** `#N` instead — the issue timeline gets the
-  cross-reference; the human closes the issue after merge (or explicitly asks the agent to run
-  `gh issue close N -R OWNER/REPO` in the main thread — the guard asks on a human issue).
+- Closing keywords are denied in commits, PR titles, sub PRs, fork PRs, issue text and
+  `gh api` payloads: `close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved` + `#N`,
+  `owner/repo#N` or an issues URL (case-insensitive). **Mention** `#N` instead — the issue
+  timeline gets the cross-reference. **One exception — close on merge:** when preflight
+  `issue.close_on_merge` is `true` (tracker GitHub Issues, `github.close_issue_on_merge` on, not
+  the fork flow, the issue in `base_repo`), the **body of the one PR whose base is
+  `default_branch`** says `Closes #12` for the worked issue (plus its `agent-worked` sub-issues,
+  at most 10 refs, each a bare `#N`), so GitHub closes them when a human merges that PR. The
+  guard allows only that form (github section 41); it cannot read a `-F` body file, so the
+  read-back in §6a is the sensor. `close_on_merge: false`, or a base other than the default
+  branch → mention only; the human closes the issue after merge (or explicitly asks the agent to
+  run `gh issue close N -R OWNER/REPO` in the main thread — the guard asks on a human issue).
+  Jira keys never take a closing keyword, in any mode.
 
 ## Command mapping
 
@@ -41,10 +49,10 @@ the host alone.
 | §5 checks | `ci.mr_pipeline`, `ci.checks` | same keys from the Actions parser; also `ci.pr_ci_on_ticket_base` for stacked parts |
 | §6 title style | `glab mr list --merged -P 10` | `gh pr list -R OWNER/REPO --state merged -L 10 --json title` |
 | §6a create | `glab mr create … --label agent-worked --squash-before-merge --remove-source-branch` | `gh pr create -R OWNER/REPO -H "$BR" -B "$BASE" -t … -F … -l agent-worked` (no per-PR squash/delete flags — see below) |
-| §6 read-back | `glab mr view IID -F json` | `gh pr view "$BR" -R OWNER/REPO --json number,title,body,isDraft,labels,baseRefName,headRefName,milestone,url` |
+| §6 read-back | `glab mr view IID -F json` | `gh pr view "$BR" -R OWNER/REPO --json number,title,body,isDraft,labels,baseRefName,headRefName,milestone,url` + `--json closingIssuesReferences` (§6a) |
 | §6 CI exists | `glab api …/pipelines` | `gh pr checks N -R OWNER/REPO` (exit 8 = pending; "no checks reported" = no CI) |
 | §6b/6c edit | `glab mr update IID …` | `gh pr edit N -R OWNER/REPO -F … / -B "$BR" / -t …`; Draft → `gh pr ready N -R OWNER/REPO` |
-| §7 handoff | `jira comment KEY …` | `gh issue comment N -R OWNER/REPO -F "$SCRATCH/N-handoff.md"` |
+| §7 handoff | `jira comment KEY …` | `gh issue comment N -R OWNER/REPO -F "$SCRATCH/N-handoff.md"` ("merging the PR closes #N" when CLOSE, else "close it yourself") |
 | never on own initiative | `glab mr merge/approve`, `jira transition KEY` | `gh pr merge`, `gh pr review --approve`, `gh issue close/reopen` on the parent — name the command; run it only on the user's explicit request (hook: ask (main thread) / deny (subagent)) |
 
 Milestone: the issue's own milestone if it is still open (`preflight.milestones`), else none.
@@ -62,7 +70,8 @@ Key facts: `base_repo` (where PRs and issues go), `default_branch`, `can_label`,
 `protected_branches` (classic + rulesets; `default_branch_protection.status` 403 = private Free
 repo or not admin — the guard hook is then the only default-branch protection), `mr_template`,
 `pr_templates` (multiple → pick one with `-T NAME` only if the user asks; else fill the default),
-`codeowners`, `contributing`, `labels`, `milestones`, `existing_prs`, `ci.*`.
+`codeowners`, `contributing`, `labels`, `milestones`, `existing_prs`, `ci.*`,
+`issue.close_on_merge` (whether the PR to the default branch carries the closing keyword, §6).
 `fork_flow: true` → **Fork flow** below (single delivery only). `auth_ok: false` → stop.
 
 ## §2 Triage comment (Markdown)
@@ -109,12 +118,19 @@ No state changes on children or parent.
 
 ## §6 PR body template
 
-Repo template (`mr_template`) set → fill its headings; put the `#N` mention where it asks for
-the issue. Otherwise:
+Repo template (`mr_template`) set → fill its headings; put the issue line below where it asks
+for the issue. Otherwise the skeleton below. **Issue line** — CLOSE = `issue.close_on_merge`
+is `true` **and** this PR's base (`-B`) is `default_branch` (the single PR, or the main PR of
+a stack):
+- CLOSE → `Closes #12 — <issue title>`, plus one `Closes #41` line per `agent-worked`
+  sub-issue (at most 10 refs in all; bare `#N` of `base_repo` only, never `owner/repo#N` or
+  a URL). GitHub closes them when a human merges this PR.
+- otherwise (sub PRs, fork flow, `close_on_merge: false`, another base) → the mention
+  `#12 — <issue title>`, never a keyword.
 
 ```markdown
 ## Issue
-#12 — <issue title>            <- a mention only; NEVER "Closes/Fixes/Resolves #12"
+Closes #12 — <issue title>     <- CLOSE only; otherwise "#12 — <issue title>" (a mention)
 
 ## Why
 <problem, from the issue + verification evidence>
@@ -137,8 +153,9 @@ the issue. Otherwise:
 <ONLY for stacked delivery (main PR) — table below>
 
 ## Agent notes
-- Issue #12 labelled `agent-worked`; issue state unchanged — close it yourself after merge
-  (this PR deliberately uses no closing keyword).
+- Issue #12 labelled `agent-worked`. CLOSE: "merging this PR closes #12[, #41, #42]";
+  otherwise: "issue state unchanged — close it yourself after merge (this PR deliberately
+  uses no closing keyword)".
 - Sub-issues: #41, #42 (`agent-created`) — or "none". Delivery: <single | stacked — M parts>.
 - Squash/delete-branch: chosen by the human at merge (repo: squash <allowed|not>, auto-delete <on|off>).
 - Harness: repo-level `CLAUDE.md` / `.claude/` updated in this PR: <paths — why> — or "none".
@@ -147,7 +164,7 @@ the issue. Otherwise:
 **Title**: the repo's observed style (`gh pr list -R OWNER/REPO --state merged -L 10 --json
 title`), **without** `#N` (the squash-merge subject is the PR title and the harness keeps
 ticket refs out of commit subjects; the `## Issue` mention carries the link). Sub PRs:
-`[part N/M] <task>`. Never a closing keyword.
+`[part N/M] <task>`. Never a closing keyword in a title (nor in a commit), in any mode.
 
 **CI recommendations (Actions wording)** — only the ones that apply:
 - `ci.mr_pipeline == false`: "No workflow runs on `pull_request`, so the checks above ran once
@@ -174,11 +191,27 @@ git push -u origin "$BR"                                                       #
 gh pr create -R OWNER/REPO -H "$BR" -B "$BASE" -t "<title>" -F "$SCRATCH/12-pr.md" \
   -l agent-worked ${MILESTONE:+-m "$MILESTONE"} ${DRAFT:+--draft}               # hook: allow
 gh pr view "$BR" -R OWNER/REPO --json number,title,isDraft,labels,baseRefName,milestone,url
-gh pr view "$BR" -R OWNER/REPO --json title,body | jq -r '.title, .body' | \
-  grep -nEi '\b(clos(e|es|ed|ing)|fix(es|ed|ing)?|resolv(e|es|ed|ing)|implement(s|ed|ing)?):?\s+[A-Z]+-[0-9]+|\b(close[sd]?|fix(e[sd])?|resolve[sd]?):?\s+(([[:alnum:]_.-]+/[[:alnum:]_.-]+)?#[0-9]+|https?://github\.com/[^/ ]+/[^/ ]+/issues/[0-9]+)' \
-  && echo "FIX: closing keyword — gh pr edit"
+# closing-keyword read-back (the guard cannot read the -F file: this is the sensor), every PR, every mode:
+# 1. never: a keyword before a Jira key, owner/repo#N or an issues URL (title or body); any keyword in the title
+gh pr view 34 -R OWNER/REPO --json title,body | jq -r '.title, .body' | \
+  grep -nEi '\b(clos(e|es|ed|ing)|fix(es|ed|ing)?|resolv(e|es|ed|ing)|implement(s|ed|ing)?):?\s+[A-Z]+-[0-9]+|\b(close[sd]?|fix(e[sd])?|resolve[sd]?):?\s+([[:alnum:]_.-]+/[[:alnum:]_.-]+#[0-9]+|https?://github\.com/[^/ ]+/[^/ ]+/issues/[0-9]+)' \
+  && echo "FIX: closing keyword on a Jira key or a foreign ref — gh pr edit"
+gh pr view 34 -R OWNER/REPO --json title | jq -r .title | \
+  grep -nEi '\b(close[sd]?|fix(e[sd])?|resolve[sd]?):?\s+#[0-9]+' && echo "FIX: closing keyword in the title — gh pr edit -t"
+# 2. not CLOSE (sub PR, fork flow, close_on_merge false, base != default_branch): no keyword + #N in the body either
+#    (GitHub links keywords only on PRs to the default branch, so step 3 alone cannot see it on a sub PR)
+gh pr view 34 -R OWNER/REPO --json body | jq -r .body | \
+  grep -nEi '\b(close[sd]?|fix(e[sd])?|resolve[sd]?):?\s+#[0-9]+' && echo "FIX: closing keyword in a mention-only PR — gh pr edit"
+# 3. what GitHub closes on merge = EXACTLY the expected set: CLOSE → the worked issue + its agent-worked
+#    sub-issues of OWNER/REPO; otherwise [] (any other ref, e.g. a manual Development link → fix)
+gh pr view 34 -R OWNER/REPO --json closingIssuesReferences | \
+  jq -e --argjson want '["owner/repo#12","owner/repo#41"]' \
+  '[.closingIssuesReferences[] | "\(.repository.owner.login)/\(.repository.name)#\(.number)" | ascii_downcase] | sort == ($want | map(ascii_downcase) | sort)' \
+  >/dev/null || echo "FIX: closing references differ from the expected set — gh pr edit"   # want = '[]' when not CLOSE
 gh pr checks 34 -R OWNER/REPO                                                    # CI present?
 ```
+Each `FIX:` → correct the body file and `gh pr edit 34 -R OWNER/REPO -F …`, then read back
+again; never leave a PR whose closing references differ from the expected set.
 Squash / delete-branch have no per-PR flags on GitHub: report `project.squash_merge_allowed`
 and `project.delete_branch_on_merge` in Q11 and the handoff; the human picks at merge. Turning
 on the repo setting is `gh repo edit` (hook: ask) — suggest it, don't run it.
@@ -205,7 +238,15 @@ gh pr create -R OWNER/REPO -H "$BR-sub-01-<task>" -B "$TARGET" -t "[part 1/M] <t
 gh pr list -R OWNER/REPO --state all --limit 100 --json number,headRefName,baseRefName,isDraft,state,url \
   | jq --arg br "$BR" '[.[] | select(.headRefName==$br or (.headRefName|startswith($br+"-sub-")))]' > "$SCRATCH/12-stack.json"
 gh pr edit 34 -R OWNER/REPO -F "$SCRATCH/12-pr.md" && gh pr edit 35 -R OWNER/REPO -F "$SCRATCH/12-sub-01.md"   # hook: allow
+# read-back per PR as in §6a: main PR #34 → want = the CLOSE set (or [] when not CLOSE); every sub PR → want '[]' + step 2 grep
 ```
+**Closing keyword in a stack**: only the **main PR** (base = `default_branch`) carries
+`Closes #12` (plus the `agent-worked` sub-issues, at most 10 refs) when `issue.close_on_merge`
+is `true`; its second-pass edits keep it. Sub PRs — first pass and second pass alike — keep
+`#12` / `#41` as **mentions only** (`for #12`, `part of #41`); their `closingIssuesReferences`
+must read back empty and their body grep (§6a step 2) must find nothing. Commits and titles
+never carry a keyword.
+
 **Stack mechanics on GitHub** (differs from GitLab CE):
 - Sub PRs target the ticket branch `$BR` (fan-in) or their blocker's sub branch (chain).
 - When a part merges **and its head branch is deleted**, GitHub retargets the PRs based on it
@@ -249,7 +290,8 @@ gh pr edit 37 -R OWNER/REPO -B "$BR"          # only if GitHub did not auto-reta
   repo on the user's account). `origin` stays upstream; the fork is the `fork` remote.
 - Branch from upstream: `git fetch origin && git switch -c "$BR" "origin/$BASE"`.
 - Read `contributing` (CONTRIBUTING.md): DCO sign-off (`git commit -s`), CLA, commit style,
-  required issue link wording — follow it (still never a closing keyword).
+  required issue link wording — follow it (still never a closing keyword: fork flow is
+  mention-only, `issue.close_on_merge` is `false` there).
 - Push: `git push -u fork "$BR"`.
 - Create: `gh pr create -R OWNER/REPO -H <me>:"$BR" -B "$BASE" -t "<title>" -F "$SCRATCH/12-pr.md"`
   — **no `-l`** (no permission); `--draft` per Q9 (upstream's `draft_prs_available`), never the
@@ -268,9 +310,12 @@ gh issue comment 12 -R OWNER/REPO -F "$SCRATCH/12-handoff.md"      # hook: allow
 ```markdown
 PR opened: <url> (`<BR>` -> `<BASE>`). Merge is by a maintainer — the agent never merges on its own.
 CI on PR: <yes — <workflows> | no — checks ran locally once, see PR>.
-Issue state unchanged — **close the issue yourself after merge** (we never use closing keywords).
-Sub-issues: #41, #42 (agent-created; close them with this issue).   <- only if any
+Issue state unchanged until then — **merging the PR closes #12** (and #41, #42).   <- CLOSE (§6)
+Issue state unchanged — **close the issue yourself after merge** (this PR uses no closing keyword).   <- otherwise
+Sub-issues: #41, #42 (agent-created; closed by the same merge | close them with this issue).   <- only if any
 ```
+Keep exactly one of the two state lines. Stacked + CLOSE: the issue closes when the **main
+PR** merges (last), not when a part merges.
 Stacked: list the parts in merge order (`#35 [part 1/M] <task> -> <BR>` …), "click Delete
 branch after each merge so dependents retarget", main PR last; the order is the one
 `stk plan --stack <BR>` prints, and after each merge `stk sync --stack <BR>` (the agent on

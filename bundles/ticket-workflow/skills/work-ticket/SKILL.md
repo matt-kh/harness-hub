@@ -9,10 +9,10 @@ description: >-
   default that humans merge bottom-up. Use when the user
   asks to work on / pick up / start / implement / fix a ticket key ({{ core.ticket_example }},
   any PROJECT-123) or runs /work-ticket KEY. NOT for plain lookups (use the `jira` skill) or
-  ad-hoc ticket creation. In a repo that owns the ticket workflow (`.harness.toml` `[owns]`, or its own workflow
-  skill found at preflight) it runs only the read-only preflight and hands over completely. Also drives GitHub repos (`gh`): a GitHub
-  Issue (#N, owner/repo#N or URL) → PR(s) with the same governance (#N mention never a closing
-  keyword, stacked PRs, fork flow = single PR).
+  ad-hoc ticket creation. In a repo owning the ticket workflow (`.harness.toml` `[owns]`, or its own workflow
+  skill found at preflight) it runs only the read-only preflight and hands over. Also drives GitHub repos (`gh`): a GitHub
+  Issue (#N, owner/repo#N or URL) → PR(s) with the same governance (#N mention; only the
+  default-branch PR may close it; stacked PRs; fork = single PR).
 argument-hint: <TICKET-KEY | #N | N | owner/repo#N | issue-URL> [--base <branch>] [--no-subagents] [--size S|M|L|XL] [--mode ultracode|subagents|single] [--delivery stacked|single]
 model: {{ core.model_policy.execute }}
 ---
@@ -56,7 +56,8 @@ github-issues). "KEY" means the Jira key or `#N`; "MR" means PR on GitHub.
    hands the command back). Never write `Closes|Fixes|Resolves|Implements KEY` in commits, MR
    title/description, or API payloads, even when asked to close the ticket (the GitLab↔Jira
    integration transitions on them as a side effect; the hook denies). *Mention* the key
-   instead. Exception: agent-created sub-tickets may move to **In Progress only**, from the
+   instead. A Jira key never takes a closing keyword, in any mode; the one GitHub Issues
+   exception (the default-branch PR closing its worked issue) is in 10. Exception: agent-created sub-tickets may move to **In Progress only**, from the
    main thread (promptless — the hook allows state changes on agent-labelled tickets without
    a request; the restriction is this skill's rule).
 3. **Human tickets** — only *mention* keys of tickets you were not asked to work on. Native
@@ -96,7 +97,12 @@ github-issues). "KEY" means the Jira key or `#N`; "MR" means PR on GitHub.
 10. **GitHub specifics** (`github.md`): issue state is the user's decision exactly like Jira
     (`gh issue close/reopen` only on the user's explicit main-thread request, otherwise name
     the command; never `close[sd]|fix(e[sd])|resolve[sd] #N`,
-    `owner/repo#N` or an issues URL in commits, PR title/body or API payloads — mention `#N`).
+    `owner/repo#N` or an issues URL in commits, PR titles, sub PRs, issue text or API
+    payloads — mention `#N`). **One exception:** when preflight `issue.close_on_merge` is
+    `true`, the body of the one PR whose base is `default_branch` (single PR, or the stack's
+    main PR) says `Closes #N` for the worked issue (plus its `agent-worked` sub-issues, at most
+    10 bare `#N`), so the human's merge closes them; Step 6 reads its `closingIssuesReferences`
+    back (github.md §6–§6b). Otherwise mention only.
     **Fork flow (`fork_flow: true`) → single delivery only**, no labels, later edits prompt.
     Never `--fill`/`--fill-first`/`--fill-verbose` on `gh pr create` (nor `--fill` on
     `glab mr create`); always `-R owner/repo` literally, never `GH_REPO`.
@@ -106,7 +112,7 @@ github-issues). "KEY" means the Jira key or `#N`; "MR" means PR on GitHub.
 ### Step 0 — Preflight (read-only) → Q0–Q3
 ```bash
 bash ~/.claude/skills/work-ticket/scripts/preflight.sh [<short> <short>-sub-01-x]  # provider, default_branch, project, ci.{mr_pipeline,per_branch_heavy,per_branch_heavy_jobs,mr_heavy_jobs}, protected_branches, gitlab.stack_ui_available, mr_template, repo_skill, repo_declaration, repo_owns
-                                                   # → github.md §0: preflight.sh <N> [<short> …] (+ auth_ok, base_repo, fork_flow, can_label, draft_prs_available, existing_prs, ci.pr_ci_on_ticket_base)
+                                                   # → github.md §0: preflight.sh <N> [<short> …] (+ auth_ok, base_repo, fork_flow, can_label, draft_prs_available, existing_prs, ci.pr_ci_on_ticket_base, issue.close_on_merge)
 # tracker = jira (SCM auth per provider):
 jira whoami                                        # exit 2 → stop: token missing/expired/unreachable   → github.md §0
 glab auth status                                   # → github.md §0 (gh auth status)
@@ -233,14 +239,17 @@ glab mr create --source-branch "$BR" --target-branch "$BASE" \
   ${MILESTONE:+--milestone "$MILESTONE"} ${DRAFT:+--draft}                  # hook: allow (--label agent-worked)   → §6a (gh pr create -H -B -F -l; Draft fallback)
 IID=$(glab mr list --source-branch "$BR" -F json | jq -r '.[0].iid')      # → §6a
 glab mr view "$IID" -F json | jq '{title,draft,labels,squash,force_remove_source_branch,milestone:.milestone.title,target_branch}'   # → §6a (gh pr view --json)
-# closing-keyword read-back — Jira keys AND GitHub forms (#N, owner/repo#N, issues URL); GitHub: grep title + body (→ §6a)
+# closing-keyword read-back — Jira keys AND GitHub forms (#N, owner/repo#N, issues URL). GitHub (→ §6a): Jira-key and foreign-ref
+# greps unchanged, no keyword in the title, and closingIssuesReferences == exactly the worked issue (+ agent-worked
+# sub-issues) when issue.close_on_merge and the PR targets default_branch, else empty (+ no #N keyword in the body)
 glab mr view "$IID" -F json | jq -r .description | grep -nEi '\b(clos(e|es|ed|ing)|fix(es|ed|ing)?|resolv(e|es|ed|ing)|implement(s|ed|ing)?):?\s+[A-Z]+-[0-9]+|\b(close[sd]?|fix(e[sd])?|resolve[sd]?):?\s+(([[:alnum:]_.-]+/[[:alnum:]_.-]+)?#[0-9]+|https?://github\.com/[^/ ]+/[^/ ]+/issues/[0-9]+)' && echo "FIX: closing keyword — glab mr update / gh pr edit"   # → github.md §6a
 glab api "projects/:id/merge_requests/$IID/pipelines" | jq length      # >0 → MR pipeline exists   → §6a (gh pr checks)
 ```
 Title: `KEY ` + repo's observed style (GitHub: repo style **without** `#N` — github.md §6).
 Never `--fill` (GitHub: nor `--fill-first`/`--fill-verbose`), never `--related-issue`. Description:
 repo template if `mr_template` set (`## JIRA Ticket` → mention link), else skeleton (GitHub:
-the PR body template in github.md §6, `## Issue` mentions `#N`); always
+the PR body template in github.md §6, `## Issue` mentions `#N`, or closes it on the PR to the
+default branch when `issue.close_on_merge`); always
 append `## Task list`, `## Checks`, `## CI recommendations` (gap only), `## Sub-tickets`
 (if any), `## Agent notes`. Milestone: exact existing match only; never create.
 
@@ -303,7 +312,8 @@ the merge of that part (the guard asks), then `stk sync --stack <BR>`.
 ### Step 7 — Handoff
 ```bash
 jira comment KEY "MR opened: <url> ($BR -> $BASE). Merge is by a maintainer. CI on MR: <yes/no>. Ticket status unchanged — move it yourself when appropriate.[ Sub-tickets: KEY-a, KEY-b (agent-created; move them with this ticket).]"   # → github.md §7
-# → github.md §7: gh issue comment N -R owner/repo -F handoff.md ("close the issue yourself after merge"); fork flow: final message only
+# → github.md §7: gh issue comment N -R owner/repo -F handoff.md ("merging the PR closes #N" when issue.close_on_merge
+#   and the PR targets default_branch — stacked: the main PR; else "close the issue yourself after merge"); fork flow: final message only
 ```
 Stacked: use the stacked handoff template in `mr-description.md` (merge order, main last, "the
 agent never merges on its own"): humans decide the merges bottom-up in the UI following `stk plan --stack <BR>`;

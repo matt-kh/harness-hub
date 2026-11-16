@@ -19,7 +19,7 @@
 
 `KEY ` + the repo's observed style. Check the last ~10 merged MR titles
 (`glab mr list --merged -P 10`): if they use `type(scope): summary`, produce
-`KEY type(scope): summary`; otherwise `KEY Sentence summary`. Never a closing keyword.
+`KEY type(scope): summary`; otherwise `KEY Sentence summary`. Never a closing keyword in a title.
 GitHub: `gh pr list -R owner/repo --state merged -L 10 --json title`, repo style **without**
 `#N`; PR body, `## Stack` (`#N` numbers), sub-PR header and handoff templates → `github.md` §6/§7.
 
@@ -141,10 +141,12 @@ automatically — no per-child Jira comments needed.
 - Depends on !12 (`docker-networks-sub-01-schema`): retargeted to `docker-networks` by the agent after !12 merges. <or "no dependencies">
 ```
 Title: `KEY [part N/M] <task>` (with Jira sub-tickets, `<task>` = the child's title). Never a
-closing keyword. `prev`/`next` follow decomposition order; `!TBD` until the second pass.
+closing keyword in a sub MR/PR (title or description), GitHub included. `prev`/`next` follow decomposition order; `!TBD` until the second pass.
 
 Rules: mention the key as a link, never `Closes/Fixes/Resolves/Implements KEY`. After
-creation, read the description back and grep for closing keywords (Step 6).
+creation, read the description back and grep for closing keywords (Step 6). The only
+exception is GitHub Issues: the main/single PR to the default branch may close the worked
+`#N` when preflight `issue.close_on_merge` is true (`github.md` §6); Jira keys never.
 
 ## Handoff comment (Jira)
 

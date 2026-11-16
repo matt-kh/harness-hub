@@ -24,7 +24,7 @@ Options (defaults: L → subagents, XL → ultracode pre-selected — the user s
    - **Phase "Implement"**: one agent per sub-ticket, in parallel per group, sequential
      across groups when `depends_on` requires. Brief = the subagent brief from `subagents.md`
      + sub-ticket key, worktree path, sub-branch, scope, acceptance criteria, paths, and:
-     "no closing keywords (Closes/Fixes/Resolves/Implements KEY) in any commit message;
+     "no closing keywords (Closes/Fixes/Resolves/Implements KEY or #N) in any commit message;
      commit as `<imperative summary>` — no ticket key in commit messages".
    - **Phase "Review"** (optional): one reviewer per parallel group, reading only that
      group's worktree diffs; returns findings, does not edit.
@@ -39,7 +39,8 @@ Options (defaults: L → subagents, XL → ultracode pre-selected — the user s
 
 ## Constraints that do not change inside a workflow
 - The user-level guard hook is session-wide: it applies to every workflow agent (pushes of
-  `-sub-` branches → ask; jira/glab writes → gated; closing keywords → deny).
+  `-sub-` branches → ask; jira/glab writes → gated; closing keywords → deny, except the
+  main thread's GitHub PR to the default branch closing the worked `#N` — github.md §6).
 - No Jira/GitLab writes from workflow agents; the main thread owns all of them.
 - Workflow agents never push and never create MRs; the main thread owns every push and MR
   (single: one push, one MR; stacked: one push per branch, N+1 MRs). Humans decide every merge.

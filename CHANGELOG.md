@@ -770,6 +770,21 @@ prints every one between your applied version and the new one.
   Section 41 carries `rf_remote_id`'s normalisation between `rf_remote_norm` markers; both the
   ticket-workflow suite and the github guard rows fail when that copy and `repo-facts.sh` drift.
   Test stubs gain `GIT_STUB_LOG`, `GH_STUB_LOG` and `GIT_STUB_REMOTE=hang`.
+- `/work-ticket` on GitHub Issues (part 03 of #80): the github preflight reports
+  `issue.close_on_merge` — `true` when the tracker is `github-issues`,
+  `github.close_issue_on_merge` is on (config, and `HARNESS_GITHUB_CLOSE_ISSUE_ON_MERGE` when
+  set: anything but `true` from either is off), the delivery is not the fork flow (an unknown
+  `fork_flow`, e.g. without auth, counts as fork) and the issue lives in `base_repo`. When it is
+  `true`, the body of the one PR whose base is the default branch (the single PR, or the main PR
+  of a stack, first and second pass) writes the closing keyword for the worked `#N` plus its
+  `agent-worked` sub-issues (at most 10 bare refs), and the handoff says "merging the PR closes
+  #N"; sub PRs, fork PRs, other bases and `close_on_merge: false` keep the mention and today's
+  "close it yourself" text. The Step 6 read-back now checks `gh pr view --json
+  closingIssuesReferences` equals exactly that set (empty otherwise; the guard cannot read `-F`
+  body files, so this is the sensor), keeps the Jira-key and foreign-ref keyword greps, and
+  greps every title and every mention-only body for a `#N` keyword. Commits, titles, Jira keys
+  and issue text never carry a closing keyword, in any mode. The ticket-workflow test stubs now
+  also unset `HARNESS_GITHUB_CLOSE_ISSUE_ON_MERGE` and `HARNESS_TICKET_TRACKERS`.
 - Guard section `41-github-closing`: a closing keyword or issue ref written with quotes or
   escapes inside it (the keyword split by quotes, a backslash before the space or the `#`) on a
   `git commit`, `gh pr create|edit|merge` or `gh api` line is now denied like the plain form; it

@@ -62,7 +62,8 @@
   "issue": {
     "ref": "7",
     "repo": "owner/repo",
-    "number": 7
+    "number": 7,
+    "close_on_merge": false
   },
   "existing_prs": [],
   "stack_detected": false,
