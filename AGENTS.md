@@ -84,7 +84,7 @@ make render-check   # render twice into one fresh HOME; diff must be empty
 - **Commit identity is a noreply address**: `git config user.email "<id>+<login>@users.noreply.github.com"`.
 - **No closing keywords** (`Closes #N`, `Fixes #N`, `Resolves #N`) in commits, titles, sub-PRs
   or anywhere else; write "#N" or "see #N". The one exception: the body of the PR into the
-  default branch may close its own issue, the bare `#N` of its `Issue: #N` line (see "Issues are
+  default branch may close its own issue, the bare `#N` of the first `Issue: #N` line (see "Issues are
   the source of truth"). No ticket keys in commit subjects or branch names.
 - **Never push to `main`.** Work on a branch, open a PR; humans merge.
 - **Secrets never enter the repo or a command line.** Check auth with each tool's own status
@@ -104,7 +104,7 @@ make render-check   # render twice into one fresh HOME; diff must be empty
   other issue: it would close it as a side effect.
 - `tools/gate/companions.sh` (check `issue`, CI on the PR body) fails a PR whose body names no
   issue or closes one; for a PR into the default branch CI passes `--base-is-default`, which
-  accepts a closing keyword before the bare `#N` of the `Issue:` line and nothing else. A
+  accepts a closing keyword before the bare `#N` of the first `Issue: #N` line and nothing else. A
   trivial fix waives the check with `no-issue: <reason>`.
 - The repository declares this itself: `.harness.toml` `[repo] tracker = "github-issues"`, which
   the ticket-workflow skills read before the host or your config.

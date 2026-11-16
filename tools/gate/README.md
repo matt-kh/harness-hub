@@ -111,7 +111,13 @@ four guides in AGENTS.md and CONTRIBUTING.md.
 | `changelog` | the branch touches `bundles/ lib/harness/ providers/ schema/ bin/ profiles/ templates/ bootstrap tools/*.lock.json`, outside `tests/`, `golden(s)/`, `guard.d/tests.sh` and `providers/*/README.md`, and `## [Unreleased]` in `CHANGELOG.md` gained no line | add a bullet under Added, Changed, Fixed or Deprecated (**Migration** when a key, default or decision changed) |
 | `readme` | the branch touches `bootstrap`, `bin/harness`, `lib/harness/cli.py`, `PRINCIPLES.md`, `principles/`, a `bundles/*/bundle.toml` or `providers/*/provider.toml`, adds or deletes a `bundles/<b>/` or `providers/<p>/` directory, or changes `docs/getting-started.md`, `docs/distribution.md`, `docs/governance.md`, `docs/repo-level.md`, `docs/runbooks/`, `SECURITY.md` or `LICENSE`, and `README.md` did not change | update the README section that states it, run `bin/harness docs generate` (a regenerated region counts) |
 | `issue` | the PR body (`--markers-file`), outside code and HTML comments, names no issue (`#N`, `owner/repo#N` or an issues URL), or puts a closing keyword (close/fix/resolve forms) before one | name the issue on the first line as `Issue: #N` and mention it as `#N` |
-| `issue` with `--base-is-default` | as above, except that a closing keyword is accepted before the bare `#N` of the body's `Issue: #N` line; a keyword before any other number, an `owner/repo#N`, an issues URL, or in a body without an `Issue: #N` line still fires | close only the PR's own issue (`Closes #N` with the `N` of its `Issue:` line); mention every other issue as `#N` |
+| `issue` with `--base-is-default` | as above, except that a closing keyword is accepted before the bare `#N` of the first `Issue: #N` line; a keyword before any other number, an `owner/repo#N`, an issues URL, or in a body without an `Issue: #N` line still fires | close only the PR's own issue (`Closes #N` with the `N` of the first `Issue: #N` line); mention every other issue as `#N` |
+
+The `issue` check reads the body as GitHub renders it: a fence opens with at most three leading
+spaces, a keyword at the end of a line counts with the reference on the next line, and the
+colon may touch the reference (`Closes:#N`). It does not verify the issue's provenance: the
+author's first `Issue: #N` line decides which issue is the PR's own. A keyword covers one
+reference only, so in `Closes #12, #13` the `#13` is a plain mention.
 
 A reworded rule (one removed, one added) needs no new row. Waive a check with a marker and a
 reason, in any commit body of the branch or (CI) the PR description: `no-rows: <reason>`,

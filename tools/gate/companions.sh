@@ -16,7 +16,7 @@
 #              owner/repo#N or an issues URL, outside code, and never after a closing keyword
 #              (close/fix/resolve forms: it would close the issue as a side effect). With
 #              --base-is-default (the PR targets the default branch) one exception: the PR may close
-#              its own issue, the bare #N on its `Issue: #N` line; any other closing ref still fails.
+#              its own issue, the bare #N of the first `Issue: #N` line; any other closing ref still fails.
 #              Without --markers-file (a local run) it is skipped.
 #
 # Usage: companions.sh [--ci] --range A..B [--markers-file F] [--base-is-default]
@@ -24,7 +24,7 @@
 #   --range A..B        compare the merge base of A and B with B (B defaults to HEAD)
 #   --markers-file F    extra text searched for markers (CI passes the pull-request body)
 #   --base-is-default   the PR targets the default branch: check `issue` accepts a closing keyword
-#                       before the bare #N named on the body's `Issue: #N` line (and nothing else)
+#                       before the bare #N of the body's first `Issue: #N` line (and nothing else)
 #   --only CHECK        run one check
 #   --ci                also print each hit as a GitHub Actions `::error::` annotation
 # Markers (reason required), in any commit body of the range or in the markers file:
@@ -199,11 +199,29 @@ check_readme() {
 # ---- check 4: issue reference in the PR body ---------------------------------------------
 # GitHub links #N, owner/repo#N and issues URLs; code (fenced or inline) and HTML comments never.
 REF='([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+#[0-9]+|https?://[^/[:space:]]+/[^/[:space:]]+/[^/[:space:]]+/issues/[0-9]+|#[0-9]+)'
-CLOSING='(^|[^A-Za-z0-9_])(close[sd]?|fix(e[sd])?|resolve[sd]?)[[:space:]]*:?[[:space:]]+'
+# A keyword, then a colon (spaces optional around it) or at least one space, then the reference.
+CLOSING='(^|[^A-Za-z0-9_])(close[sd]?|fix(e[sd])?|resolve[sd]?)([[:space:]]*:[[:space:]]*|[[:space:]]+)'
 prose() {  # $1 file → its text without fenced code, inline code spans and HTML comments
+  # A fence (CommonMark) opens with 0-3 spaces then 3+ backticks or tildes (a backtick fence's
+  # info string holds no backtick: ```x``` is inline code) and closes with the same character,
+  # at least as many times, and nothing else; a line indented 4+ spaces never opens one.
   tr -d '\r' <"$1" | awk '
-    /^[[:space:]]*(```|~~~)/ { fence = !fence; next }
-    fence { next }
+    function run(s, c,   k) { k = 0; while (substr(s, k + 1, 1) == c) k++; return k }
+    { lead = match($0, /[^ ]/) - 1; rest = (lead >= 0) ? substr($0, lead + 1) : "" }
+    fence {
+      if (lead >= 0 && lead <= 3) {
+        k = run(rest, fc)
+        if (k >= fl && substr(rest, k + 1) ~ /^[[:space:]]*$/) fence = 0
+      }
+      next
+    }
+    lead >= 0 && lead <= 3 {
+      c = substr(rest, 1, 1)
+      if (c == "`" || c == "~") {
+        k = run(rest, c)
+        if (k >= 3 && !(c == "`" && index(substr(rest, k + 1), "`"))) { fence = 1; fc = c; fl = k; next }
+      }
+    }
     { line = $0
       while (1) {
         if (incom) { i = index(line, "-->"); if (!i) { line = ""; break }; line = substr(line, i + 3); incom = 0 }
@@ -214,6 +232,13 @@ prose() {  # $1 file → its text without fenced code, inline code spans and HTM
       }
       gsub(/`[^`]*`/, " ", line); print line }'
 }
+joined() {  # $1 file → its lines, a line ending in a bare closing keyword joined with the next
+  awk '{
+    line = $0
+    while (tolower(line) ~ /(^|[^a-z0-9_])(close[sd]?|fix(e[sd])?|resolve[sd]?)[[:space:]]*:?[[:space:]]*$/ \
+           && (getline nxt) > 0) line = line " " nxt
+    print line }' "$1"
+}
 own_issue() {  # $1 prose file → N of the first `Issue: #N` line (empty when there is none)
   grep -E '^[[:space:]]*Issue:[[:space:]]*#[0-9]+([^0-9]|$)' "$1" | head -1 |
     sed -E 's/^[[:space:]]*Issue:[[:space:]]*#([0-9]+).*/\1/'
@@ -221,18 +246,21 @@ own_issue() {  # $1 prose file → N of the first `Issue: #N` line (empty when t
 check_issue() {
   local bad own m ref
   prose "$markers_file" >"$TMP/body"
+  joined "$TMP/body" >"$TMP/joined"
   if ! $base_is_default; then
-    bad=$(grep -iE "$CLOSING$REF" "$TMP/body" | head -1)
+    bad=$(grep -iE "$CLOSING$REF" "$TMP/joined" | head -1)
     if [ -n "$bad" ]; then
       hit "issue: pull-request body: a closing keyword precedes an issue reference ($(printf '%s' "$bad" | cut -c1-80)) — mention the issue as #N instead; it would close the issue as a side effect (no Closes/Fixes/Resolves before #N)"
     fi
   else
     # PR into the default branch: only the bare #N of its own `Issue: #N` line may follow a keyword
     own=$(own_issue "$TMP/body")
-    grep -oiE "$CLOSING$REF" "$TMP/body" >"$TMP/closing" || true
+    grep -oiE "$CLOSING$REF" "$TMP/joined" >"$TMP/closing" || true
     bad=""
     while IFS= read -r m; do
-      ref=$(printf '%s' "$m" | sed -E 's/^.*[[:space:]]//')
+      # the match is [one non-word char] keyword-letters separator REF; REF holds no whitespace and
+      # starts with no letter-run followed by a separator, so dropping that prefix leaves the ref
+      ref=$(printf '%s' "$m" | sed -E 's/^[^A-Za-z]*[A-Za-z]+([[:space:]]*:[[:space:]]*|[[:space:]]+)//')
       if [ -n "$own" ] && [ "$ref" = "#$own" ]; then continue; fi
       bad=$(printf '%s' "$m" | sed -E 's/^[^A-Za-z]+//'); break
     done <"$TMP/closing"

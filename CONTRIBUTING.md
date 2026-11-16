@@ -273,7 +273,7 @@ macOS ships bash 3.2 and BSD userland; CI parses every script with `/bin/bash -n
 - **No ticket keys in commit subjects or branch names** (mention them in the body), and
   **no closing keywords** in commits, titles, sub-PRs or other text — write "#12" or
   "see #12", never "Closes #12", "Fixes #12" or "Resolves #12". The single exception is the
-  PR into the default branch closing its own issue (the `Issue:` line's `#N`): the human who
+  PR into the default branch closing its own issue (the `#N` of the first `Issue: #N` line): the human who
   merges it decides the issue's state. This project's own guard denies every other closing
   keyword for agents, and issue state stays a human decision here too.
 - Subjects in the imperative, ≤ 72 characters, optional scope: `github: deny gh auth token`.
