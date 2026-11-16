@@ -527,6 +527,13 @@ class YieldsTest(HubTestCase):
         head = T.guard_head(self.read(self.section))
         self.assertEqual(head["stray"], [])
         self.assertEqual(head["prelude"], (7, 8))
+        # function definitions (one line, or up to a closing `}` line) run nothing: fine too
+        self.set_section(self.section_text.replace(line, "one() { echo x; }\nmulti() {\n  deny \"x; use y\"\n}\n" + line))
+        self.assertEqual(self.lint().errors, [])
+        self.assertEqual(T.guard_head(self.read(self.section))["stray"], [])
+        # an unterminated definition swallows nothing after its body: the call below it is stray
+        self.set_section(self.section_text.replace(line, "multi() {\n  :\n}\nmulti\n" + line))
+        self.assertTrue(any("rule code above the repo_owns line (multi)" in e for e in self.lint().errors))
 
     def test_public_sections_start_with_the_repo_owns_line(self):
         """Every declaration section's first command is repo_owns (after comments, shared

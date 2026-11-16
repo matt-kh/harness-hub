@@ -140,6 +140,9 @@ REPO_OWNS_LINE_RE = re.compile(r"^\s*repo_owns\s+(?P<id>\S+)\s+(?P<domain>\S+)\s
 NEVER_YIELDS_MARK_RE = re.compile(r"^#\s*never-yields:")
 # a plain assignment (a shared definition later sections use) may also precede the repo_owns line
 SHARED_DEF_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
+# so may a function definition (`name() { … }` on one line, or up to a line holding only `}`):
+# defining a function runs nothing, and later sections may call it (41-github-closing's lookups)
+SHARED_FN_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*\(\)\s*\{")
 
 # what each kind reaches, by status.MATRIX_ROWS label (guard: the provider tier); REACH_TEXT
 # holds the kinds that do not depend on a provider capability
@@ -478,8 +481,8 @@ def guard_head(text: str) -> Dict[str, Any]:
 
     Returns ``{"owns": line number or None, "prelude": (first, last) line numbers of the
     ``# never-yields:`` block or None, "stray": [(line number, text)] of code lines above the
-    repo_owns line that are neither in the prelude nor plain assignments}``. The prelude starts at
-    the ``# never-yields:`` comment and ends at the repo_owns line.
+    repo_owns line that are neither in the prelude nor plain assignments or function definitions}``.
+    The prelude starts at the ``# never-yields:`` comment and ends at the repo_owns line.
     """
     lines = text.splitlines()
     owns = next((i for i, ln in enumerate(lines, 1) if REPO_OWNS_LINE_RE.match(ln)), None)
@@ -487,8 +490,15 @@ def guard_head(text: str) -> Dict[str, Any]:
     if owns is None:
         return head
     start = None
+    in_fn = False
     for i, ln in enumerate(lines[:owns - 1], 1):
         s = ln.strip()
+        if in_fn:                      # inside a multi-line function definition: nothing runs
+            in_fn = ln.rstrip() != "}"
+            continue
+        if start is None and SHARED_FN_RE.match(s):
+            in_fn = not s.endswith("}")
+            continue
         if start is None and NEVER_YIELDS_MARK_RE.match(s):
             start = i
             continue

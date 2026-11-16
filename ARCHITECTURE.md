@@ -390,7 +390,7 @@ set win.
 the hook's `cwd` (not from a command's target directory) and reads `.harness.toml` (§11)
 without a subshell per line, so a full-size file stays inside the hook's time budget. Every
 section runs as a function; a yielding section's first command is the yield check, and it
-emits nothing when the repository owns its domain or id. Only plain shared assignments and a
+emits nothing when the repository owns its domain or id. Only plain shared assignments, function definitions and a
 marked `# never-yields:` prelude may precede the check: the prelude holds the rules no
 repository lifts (commands that print a stored credential; the ask on shell writes to
 `.harness.toml`). `20-credentials` carries no check (and is hard-listed in

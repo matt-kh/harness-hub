@@ -71,8 +71,8 @@ make render-check   # render twice into one fresh HOME; diff must be empty
   Only the developer's own credentials never yield: the credential-file denies
   (`core/guard.d/20-credentials`, `core/permissions`) and the `# never-yields:` preludes
   (commands that print a stored credential; the ask on writing `.harness.toml`). Guard
-  sections start with the `repo_owns` line (after shared assignments and an optional
-  prelude); skills carry the Step 0 paragraph; agent descriptions carry the baseline
+  sections start with the `repo_owns` line (after shared assignments, shared function
+  definitions and an optional prelude); skills carry the Step 0 paragraph; agent descriptions carry the baseline
   sentence; never hard-code one organisation's repository-skill name ([principle 8](principles/08-user-level-by-design.md)).
 - **Guard behaviour changes come with test rows** in `bundles/<b>/guard.d/tests.sh`,
   including bypass attempts. `tools/gate/companions.sh` fails a branch whose guard code
