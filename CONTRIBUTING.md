@@ -265,13 +265,17 @@ macOS ships bash 3.2 and BSD userland; CI parses every script with `/bin/bash -n
   this repository (agents: `/create-ticket` drafts it with `agent-drafted`; a maintainer
   confirms it and adds `agent-worked` before an agent works it). The branch and PR come from
   `/work-ticket #N`, and the PR body names the issue on its first line, `Issue: #N` — a
-  mention, never a closing keyword. The companion-file gate (check `issue`) fails a PR body
-  without a reference; a trivial fix writes `no-issue: <reason>` instead. `.harness.toml` at the
+  mention. Only the PR into the default branch may also close that issue on merge, with a
+  closing keyword before the same bare `#N` (`Closes #N`); sub-PRs never do. The companion-file
+  gate (check `issue`) fails a PR body without a reference or with any other closing reference;
+  a trivial fix writes `no-issue: <reason>` instead. `.harness.toml` at the
   root declares this (`[repo] tracker = "github-issues"`).
 - **No ticket keys in commit subjects or branch names** (mention them in the body), and
-  **no closing keywords anywhere** — write "#12" or "see #12", never "Closes #12",
-  "Fixes #12" or "Resolves #12". This project's own guard denies them for agents, and
-  issue state stays a human decision here too.
+  **no closing keywords** in commits, titles, sub-PRs or other text — write "#12" or
+  "see #12", never "Closes #12", "Fixes #12" or "Resolves #12". The single exception is the
+  PR into the default branch closing its own issue (the `Issue:` line's `#N`): the human who
+  merges it decides the issue's state. This project's own guard denies every other closing
+  keyword for agents, and issue state stays a human decision here too.
 - Subjects in the imperative, ≤ 72 characters, optional scope: `github: deny gh auth token`.
 - Every PR fills the [PR template](.github/PULL_REQUEST_TEMPLATE.md) checklist.
 - No DCO or CLA; by contributing you agree your work is licensed under the MIT license.
