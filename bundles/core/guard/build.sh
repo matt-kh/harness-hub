@@ -25,7 +25,7 @@
 #     guard_section_<bundle>_<stem>
 # so a section may `return` early: a yielding section starts with
 # `repo_owns <id> <domain> && return 0` (principle 8), preceded only by shared assignments,
-# function definitions and an optional `# never-yields:` prelude (credential-printing commands). Variables a section assigns without
+# multi-line function definitions and an optional `# never-yields:` prelude (credential-printing commands). Variables a section assigns without
 # `local` stay global, so definitions shared by later sections (10-k8s, 20-credentials,
 # 41-github-closing) keep working.
 set -eu

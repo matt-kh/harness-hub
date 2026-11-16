@@ -115,7 +115,9 @@
 #   HARNESS_GITHUB_CLOSE_ISSUE_ON_MERGE  unset or exactly `true` (github.close_issue_on_merge, the
 #                                   default): in a repository declaring [repo] tracker =
 #                                   "github-issues", the PR to the default branch may close its
-#                                   agent-worked #N (section 41); anything else keeps the deny
+#                                   agent-worked #N (section 41); anything else keeps the deny, and
+#                                   a value other than `true` in guard.env is final (the
+#                                   environment cannot switch it back on)
 #   HARNESS_GUARD_ENV               path of the env file parsed at start (default <hooks dir>/guard.env)
 #   GUARD_KUBECTL / GUARD_GIT       kubectl / git binaries the hook shells out to (tests: stubs)
 #   K8S_PROD_RE                     regex marking prod contexts/namespaces (same as the k8s CLI)
@@ -173,6 +175,8 @@ case "$_gs" in */*) GUARD_DIR=${_gs%/*} ;; *) GUARD_DIR=. ;; esac
 GUARD_DIR=$(cd "$GUARD_DIR" 2>/dev/null && pwd) || GUARD_DIR=.
 _ge="${HARNESS_GUARD_ENV:-$GUARD_DIR/guard.env}"
 _genv_keys=""
+# shellcheck disable=SC2034  # read by section 41 (github): guard.env's github.close_issue_on_merge
+HN_GENV_CLOSE_ON_MERGE=""
 if [ -r "$_ge" ]; then
   while IFS= read -r _gl || [ -n "$_gl" ]; do
     case "$_gl" in ''|'#'*) continue ;; esac
@@ -180,11 +184,13 @@ if [ -r "$_ge" ]; then
     [ "$_gk" != "$_gl" ] || continue
     case "$_gk" in ''|[0-9]*|*[!A-Za-z0-9_]*) continue ;; esac
     case "$_gk" in WORK_TICKET_*|HARNESS_*|K8S_*|GUARD_*|JIRA_*|GDOC_*|CREATE_TICKET_*|OBS_*|SUPPLY_*) ;; *) continue ;; esac
-    [ -z "${!_gk+x}" ] || continue
     case "$_gv" in
       \'*\') _gv=${_gv#\'}; _gv=${_gv%\'}; _gq="'\\''"; _gv=${_gv//"$_gq"/\'} ;;
       \"*\") _gv=${_gv#\"}; _gv=${_gv%\"} ;;
     esac
+    # an off switch in guard.env stays off even when the environment sets the key (section 41)
+    [ "$_gk" != HARNESS_GITHUB_CLOSE_ISSUE_ON_MERGE ] || HN_GENV_CLOSE_ON_MERGE=$_gv
+    [ -z "${!_gk+x}" ] || continue
     export "$_gk=$_gv"
     _genv_keys="$_genv_keys $_gk"
   done < "$_ge"

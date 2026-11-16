@@ -527,10 +527,21 @@ class YieldsTest(HubTestCase):
         head = T.guard_head(self.read(self.section))
         self.assertEqual(head["stray"], [])
         self.assertEqual(head["prelude"], (7, 8))
-        # function definitions (one line, or up to a closing `}` line) run nothing: fine too
-        self.set_section(self.section_text.replace(line, "one() { echo x; }\nmulti() {\n  deny \"x; use y\"\n}\n" + line))
+        # multi-line function definitions (up to a column-0 `}` line) run nothing: fine too
+        self.set_section(self.section_text.replace(line, "multi() {  # a comment\n  deny \"x; use y\"\n}\n" + line))
         self.assertEqual(self.lint().errors, [])
         self.assertEqual(T.guard_head(self.read(self.section))["stray"], [])
+        # a one-line definition is stray: code may follow its closing brace on the same line
+        for one in ('x() { :; }; deny "boom"', "x() { :; }; x # }", "one() { echo x; }"):
+            self.set_section(self.section_text.replace(line, one + "\n" + line))
+            self.assertEqual([c for _, c in T.guard_head(self.read(self.section))["stray"]], [one], one)
+            self.assertTrue(any("rule code above the repo_owns line" in e for e in self.lint().errors), one)
+        # an indented `}` does not end the body; a definition still open at repo_owns is stray
+        self.set_section(self.section_text.replace(line, "multi() {\n  :\n  }\ndeny \"boom\"\n" + line))
+        stray = T.guard_head(self.read(self.section))["stray"]
+        self.assertEqual(len(stray), 1, stray)
+        self.assertIn("not closed by a column-0 }", stray[0][1])
+        self.assertTrue(any("rule code above the repo_owns line (multi() {" in e for e in self.lint().errors))
         # an unterminated definition swallows nothing after its body: the call below it is stray
         self.set_section(self.section_text.replace(line, "multi() {\n  :\n}\nmulti\n" + line))
         self.assertTrue(any("rule code above the repo_owns line (multi)" in e for e in self.lint().errors))

@@ -27,7 +27,7 @@ Errors (exit 1):
 * ``yields`` (principle 8): a guard section whose ``yields`` is ``declaration`` without its
   ``repo_owns <id> <domain> && return 0`` line, or whose line names another id or domain; a
   ``repo_owns`` line in a ``never`` or ``n/a`` section; rule code above the ``repo_owns`` line
-  outside a ``# never-yields:`` prelude (plain shared assignments and function definitions are fine); a malformed
+  outside a ``# never-yields:`` prelude (plain shared assignments and multi-line function definitions are fine); a malformed
   ``# repo-override:`` comment, a name that is not ``WORK_TICKET_*`` or is on the deny-list, or
   one name with two defaults
 * ``provider-honesty`` (principle 6): a provider whose ``[capabilities]`` contradict its
@@ -941,7 +941,7 @@ def lint_yields(b: M.Bundle, rep: Report) -> None:
             if c.yields == "declaration":
                 if not lines:
                     rep.err("%s %s yields by declaration but has no repo_owns line; add `repo_owns %s %s && return 0` "
-                            "as its first command after the # rule: comments (only plain shared assignments and function "
+                            "as its first command after the # rule: comments (only plain shared assignments and multi-line function "
                             "definitions that later sections use, and a `# never-yields:` prelude, may precede it)" % (where, c.id, c.id, c.domain or "<domain>"))
                 for m in lines:
                     if m.group("id") != c.id or m.group("domain") != (c.domain or ""):
