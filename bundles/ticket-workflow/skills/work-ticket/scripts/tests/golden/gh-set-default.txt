@@ -144,7 +144,7 @@
     "ref": "owner/repo#7",
     "repo": "owner/repo",
     "number": 7,
-    "close_on_merge": true
+    "close_on_merge": false
   },
   "existing_prs": [
     {

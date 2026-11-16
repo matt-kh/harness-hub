@@ -17,7 +17,8 @@
   `{{ core.agent_labels.worked }}`, so GitHub closes them when a human merges it. Write it as one
   plain one-line command run from that repository's checkout (no `cd`, `GH_REPO`, `sh -c`,
   `$(…)` or other commands on the line; each flag once; `-R` only for that checkout's own repo),
-  with the plain text inside `-b`. Never in commits, sub PRs, fork PRs, `gh pr merge` or
+  with the plain text in `-b`, or in a `-F` file, which the guard cannot check, so work-ticket
+  reads it back (`closingIssuesReferences`). Never in commits, sub PRs, fork PRs, `gh pr merge` or
   `gh api`; `github.close_issue_on_merge = false` turns the exception off.
 - `gh pr create` and edits to agent-labelled PRs/issues run promptless, human ones prompt.
 - Humans decide: `gh pr merge|review` and `gh issue delete|transfer` always ask;

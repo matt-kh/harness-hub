@@ -383,15 +383,34 @@ ci_cost=$(json_or "$ci_cost" '{"heuristic":"failed"}')
 tracker=$(rf_tracker "$root"); [ -n "$tracker" ] || tracker=null
 
 # ---- close on merge: may the PR to the default branch carry a closing keyword for the issue?
-# github.close_issue_on_merge (default true; HARNESS_GITHUB_CLOSE_ISSUE_ON_MERGE, the guard's
-# copy: anything but exactly `true` from either source is off) AND the tracker is GitHub Issues
-# AND not the fork flow (an unknown fork_flow, e.g. without auth, counts as fork: fail closed)
-# AND the issue lives in the base repository (the guard allows a bare #N only).
+# github.close_issue_on_merge (default true; anything but exactly `true` from the config, the
+# environment's HARNESS_GITHUB_CLOSE_ISSUE_ON_MERGE or the guard's own guard.env is off — guard.env
+# is final for the guard, so it is final here too) AND the tracker is GitHub Issues AND not the
+# fork flow (an unknown fork_flow, e.g. without auth, counts as fork: fail closed) AND origin is
+# base_repo (the guard needs -R = origin and a same-repository head) AND the issue lives in the
+# base repository (the guard allows a bare #N only).
 # The guard (github section 41) decides the command; this only tells the skill which text to write.
 # hcfg reads a JSON false as absent (`// empty`), so the boolean is read from the github table
 close_knob=$(jq -r 'if type == "object" and has("close_issue_on_merge") then .close_issue_on_merge | tostring
                     else "true" end' <<<"$(hcfg github '{}')" 2>/dev/null) || close_knob=false
 [ "${HARNESS_GITHUB_CLOSE_ISSUE_ON_MERGE:-true}" = true ] || close_knob=false
+# guard.env: ${HARNESS_GUARD_ENV:-<hooks dir>/guard.env}, <hooks dir> = <skills dir>/../hooks (the
+# installed layout). Parsed like the guard engine parses it (never sourced): the last
+# HARNESS_GITHUB_CLOSE_ISSUE_ON_MERGE line wins, one level of '…' or "…" quotes is stripped.
+genv="${HARNESS_GUARD_ENV:-$(dirname "${BASH_SOURCE[0]}")/../../../hooks/guard.env}"
+if [ -r "$genv" ]; then
+  genv_close=""
+  while IFS= read -r gl || [ -n "$gl" ]; do
+    case "$gl" in HARNESS_GITHUB_CLOSE_ISSUE_ON_MERGE=*) ;; *) continue ;; esac
+    gv=${gl#*=}
+    case "$gv" in
+      \'*\') gv=${gv#\'}; gv=${gv%\'} ;;
+      \"*\") gv=${gv#\"}; gv=${gv%\"} ;;
+    esac
+    genv_close=$gv; genv_set=1
+  done < "$genv"
+  [ -z "${genv_set:-}" ] || [ "$genv_close" = true ] || close_knob=false
+fi
 close_on_merge=false
 if [ "$close_knob" = true ] && [ "$fork_flow" = false ] \
    && [ "$(jq -r '.tracker // empty' <<<"$tracker" 2>/dev/null)" = github-issues ]; then
@@ -430,7 +449,8 @@ def nn: if . == "" then null else . end;
                "agent-drafted":($labels|index("agent-drafted") != null), "agent-wip":($labels|index("agent-wip") != null)},
  milestones:$ms,
  issue:(if $inum == "" then null else {ref:$iref, repo:(($irepo|nn) // ($base|nn)), number:($inum|tonumber),
-        close_on_merge:($closeom and ((($irepo|nn) // $base | ascii_downcase) == ($base | ascii_downcase)))} end),
+        close_on_merge:($closeom and (($origin | ascii_downcase) == ($base | ascii_downcase))
+                        and ((($irepo|nn) // $base | ascii_downcase) == ($base | ascii_downcase)))} end),
  existing_prs:$prs, stack_detected:([$prs[].headRefName | select(test("-sub-"))] | length > 0),
  ci:({checks:$checks, precommit:$precommit} + $cost),
  repo_skill:($skill|nn), repo_declaration:($rdecl|nn), repo_owns:$rowns, tracker:$tracker,

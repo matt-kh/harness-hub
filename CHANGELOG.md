@@ -784,7 +784,17 @@ prints every one between your applied version and the new one.
   body files, so this is the sensor), keeps the Jira-key and foreign-ref keyword greps, and
   greps every title and every mention-only body for a `#N` keyword. Commits, titles, Jira keys
   and issue text never carry a closing keyword, in any mode. The ticket-workflow test stubs now
-  also unset `HARNESS_GITHUB_CLOSE_ISSUE_ON_MERGE` and `HARNESS_TICKET_TRACKERS`.
+  also unset `HARNESS_GITHUB_CLOSE_ISSUE_ON_MERGE`, `HARNESS_TICKET_TRACKERS` and
+  `HARNESS_GUARD_ENV`. Review follow-ups: `issue.close_on_merge` is also `false` when origin is
+  not `base_repo` (a fork with write access on its parent, which the guard denies) and when the
+  guard's own `guard.env` (`HARNESS_GUARD_ENV`, else `<hooks dir>/guard.env`, parsed, never
+  sourced) sets `HARNESS_GITHUB_CLOSE_ISSUE_ON_MERGE` to anything but `true`; the §6a read-back
+  runs as is in both modes (`CLOSE`/`WANT`), re-reads `closingIssuesReferences` once after a few
+  seconds (GitHub fills it asynchronously), greps the PR's commit messages too, and matches issue
+  URLs with `www.` like the guard; at most 10 refs (worked issue + first 9 sub-issues, the rest
+  listed in the handoff); the issue title sits on its own line, never right after a keyword; the
+  handoff and agent notes no longer put a keyword directly before a ref. Rule `60-github` says a
+  `-F` body is not checked by the guard and is read back by work-ticket.
 - Guard section `41-github-closing`: a closing keyword or issue ref written with quotes or
   escapes inside it (the keyword split by quotes, a backslash before the space or the `#`) on a
   `git commit`, `gh pr create|edit|merge` or `gh api` line is now denied like the plain form; it
