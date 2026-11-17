@@ -35,8 +35,8 @@
   merges, bottom-up. A chain is linked as a native GitHub stack with
   `gh stack link --base <ticket branch> N1 N2 …` by PR numbers only (agent-labelled `-sub-` PRs;
   the main PR stays outside; a branch name would push and open an unlabelled PR, so it is
-  denied). `gh stack merge` is a human decision (asks; denied from a subagent), as is
-  `--open`. `stk sync --stack BR` keeps the stack in sync; `gh stack sync|push|submit|rebase`
+  denied). `gh stack merge` is a human decision (asks; denied from a subagent), as are
+  `--open`, `gh stack alias`, unknown verbs and flags before the verb: put the verb first. `stk sync --stack BR` keeps the stack in sync; `gh stack sync|push|submit|rebase`
   are not used (they ask, and deny on the default branch).
 - Forks/upstream: the agent cannot label there, so edits ask and delivery is a single PR.
 - Secret: `~/.config/gh/hosts.yml` holds the token — never read or print it; check auth with

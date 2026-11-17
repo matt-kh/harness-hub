@@ -79,7 +79,7 @@ Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md
 **Guard sections**
 
 - `github/guard.d/41-github-closing` — control: sensor · domain: tracker · function: govern · decisions: deny 2 · allow 1 · yields: declaration
-- `github/guard.d/60-github` — control: sensor · function: govern · decisions: deny 11 · ask 13 · allow 4 · yields: declaration
+- `github/guard.d/60-github` — control: sensor · function: govern · decisions: deny 12 · ask 13 · allow 4 · yields: declaration
 
 **Permission lists**
 
@@ -217,7 +217,7 @@ Guides steer the agent before it acts; sensors detect at or after the action. Pa
 | sensor | test | `tests/run.sh` | this bundle's rows against core + github only | — |
 | sensor | lint | `permissions-vs-guard` | each Bash allow/deny rule of permissions.toml run through the guard: no allowed command the guard denies or asks, no denied one it allows | `permissions.toml` |
 
-**Not covered:** Forks: the guard cannot read labels on a fork, so edits there ask instead of being label-gated. A PR created without -t (title from the commit or an editor) is not title-checked. The github-closing guard section enforces rule text that lives in rules/60-github.md. gh stack: the guard sees gh stack, gh extension exec stack and gh-stack, but not a wrapper made by gh stack alias (gs VERB; the alias command itself asks), and it reads the trunk from gh stack view --json with a tolerant key match, since the extension documents no JSON schema.
+**Not covered:** Forks: the guard cannot read labels on a fork, so edits there ask instead of being label-gated. A PR created without -t (title from the commit or an editor) is not title-checked. The github-closing guard section enforces rule text that lives in rules/60-github.md. gh stack: the guard knows the gh-stack v0.3.0 command set and sees gh stack, gh extension exec [--] stack, gh-stack (also .exe) and the default gs wrapper of gh stack alias, but not a wrapper under another name (gh stack alias NAME is a human decision). To find the trunk it runs the extension itself (gh stack view --json, in the command's cwd, 8 s timeout; that call also refreshes the extension's local PR state); a failed or unrecognised lookup asks instead of allowing.
 
 ## Uninstall
 

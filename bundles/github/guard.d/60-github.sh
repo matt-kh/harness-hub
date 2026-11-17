@@ -16,19 +16,20 @@
 # rule: gh pr edit|comment|close|reopen|ready|update-branch, gh issue edit|comment|close|reopen on an agent-labelled ref -> allow : human refs ask (label it first, or ask the user); fork PRs ask
 # rule: gh pr close|reopen|ready, gh issue close|reopen on a human ref -> ask : PR/issue state is a human decision; run it only on the user's explicit request (they confirm it), or ask the user instead
 # rule: gh pr close|reopen|ready, gh issue close|reopen from a subagent -> deny : a subagent never changes PR/issue state; hand the command back to the main thread
-# rule: gh stack merge (also gh extension exec stack, gh-stack, quoted or $VAR verbs) -> ask : merging a stack is a human decision; run it only on the user's explicit request (they confirm it), or ask the user to merge the parts bottom-up
+# rule: gh stack merge (any merge word in a gh stack / gh extension exec [--] stack / gh-stack[.exe] / gs clause, quoted or after flags) -> ask : merging a stack is a human decision; run it only on the user's explicit request (they confirm it), or ask the user to merge the parts bottom-up
 # rule: gh stack merge from a subagent -> deny : a subagent never merges; hand the command back to the main thread
-# rule: gh stack view|version|help|feedback|completion, navigation (up|down|top|bottom|trunk|switch|checkout) -> pass : reads and local navigation; nothing is pushed or linked
+# rule: gh stack view|help|feedback|completion, navigation (up|down|top|bottom|trunk|switch|checkout) -> pass : reads and local navigation; nothing is pushed or linked
 # rule: gh stack link --base TICKET-BRANCH with literal numbers of agent-labelled -sub- PRs of that ticket branch -> allow : links existing PRs only (no push, no PR create); honours WORK_TICKET_LABELED_DECISION
-# rule: gh stack link without --base, with --base matching WORK_TICKET_BASE_BRANCH_RE or a -sub- branch -> deny : the stack would sit on the default branch or a part; pass --base <ticket branch>
+# rule: gh stack link without --base, with --base matching WORK_TICKET_BASE_BRANCH_RE (also origin/…, refs/heads/…) or a -sub- branch -> deny : the stack would sit on the default branch or a part; pass --base <ticket branch>
 # rule: gh stack link with a branch-name argument -> deny : it would push the branch and create an unlabelled PR; create the PR with gh pr create -l agent-worked, then use its number instead
 # rule: gh stack link with a PR that is not a -sub- PR of --base (the main PR, another ticket's part) -> deny : the main PR stays outside the stack; pass only the ticket's -sub- PR numbers instead
-# rule: gh stack link with an unlabelled or fork PR, a URL, a $VAR, GH_REPO=, an unknown flag or a failed lookup -> ask : the PRs cannot be label-checked; label them (gh pr edit N --add-label agent-worked) and pass literal PR numbers
-# rule: gh stack link|submit --open -> ask : marks PRs ready for review, a human decision; run gh pr ready N on the user's explicit request instead
-# rule: gh stack link|submit --open from a subagent -> deny : a subagent never changes PR state; hand the command back to the main thread
-# rule: gh stack push|submit|sync|rebase|modify|unstack|delete|init|add with the default branch involved (cwd branch, --base, a branch argument, init without --base, the trunk or a branch of gh stack view --json) -> deny : stacks never sit on the default branch; run it on the ticket branch's stack, or use stk sync --stack BR
+# rule: gh stack link with an unlabelled or fork PR, a URL, a $VAR, --remote, GH_REPO=/GH_HOST=, a gh-level -R, a preceding cd/pushd, an unknown flag or a failed lookup -> ask : the PRs cannot be label-checked; label them (gh pr edit N --add-label agent-worked) and pass literal PR numbers from the repository's own checkout
+# rule: gh stack VERB --open -> ask : marks PRs ready for review, a human decision; run gh pr ready N on the user's explicit request instead
+# rule: gh stack VERB --open from a subagent -> deny : a subagent never changes PR state; hand the command back to the main thread
+# rule: gh stack push|submit|sync|rebase|modify|unstack|delete|init|add with the default branch involved (cwd branch, an earlier git checkout|switch to it or gh stack trunk|bottom on the line, --base, a branch argument, init without --base, the trunk or a layer of gh stack view --json) -> deny : stacks never sit on the default branch; run it on the ticket branch's stack, or use stk sync --stack BR
 # rule: gh stack push|submit|sync|rebase|modify|unstack|delete|init|add otherwise -> ask : use stk sync --stack BR (retarget, rebase, lease push), git push --force-with-lease of the -sub- branches, or gh stack link --base BR N… by PR numbers instead
-# rule: gh stack alias, an unknown gh stack verb, gh extension exec of another extension -> ask : the guard cannot see the verb behind the wrapper; type gh stack VERB (or the extension's own gh command) instead
+# rule: gh stack alias, an unknown gh stack verb, a flag before the verb, a $VAR verb, gh extension exec of another extension -> ask : the guard cannot see what runs; type gh stack VERB with the verb first (or the extension's own gh command) instead
+# rule: gh stack alias, an unknown verb, a flag before the verb, gh extension exec of another extension, from a subagent -> deny : what runs cannot be checked and may merge; hand the command back to the main thread
 # repo-override: WORK_TICKET_BASE_BRANCH_RE = "^(master|main)$" -> default/base branches: pushes to them deny, sub MRs/PRs never target them
 # repo-override: WORK_TICKET_ALLOW_TRANSITION = "" -> deprecated, no effect since #67: a state change on a human ticket or issue asks on the main thread (and is denied in a subagent) with or without it; remove it
 # repo-override: WORK_TICKET_LABELED_DECISION = "allow" -> allow|ask: the decision for writes to agent-labelled tickets, issues, MRs and PRs
@@ -243,47 +244,73 @@ EOF
   gate_writes "$GH_IS_W_RE" fetch_gh_issue '^--add-label$' '' '^(close|reopen)$' "$GH_ISSUE_BOOL_RE" "gh issue" '#'
 fi
 
-# -- 8. gh stack (the github/gh-stack extension; also `gh extension exec stack …` and a direct
-#       `gh-stack …`). Extensions take no -R: the repository comes from the cwd. merge is a human
-#       decision; link is label-gated (literal -sub- PR numbers, --base = the ticket branch);
-#       verbs that push, rebase or restack deny when the default branch is involved, else ask;
-#       reads and navigation pass. Asks are deferred so a deny anywhere still wins.
-GHS_HEAD_RE="(${GHP}(stack|ext(ension)?s?\s+exec\s+stack)|\bgh-stack)"
-GHS_PASS_RE='^(view|version|help|feedback|completion|up|down|top|bottom|trunk|switch|checkout)$'
+# -- 8. gh stack (the github/gh-stack extension, v0.3.0 command set; also `gh extension exec
+#       [--] stack …`, a direct `gh-stack …`, gh.exe / gh-stack.exe, and the `gs VERB` wrapper
+#       that `gh stack alias` installs). Extensions take no -R: the repository comes from the
+#       cwd. merge, --open, unknown verbs, alias and flags before the verb are human decisions;
+#       link is label-gated (literal -sub- PR numbers, --base = the ticket branch); verbs that
+#       push, rebase or restack deny when the default branch is involved, else ask; reads and
+#       navigation pass. Asks are deferred so a deny anywhere still wins.
+GHS_GH="\\bgh(\\.exe)?\\s+${GHR}"
+GHS_EXEC_RE="${GHS_GH}ext(ension)?s?((\\s+--)|(\\s+-[^[:space:]]+(\\s+[^-[:space:]][^[:space:]]*)?))*\\s+exec((\\s+--)|(\\s+-[^[:space:]]+(\\s+[^-[:space:]][^[:space:]]*)?))*\\s+"
+GHS_HEAD_RE="(${GHS_GH}stack|${GHS_EXEC_RE}stack|\\bgh-stack(\\.exe)?)"
+GHS_GS_VERBS='merge|push|submit|sync|rebase|link|unstack|delete|modify|init|add'
+GHS_GS_RE="\\bgs\\s+(${GHS_GS_VERBS})\\b"
+# gh-stack v0.3.0: every command, the one command alias (delete = unstack) and cobra's help/completion
+GHS_PASS_RE='^(view|help|feedback|completion|up|down|top|bottom|trunk|switch|checkout)$'
 GHS_LOCAL_RE='^(push|submit|sync|rebase|modify|unstack|delete|init|add)$'
-# strings under branch-like keys of `gh stack view --json` (the trunk and every layer)
-GHS_NAMES_JQ='[paths(type == "string") as $p | select(($p[-1] | tostring) | test("^(trunk|base|basebranch|baserefname|branch|branchname|name|head|headrefname)$"; "i")) | getpath($p)] | .[]'
-# ghs_default_branch WHAT VALUE -> deny when VALUE is a default/base branch
+GHS_VERBS_RE='^(view|help|feedback|completion|up|down|top|bottom|trunk|switch|checkout|push|submit|sync|rebase|modify|unstack|delete|init|add|link|merge|alias)$'
+# value-taking flags of any gh-stack command (cmd/*.go): --base/-b (init, link), --message/-m (add),
+# --remote (push, submit, sync, rebase, link), --merge-method (merge)
+GHS_VALFLAG_RE='^(-b|--base|-m|--message|--remote|--merge-method)$'
+# `gh stack view --json` (cmd/view.go): {"trunk", "currentBranch", "branches": [{"name", "head"
+# (a commit), "base", …, "pr": {…}}]} — branch names sit under these keys (matched case-insensitively)
+GHS_NAMES_JQ='[paths(type == "string") as $p | select(($p[-1] | tostring) | test("^(trunk|currentbranch|base|basebranch|baserefname|branch|branchname|name|headrefname)$"; "i")) | getpath($p)] | .[]'
+# ghs_default_branch WHAT VALUE -> deny when VALUE (without refs/heads/, refs/remotes/R/, origin/)
+# is a default/base branch
 ghs_default_branch() {
-  [ -n "$2" ] || return 0
-  printf '%s' "$2" | grep -qE -e "$BASE_BRANCH_RE" || return 0
+  local b=$2
+  [ -n "$b" ] || return 0
+  b=${b#refs/heads/}
+  case "$b" in refs/remotes/*/*) b=${b#refs/remotes/}; b=${b#*/} ;; esac
+  b=${b#origin/}
+  printf '%s' "$b" | grep -qE -e "$BASE_BRANCH_RE" || return 0
   deny "gh stack $sverb with the default branch $2 as $1 — stacks never sit on the default branch: run it on the ticket branch's stack (gh stack init --base <ticket branch>), or use stk sync --stack BR"
 }
-# ghs_local: push|submit|sync|rebase|modify|unstack|delete|init|add (toks[] = the words after `stack`)
+# ghs_local: push|submit|sync|rebase|modify|unstack|delete|init|add. toks[] = every word after
+# `stack` (flags before the verb included), sverb_i = the verb's index; sbefore = the command
+# text before this clause.
 ghs_local() {
-  local i=$((sverb_i+1)) tok sbase="" shas_base=false sopen=false sbr sj sn
+  local i=0 tok sbase="" shas_base=false sbr sj sn w
   local -a spos
   spos=()
   while [ "$i" -lt "${#toks[@]}" ]; do
     tok=${toks[i]}; i=$((i+1))
+    [ "$i" -ne "$((sverb_i+1))" ] || continue          # the verb itself
     case "$tok" in
       -b|--base) sbase=${toks[i]:-}; shas_base=true; i=$((i+1)) ;;
       --base=*|-b=*) sbase=${tok#*=}; shas_base=true ;;
       -b?*) sbase=${tok#-b}; shas_base=true ;;
-      -m|--message|--remote) i=$((i+1)) ;;
-      --open) sopen=true ;;
-      --open=*) case "${tok#*=}" in false|0) ;; *) sopen=true ;; esac ;;
+      -m|--message|--remote|--merge-method) i=$((i+1)) ;;
       --*) ;;
       -*m) i=$((i+1)) ;;          # -Am / -um: a cluster ending in -m takes the message
       -*) ;;
       *) spos+=("$tok") ;;
     esac
   done
-  if [ "$sverb" = submit ] && $sopen; then
-    human_decision_defer "gh stack submit --open marks the PRs ready for review, a human decision — submit without --open and run gh pr ready N on the user's explicit request instead"
-  fi
   sbr=$(hn_timeout 5 "$GUARD_GIT" -C "${cwd:-.}" rev-parse --abbrev-ref HEAD 2>/dev/null) || sbr=""
   ghs_default_branch "the current branch" "$sbr"
+  # an earlier `git checkout|switch <default>` or `gh stack trunk|bottom` in the same command
+  # line moves the cwd before this clause runs
+  while IFS= read -r w; do
+    [ -n "$w" ] || continue
+    ghs_default_branch "the branch checked out earlier on this command line" "${w##* }"
+  done <<EOF
+$(printf '%s' "$sbefore" | grep -oE '\bgit\s+(-C\s+[^[:space:]]+\s+)?(checkout|switch)(\s+-[^[:space:]]+)*\s+[^-[:space:];&|][^[:space:];&|]*' | sed -E 's/[[:space:]]+/ /g')
+EOF
+  if printf '%s' "$sbefore" | grep -qE "(${GHS_HEAD_RE}|\\bgs)\\s+(trunk|bottom)\\b"; then
+    deny "gh stack $sverb after gh stack trunk|bottom on the same command line runs on a branch the guard cannot check — run gh stack $sverb as its own command from the ticket branch's stack, or use stk sync --stack BR"
+  fi
   case "$sbase" in *'$'*|*'`'*) defer "gh stack $sverb with a \$VAR --base cannot be checked — pass the ticket branch literally" ;; *) ghs_default_branch "--base" "$sbase" ;; esac
   for tok in ${spos[@]+"${spos[@]}"}; do ghs_default_branch "a branch argument" "$tok"; done
   if [ "$sverb" = init ] && ! $shas_base; then
@@ -296,34 +323,41 @@ EOF
   fi
   defer "gh stack $sverb pushes, rebases or restacks branches outside the -sub- governance — use stk sync --stack BR (retarget, rebase, lease push), git push --force-with-lease of the -sub- branches, or gh stack link --base BR N… by PR numbers instead"
 }
-# ghs_link: label gate for gh stack link (toks[] = the words after `stack`)
+# ghs_link: label gate for gh stack link (toks[], sverb_i, shead, sbefore as for ghs_local)
 ghs_link() {
-  local i=$((sverb_i+1)) tok lbase="" lhas_base=false lopen=false lbad="" lvar=false p n mj lsrc lml lroot
+  local i=0 tok lbase="" lhas_base=false lbad="" lremote=false lvar=false p n mj lsrc lml lroot
   local -a lpos lnums
   lpos=(); lnums=()
   while [ "$i" -lt "${#toks[@]}" ]; do
     tok=${toks[i]}; i=$((i+1))
+    [ "$i" -ne "$((sverb_i+1))" ] || continue          # the verb itself
     case "$tok" in
       --base|-b) lbase=${toks[i]:-}; lhas_base=true; i=$((i+1)) ;;
       --base=*|-b=*) lbase=${tok#*=}; lhas_base=true ;;
-      --open) lopen=true ;;
-      --open=*) case "${tok#*=}" in false|0) ;; *) lopen=true ;; esac ;;
-      --remote) i=$((i+1)) ;;
-      --remote=*|--no-atomic|--no-atomic=*) ;;
+      -b?*) lbase=${tok#-b}; lhas_base=true ;;
+      --open|--open=*) ;;                                # decided for every verb by the caller
+      --remote) lremote=true; i=$((i+1)) ;;
+      --remote=*) lremote=true ;;
+      --no-atomic|--no-atomic=*) ;;
       -*) [ -n "$lbad" ] || lbad=$tok ;;
       *) lpos+=("$tok") ;;
     esac
   done
-  $lopen && human_decision_defer "gh stack link --open marks the PRs ready for review, a human decision — link without --open and run gh pr ready N on the user's explicit request instead"
-  if printf '%s' "$flat" | grep -qE '(^|[[:space:];&|(])GH_REPO='; then
-    defer "gh stack link with GH_REPO=… — the label lookup cannot see it; cd into a checkout of that repository and run it there instead"
+  if printf '%s' "$flat" | grep -qE '(^|[[:space:];&|(])GH_(REPO|HOST)='; then
+    defer "gh stack link with GH_REPO=/GH_HOST=… — the label lookup cannot see it; cd into a checkout of that repository and run it there instead"
   fi
+  if printf '%s' "$shead" | grep -qE '(^|[[:space:]])(-R|--repo)([= ]|[^[:space:]])'; then
+    defer "gh stack link with -R/--repo — extensions read the repository from the cwd; run it inside that repository's checkout instead"
+  fi
+  if printf '%s' "$sbefore" | grep -qE '(^|[[:space:];&|(])(cd|pushd)([[:space:]]|$)'; then
+    defer "gh stack link after cd/pushd — the label lookup reads the hook's cwd, not the new directory; run gh stack link from that directory as its own command instead"
+  fi
+  $lremote && defer "gh stack link --remote — the label lookup reads gh's default repository, not that remote's; drop --remote, or ask the user"
   $lhas_base || deny "gh stack link without --base bottoms the stack on the repository's default branch — pass --base <ticket branch> and the -sub- PR numbers (bottom to top)"
   case "$lbase" in
     *'$'*|*'`'*) lvar=true; defer "gh stack link with a \$VAR --base cannot be checked — pass the ticket branch literally" ;;
     *-sub-*) deny "gh stack link --base $lbase: a -sub- branch is a part, not the stack's base — pass --base <ticket branch> (${lbase%%-sub-*})" ;;
-    *) printf '%s' "$lbase" | grep -qE -e "$BASE_BRANCH_RE" \
-         && deny "gh stack link --base $lbase: the stack would sit on the default branch — pass --base <ticket branch>; the main PR stays outside the stack" ;;
+    *) ghs_default_branch "--base" "$lbase" ;;
   esac
   [ -z "$lbad" ] || defer "gh stack link with the unrecognised flag $lbad cannot be checked — use only --base, --remote and --no-atomic"
   [ "${#lpos[@]}" -gt 0 ] || { defer "gh stack link without PR numbers — pass the -sub- PR numbers, bottom to top"; return 0; }
@@ -354,41 +388,76 @@ ghs_link() {
   [ "$LABELED_DECISION" = allow ] || defer "gh stack link of agent-labelled PRs (WORK_TICKET_LABELED_DECISION=$LABELED_DECISION) — ask the user to confirm it"
   pending_allow="gh stack link of agent-labelled -sub- PRs onto the ticket branch (no push, no PR create)"
 }
-# a merge in any spelling the dequoted command shows (gh "stack" merge, gh-stack "merge", g\h stack merge)
-if printf '%s' "$flat_dq" | grep -qE "${GHS_HEAD_RE}\s+merge\b"; then
-  human_decision_defer "gh stack merge — merging a stack is a human decision; run it only on the user's explicit request (they confirm it), or ask the user to merge the parts bottom-up"
+GHS_MERGE_MSG="gh stack merge — merging a stack is a human decision; run it only on the user's explicit request (they confirm it), or ask the user to merge the parts bottom-up"
+# a `merge` word anywhere in a gh-stack clause, in any spelling the dequoted command shows
+# (gh "stack" merge, gh-stack "merge", gh stack -R o/r merge, gs merge)
+if printf '%s' "$flat_dq" | grep -qE "${GHS_HEAD_RE}[^;&|]*[[:space:]]merge\\b|\\bgs\\s+merge\\b"; then
+  human_decision_defer "$GHS_MERGE_MSG"
 fi
-# gh extension exec of anything but stack hides the extension's verb
-if printf '%s' "$flat" | grep -oE "${GHP}ext(ension)?s?\s+exec\s+\S+" | grep -qvE '\sstack$'; then
-  defer "gh extension exec of an extension the guard does not know — run it as gh EXTENSION VERB (gh stack VERB for gh-stack), or ask the user"
-fi
-if printf '%s' "$flat_dq" | grep -qE "${GHS_HEAD_RE}"; then
+# gh extension exec of anything but stack hides the extension's verb (an unknown extension can merge)
+while IFS= read -r clause; do
+  [ -n "$clause" ] || continue
+  printf '%s' "$clause" | grep -qE "^${GHS_EXEC_RE}stack([[:space:]]|$)" && continue
+  human_decision_defer "gh extension exec of an extension the guard does not know (it can merge or change state) — run it as gh EXTENSION VERB (gh stack VERB for gh-stack), or ask the user"
+done <<EOF
+$(printf '%s' "$flat" | grep -oE "${GHS_GH}ext(ension)?s?\\s[^;&|]*" | grep -E '\sexec(\s|$)')
+EOF
+if printf '%s' "$flat_dq" | grep -qE "${GHS_HEAD_RE}|${GHS_GS_RE}"; then
   while IFS= read -r clause; do
     [ -n "$clause" ] || continue
-    shead=$(printf '%s' "$clause" | grep -oE "^${GHS_HEAD_RE}" | head -1)
-    rest=${clause:${#shead}}
+    shead=$(printf '%s' "$clause" | grep -oE "${GHS_HEAD_RE}|\\bgs" | head -1)
+    sprefix=${clause%%"$shead"*}                       # text glued to the head: a path or URL
+    rest=${clause#*"$shead"}
     case "$rest" in ''|[[:space:]]*) ;; *) continue ;; esac   # gh-stack-foo, a quote: not this command
+    sbefore=${flat%%"$clause"*}
     # a clause cut out of `sh -c "…"` ends in the wrapper's quote: retry without it
     words=$(shell_words "$rest") || words=$(shell_words "${rest%[\"\']}") \
-      || { defer "gh stack — could not parse the command line (unbalanced quotes); pass balanced literal arguments instead"; continue; }
+      || { human_decision_defer "gh stack — could not parse the command line (unbalanced quotes); pass balanced literal arguments instead"; continue; }
     toks=(); [ -z "$words" ] || while IFS= read -r _w; do toks+=("$_w"); done <<<"$words"
-    sverb=""; sverb_i=0
+    # the verb: the first non-flag word; known value flags skip their value; any other flag
+    # before the verb is a human decision (cobra may take the next word as its value), and the
+    # verb is then the first word that names a gh-stack command
+    sverb=""; sverb_i=0; spre_bad=""; sfirst=""; sfirst_i=0
     while [ "$sverb_i" -lt "${#toks[@]}" ]; do
-      case "${toks[sverb_i]}" in -*) sverb_i=$((sverb_i+1)) ;; *) sverb=${toks[sverb_i]}; break ;; esac
+      tok=${toks[sverb_i]}
+      case "$tok" in
+        -h|--help|--version) sverb_i=$((sverb_i+1)) ;;
+        --base=*|-b=*|--message=*|-m=*|--remote=*|--merge-method=*) sverb_i=$((sverb_i+1)) ;;
+        -*) if printf '%s' "$tok" | grep -qE "$GHS_VALFLAG_RE"; then sverb_i=$((sverb_i+2))
+            else [ -n "$spre_bad" ] || spre_bad=$tok; sverb_i=$((sverb_i+1)); fi ;;
+        *) if [ -z "$spre_bad" ] || printf '%s' "$tok" | grep -qE "$GHS_VERBS_RE"; then sverb=$tok; break; fi
+           [ -n "$sfirst" ] || { sfirst=$tok; sfirst_i=$sverb_i; }
+           sverb_i=$((sverb_i+1)) ;;
+      esac
     done
+    if [ -z "$sverb" ] && [ -n "$sfirst" ]; then sverb=$sfirst; sverb_i=$sfirst_i; fi
+    if [ -n "$spre_bad" ]; then
+      human_decision_defer "gh stack: the flag $spre_bad before the verb cannot be checked — put the verb first (gh stack VERB --flag …)"
+    fi
     case "$sverb" in
       '') continue ;;                                   # gh stack / --help / --version print help
       *'$'*|*'`'*) human_decision_defer "gh stack verb from a \$VAR, \$(…) or backticks cannot be checked — write the verb literally"; continue ;;
-      merge) human_decision_defer "gh stack merge — merging a stack is a human decision; run it only on the user's explicit request (they confirm it), or ask the user to merge the parts bottom-up"; continue ;;
-      alias) defer "gh stack alias installs a wrapper (gs) that hides the verb from the guard — type gh stack VERB instead"; continue ;;
+    esac
+    # --open marks PRs ready for review (link, submit; any verb, to be safe)
+    for tok in ${toks[@]+"${toks[@]}"}; do
+      case "$tok" in
+        --open|--open=true|--open=1|--open=t|--open=T|--open=TRUE|--open=True)
+          human_decision_defer "gh stack $sverb --open marks the PRs ready for review, a human decision — drop --open and run gh pr ready N on the user's explicit request instead" ;;
+      esac
+    done
+    case "$sverb" in
+      merge) human_decision_defer "$GHS_MERGE_MSG"; continue ;;
+      alias) human_decision_defer "gh stack alias installs a wrapper (gs) that hides the verb from the guard — type gh stack VERB instead"; continue ;;
       link) ghs_link; continue ;;
     esac
     if printf '%s' "$sverb" | grep -qE "$GHS_PASS_RE"; then continue; fi
     if printf '%s' "$sverb" | grep -qE "$GHS_LOCAL_RE"; then ghs_local; continue; fi
-    # not a word (a path after a gh-stack URL: git clone …/gh-stack /tmp/x) → not this command
-    printf '%s' "$sverb" | grep -qE '^[A-Za-z][A-Za-z0-9-]*$' || continue
-    defer "gh stack $sverb is not a verb the guard knows — use a documented gh stack verb, or ask the user"
+    # a non-word after a gh-stack path or URL argument (git clone …/gh-stack /tmp/x) is not this command
+    if [ -n "$sprefix" ] && ! printf '%s' "$sverb" | grep -qE '^[A-Za-z][A-Za-z0-9-]*$'; then
+      case "$sprefix" in */*) continue ;; esac
+    fi
+    human_decision_defer "gh stack $sverb is not a gh-stack command the guard knows — use a documented gh stack verb (merge stays a human decision), or ask the user"
   done <<EOF
-$(printf '%s' "$flat" | grep -oE "${GHS_HEAD_RE}([[:space:]][^;&|]*)?")
+$(printf '%s' "$flat" | grep -oE "[^[:space:];&|]*(${GHS_HEAD_RE}([[:space:]][^;&|]*)?|${GHS_GS_RE}[^;&|]*)")
 EOF
 fi

@@ -844,12 +844,17 @@ prints every one between your applied version and the new one.
   `-sub-` PRs of that ticket branch; a missing `--base`, a default-branch or `-sub-` base, a
   branch-name argument (it would push and open an unlabelled PR) and a non-`-sub-` PR (the main
   PR) deny, while unlabelled or fork PRs, URLs, `$VAR` arguments, `GH_REPO=`, unknown flags and
-  failed lookups ask. `--open` on `link` or `submit` is a human decision.
+  failed lookups ask, as do `--remote`, `GH_HOST=`, a gh-level `-R` and a preceding `cd`/`pushd`.
+  `--open` on any verb, `gh stack alias`, unknown verbs, flags before the verb and
+  `gh extension exec` of another extension are human decisions; `gh.exe`, `gh-stack.exe`,
+  `gh extension exec -- stack` and the `gs` wrapper count as `gh stack`.
   `gh stack push|submit|sync|rebase|modify|unstack|delete|init|add` deny when the current
-  branch, `--base`, a branch argument or the trunk/layers read from `gh stack view --json` is
-  the default branch (and `init` without `--base`), and ask otherwise, naming `stk sync --stack
+  branch (or one checked out earlier on the command line, or after `gh stack trunk|bottom`),
+  `--base`, a branch argument or the trunk/layers read from `gh stack view --json` is the
+  default branch (`origin/` and `refs/heads/` stripped; and `init` without `--base`), and ask otherwise, naming `stk sync --stack
   BR`, lease pushes of the `-sub-` branches and `gh stack link` by PR numbers. `gh stack alias`
-  and unknown verbs ask; reads and navigation (`view`, `up`, `checkout` …) pass.
+  and unknown verbs ask (denied from a subagent); reads and navigation (`view`, `up`,
+  `checkout` …) pass.
   `permissions.toml` allows `gh stack view` and asks on `gh stack merge`; rules/60-github.md
   gains a stacked-delivery bullet. The guard test gh stub answers `gh stack view --json`
   (`GH_STUB_STACK`) and has a second labelled sub PR (111).
@@ -1114,7 +1119,7 @@ prints every one between your applied version and the new one.
   `gh extension exec stack …`, `gh-stack …`) had no guard decision; `gh stack merge` now
   **asks** on the main thread and is **denied** from a subagent, `gh stack link` and the
   pushing/restacking verbs **ask** or are **denied** as described under Changed, and
-  `gh extension exec` of another extension **asks**. Link sub PRs by number
+  `gh extension exec` of another extension **asks** (and is **denied** from a subagent). Link sub PRs by number
   (`gh stack link --base <ticket branch> N1 N2`), keep stacks in sync with
   `stk sync --stack BR`, and hand `gh stack merge` to the user.
 - Guard decision change (#76), nothing to edit in config. In a repository whose `.harness.toml`

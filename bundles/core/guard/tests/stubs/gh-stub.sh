@@ -71,7 +71,8 @@ case "$noun $verb" in
   "stack view")
     [ "${1:-}" = --json ] || { echo "gh-stub: stack view needs --json" >&2; exit 1; }
     [ -n "${GH_STUB_STACK:-}" ] || { echo "not in a stack" >&2; exit 2; }
-    printf '{"trunk":"%s","branches":[{"name":"feat-x-sub-01-schema","pr":{"number":110}},{"name":"feat-x-sub-02-ui","pr":{"number":111}}]}\n' "$GH_STUB_STACK"
+    # the gh-stack v0.3.0 schema (cmd/view.go); head is a commit, base the layer below
+    printf '{"trunk":"%s","currentBranch":"%s","branches":[{"name":"feat-x-sub-01-schema","head":"0123abc","base":"%s","isCurrent":false,"isMerged":false,"isQueued":false,"needsRebase":false,"pr":{"number":110,"url":"https://github.com/o/r/pull/110","state":"OPEN"}},{"name":"feat-x-sub-02-ui","head":"4567def","base":"feat-x-sub-01-schema","isCurrent":true,"isMerged":false,"isQueued":false,"needsRebase":false,"pr":{"number":111,"url":"https://github.com/o/r/pull/111","state":"OPEN"}}]}\n' "$GH_STUB_STACK" "${GIT_STUB_BRANCH:-feat-x-sub-02-ui}" "$GH_STUB_STACK"
     exit 0 ;;
   *) echo "gh-stub: unsupported command: $noun $verb" >&2; exit 1 ;;
 esac
