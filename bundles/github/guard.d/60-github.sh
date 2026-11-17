@@ -256,6 +256,8 @@ GHS_EXEC_RE="${GHS_GH}ext(ension)?s?((\\s+--)|(\\s+-[^[:space:]]+(\\s+[^-[:space
 GHS_HEAD_RE="(${GHS_GH}stack|${GHS_EXEC_RE}stack|\\bgh-stack(\\.exe)?)"
 GHS_GS_VERBS='merge|push|submit|sync|rebase|link|unstack|delete|modify|init|add'
 GHS_GS_RE="\\bgs\\s+(${GHS_GS_VERBS})\\b"
+# the text of a simple command before a command word: nothing, env assignments, wrappers and their flags
+GHS_CMDPOS_RE='^[[:space:]]*(([A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*|sudo|env|command|exec|nohup|time|nice|xargs|then|do|else|!|\{|(ba|z|da|k)?sh|-[^[:space:]]+)[[:space:]]+)*$'
 # gh-stack v0.3.0: every command, the one command alias (delete = unstack) and cobra's help/completion
 GHS_PASS_RE='^(view|help|feedback|completion|up|down|top|bottom|trunk|switch|checkout)$'
 GHS_LOCAL_RE='^(push|submit|sync|rebase|modify|unstack|delete|init|add)$'
@@ -408,8 +410,21 @@ if printf '%s' "$flat_dq" | grep -qE "${GHS_HEAD_RE}|${GHS_GS_RE}"; then
     shead=$(printf '%s' "$clause" | grep -oE "${GHS_HEAD_RE}|\\bgs" | head -1)
     sprefix=${clause%%"$shead"*}                       # text glued to the head: a path or URL
     rest=${clause#*"$shead"}
+    case "$shead" in                                   # …/gh-stack/gh-stack VERB: the last one is the command
+      gh-stack*) sprefix=${clause%"$shead"*}; rest=${clause##*"$shead"} ;;
+    esac
     case "$rest" in ''|[[:space:]]*) ;; *) continue ;; esac   # gh-stack-foo, a quote: not this command
     sbefore=${flat%%"$clause"*}
+    # gh-stack / gs count only at a command-word position: the start of a simple command, after
+    # env assignments or a wrapper (sudo, env, xargs, sh -c "…"), optionally with a path prefix.
+    # As an argument (gh extension install github/gh-stack, gh repo clone …/gh-stack, a URL) the
+    # surrounding command keeps its own decision.
+    case "$shead" in
+      gh-stack*|gs)
+        case "$sprefix" in *://*) continue ;; esac
+        sseg=${sbefore##*[;&|(\`]}
+        [ -z "$sseg" ] || printf '%s' "$sseg" | grep -qE "$GHS_CMDPOS_RE" || continue ;;
+    esac
     # a clause cut out of `sh -c "…"` ends in the wrapper's quote: retry without it
     words=$(shell_words "$rest") || words=$(shell_words "${rest%[\"\']}") \
       || { human_decision_defer "gh stack — could not parse the command line (unbalanced quotes); pass balanced literal arguments instead"; continue; }

@@ -847,7 +847,9 @@ prints every one between your applied version and the new one.
   failed lookups ask, as do `--remote`, `GH_HOST=`, a gh-level `-R` and a preceding `cd`/`pushd`.
   `--open` on any verb, `gh stack alias`, unknown verbs, flags before the verb and
   `gh extension exec` of another extension are human decisions; `gh.exe`, `gh-stack.exe`,
-  `gh extension exec -- stack` and the `gs` wrapper count as `gh stack`.
+  `gh extension exec -- stack` and the `gs` wrapper count as `gh stack` (`gh-stack` and `gs`
+  only as a command word, so an argument such as `gh extension install github/gh-stack` keeps
+  its own decision).
   `gh stack push|submit|sync|rebase|modify|unstack|delete|init|add` deny when the current
   branch (or one checked out earlier on the command line, or after `gh stack trunk|bottom`),
   `--base`, a branch argument or the trunk/layers read from `gh stack view --json` is the
