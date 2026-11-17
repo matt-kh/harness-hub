@@ -79,19 +79,19 @@ Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md
 **Guard sections**
 
 - `github/guard.d/41-github-closing` — control: sensor · domain: tracker · function: govern · decisions: deny 2 · allow 1 · yields: declaration
-- `github/guard.d/60-github` — control: sensor · function: govern · decisions: deny 5 · ask 8 · allow 3 · yields: declaration
+- `github/guard.d/60-github` — control: sensor · function: govern · decisions: deny 12 · ask 13 · allow 4 · yields: declaration
 
 **Permission lists**
 
-- `github/permissions` — control: guide · function: govern · decisions: deny 1 · ask 74 · allow 32 · yields: config
+- `github/permissions` — control: guide · function: govern · decisions: deny 1 · ask 75 · allow 34 · yields: config
 
 **Installers**
 
 - `github/install/gh` — function: setup · yields: n/a
 
-**Doctor checks** (function: setup · posture: read-only; table below): `github/doctor/gh-auth`, `github/doctor/gh-binary`, `github/doctor/gh-ssh`, `github/doctor/gh-token-mode`
+**Doctor checks** (function: setup · posture: read-only; table below): `github/doctor/gh-auth`, `github/doctor/gh-binary`, `github/doctor/gh-ssh`, `github/doctor/gh-stack-extension`, `github/doctor/gh-token-mode`
 
-**Manual steps** (function: setup; table below): `github/steps/agent-labels`, `github/steps/gh-auth`, `github/steps/install-gh`, `github/steps/ssh-key`
+**Manual steps** (function: setup; table below): `github/steps/agent-labels`, `github/steps/gh-auth`, `github/steps/gh-stack-extension`, `github/steps/install-gh`, `github/steps/ssh-key`
 
 ## Requirements
 
@@ -110,6 +110,7 @@ Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md
 | `github.host` | string | no | `"github.com"` | GitHub host: github.com or your GHES hostname. |
 | `github.login` | string | yes |  | Your GitHub login. Shown in the instructions; repos you own are trusted in the provider's auto-mode trust text. |
 | `github.pr_title_forbid_re` | string | no | `"#[0-9]+"` | ERE a PR title must NOT match (issue refs belong in the body); empty disables. HARNESS_GITHUB_PR_TITLE_FORBID_RE. |
+| `github.stack_extension_version` | string | no | `"0.3.0"` | Version of the github/gh-stack extension the guard and the skills are written against (no leading v). The human installs it with --pin v<this>; doctor and the work-ticket preflight compare the installed one against it. HARNESS_GITHUB_STACK_EXT_VERSION. |
 
 ### Secrets (never in harness.toml)
 
@@ -193,6 +194,26 @@ organisation's default repository labels instead.
 
 **Verify:** `true` (exit 0)
 
+<a id="gh-stack-extension"></a>
+
+### gh-stack-extension — Install the gh stack extension at the pinned version (optional)
+
+*once per machine · needs nothing but a terminal · ~1 min*
+
+**Why:** work-ticket can link its stacked sub PRs into a native GitHub stack with `gh stack link`. Agents never install extensions (the guard asks on `gh extension install`); the pin keeps the extension at the version the guard rules and the skills were written against. Without it stacks are delivered exactly as before, as plain PRs on the ticket branch.
+
+**How:**
+
+1. In a terminal (inside Claude Code type `! ` first):
+   `gh extension install github/gh-stack --pin v{{ github.stack_extension_version }}`
+2. A pinned extension is skipped by `gh extension upgrade`. To move to another version, change
+   `github.stack_extension_version` in harness.toml first, run `harness apply`, then
+   `gh extension remove stack` and install again with the new `--pin`.
+3. Linking also needs native stacks to be available on the repository; the work-ticket
+   preflight reports it as `gh_stack.repo_enabled` (false when the Stacks API answers 404).
+
+**Verify:** `GH_FORCE_TTY= NO_COLOR=1 GH_PROMPT_DISABLED=1 gh extension list 2>/dev/null | awk -F'\t' '$1 == "gh stack" && $2 == "github/gh-stack" && $3 == "v{{ github.stack_extension_version }}" { f = 1 } END { exit !f }'` (exit 0)
+
 ## Doctor checks
 
 | id | severity | offline | fix |
@@ -201,6 +222,7 @@ organisation's default repository labels instead.
 | `gh-auth` | fail | skipped | [gh-auth](#gh-auth) |
 | `gh-ssh` | warn | skipped | [ssh-key](#ssh-key) |
 | `gh-token-mode` | warn | runs | `chmod 600 ~/.config/gh/hosts.yml` |
+| `gh-stack-extension` | warn | runs | [gh-stack-extension](#gh-stack-extension) |
 
 ## Guides and sensors
 
@@ -211,13 +233,13 @@ Guides steer the agent before it acts; sensors detect at or after the action. Pa
 | guide | rule | `rules/60-github.md` | PR-based delivery, merges and PR/issue state on explicit main-thread request only, -R owner/repo on every call | `guard.d/41-github-closing.sh`, `guard.d/60-github.sh` |
 | guide | permission | `permissions.toml` | read-only gh commands allowed; token printing denied | `guard.d/60-github.sh`, `permissions-vs-guard` |
 | sensor | guard | `guard.d/41-github-closing.sh` | denies closing keywords that would change issue state; lets only the PR to the default branch close its agent-worked #N in a github-issues repository (github.close_issue_on_merge) | `rules/60-github.md` |
-| sensor | guard | `guard.d/60-github.sh` | token printing, API writes, merges/reviews and PR/issue state (main thread asks, subagent denied), provenance labels, stacked PR targets; PR creates with --fill* or a -t title matching github.pr_title_forbid_re ask | `rules/60-github.md`, `permissions.toml` |
-| sensor | doctor | `doctor_checks` | gh binary, auth, SSH and token file mode | — |
+| sensor | guard | `guard.d/60-github.sh` | token printing, API writes, merges/reviews and PR/issue state (main thread asks, subagent denied), provenance labels, stacked PR targets; gh stack merge (human decision), gh stack link (label-gated -sub- PR numbers onto the ticket branch), gh stack push\|submit\|sync\|... (deny on the default branch, else ask); PR creates with --fill* or a -t title matching github.pr_title_forbid_re ask | `rules/60-github.md`, `permissions.toml` |
+| sensor | doctor | `doctor_checks` | gh binary, auth, SSH, token file mode and the gh stack extension version (absent passes, another version warns) | — |
 | sensor | test | `guard.d/tests.sh` | guard rows with a stubbed gh | — |
 | sensor | test | `tests/run.sh` | this bundle's rows against core + github only | — |
 | sensor | lint | `permissions-vs-guard` | each Bash allow/deny rule of permissions.toml run through the guard: no allowed command the guard denies or asks, no denied one it allows | `permissions.toml` |
 
-**Not covered:** Forks: the guard cannot read labels on a fork, so edits there ask instead of being label-gated. A PR created without -t (title from the commit or an editor) is not title-checked. The github-closing guard section enforces rule text that lives in rules/60-github.md.
+**Not covered:** Forks: the guard cannot read labels on a fork, so edits there ask instead of being label-gated. A PR created without -t (title from the commit or an editor) is not title-checked. The github-closing guard section enforces rule text that lives in rules/60-github.md. gh stack: the guard knows the gh-stack v0.3.0 command set and sees gh stack, gh extension exec [--] stack, gh-stack (also .exe) and the default gs wrapper of gh stack alias, but not a wrapper under another name (gh stack alias NAME is a human decision). To find the trunk it runs the extension itself (gh stack view --json, in the command's cwd, 8 s timeout; that call also refreshes the extension's local PR state); a failed or unrecognised lookup asks instead of allowing.
 
 ## Uninstall
 

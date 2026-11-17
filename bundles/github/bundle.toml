@@ -54,6 +54,12 @@ example = "#[0-9]+|WIP"
 type = "boolean"
 default = true
 description = "In a repository whose tracker is GitHub Issues (.harness.toml [repo] tracker, else the first matching ticket_workflow.trackers entry, else a github.com origin), let the PR to the default branch carry a closing keyword for its agent-worked issue(s) (#N only) so GitHub closes them when a human merges it; false denies it like every other closing keyword. HARNESS_GITHUB_CLOSE_ISSUE_ON_MERGE."
+[requires.config."github.stack_extension_version"]
+type = "string"
+default = "0.3.0"
+pattern = '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?\Z'
+description = "Version of the github/gh-stack extension the guard and the skills are written against (no leading v). The human installs it with --pin v<this>; doctor and the work-ticket preflight compare the installed one against it. HARNESS_GITHUB_STACK_EXT_VERSION."
+example = "0.3.0"
 
 [requires.secrets.gh_token]
 where = "~/.config/gh/hosts.yml"
@@ -76,6 +82,7 @@ bin = []
 WORK_TICKET_GH = "gh"
 HARNESS_GITHUB_PR_TITLE_FORBID_RE = "{{ github.pr_title_forbid_re }}"
 HARNESS_GITHUB_CLOSE_ISSUE_ON_MERGE = "{{ github.close_issue_on_merge }}"
+HARNESS_GITHUB_STACK_EXT_VERSION = "{{ github.stack_extension_version }}"
 
 [[manual_steps]]
 id = "install-gh"
@@ -154,6 +161,27 @@ organisation's default repository labels instead.
 cmd = "true"
 expect = { exit = 0 }
 
+[[manual_steps]]
+id = "gh-stack-extension"
+title = "Install the gh stack extension at the pinned version (optional)"
+once_per = "machine"
+needs = []
+minutes = 1
+why = "work-ticket can link its stacked sub PRs into a native GitHub stack with `gh stack link`. Agents never install extensions (the guard asks on `gh extension install`); the pin keeps the extension at the version the guard rules and the skills were written against. Without it stacks are delivered exactly as before, as plain PRs on the ticket branch."
+how = """
+1. In a terminal (inside Claude Code type `! ` first):
+   `gh extension install github/gh-stack --pin v{{ github.stack_extension_version }}`
+2. A pinned extension is skipped by `gh extension upgrade`. To move to another version, change
+   `github.stack_extension_version` in harness.toml first, run `harness apply`, then
+   `gh extension remove stack` and install again with the new `--pin`.
+3. Linking also needs native stacks to be available on the repository; the work-ticket
+   preflight reports it as `gh_stack.repo_enabled` (false when the Stacks API answers 404).
+"""
+[manual_steps.verify]
+cmd = '''GH_FORCE_TTY= NO_COLOR=1 GH_PROMPT_DISABLED=1 gh extension list 2>/dev/null | awk -F'\t' '$1 == "gh stack" && $2 == "github/gh-stack" && $3 == "v{{ github.stack_extension_version }}" { f = 1 } END { exit !f }''''
+expect = { exit = 0 }
+unblocks = ["gh-stack-extension"]
+
 [[doctor_checks]]
 id = "gh-binary"
 title = "gh installed"
@@ -192,6 +220,25 @@ expect = { exit = 0 }
 offline_skip = false
 fix = "chmod 600 ~/.config/gh/hosts.yml"
 
+[[doctor_checks]]
+id = "gh-stack-extension"
+title = "gh stack extension absent or at the pinned v{{ github.stack_extension_version }}"
+severity = "warn"
+cmd = '''
+want='{{ github.stack_extension_version }}'
+out=$(GH_FORCE_TTY= NO_COLOR=1 GH_PROMPT_DISABLED=1 GH_NO_UPDATE_NOTIFIER=1 gh extension list 2>&1) || { printf 'gh extension list failed: %s\n' "$out" | head -1; exit 1; }
+repo=$(printf '%s\n' "$out" | awk -F'\t' '$1 == "gh stack" { print $2; exit }')
+have=$(printf '%s\n' "$out" | awk -F'\t' '$1 == "gh stack" { print $3; exit }')
+if [ -z "$repo" ]; then echo "not installed (optional; gh extension install github/gh-stack --pin v$want)"; exit 0; fi
+if [ "$repo" != github/gh-stack ]; then echo "gh stack is $repo, not github/gh-stack (gh extension remove stack, then gh extension install github/gh-stack --pin v$want)"; exit 1; fi
+if [ "$have" = "v$want" ]; then echo "$have"; exit 0; fi
+echo "installed at ${have:-an unknown version}, expected v$want (gh extension remove stack, then gh extension install github/gh-stack --pin v$want)"; exit 1
+'''
+expect = { exit = 0 }
+timeout = 10
+offline_skip = false
+fix = "gh-stack-extension"
+
 [uninstall]
 keeps = ["~/.config/gh/**"]
 notes = "Removes ~/.local/bin/gh only if the hub state records that the hub installed it."
@@ -207,15 +254,15 @@ function = "govern"
 
 # Guides steer the agent before it acts; sensors detect at or after the action (principle 6).
 [harness]
-coverage_note = "Forks: the guard cannot read labels on a fork, so edits there ask instead of being label-gated. A PR created without -t (title from the commit or an editor) is not title-checked. The github-closing guard section enforces rule text that lives in rules/60-github.md."
+coverage_note = "Forks: the guard cannot read labels on a fork, so edits there ask instead of being label-gated. A PR created without -t (title from the commit or an editor) is not title-checked. The github-closing guard section enforces rule text that lives in rules/60-github.md. gh stack: the guard knows the gh-stack v0.3.0 command set and sees gh stack, gh extension exec [--] stack, gh-stack (also .exe) and the default gs wrapper of gh stack alias, but not a wrapper under another name (gh stack alias NAME is a human decision). To find the trunk it runs the extension itself (gh stack view --json, in the command's cwd, 8 s timeout; that call also refreshes the extension's local PR state); a failed or unrecognised lookup asks instead of allowing."
 guides = [
   { kind = "rule", ref = "rules/60-github.md", checks = ["guard.d/41-github-closing.sh", "guard.d/60-github.sh"], note = "PR-based delivery, merges and PR/issue state on explicit main-thread request only, -R owner/repo on every call" },
   { kind = "permission", ref = "permissions.toml", checks = ["guard.d/60-github.sh", "permissions-vs-guard"], note = "read-only gh commands allowed; token printing denied" },
 ]
 sensors = [
   { kind = "guard", ref = "guard.d/41-github-closing.sh", note = "denies closing keywords that would change issue state; lets only the PR to the default branch close its agent-worked #N in a github-issues repository (github.close_issue_on_merge)" },
-  { kind = "guard", ref = "guard.d/60-github.sh", note = "token printing, API writes, merges/reviews and PR/issue state (main thread asks, subagent denied), provenance labels, stacked PR targets; PR creates with --fill* or a -t title matching github.pr_title_forbid_re ask" },
-  { kind = "doctor", ref = "doctor_checks", note = "gh binary, auth, SSH and token file mode" },
+  { kind = "guard", ref = "guard.d/60-github.sh", note = "token printing, API writes, merges/reviews and PR/issue state (main thread asks, subagent denied), provenance labels, stacked PR targets; gh stack merge (human decision), gh stack link (label-gated -sub- PR numbers onto the ticket branch), gh stack push|submit|sync|... (deny on the default branch, else ask); PR creates with --fill* or a -t title matching github.pr_title_forbid_re ask" },
+  { kind = "doctor", ref = "doctor_checks", note = "gh binary, auth, SSH, token file mode and the gh stack extension version (absent passes, another version warns)" },
   { kind = "test", ref = "guard.d/tests.sh", note = "guard rows with a stubbed gh" },
   { kind = "test", ref = "tests/run.sh", note = "this bundle's rows against core + github only" },
   { kind = "lint", ref = "permissions-vs-guard", note = "each Bash allow/deny rule of permissions.toml run through the guard: no allowed command the guard denies or asks, no denied one it allows" },

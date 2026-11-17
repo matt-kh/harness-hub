@@ -132,6 +132,43 @@ prints every one between your applied version and the new one.
   `ticket_workflow.trackers` entry, else a github.com origin), the PR to the default branch
   may carry a GitHub
   closing keyword for its worked issue(s), so GitHub closes them when a human merges the PR.
+- github bundle: the `gh stack` extension (github/gh-stack) is pinned by one config key,
+  `github.stack_extension_version` (default `0.3.0`, env `HARNESS_GITHUB_STACK_EXT_VERSION`;
+  part 2 of #86). The human installs it with the new optional manual step `gh-stack-extension`
+  (`gh extension install github/gh-stack --pin v0.3.0`); agents never install it. Doctor check
+  `gh-stack-extension` (severity warn) passes when no `gh stack` extension is installed or
+  github/gh-stack is at the configured version, and warns on another version, a third-party
+  `gh stack` or a failing `gh extension list`; it and the step's verify read the non-TTY TSV
+  of `gh extension list` (`GH_FORCE_TTY=` unset). `gh extension list` joins the allowed read
+  permissions. The work-ticket GitHub preflight reports a read-only `gh_stack` object:
+  `installed` (github/gh-stack only), `repo` (the `gh stack` row's repository, so a
+  third-party one shows), `version`, `version_raw`, `expected_version`, `version_ok`
+  (installed version equals the configured one), `pinned` (`ispinned` from the extension's
+  `manifest.yml` under `GH_DATA_DIR` / `XDG_DATA_HOME` / `~/.local/share/gh`; null when
+  unreadable), `repo_enabled` and `stacks` (`[{number, base, open, pull_requests}]`) from
+  `gh api --paginate repos/OWNER/REPO/stacks?per_page=100` (404 → `repo_enabled: false`; any
+  other failure or response shape → `null`). New preflight goldens cover another version,
+  another extension only, none, a third-party `gh stack`, a non-semver version, unpinned and
+  unreadable manifests, a 404, another response shape and the version from the environment;
+  the github bundle suite runs the doctor check and the step's verify against a stubbed
+  `gh extension list` and checks the key's pattern.
+- work-ticket (GitHub, part 4 of #86): stacked delivery links each linear chain of ≥ 2 sub PRs
+  rooted at the ticket branch (no part with more than one dependent) into a native GitHub stack
+  with `GH_STACK_NO_UPDATE_NOTIFIER=1 gh stack link --base <ticket branch> <PR numbers bottom to top>`
+  after the sub PR creates and before the second pass, when preflight `gh_stack` reports the
+  extension installed at the expected version and stacks enabled on the repository. Before
+  linking it checks the chain's bases (bottom on the ticket branch, each next on the previous
+  head) and that no PR is already in another stack; it reads the stack back from the Stacks
+  API and re-checks the bases in the second pass. Fan-in leaves, branching chains and the main
+  PR stay unlinked; numbers only, never branch names or `--open`. Without the extension, with
+  another version or a third-party `gh stack`, or without readable repository stacks, delivery
+  is unchanged and, when a linkable chain exists, the main PR's Agent notes give the reason and
+  its fix; the agent never installs the extension. The `## Stack` table gains a GitHub-only
+  `Stack` column, linked sub PR headers name their stack, and §6c states that `stk sync`
+  appends new top parts while every stacked PR is open (otherwise a todo for the human),
+  `gh stack sync` is not used, a failed retarget of a linked PR is reported for the human to
+  unstack and re-link, and `gh stack merge` runs only on the user's explicit request
+  (references `github.md`, `mr-description.md`, `decomposition.md`, SKILL.md Steps 6b/6c).
 - Guard engine: reads the hook input's `agent_id` (set by Claude Code on calls from a subagent
   or in-process teammate; `agent_type` is never read, since a `--agent` main thread carries it
   too) into `IN_SUBAGENT`, and offers `human_decision` / `human_decision_defer` for sections:
@@ -745,6 +782,9 @@ prints every one between your applied version and the new one.
   Git exports them to hooks, so the pre-push hook's unit run pointed the pack fixture
   repositories at the real checkout and failed (in a worktree, with the whole hub staged for
   deletion); the suites now pass from hooks as they do from a shell.
+- The work-ticket GitHub preflight no longer expands an empty candidate-branch list as
+  `"${candidates[@]}"`, which bash 3.2 under `set -u` reports as an unbound variable when no
+  branch is passed.
 
 ### Changed
 
@@ -835,6 +875,60 @@ prints every one between your applied version and the new one.
   assignments; defining a function runs nothing, and later sections may call it. One-line
   definitions stay stray (code could follow the closing brace on the same line), and so does a
   definition still open at the `repo_owns` line.
+- GitHub guard section 60 governs the `gh stack` extension (github/gh-stack; part 1 of #86).
+  `stack` joins the gh nouns, so quoted or `$VAR` verbs (`gh "stack" merge`, `gh stack $V`)
+  ask on the main thread and deny in a subagent; `gh extension exec stack …` and a direct
+  `gh-stack …` are judged like `gh stack …`, and `gh extension exec` of any other extension
+  asks. `gh stack merge` is a human decision (asks; denied from a subagent). `gh stack link`
+  is promptless only with `--base <ticket branch>` and literal numbers of agent-labelled
+  `-sub-` PRs of that ticket branch; a missing `--base`, a default-branch or `-sub-` base, a
+  branch-name argument (it would push and open an unlabelled PR) and a non-`-sub-` PR (the main
+  PR) deny, while unlabelled or fork PRs, URLs, `$VAR` arguments, `GH_REPO=`, unknown flags and
+  failed lookups ask, as do `--remote`, `GH_HOST=`, a gh-level `-R` and a preceding `cd`/`pushd`.
+  `--open` on any verb, `gh stack alias`, unknown verbs, flags before the verb and
+  `gh extension exec` of another extension are human decisions; `gh.exe`, `gh-stack.exe`,
+  `gh extension exec -- stack` and the `gs` wrapper count as `gh stack` (`gh-stack` and `gs`
+  only as a command word, so an argument such as `gh extension install github/gh-stack` keeps
+  its own decision).
+  `gh stack push|submit|sync|rebase|modify|unstack|delete|init|add` deny when the current
+  branch (or one checked out earlier on the command line, or after `gh stack trunk|bottom`),
+  `--base`, a branch argument or the trunk/layers read from `gh stack view --json` is the
+  default branch (`origin/` and `refs/heads/` stripped; and `init` without `--base`), and ask otherwise, naming `stk sync --stack
+  BR`, lease pushes of the `-sub-` branches and `gh stack link` by PR numbers. `gh stack alias`
+  and unknown verbs ask (denied from a subagent); reads and navigation (`view`, `up`,
+  `checkout` …) pass.
+  `permissions.toml` allows `gh stack view` and asks on `gh stack merge`; rules/60-github.md
+  gains a stacked-delivery bullet. The guard test gh stub answers `gh stack view --json`
+  (`GH_STUB_STACK`) and has a second labelled sub PR (111).
+
+- `stk` keeps a linked native GitHub stack consistent (part 3 of #86). It reads the Stacks API
+  like gh-stack (`repos/o/r/stacks?per_page=100&page=N` until a short page, at most 20); a 404
+  turns the feature off and every report stays as it was, a 403 is `info`, an auth failure
+  exits 2, any other error skips the step. Otherwise `stk plan|status` map each part to its stack number
+  (`native_stack`, `native_stacks`), `stk check` adds the `info` finding `native_stack`
+  (enabled, the gh-stack extension from `gh extension list`, the stacks on the ticket branch;
+  `--fix` prints `gh extension install github/gh-stack`), and `stk sync` gains a step after the
+  cascade and push: per linear chain of two or more open parts rooted at `BR`, a stack whose PRs
+  are all open and a strict ordered prefix of the chain is extended with
+  `gh stack link --base BR <PR numbers>` (run in the main checkout with
+  `GH_STACK_NO_UPDATE_NOTIFIER=1`; `planned` in `stk plan`) when every part is agent-labelled
+  and the extension is installed, the main checkout cannot resolve another repository
+  (`GH_REPO`/`GH_HOST` unset, origin is the repository, no `gh-resolved` default or other GitHub
+  remote naming another one) and has no local branch named like a chain PR number. A consistent
+  stack and a chain that was never linked are `info` (exit 0); an order or membership mismatch,
+  parts in two stacks, a stack on another base, a stack still listing a merged or closed PR, an
+  unlabelled part, a missing extension or an ambiguous repository are `todo` with the commands
+  for the human, and a stack holding PRs outside the ticket gets no unstack command (the
+  foreign PRs are named for the human to decide first). stk never
+  creates a first stack, never unstacks and never runs `gh stack sync|push|rebase|merge`; fan-in
+  leaves and branching chains stay unlinked by design. Retargeting is unchanged; a failed
+  retarget of a stacked PR names the stack and the unstack and re-link commands. The stk test
+  stub answers `gh api …/stacks`, `gh extension list` and `gh stack link`; new
+  `gh-native-stack-*` scenarios (bottom merged, tail unlinked, drift, disabled, a branching chain
+  and sync variants: run from a linked worktree, base not `BR`, closed stack, API 401/403/500,
+  foreign PRs, ambiguous repository, branch named like a PR, pending retarget) and invariants (only `gh stack link --base feat-x <numbers>`, never a default-branch
+  base, plan/status/check never link). No config change.
+
 - GitHub and GitLab guard sections adopt "humans decide" (principle 2, part of #67). From a
   subagent (Claude Code's `agent_id`) every merge, approval and PR/MR/issue state change is
   **denied** with "hand the command back to the main thread": `gh pr merge|review`,
@@ -1091,6 +1185,19 @@ prints every one between your applied version and the new one.
   default branch of a github-issues repository, plainly inside the `-b` text. The test stubs
   gain `GIT_STUB_REMOTE` (`git remote get-url origin`, default a github.com remote for `o/r`)
   and `GH_STUB_DEFAULT_BRANCH` (the batched GraphQL lookup, default `main`).
+- New config key `github.stack_extension_version` (#86), default `0.3.0`; nothing to edit
+  unless you install another gh-stack version on purpose. Run `harness apply` so the rendered
+  environment carries `HARNESS_GITHUB_STACK_EXT_VERSION`. Installing the extension stays
+  optional and manual (`harness steps`, step `github#gh-stack-extension`:
+  `gh extension install github/gh-stack --pin v0.3.0`); `harness doctor` warns only when
+  another version (or a third-party `gh stack`) is installed or `gh extension list` fails.
+- Guard decision change (#86), nothing to edit in config. `gh stack …` (and
+  `gh extension exec stack …`, `gh-stack …`) had no guard decision; `gh stack merge` now
+  **asks** on the main thread and is **denied** from a subagent, `gh stack link` and the
+  pushing/restacking verbs **ask** or are **denied** as described under Changed, and
+  `gh extension exec` of another extension **asks** (and is **denied** from a subagent). Link sub PRs by number
+  (`gh stack link --base <ticket branch> N1 N2`), keep stacks in sync with
+  `stk sync --stack BR`, and hand `gh stack merge` to the user.
 - Guard decision change (#76), nothing to edit in config. In a repository whose `.harness.toml`
   owns `scm` but not `tracker`, a closing keyword in `gh -Ro/r pr …`, `gh pr new`,
   `glab -R g/p mr …`, `glab mr new`, a repeated repo flag or a quoted / `$VAR` gh or glab

@@ -22,7 +22,7 @@ Pick the bundles you need; each one is a capability with its own docs page.
 |---|---|---|---|---|
 | [core](docs/bundles/core.md) | base / local | stable | Guard engine, credential and git rules, conventions, Plan / Auto / code-reviewer agents | [3 steps](docs/bundles/core.md#manual-steps) |
 | [gdoc](docs/bundles/gdoc.md) | workspace / label-gated | beta | gdoc CLI for Google Docs / Drive / Sheets / Gmail with provenance-gated writes; drafts only, never sends | [6 steps](docs/bundles/gdoc.md#manual-steps) |
-| [github](docs/bundles/github.md) | scm / label-gated | stable | GitHub CLI, PR-based workflow, GitHub Issues as the tracker, gh governance rules | [4 steps](docs/bundles/github.md#manual-steps) |
+| [github](docs/bundles/github.md) | scm / label-gated | stable | GitHub CLI, PR-based workflow, GitHub Issues as the tracker, gh governance rules | [5 steps](docs/bundles/github.md#manual-steps) |
 | [gitlab](docs/bundles/gitlab.md) | scm / label-gated | stable | GitLab via glab: MR-based workflow, agent-label write gates, stacked-MR rules, Jira closing-keyword deny | [4 steps](docs/bundles/gitlab.md#manual-steps) |
 | [jira](docs/bundles/jira.md) | tracker / label-gated | stable | Jira Server client (jira CLI + skill), read-only jira-mcp server, Jira write governance in the guard | [3 steps](docs/bundles/jira.md#manual-steps) |
 | [k8s](docs/bundles/k8s.md) | kubernetes / read-only | stable | Read-only Kubernetes client (k8s CLI + skill), triage / audit / architect agents, kubeconfig and Secret guards | [4 steps](docs/bundles/k8s.md#manual-steps) |
@@ -37,6 +37,11 @@ Pick the bundles you need; each one is a capability with its own docs page.
 - New repositories start from one standard: `/bootstrap-repo` (bundle `repo-bootstrap`) asks
   only what is still open, renders the baseline and your architecture packs, and creates and
   configures the GitHub or GitLab remote; `repoboot check` reports drift on existing ones.
+- Stacked delivery stays human-merged on both forges: sub MRs/PRs never target the default
+  branch, and on GitHub the `gh stack` extension is guarded too (`gh stack merge` asks the
+  user, `gh stack link` is promptless only for agent-labelled sub PRs onto the ticket branch),
+  and `stk sync` keeps a linked native stack consistent after each merge; with the extension
+  installed, `/work-ticket` links each chain of sub PRs into a native stack.
 - Every bundle pairs **guides**, which steer the agent before it acts (rules, skills,
   permissions, agent definitions), with **sensors**, which check at or after the action
   (guard sections, doctor checks, test rows, a code-review agent), after Martin Fowler's

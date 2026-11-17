@@ -100,6 +100,9 @@ Merge order (`stk plan --stack docker-networks`): !12, !13, !14, !15, then !11 (
 | — | !11 (this) | [KEY](JIRA_URL/browse/KEY) | `docker-networks` → `master` | all parts | Draft |
 
 (No Jira sub-tickets → the sub-ticket column reads `part N`.)
+(GitHub only: a `Stack` column after `chain` — `stack <n>` linked to the native stack,
+`— (fan-in)`, `— (main)` — when linear chains are linked with `gh stack link`; see `github.md` §6b
+**Native stack (gh-stack)**.)
 
 ## Agent notes
 - Jira: labelled `agent-worked`; ticket status unchanged (human-operated).

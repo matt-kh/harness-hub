@@ -87,7 +87,60 @@ fetch, look, re-run). `--no-push` / `stack.push = false` print the command inste
 guard allows exactly this form when typed by hand (a lease push of only `-sub-NN-` refs as
 the whole command); every other force-push asks.
 
-## 4 Leaf refresh (server)
+## 4 Native GitHub stack (server, GitHub only)
+
+GitHub can link a chain of PRs into a native **stack** (the Stacks API, driven by the
+`github/gh-stack` extension). `stk` reads it the way gh-stack does, with GETs of
+`repos/o/r/stacks?per_page=100&page=N` until a page is short (at most 20 pages); a stack
+without a valid number is ignored, a closed one (`open: false`) does not count. A 404 means
+the repository has no Stacks API: the step is skipped and every report is what it was without
+it. A 403 is an `info` step (the token cannot read stacks; sync does not fail on it), an auth
+failure (401, bad credentials) exits 2 like every other access error, and any other error
+`skips` the step for this run. Otherwise `plan` and `status` show each
+part's stack number (`native_stack`), `check` adds an `info` finding `native_stack` (enabled,
+whether `gh extension list` has the row `gh stack  github/gh-stack`, which stacks sit on the
+ticket branch), and `sync` re-reads the stacks after the cascade and push, then looks at every
+**linear chain of two or more open parts rooted at `BR`** (bottom to top):
+
+| Native stack state | Step |
+|---|---|
+| no stack holds any part | `info` (exit 0) with the link command: stk never creates the first stack (it is linked when the parts are opened) |
+| the stack's open PRs equal the chain | `info`: consistent, nothing to do |
+| the stack's PRs are all open and a strict ordered prefix of the chain, its base is `BR`, every part agent-labelled, the extension installed, the main checkout resolves this repository (below) and has no local branch named like a chain PR number, every retarget landed | `gh stack link --base BR N1 N2 …` (every chain PR, bottom to top, numbers only), in the main checkout with `GH_STACK_NO_UPDATE_NOTIFIER=1` (`planned` in `stk plan`) |
+| the stack still lists a merged or closed PR and the chain grew | `todo`: `gh stack link S N…` (the stack number first appends on top) |
+| order or membership differs, the parts sit in two stacks, the stack's base is not `BR` | `todo`: `gh stack unstack S` and `gh stack link --base BR N…`, for the human; when a stack also holds PRs that are not parts of this ticket, only those foreign PRs are named ("decide first"), with no unstack command |
+| an unlabelled part, no extension, another repository could be resolved, a local branch named like a PR number | `todo` with the label command, `gh extension install github/gh-stack` or the link command |
+| a retarget of a chain part failed in this run | `skipped` with the link command: re-run after the retarget |
+
+Why only an append: `gh stack link` is additive at the top. Given PR numbers it updates the one
+stack they belong to, refuses to drop a member, and rewrites every listed PR's base to chain
+onto the PR below it. Listing a merged member would therefore re-chain the first open part onto
+the merged branch, and leaving it out is refused; so a stack that still lists merged PRs is
+extended in add mode (`gh stack link S N…`) by the human. The extension reads the repository
+from its working directory (it takes no `-R`), hence the main checkout as cwd, which stk
+finds itself (`git worktree list`, the first non-bare entry) wherever it was started.
+
+**Which repository gh stack would act on.** gh-stack resolves the repository like gh itself:
+`GH_REPO`, else the checkout's git remotes, preferring a `gh repo set-default` choice
+(recorded as `remote.<name>.gh-resolved`) and the remote names upstream, github, origin. stk
+does not guess that order: it links only when every rule gives the same answer, i.e. neither
+`GH_REPO` nor `GH_HOST` is set, `origin` is this repository, no `gh-resolved` entry names
+another repository, and no other remote points to another repository on a GitHub host.
+Otherwise the step is a `todo` naming the cause, with the link command. gh-stack also reads an
+argument as a branch when a local branch of that name exists, so a local branch named like a
+chain PR number (`git rev-parse --verify --quiet refs/heads/<N>` in the main checkout) is a
+`todo` too.
+
+What stk never does here: create a first stack, unstack, reorder, link a branch name (that
+would push and open an unlabelled PR), use the default branch as `--base`, or run
+`gh stack sync|push|submit|rebase|merge`. The retarget in step 1 is unchanged (`gh pr edit -B`
+only when GitHub did not retarget); a failed retarget of a PR in a native stack is reported
+`failed` with the stack's number and the unstack and re-link commands. Fan-in leaves and chains
+that branch (a part with two dependents) stay unlinked by design: a native stack is linear.
+The command stk runs is exactly the form the GitHub guard allows promptless (`gh stack link
+--base <ticket branch>` with literal numbers of agent-labelled `-sub-` PRs).
+
+## 5 Leaf refresh (server)
 
 A fan-in leaf behind `BR`: with `stack.leaf_refresh = auto` and a merge method that needs an
 up-to-date source, **at most one** per invocation (CI cost) — `glab mr rebase N [--skip-ci]` /
@@ -96,7 +149,7 @@ up-to-date source, **at most one** per invocation (CI cost) — `glab mr rebase 
 `todo` for the next run. A conflicting leaf is reported with the local commands and the hint
 "parts that conflict share files: chain them".
 
-## 5 Main ready
+## 6 Main ready
 
 Every part merged (none open) and the main MR/PR is a draft: `glab mr update N --ready` /
 `gh pr ready N -R o/r` (label-gated).

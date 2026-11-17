@@ -12,5 +12,8 @@
   with the commands; resolve it by hand. Never `reset --hard`, never `--force`.
 - Parts that conflict share files: chain them instead of fanning them in.
 - `glab stack` is not used (experimental upstream); stacks are work-ticket's `-sub-NN` branches.
+- On GitHub, `stk sync` keeps a linked native stack consistent (it appends parts with
+  `gh stack link --base <BR>` by PR numbers); it never creates or unstacks a stack, and
+  `gh stack sync` is not used.
 
 A repository's own instructions for the same action replace this block.

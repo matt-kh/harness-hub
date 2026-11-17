@@ -245,6 +245,96 @@ setup_gh_draft_main() {
 EOF
 }
 
+# --------------------------------------------------- GitHub native stacks (gh-stack)
+# `stacks` lists compact native stacks {number, base, prs} (stub.py expands them); without it
+# the Stacks API answers 404 like every scenario above.
+setup_gh_native_stack_bottom_merged() {  # stack 50 = 11 <- 12 <- 13; 11 squash-merged, GitHub retargeted 12
+  gh_squash_chain "$1" feat-x delete "" '"stacks": [{"number": 50, "base": "feat-x", "prs": [11, 12, 13]}], '
+}
+setup_gh_native_stack_disabled() {  # gh-chain-retargeted-by-github with an explicit 404
+  gh_squash_chain "$1" feat-x delete "" '"stacks": 404, '
+}
+setup_gh_native_stack_merged_member() {  # stack 50 = 11 (merged) <- 12; 13 not linked yet
+  gh_squash_chain "$1" feat-x delete "" '"stacks": [{"number": 50, "base": "feat-x", "prs": [11, 12]}], '
+}
+gh_open_chain() {  # gh_open_chain D STACKS-JSON [extra json for 13] [top-level json]: A <- B <- C open, nothing merged
+  local d=$1
+  chain3 "$d" "$GHURL" && fetched "$d" || return 1
+  fixture "$d" <<EOF
+{${4:-}"stacks": $2,
+ "prs": {$(ghmain), $(ghr 11 "$A" feat-x), $(ghr 12 "$B" "$A"), $(ghr 13 "$C" "$B" "${3:-}")}}
+EOF
+}
+setup_gh_native_stack_tail_unlinked() { gh_open_chain "$1" '[{"number": 50, "base": "feat-x", "prs": [11, 12]}]'; }
+setup_gh_native_stack_drift() { gh_open_chain "$1" '[{"number": 50, "base": "feat-x", "prs": [12, 11]}]'; }
+setup_gh_native_stack_split() {
+  gh_open_chain "$1" '[{"number": 50, "base": "feat-x", "prs": [11, 12]}, {"number": 60, "base": "feat-x", "prs": [13, 99]}]' \
+    && add_foreign_99 "$1"
+}
+setup_gh_native_stack_split_own() {  # parts in two stacks, none foreign: unstack both and re-link
+  gh_open_chain "$1" '[{"number": 50, "base": "feat-x", "prs": [11, 12]}, {"number": 60, "base": "feat-x", "prs": [13]}]'
+}
+setup_gh_native_stack_unlabelled() { gh_open_chain "$1" '[{"number": 50, "base": "feat-x", "prs": [11, 12]}]' '"labels": []'; }
+setup_gh_native_stack_no_extension() {
+  gh_open_chain "$1" '[{"number": 50, "base": "feat-x", "prs": [11, 12]}]' "" '"extensions": "", '
+}
+setup_gh_native_stack_unlinked() { gh_open_chain "$1" '[]'; }
+setup_gh_native_stack_branching() {  # A <- B and A <- L3 (A has two dependents); stack 50 = 11 <- 12
+  local d=$1
+  sandbox "$d" "$GHURL" && part "$d" "$A" feat-x api.txt "api v1" && part "$d" "$B" "$A" ui.txt "ui v1" \
+    && part "$d" "$L3" "$A" cli.txt "cli v1" && fetched "$d" || return 1
+  fixture "$d" <<EOF
+{"stacks": [{"number": 50, "base": "feat-x", "prs": [11, 12]}],
+ "prs": {$(ghmain), $(ghr 11 "$A" feat-x), $(ghr 12 "$B" "$A"), $(ghr 14 "$L3" "$A")}}
+EOF
+}
+setup_gh_native_stack_link_fails() {
+  gh_open_chain "$1" '[{"number": 50, "base": "feat-x", "prs": [11, 12]}]' "" \
+    '"writes": {"stack-link": {"rc": 1, "err": "Cannot update stack: new PRs must be added to the top"}}, '
+}
+PRS3='[{"number": 50, "base": "feat-x", "prs": [11, 12]}]'
+setup_gh_native_stack_base_not_br() { gh_open_chain "$1" '[{"number": 50, "base": "main", "prs": [11, 12]}]'; }
+setup_gh_native_stack_closed() { gh_open_chain "$1" '[{"number": 50, "base": "feat-x", "prs": [11, 12], "open": false}]'; }
+setup_gh_native_stack_api_403() { gh_open_chain "$1" 403; }
+setup_gh_native_stack_api_500() { gh_open_chain "$1" 500; }
+setup_gh_native_stack_api_401() { gh_open_chain "$1" 401; }
+setup_gh_native_stack_bad_number() {  # a stack without a valid number is ignored; "50" coerces to 50
+  gh_open_chain "$1" '[{"number": null, "base": "feat-x", "prs": [11, 12, 13]}, {"number": "50", "base": "feat-x", "prs": [11, 12]}]'
+}
+setup_gh_native_stack_foreign_prefix() {  # stack 50 = 99 <- 11: 99 is not a part of feat-x
+  gh_open_chain "$1" '[{"number": 50, "base": "feat-x", "prs": [99, 11]}]' && add_foreign_99 "$1"
+}
+add_foreign_99() {
+  python3 - "$1/fixture.json" <<'PY'
+import json, sys
+p = sys.argv[1]; d = json.load(open(p))
+d["prs"]["99"] = {"title": "other", "headRefName": "feat-y-sub-01-z", "baseRefName": "feat-y"}
+json.dump(d, open(p, "w"))
+PY
+}
+setup_gh_native_stack_foreign_remote() {
+  gh_open_chain "$1" "$PRS3" && q git -C "$1/r" remote add upstream git@github.com:other/r.git
+}
+setup_gh_native_stack_gh_resolved() {
+  gh_open_chain "$1" "$PRS3" && q git -C "$1/r" config remote.origin.gh-resolved other/r
+}
+setup_gh_native_stack_branch_named() {  # a local branch named like a PR number
+  gh_open_chain "$1" "$PRS3" && q git -C "$1/r" branch 12 feat-x
+}
+setup_gh_native_stack_late() {  # 11 misfired onto main and its retarget to feat-x fails: the link waits
+  gh_open_chain "$1" "$PRS3" \
+    "" '"writes": {"edit-11": {"rc": 1, "err": "GraphQL: something went wrong (updatePullRequest)"}}, ' \
+    && python3 - "$1/fixture.json" <<'PY'
+import json, sys
+p = sys.argv[1]; d = json.load(open(p))
+d["prs"]["11"]["baseRefName"] = "main"
+json.dump(d, open(p, "w"))
+PY
+}
+setup_gh_native_stack_retarget_fails() {  # head branch kept: 12 must be retargeted, GitHub refuses
+  gh_squash_chain "$1" "$A" keep "" '"repo": {"deleteBranchOnMerge": false}, "stacks": [{"number": 50, "base": "feat-x", "prs": [11, 12, 13]}], "writes": {"edit-12": {"rc": 1, "err": "GraphQL: base branch cannot be changed for a stacked pull request (updatePullRequest)"}}, '
+}
+
 # ------------------------------------------------------------------------- the harness
 snap_wt() {  # every worktree: path, HEAD (branch or detached sha) and porcelain status
   local wt
@@ -276,14 +366,14 @@ record() {  # record NAME FILE
   else echo "FAIL $name"; head -40 "$tmp/$name.diff"; fail=1; fi
 }
 
-t() {  # t NAME SETUP EXPECTED-EXIT ARGS...   (env assignments go before t)
+t() {  # t NAME SETUP EXPECTED-EXIT ARGS...   (env assignments go before t; STK_RUN_DIR=r_<sub> runs in that worktree)
   local name=$1 setup=$2 exp=$3 d rc g; shift 3
   d="$tmp/sb/$name"; mkdir -p "$d"
   if ! "setup_$(printf '%s' "$setup" | tr '-' '_')" "$d" > "$d/setup.log" 2>&1; then
     echo "FAIL $name: sandbox setup"; cat "$d/setup.log"; fail=1; cases=$((cases + 1)); return
   fi
   snap_wt "$d" > "$d/wt.before"; snap_refs "$d" > "$d/refs.before"; snap_origin "$d" > "$d/origin.before"
-  (cd "$d/r" && STK_SCENARIO=$setup STK_FIXTURE="$d/fixture.json" STK_ORIGIN="$d/origin.git" \
+  (cd "$d/${STK_RUN_DIR:-r}" && STK_SCENARIO=$setup STK_FIXTURE="$d/fixture.json" STK_ORIGIN="$d/origin.git" STK_MAIN="$d/r" \
      STUB_LOG="$d/calls.log" python3 "$CLI" "$@") > "$d/out" 2> "$d/err"; rc=$?
   snap_wt "$d" > "$d/wt.after"; snap_refs "$d" > "$d/refs.after"; snap_origin "$d" > "$d/origin.after"
   : >> "$d/calls.log"; cp "$d/calls.log" "$tmp/$name.log"; cp "$d/out" "$tmp/$name.out"
@@ -352,6 +442,37 @@ t gh-unlabelled.sync-include-human gh-unlabelled 0 sync --stack feat-x --include
 scen gh-draft-main                      "0 1 0 0"   --stack feat-x
 t gh-chain-squash.check-fix gh-chain-squash 0 check --fix --stack feat-x --json
 
+scen gh-native-stack-bottom-merged      "0 1 0 0"   --stack feat-x
+scen gh-native-stack-tail-unlinked      "0 0 0 0"   --stack feat-x
+scen gh-native-stack-drift              "1 0 0 1"   --stack feat-x
+scen gh-native-stack-disabled           "0 1 0 0"   --stack feat-x
+scen gh-native-stack-branching          "0 0 0 0"   --stack feat-x
+t gh-native-stack-tail-unlinked.plan-text gh-native-stack-tail-unlinked 0 plan --stack feat-x --text
+t gh-native-stack-merged-member.sync gh-native-stack-merged-member 1 sync --stack feat-x --json
+t gh-native-stack-split.sync gh-native-stack-split 1 sync --stack feat-x --json
+t gh-native-stack-unlabelled.sync gh-native-stack-unlabelled 1 sync --stack feat-x --json
+t gh-native-stack-no-extension.sync gh-native-stack-no-extension 1 sync --stack feat-x --json
+t gh-native-stack-no-extension.check-fix gh-native-stack-no-extension 0 check --fix --stack feat-x --json
+t gh-native-stack-unlinked.sync gh-native-stack-unlinked 0 sync --stack feat-x --json
+t gh-native-stack-link-fails.sync gh-native-stack-link-fails 1 sync --stack feat-x --json
+t gh-native-stack-retarget-fails.sync gh-native-stack-retarget-fails 1 sync --stack feat-x --json
+t gh-native-stack-split-own.sync gh-native-stack-split-own 1 sync --stack feat-x --json
+STK_RUN_DIR=r_$C t gh-native-stack-tail-unlinked.sync-from-worktree gh-native-stack-tail-unlinked 0 sync --stack feat-x --json
+t gh-native-stack-base-not-br.sync gh-native-stack-base-not-br 1 sync --stack feat-x --json
+t gh-native-stack-closed.sync gh-native-stack-closed 0 sync --stack feat-x --json
+t gh-native-stack-api-403.sync gh-native-stack-api-403 0 sync --stack feat-x --json
+t gh-native-stack-api-403.check gh-native-stack-api-403 0 check --stack feat-x --json
+t gh-native-stack-api-500.sync gh-native-stack-api-500 1 sync --stack feat-x --json
+t gh-native-stack-api-401.sync gh-native-stack-api-401 2 sync --stack feat-x --json
+t gh-native-stack-bad-number.sync gh-native-stack-bad-number 0 sync --stack feat-x --json
+t gh-native-stack-foreign-prefix.sync gh-native-stack-foreign-prefix 1 sync --stack feat-x --json
+t gh-native-stack-foreign-remote.sync gh-native-stack-foreign-remote 1 sync --stack feat-x --json
+t gh-native-stack-gh-resolved.sync gh-native-stack-gh-resolved 1 sync --stack feat-x --json
+GH_REPO=o/r t gh-native-stack-gh-repo-env.sync gh-native-stack-tail-unlinked 1 sync --stack feat-x --json
+GH_HOST=github.com t gh-native-stack-gh-host-env.sync gh-native-stack-tail-unlinked 1 sync --stack feat-x --json
+t gh-native-stack-branch-named.sync gh-native-stack-branch-named 1 sync --stack feat-x --json
+t gh-native-stack-late.sync gh-native-stack-late 1 sync --stack feat-x --json
+
 # ------------------------------------------------------------------------- invariants
 chk() {  # chk <condition-exit> <label>
   cases=$((cases + 1))
@@ -360,7 +481,7 @@ chk() {  # chk <condition-exit> <label>
 ck() { local l=$1; shift; "$@"; chk $? "$l"; }   # ck <label> <test...>
 same() { cmp -s "$tmp/$1.wt.before" "$tmp/$1.wt.after" && cmp -s "$tmp/$1.refs.before" "$tmp/$1.refs.after"; }
 cat "$tmp"/*.log > "$tmp/all.calls" 2>/dev/null
-WRITE_RE='^(glab mr (rebase|update)|gh pr (update-branch|edit|ready)|glab api -X|gh api -X|git .*(push|rebase|switch|fetch|reset|branch|worktree (add|remove)))( |$)'
+WRITE_RE='^(glab mr (rebase|update)|gh pr (update-branch|edit|ready)|gh stack|gh extension (install|exec)|glab api -X|gh api -X|git .*(push|rebase|switch|fetch|reset|branch|worktree (add|remove)))( |$)'
 
 bad=$(grep -E '^git .* push( |$)' "$tmp/all.calls" | grep -E -- ' (--force|-f|--force=[^ ]*)( |$)| \+' | head -3)
 ck "no --force, -f or +ref push ever" [ -z "$bad" ]
@@ -418,6 +539,89 @@ ck "GitHub: leaf refresh with --rebase" grep -q '^gh pr update-branch 12 -R o/r 
 ck "GitHub: update_method = merge drops --rebase" grep -q '^gh pr update-branch 12 -R o/r$' "$tmp/gh-leaf-behind.sync-merge.log"
 ck "GitHub: all merged marks the main PR ready" grep -q '^gh pr ready 10 -R o/r$' "$tmp/gh-draft-main.sync.log"
 ck "GitHub: a fork PR is reported, never touched" [ -z "$(grep -E '^gh pr (edit|ready|update-branch) 12' "$tmp/gh-fork.sync.log")" ]
+bad=$(grep -E '^gh (stack|extension exec|extension install)' "$tmp/all.calls" | grep -vE '^gh stack link --base feat-x( [0-9]+){2,}$' | head -3)
+ck "gh stack: only link --base <ticket branch> with PR numbers (never sync, push, rebase, merge, unstack or an install)" [ -z "$bad" ]
+ck "gh stack link never bottoms a stack on the default branch" [ -z "$(grep -E '^gh stack .*--base (main|origin/main|refs/heads/main)( |$)' "$tmp/all.calls")" ]
+[ "$(grep -c '^gh stack ' "$tmp/gh-native-stack-tail-unlinked.sync.log")" = 1 ] \
+  && grep -qx 'gh stack link --base feat-x 11 12 13' "$tmp/gh-native-stack-tail-unlinked.sync.log"
+chk $? "native: tail unlinked runs exactly one gh stack link --base feat-x 11 12 13"
+for c in gh-native-stack-bottom-merged.sync gh-native-stack-drift.sync gh-native-stack-split.sync gh-native-stack-merged-member.sync \
+         gh-native-stack-unlabelled.sync gh-native-stack-no-extension.sync gh-native-stack-unlinked.sync gh-native-stack-disabled.sync \
+         gh-native-stack-retarget-fails.sync gh-native-stack-branching.sync gh-native-stack-split-own.sync \
+         gh-native-stack-base-not-br.sync gh-native-stack-closed.sync gh-native-stack-api-403.sync \
+         gh-native-stack-api-500.sync gh-native-stack-api-401.sync gh-native-stack-foreign-prefix.sync \
+         gh-native-stack-foreign-remote.sync gh-native-stack-gh-resolved.sync gh-native-stack-gh-repo-env.sync \
+         gh-native-stack-gh-host-env.sync gh-native-stack-branch-named.sync gh-native-stack-late.sync; do
+  ck "$c: no gh stack call" [ -z "$(grep '^gh stack ' "$tmp/$c.log")" ]
+done
+ck "native drift: nothing written" [ -z "$(grep -E "$WRITE_RE" "$tmp/gh-native-stack-drift.sync.log" | grep -vE '^git -C [^ ]+ fetch origin$')" ]
+ck "native bottom merged: cascade and lease push still run" grep -qE "^git -C [^ ]+ push --force-with-lease origin $B $C\$" \
+  "$tmp/gh-native-stack-bottom-merged.sync.log"
+ck "native bottom merged: no retarget (GitHub did it)" [ -z "$(grep -E '^gh pr edit' "$tmp/gh-native-stack-bottom-merged.sync.log")" ]
+ck "native disabled: no gh extension list call" [ -z "$(grep -E '^gh extension' "$tmp"/gh-native-stack-disabled.*.log)" ]
+for v in plan status check sync; do
+  ck "native disabled ($v): output identical to gh-chain-retargeted-by-github" \
+    cmp -s "$tmp/gh-native-stack-disabled.$v.txt" "$tmp/gh-chain-retargeted-by-github.$v.txt"
+done
+[ "$(grep -c '^gh stack ' "$tmp/gh-native-stack-tail-unlinked.sync-from-worktree.log")" = 1 ] \
+  && grep -qE '^# gh-stack-cwd .*/sb/gh-native-stack-tail-unlinked\.sync-from-worktree/r$' \
+       "$tmp/gh-native-stack-tail-unlinked.sync-from-worktree.log"
+chk $? "native: sync run from a linked worktree runs gh stack link with the main checkout as cwd"
+ck "native bad number: the valid stack 50 (coerced) is extended" grep -qx 'gh stack link --base feat-x 11 12 13' \
+  "$tmp/gh-native-stack-bad-number.sync.log"
+for c in gh-native-stack-split gh-native-stack-foreign-prefix; do
+  ck "$c: foreign PRs are named, no unstack command" sh -c "grep -q 'foreign PRs' '$tmp/$c.sync.out' && ! grep -q 'gh stack unstack' '$tmp/$c.sync.out'"
+done
+ck "native split (own parts only): unstack both and re-link" grep -q 'gh stack unstack 60' "$tmp/gh-native-stack-split-own.sync.out"
+ck "native 403: info, never failed or todo" sh -c "grep -q 'answered 403' '$tmp/gh-native-stack-api-403.sync.out' && ! grep -qE '\"status\": \"(todo|failed|skipped)\"' '$tmp/gh-native-stack-api-403.sync.out'"
+ck "native late retarget: the link is skipped until the retarget lands" grep -q 'did not complete' "$tmp/gh-native-stack-late.sync.out"
+ck "native branching chain: reported unlinked by design" grep -q 'links no branching chain' "$tmp/gh-native-stack-branching.sync.out"
+ck "native retarget failure on a stacked PR names the stack" grep -q 'is in native stack 50' "$tmp/gh-native-stack-retarget-fails.sync.out"
+python3 - "$CLI" <<'PY'
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location("stk", sys.argv[1]); stk = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(stk)
+assert stk.stack_link_cmd("main", [11, 12], "main") is None
+assert stk.stack_link_cmd("feat-x-sub-01-api", [11, 12], "main") is None
+assert stk.stack_link_cmd("feat-x", [11], "main") is None
+assert stk.stack_link_cmd("feat-x", [11, 12], "main") == ["gh", "stack", "link", "--base", "feat-x", "11", "12"]
+src = open(sys.argv[1]).read()
+assert src.count('"gh", "stack"') == 1, "gh stack argv built outside stack_link_cmd"
+assert '"gh", "stack", "link", "--base", br]' in src
+import json
+pages = {1: [{"number": 300 - i, "base": {"ref": "feat-x"}, "pull_requests": []} for i in range(100)],
+         2: [{"number": 7, "base": {"ref": "feat-x"}, "pull_requests": [{"number": "11", "state": "open"}]},
+             {"number": None, "base": {"ref": "feat-x"}, "pull_requests": []},
+             {"number": "x", "base": {"ref": "feat-x"}, "pull_requests": []}]}
+seen = []
+def fake(argv, **kw):
+    seen.append(argv[-1])
+    page = int(argv[-1].rsplit("page=", 1)[1])
+    return 0, json.dumps(pages.get(page, [])), ""
+stk.call = fake
+got = stk.GitHub("github.com", "o/r").stacks()
+assert seen == ["repos/o/r/stacks?per_page=100&page=1", "repos/o/r/stacks?per_page=100&page=2"], seen
+assert len(got) == 101 and got[-1] == {"number": 7, "base": "feat-x", "prs": [11], "open_prs": [11]}, got[-1]
+seen[:] = []
+pages = dict((i, [{"number": i * 1000 + j, "base": {"ref": "feat-x"}} for j in range(100)]) for i in range(1, 50))
+assert len(stk.GitHub("github.com", "o/r").stacks()) == 100 * stk.STACKS_MAX_PAGES and len(seen) == stk.STACKS_MAX_PAGES
+def failing(err):
+    return lambda argv, **kw: (1, "", err)
+stk.call = failing("gh: Not Found (HTTP 404)")
+assert stk.GitHub("github.com", "o/r").stacks() is None
+for err, exc in (("gh: Bad credentials (HTTP 401)", stk.AccessError),
+                 ("gh: Resource not accessible by integration (HTTP 403)", stk.StacksUnreadable),
+                 ("gh: Server Error (HTTP 500)", stk.CliError)):
+    stk.call = failing(err)
+    try:
+        stk.GitHub("github.com", "o/r").stacks()
+    except exc:
+        pass
+    else:
+        raise AssertionError("%s did not raise %s" % (err, exc.__name__))
+assert stk.stack_number("50") == 50 and stk.stack_number(None) is None and stk.stack_number(0) is None
+PY
+chk $? "unit: stack_link_cmd refuses the default branch, a part and < 2 PRs; stk never builds gh stack unstack|sync|push|merge|rebase; stacks paginate per_page=100&page=N to a short page (capped), 401 -> access, 403 -> unreadable, 404 -> off, numbers coerced"
 bad=$(grep '^gh pr ' "$tmp/all.calls" | grep -v -- ' -R o/r' | head -3)
 ck "every gh pr call carries -R" [ -z "$bad" ]
 bad=$(grep -E '^gh (repo view|api) ' "$tmp/all.calls" | grep -vE ' (repos/)?o/r( |/|$)' | head -3)
