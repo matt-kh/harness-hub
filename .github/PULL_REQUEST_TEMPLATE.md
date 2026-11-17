@@ -2,7 +2,7 @@
 
 Issue: #
 
-<!-- First line: the GitHub issue this PR builds on, as "Issue: #N" (or "no-issue: <reason>" for a trivial fix; the companion gate checks it). One paragraph after it. Mention the issue as "#N"; never "Closes/Fixes/Resolves #N" (see CONTRIBUTING). -->
+<!-- First line: the GitHub issue this PR builds on, as "Issue: #N" (or "no-issue: <reason>" for a trivial fix; the companion gate checks it). One paragraph after it. Mention issues as "#N". Exception: a PR into the default branch may close its own issue, the one on the first "Issue: #N" line, as "Closes #N" with that same bare #N; a sub-PR never closes one, and no other issue is ever closed (see CONTRIBUTING). -->
 
 ## Principle(s) served
 
@@ -27,7 +27,7 @@ Issue: #
 - [ ] Scripts parse under bash 3.2 and avoid GNU-only tools (see CONTRIBUTING, "bash 3.2 rules")
 - [ ] `CHANGELOG.md` has an entry under `[Unreleased]` (with **Migration** if a config key changed)
 - [ ] Commit subjects carry no ticket keys and no closing keywords
-- [ ] The PR body names its issue as `#N` (or `no-issue: <reason>`), never after a closing keyword
+- [ ] The PR body names its issue as `Issue: #N` (or `no-issue: <reason>`); a closing keyword appears only in a PR into the default branch, and only before the bare `#N` of the first `Issue: #N` line
 
 ## Manual verification
 

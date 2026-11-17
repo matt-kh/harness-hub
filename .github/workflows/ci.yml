@@ -120,7 +120,7 @@ jobs:
             echo "no usable commit range for this event: scanning the tree only"
           fi
           tools/gate/private-ids.sh "${args[@]}"
-      - name: Companion-file gate (guard rows, CHANGELOG entry)
+      - name: Companion-file gate (guard rows, CHANGELOG, README, issue reference)
         if: github.event_name == 'pull_request'
         env:
           # The body reaches the script through a file, never interpolated into this script:
@@ -128,9 +128,14 @@ jobs:
           PR_BODY: ${{ github.event.pull_request.body }}
           RANGE_BASE: ${{ github.event.pull_request.base.sha }}
           RANGE_HEAD: ${{ github.event.pull_request.head.sha }}
+          # "true" when the PR targets the default branch: check `issue` then lets it close its own
+          # issue (the bare #N of its `Issue: #N` line); sub-PRs stay mention-only.
+          BASE_IS_DEFAULT: ${{ github.base_ref == github.event.repository.default_branch }}
         run: |
           printf '%s\n' "$PR_BODY" >"$RUNNER_TEMP/pr-body.txt"
-          tools/gate/companions.sh --ci --range "$RANGE_BASE..$RANGE_HEAD" --markers-file "$RUNNER_TEMP/pr-body.txt"
+          args=(--ci --range "$RANGE_BASE..$RANGE_HEAD" --markers-file "$RUNNER_TEMP/pr-body.txt")
+          if [ "$BASE_IS_DEFAULT" = true ]; then args+=(--base-is-default); fi
+          tools/gate/companions.sh "${args[@]}"
       - name: detect-secrets
         run: |
           if [ ! -f .secrets.baseline ]; then
