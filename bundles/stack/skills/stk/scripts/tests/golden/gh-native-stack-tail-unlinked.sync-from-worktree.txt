@@ -1,0 +1,36 @@
+# exit=0
+# stderr:
++ git -C SANDBOX/r_feat-x-sub-03-docs fetch origin
+[#13] chain #11 <- #12 <- #13: native stack 50 lists #11 <- #12; link #13 on top (in the main checkout SANDBOX/r)
++ gh stack link --base feat-x 11 12 13
+# stdout:
+{
+  "verb": "sync",
+  "provider": "github",
+  "repo": "o/r",
+  "selection": {
+    "mode": "stack",
+    "stack": "feat-x",
+    "with_main": false
+  },
+  "steps": [
+    {
+      "ref": 13,
+      "kind": "native-stack",
+      "status": "ran",
+      "message": "chain #11 <- #12 <- #13: native stack 50 lists #11 <- #12; link #13 on top (in the main checkout SANDBOX/r)",
+      "commands": [],
+      "ran": [
+        "gh stack link --base feat-x 11 12 13"
+      ]
+    }
+  ],
+  "exit": 0
+}
+# worktrees: unchanged
+# origin branches:
+  feat-x unchanged
+  feat-x-sub-01-api unchanged
+  feat-x-sub-02-ui unchanged
+  feat-x-sub-03-docs unchanged
+  main unchanged

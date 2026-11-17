@@ -1,0 +1,31 @@
+# exit=1
+# stderr:
++ git -C SANDBOX/r fetch origin
+# stdout:
+{
+  "verb": "sync",
+  "provider": "github",
+  "repo": "o/r",
+  "selection": {
+    "mode": "stack",
+    "stack": "feat-x",
+    "with_main": false
+  },
+  "steps": [
+    {
+      "ref": null,
+      "kind": "native-stack",
+      "status": "skipped",
+      "message": "could not read the native stacks (gh api 'repos/o/r/stacks?per_page=100&page=1' exited 1: gh: Server Error (HTTP 500)); nothing linked, re-run stk sync",
+      "commands": []
+    }
+  ],
+  "exit": 1
+}
+# worktrees: unchanged
+# origin branches:
+  feat-x unchanged
+  feat-x-sub-01-api unchanged
+  feat-x-sub-02-ui unchanged
+  feat-x-sub-03-docs unchanged
+  main unchanged

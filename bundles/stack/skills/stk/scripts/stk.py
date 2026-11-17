@@ -21,7 +21,8 @@ Verbs (selection for all: `<refs...>` | `--stack BR [--with-main]` | `--label L`
           Read-only. Repository readiness for stacks: GitLab merge method, squash option,
           delete-source-branch default, protected branches vs the ticket branch, your access;
           GitHub delete-branch-on-merge, merge strategies, "up to date" rules, your
-          permission. --fix prints the settings commands; it never runs them.
+          permission, native stacks (enabled, gh-stack extension, linked chains).
+          --fix prints the settings commands; it never runs them.
   sync [--include-human] [--no-push] [--skip-ci]
           1 retarget open parts aimed at the default branch (misfire) or at a merged part's
             branch (`glab mr update N --target-branch T`, `gh pr edit N -B T`);
@@ -30,9 +31,14 @@ Verbs (selection for all: `<refs...>` | `--stack BR [--with-main]` | `--label L`
             <old base> <top>` (clean worktrees only; `git rebase --abort` on a conflict
             leaves it exactly as found);
           3 push the rebased branches: `git push --force-with-lease origin <subs…>`;
-          4 refresh at most one fan-in leaf server-side when the merge method needs an
+          4 GitHub with native stacks (the Stacks API answers): keep each linear chain's
+            stack consistent — extend a stack whose open PRs are a strict prefix of the
+            chain with `gh stack link --base BR <PR numbers>` (gh-stack extension, run in
+            the main checkout); a mismatch is a todo with the commands. It never creates
+            a first stack, unstacks, or runs gh stack sync|push|rebase|merge;
+          5 refresh at most one fan-in leaf server-side when the merge method needs an
             up-to-date source (`glab mr rebase`, `gh pr update-branch`);
-          5 mark the main MR/PR ready once every part merged.
+          6 mark the main MR/PR ready once every part merged.
           Writes only to MRs/PRs carrying an agent-* label (WORK_TICKET_AGENT_LABEL_RE);
           unlabelled ones are listed with the command that labels them. --include-human lifts
           that (the guard asks); --no-push rebases locally and prints the push.
@@ -43,7 +49,8 @@ Exit codes: 0 nothing to do or all done, 1 action needed by a human, 2 auth/acce
 
 Deliberately NOT implemented: merging (humans decide merges; see the skill), `--force` (only
 `--force-with-lease`, only sub branches), `reset --hard`, `rebase --continue` on your behalf,
-approving, `glab stack`, local state files.
+approving, `glab stack`, `gh stack sync|push|rebase|merge|unstack`, creating a first native
+stack, local state files.
 
 Env (each falls back to the harness config key in brackets, read from build/config.json via
 HARNESS_CONFIG_JSON / HARNESS_HOME, then to the default):
@@ -55,6 +62,7 @@ HARNESS_CONFIG_JSON / HARNESS_HOME, then to the default):
   HARNESS_GITLAB_HOSTS_RE, HARNESS_GITLAB_HOST [gitlab.host]  GitLab host detection; any
                                                     other host is GitHub
   WORK_TICKET_AGENT_LABEL_RE (^agent-), WORK_TICKET_LABEL (agent-worked)  the label gate
+  GH_STACK_NO_UPDATE_NOTIFIER=1                     set for every gh stack call stk makes
   GLAB, GH, GIT                                     binary overrides (tests)
 """
 import argparse
@@ -188,7 +196,7 @@ ACCESS_RE = re.compile(r"\b401\b|unauthori[sz]ed|not logged in|authentication (f
                        r"|connection refused", re.I)
 
 
-def call(argv, timeout=CALL_TIMEOUT, env=None):
+def call(argv, timeout=CALL_TIMEOUT, env=None, cwd=None):
     """Run a native command (argv[0] is the logical name glab|gh|git). -> (rc, stdout, stderr)."""
     real = [BINARIES.get(argv[0], argv[0])] + [str(a) for a in argv[1:]]
     full_env = None
@@ -196,7 +204,7 @@ def call(argv, timeout=CALL_TIMEOUT, env=None):
         full_env = dict(os.environ)
         full_env.update(env)
     try:
-        p = subprocess.run(real, capture_output=True, text=True, timeout=timeout, env=full_env)
+        p = subprocess.run(real, capture_output=True, text=True, timeout=timeout, env=full_env, cwd=cwd)
     except subprocess.TimeoutExpired:
         return 124, "", "timed out after %ds" % timeout
     except FileNotFoundError:
@@ -241,6 +249,47 @@ def parse_ref(text):
     if not m:
         die("stk: %r is not an MR/PR number; pass numbers like 12, !12 or #12" % text, EXIT_ACTION)
     return int(m.group(1))
+
+
+# ------------------------------------------------------------------ native GitHub stacks
+GH_STACK_EXT = "github/gh-stack"
+GH_STACK_ENV = {"GH_STACK_NO_UPDATE_NOTIFIER": "1"}
+GH_STACK_INSTALL = "gh extension install " + GH_STACK_EXT
+STACKS_PER_PAGE, STACKS_MAX_PAGES = 100, 20
+
+
+class StacksUnreadable(CliError):
+    """The Stacks API answered 403: the feature is there but this token cannot read it."""
+
+
+def stack_number(raw):
+    """A stack's (or PR's) number as an int, None when it has no valid one (then ignored)."""
+    try:
+        n = int(raw)
+    except (TypeError, ValueError):
+        return None
+    return n if n > 0 else None
+
+
+def stack_link_cmd(br, refs, default):
+    """`gh stack link --base BR N…` by PR numbers only; None when BR is the default branch or a
+    part (stk never bottoms a native stack on the default branch, nor links a branch name)."""
+    if not br or br == default or is_sub(br) or len(refs) < 2:
+        return None
+    return ["gh", "stack", "link", "--base", br] + [str(int(r)) for r in refs]
+
+
+def stack_of(stacks):
+    """{PR number: native stack number} over every PR (merged ones included)."""
+    out = {}
+    for s in stacks or []:
+        for n in s["prs"]:
+            out[n] = s["number"]
+    return out
+
+
+def fmt_refs(refs, sigil="#"):
+    return " <- ".join("%s%s" % (sigil, r) for r in refs)
 
 
 # --------------------------------------------------------------------------------- remote
@@ -332,6 +381,27 @@ class Git:
                     found[line[len("branch refs/heads/"):]] = path
             self._trees = found
         return self._trees
+
+    def main_checkout(self):
+        """The main worktree (first non-bare `git worktree list` entry that is a directory),
+        else the current checkout ('' outside one)."""
+        rc, out, _ = self.run(["worktree", "list", "--porcelain"]) if self.top else (1, "", "")
+        for block in (out if rc == 0 else "").split("\n\n"):
+            lines = block.splitlines()
+            path = next((x[len("worktree "):] for x in lines if x.startswith("worktree ")), "")
+            if path and "bare" not in lines and os.path.isdir(path):
+                return path
+        return self.top
+
+    def config_regexp(self, pattern, wt=None):
+        """[(key, value)] of `git config --get-regexp PATTERN` (empty when none match)."""
+        rc, out, _ = self.run(["config", "--get-regexp", pattern], wt=wt)
+        return [tuple((line.split(None, 1) + [""])[:2]) for line in (out if rc == 0 else "").splitlines()
+                if line.strip()]
+
+    def has_branch(self, name, wt=None):
+        rc, _o, _e = self.run(["rev-parse", "--verify", "--quiet", "refs/heads/%s" % name], wt=wt)
+        return rc == 0
 
     def unclean(self, wt):
         """'' when the worktree is clean and not mid-rebase/merge, else the reason."""
@@ -475,6 +545,69 @@ class GitHub:
         self.rflag = ["-R", self.spec]
         self.hflag = [] if self.host == "github.com" else ["--hostname", self.host]
         self._repo, self._strict = None, {}
+        self._stacks, self._stacks_read, self._ext = None, False, None
+
+    def stacks(self, refresh=False):
+        """Open native stacks (normalised), or None when the repository has none (HTTP 404).
+
+        GET repos/o/r/stacks?per_page=100&page=N like gh-stack's ListStacks: a bare array per
+        page, until a page is short (at most STACKS_MAX_PAGES). Each stack -> {number, base,
+        prs: [every PR bottom-up], open_prs: [open PRs bottom-up]}. An auth failure raises
+        AccessError, a 403 StacksUnreadable, anything else CliError.
+        """
+        if refresh or not self._stacks_read:
+            rows = []
+            for page in range(1, STACKS_MAX_PAGES + 1):
+                argv = ["gh", "api"] + self.hflag + ["repos/%s/stacks?per_page=%d&page=%d"
+                                                     % (self.repo, STACKS_PER_PAGE, page)]
+                rc, out, err = call(argv)
+                if rc != 0:
+                    status = http_status(err)
+                    if status == 404:
+                        self._stacks, self._stacks_read = None, True
+                        return None
+                    if ACCESS_RE.search(err or ""):
+                        raise AccessError("%s: %s — check `gh auth status`" % (fmt_cmd(argv[:3]), first_line(err)))
+                    if status == 403:
+                        raise StacksUnreadable(argv, rc, err)
+                    raise CliError(argv, rc, err)
+                try:
+                    batch = json.loads(out) if out.strip() else []
+                except ValueError:
+                    raise CliError(argv, rc, "unparseable JSON")
+                if not isinstance(batch, list):
+                    raise CliError(argv, rc, "not a JSON array")
+                rows.extend(batch)
+                if len(batch) < STACKS_PER_PAGE:
+                    break
+            stacks = []
+            for raw in rows:
+                if not isinstance(raw, dict) or raw.get("open") is False:
+                    continue
+                num = stack_number(raw.get("number"))
+                if num is None:
+                    continue
+                prs = [x for x in raw.get("pull_requests") or []
+                       if isinstance(x, dict) and stack_number(x.get("number"))]
+                stacks.append({"number": num, "base": (raw.get("base") or {}).get("ref") or "",
+                               "prs": [int(x["number"]) for x in prs],
+                               "open_prs": [int(x["number"]) for x in prs
+                                            if (x.get("state") or "").lower() == "open" and not x.get("merged_at")]})
+            self._stacks, self._stacks_read = stacks, True
+        return self._stacks
+
+    def extension(self):
+        """(present, version) of the gh-stack extension (`gh extension list`, row `gh stack  github/gh-stack`)."""
+        if self._ext is None:
+            rc, out, _ = call(["gh", "extension", "list"])
+            found = (False, "")
+            for line in (out if rc == 0 else "").splitlines():
+                cols = [c.strip() for c in line.split("\t")]
+                if len(cols) >= 2 and cols[0] == "gh stack" and cols[1] == GH_STACK_EXT:
+                    found = (True, cols[2] if len(cols) > 2 else "")
+                    break
+            self._ext = found
+        return self._ext
 
     def api(self, path):
         return read_json(["gh", "api"] + self.hflag + ["repos/%s%s" % (self.repo, "/" + path if path else "")])
@@ -721,13 +854,27 @@ def labelled(mr, opts):
     return opts.get("include_human") or any(agent_label_re().search(x or "") for x in mr.labels)
 
 
+def native_stacks(p):
+    """(stacks|None, error|'') for a GitHub repository; (None, '') elsewhere or when off (404)."""
+    if p.name != "github":
+        return None, ""
+    try:
+        return p.stacks(), ""
+    except CliError as e:
+        return None, str(e)
+
+
 def topology(st, git, with_main):
     trees = git.worktrees()
     sg = st.p.sigil
+    stacks, _err = native_stacks(st.p)
+    native = stack_of(stacks) if stacks is not None else None
 
     def row(m):
         r = {"ref": m.ref, "source": m.source, "target": m.target, "state": "draft" if (m.state == "open" and m.draft) else m.state,
              "labelled": any(agent_label_re().search(x or "") for x in m.labels), "worktree": trees.get(m.source)}
+        if native is not None:
+            r["native_stack"] = native.get(m.ref)
         if m.state == "open":
             want = st.want.get(m.ref, m.target)
             r.update({"target_ok": want == m.target, "behind": m.behind, "conflicts": m.conflict})
@@ -743,6 +890,10 @@ def topology(st, git, with_main):
            "leaves": [m.ref for m in st.leaves()],
            "merged": [m.ref for m in st.merged],
            "parts": [row(m) for m in st.parts]}
+    if native is not None:
+        mine = set(m.ref for m in st.parts)
+        out["native_stacks"] = [{"number": s["number"], "base": s["base"], "prs": s["prs"], "open_prs": s["open_prs"]}
+                                for s in stacks if s["base"] == st.br or mine & set(s["prs"])]
     if with_main and st.main is not None:
         out["main_row"] = row(st.main)
     order = ["%s%s" % (sg, m.ref) for m in st.merge_order()]
@@ -752,9 +903,16 @@ def topology(st, git, with_main):
     return out
 
 
+def foreign_prs(st, stacks):
+    """'#99 (stack 60), …' for the PRs in STACKS that are not parts (open or merged) of this
+    ticket; '' when there are none. Such a stack is the human's to sort out: stk names no unstack."""
+    mine = set(m.ref for m in st.parts)
+    return ", ".join("#%s (stack %s)" % (n, s["number"]) for s in stacks for n in s["prs"] if n not in mine)
+
+
 # ---------------------------------------------------------------------------- the sync core
 class Sync:
-    """retarget -> cascade -> push -> leaf refresh -> ready. dry=True plans without writing."""
+    """retarget -> cascade -> push -> native stack -> leaf refresh -> ready. dry=True plans without writing."""
 
     def __init__(self, p, git, rep, opts, dry):
         self.p, self.git, self.rep, self.opts, self.dry = p, git, rep, opts, dry
@@ -790,8 +948,30 @@ class Sync:
                 self.rep.step("retarget", "skipped", "not agent-labelled; " + msg, ref=m.ref,
                               commands=[self.p.cmd_label(m.ref), cmd])
                 continue
-            if self.run_cmd("retarget", m.ref, msg, cmd) and not self.dry:
-                m.target = want
+            if self.run_cmd("retarget", m.ref, msg, cmd):
+                if not self.dry:
+                    m.target = want
+            else:
+                self.retarget_hint(st, m)
+
+    def retarget_hint(self, st, m):
+        """A failed retarget of a PR in a native stack: GitHub may hold its base for the stack."""
+        stacks, _err = native_stacks(self.p)
+        num = stack_of(stacks).get(m.ref) if stacks else None
+        if num is None:
+            return
+        s = self.rep.steps[-1]
+        alien = foreign_prs(st, [x for x in stacks if x["number"] == num])
+        if alien:
+            s["message"] += ("; #%s is in native stack %s, which may hold its base and also holds %s, not part of "
+                             "%s: foreign PRs — decide first, in the web UI" % (m.ref, num, alien, st.br))
+            return
+        s["message"] += ("; #%s is in native stack %s, which may hold its base: look at the stack in the "
+                         "web UI, or unstack and re-link it yourself" % (m.ref, num))
+        s["commands"] += ["gh stack unstack %s" % num] + [
+            fmt_cmd(c) for c in [stack_link_cmd(st.br, [x.ref for x in path], st.default)
+                                 for path in st.paths() if m in path and len(path) > 1
+                                 and not any(len(st.children(x.source)) > 1 for x in path[:-1])] if c]
 
     # 2+3 -- cascade and push
     def tip(self, branch):
@@ -1004,7 +1184,179 @@ class Sync:
             return
         self.rep.step("push", "ran", "pushed the rebased %s" % refs, ref=rng[-1].ref, ran=[cmd])
 
-    # 4 -- leaf refresh
+    # 4 -- native GitHub stack (only when the repository has the Stacks API)
+    def native(self, st):
+        """Keep each linear chain's native stack consistent: extend a stack whose open PRs are a
+        strict prefix of the chain with `gh stack link`; never create, unstack or reorder one."""
+        if self.p.name != "github" or not st.open:
+            return
+        paths = [path for path in st.paths() if len(path) > 1]
+        if not paths:
+            return
+        try:
+            stacks = self.p.stacks(refresh=not self.dry)
+        except StacksUnreadable as e:
+            self.rep.step("native-stack", "info", "the Stacks API answered 403 (%s): native stacks are unreadable "
+                          "with this token, so stk links nothing; check the token's scopes or link it yourself"
+                          % first_line(e.err))
+            return
+        except CliError as e:
+            self.rep.step("native-stack", "skipped", "could not read the native stacks (%s); nothing linked, "
+                          "re-run stk sync" % e)
+            return
+        if stacks is None:
+            return      # no Stacks API for this repository (404): nothing to keep consistent
+        of = stack_of(stacks)
+        by_num = dict((s["number"], s) for s in stacks)
+        branching = [m for m in st.open if len(st.children(m.source)) > 1]
+        side = []
+        for path in paths:
+            refs = [m.ref for m in path]
+            if any(m in branching for m in path[:-1]):
+                side.append(path)
+                continue
+            if st.want[path[0].ref] != st.br:
+                self.rep.step("native-stack", "info", "chain %s is rooted at %s, not %s: not linked"
+                              % (fmt_refs(refs), st.want[path[0].ref], st.br), ref=path[-1].ref)
+                continue
+            self.native_chain(st, path, refs, of, by_num)
+        if side:
+            at = sorted(set("#%s" % m.ref for m in branching))
+            self.rep.step("native-stack", "info", "the chains branch at %s (%s): a native stack is linear, so stk "
+                          "links no branching chain (by design); its parts stay unlinked"
+                          % (", ".join(at), "; ".join(fmt_refs([m.ref for m in path]) for path in side)))
+        leaves = st.leaves()
+        if leaves:
+            self.rep.step("native-stack", "info", "fan-in leaves %s stay outside native stacks (by design: one part "
+                          "on %s is not a stack)" % (", ".join("#%s" % m.ref for m in leaves), st.br))
+
+    def rebuild(self, st, top, chain, nums, by_num, link, why, where):
+        """A stack that must be unstacked and re-linked: the human's commands, or, when it holds PRs
+        that are not parts of this ticket, only their names (the human decides first)."""
+        alien = foreign_prs(st, [by_num[n] for n in nums])
+        if alien:
+            self.rep.step("native-stack", "todo", "chain %s: %s; %s not part of %s: foreign PRs — decide first "
+                          "what happens to them, then re-link the chain (stk names no unstack here)"
+                          % (chain, why, alien + (" is" if alien.count("#") == 1 else " are"), st.br), ref=top)
+            return
+        self.rep.step("native-stack", "todo", "chain %s: %s; unstack and re-link the chain yourself%s"
+                      % (chain, why, where), ref=top,
+                      commands=["gh stack unstack %s" % n for n in nums] + [link])
+
+    def repo_mismatch(self, main):
+        """'' when gh-stack, run in MAIN, resolves this repository, else why it might not.
+
+        gh-stack takes no -R: it resolves the repository like gh itself (GH_REPO, then the
+        checkout's git remotes, preferring a `gh repo set-default` choice, recorded as
+        remote.<name>.gh-resolved, and the upstream/github/origin names). stk only links when
+        that resolution cannot differ from origin: no GH_REPO or GH_HOST, origin is this
+        repository, no gh-resolved default elsewhere, and no other remote on a GitHub host
+        that names another repository."""
+        for var in ("GH_REPO", "GH_HOST"):
+            if os.environ.get(var):
+                return "%s is set, which gh stack would use to pick the repository (unset it for stk)" % var
+        urls = dict((k[len("remote."):-len(".url")], v.strip())
+                    for k, v in self.git.config_regexp(r"^remote\..*\.url$", wt=main))
+        if parse_remote(urls.get("origin", ""))[1] != self.p.repo:
+            return "origin in %s is not %s" % (main, self.p.repo)
+        for key, val in self.git.config_regexp(r"^remote\..*\.gh-resolved$", wt=main):
+            name, val = key[len("remote."):-len(".gh-resolved")], val.strip()
+            target = parse_remote(urls.get(name, ""))[1] if val == "base" else val.split("/", val.count("/") - 1)[-1]
+            if target != self.p.repo:
+                return "the gh default repository (remote.%s.gh-resolved = %s) is %s, not %s" % (
+                    name, val, target or "?", self.p.repo)
+        for name, url in sorted(urls.items()):
+            host, repo = parse_remote(url)
+            if name != "origin" and repo and repo != self.p.repo and detect_provider(host) == "github":
+                return "remote %s points to %s on %s, which gh stack may pick instead of %s" % (
+                    name, repo, host, self.p.repo)
+        return ""
+
+    def native_chain(self, st, path, refs, of, by_num):
+        top = path[-1].ref
+        chain = fmt_refs(refs)
+        link = stack_link_cmd(st.br, refs, st.default)
+        main = self.git.main_checkout()
+        where = " (run it in the main checkout %s)" % main if main else " (run it in a checkout of %s)" % self.p.repo
+        if link is None:
+            self.rep.step("native-stack", "info", "chain %s: %s is the default branch or a part; stk never links "
+                          "a native stack there" % (chain, st.br), ref=top)
+            return
+        ids = sorted(set(of[r] for r in refs if r in of))
+        if not ids:
+            self.rep.step("native-stack", "info", "chain %s is not linked as a native stack; stk never creates "
+                          "the first one (link it when the parts are opened)%s" % (chain, where), ref=top,
+                          commands=[link])
+            return
+        if len(ids) > 1:
+            self.rebuild(st, top, chain, ids, by_num, link, "its parts sit in different native stacks (%s)" % "; ".join(
+                "%s: %s" % (n, fmt_refs(by_num[n]["prs"])) for n in ids), where)
+            return
+        s = by_num[ids[0]]
+        cur, num = s["open_prs"], s["number"]
+        if s["base"] != st.br:
+            self.rebuild(st, top, chain, [num], by_num, link, "native stack %s sits on %s, not %s"
+                         % (num, s["base"] or "?", st.br), where)
+            return
+        if cur == refs:
+            self.rep.step("native-stack", "info", "chain %s matches native stack %s" % (chain, num), ref=top)
+            return
+        prefix = 0 < len(cur) < len(refs) and refs[:len(cur)] == cur
+        if not prefix:
+            self.rebuild(st, top, chain, [num], by_num, link, "native stack %s lists %s (order or membership "
+                         "differs; stk never reorders a stack)" % (num, fmt_refs(s["prs"])), where)
+            return
+        new = refs[len(cur):]
+        if s["prs"] != cur:
+            # gh stack link --base needs every member listed and would re-chain the first open PR onto
+            # the merged one's branch: append the new parts with the stack number instead
+            self.rep.step("native-stack", "todo", "chain %s: native stack %s still lists merged or closed %s; add %s "
+                          "on top with the stack number yourself%s" % (chain, num, ", ".join(
+                              "#%s" % n for n in s["prs"] if n not in cur), ", ".join("#%s" % n for n in new), where),
+                          ref=top, commands=["gh stack link %s %s" % (num, " ".join(str(n) for n in new))])
+            return
+        msg = "chain %s: native stack %s lists %s; link %s on top" % (chain, num, fmt_refs(cur),
+                                                                      ", ".join("#%s" % n for n in new))
+        human = [m for m in path if not any(agent_label_re().search(x or "") for x in m.labels)]
+        if human:
+            self.rep.step("native-stack", "todo", msg + ": %s not agent-labelled; label them, or link it yourself%s"
+                          % (", ".join("#%s" % m.ref for m in human), where), ref=top,
+                          commands=[fmt_cmd(self.p.cmd_label(m.ref)) for m in human] + [link])
+            return
+        present, _ver = self.p.extension()
+        if not present:
+            self.rep.step("native-stack", "todo", msg + ": the gh-stack extension is not installed; install it "
+                          "(your decision) or link it yourself%s" % where, ref=top, commands=[GH_STACK_INSTALL, link])
+            return
+        why = self.repo_mismatch(main) if main else "stk does not run in a checkout of %s" % self.p.repo
+        if why:
+            self.rep.step("native-stack", "todo", msg + ": gh stack reads the repository from the working "
+                          "directory and %s; link it yourself%s" % (why, where), ref=top, commands=[link])
+            return
+        named = [r for r in refs if self.git.has_branch(str(r), wt=main)]
+        if named:
+            self.rep.step("native-stack", "todo", msg + ": the main checkout has a local branch named %s, which "
+                          "gh stack would read as a branch, not a PR number; rename it, or link it yourself%s"
+                          % (", ".join(str(r) for r in named), where), ref=top, commands=[link])
+            return
+        late = [m for m in path if m.target != st.want[m.ref]]
+        if late and not self.dry:
+            self.rep.step("native-stack", "skipped", msg + ": the retarget of %s did not complete; re-run stk sync "
+                          "after it" % ", ".join("#%s" % m.ref for m in late), ref=top, commands=[link])
+            return
+        if self.dry:
+            self.rep.step("native-stack", "planned", msg + " (in the main checkout %s)" % main, ref=top, commands=[link])
+            return
+        say("[#%s] %s (in the main checkout %s)" % (top, msg, main))
+        say("+ " + fmt_cmd(link))
+        rc, _o, err = call(link, env=GH_STACK_ENV, cwd=main)
+        if rc != 0:
+            self.rep.step("native-stack", "failed", "%s: %s" % (msg, first_line(err) or "exit %d" % rc), ref=top,
+                          commands=[link])
+            return
+        self.rep.step("native-stack", "ran", msg + " (in the main checkout %s)" % main, ref=top, ran=[link])
+
+    # 5 -- leaf refresh
     def leaves(self, st):
         repo_dir = os.path.basename((self.git.top or self.p.repo).rstrip("/"))
         trees = self.git.worktrees()
@@ -1050,7 +1402,7 @@ class Sync:
                 self.rep.step("refresh", "todo", "rebased server-side; refresh the local worktree (never reset --hard)",
                               ref=m.ref, commands=["git -C %s pull --rebase origin %s" % (shlex.quote(where), m.source)])
 
-    # 5 -- main ready
+    # 6 -- main ready
     def ready(self, st):
         main = st.main
         if main is None or main.state != "open" or not main.draft:
@@ -1069,6 +1421,7 @@ class Sync:
                           "web UI" % (self.p.kind, self.p.kind), ref=m.ref)
         self.retarget(st)
         self.cascade(st)
+        self.native(st)
         self.leaves(st)
         self.ready(st)
 
@@ -1187,7 +1540,31 @@ def github_check(p, a):
                                "fan-in leaf per run (gh pr update-branch)" % (branch, src)))
         else:
             out.append(finding("ok", "up_to_date", "%s does not require up-to-date branches%s" % (branch, " (%s)" % src if src else "")))
+    native = native_finding(p, a)
+    if native:
+        out.append(native)
     return out
+
+
+def native_finding(p, a):
+    """Native GitHub stacks: enabled (the Stacks API answers), the gh-stack extension, linked chains.
+    None when the repository has no Stacks API (404): the report is then what it always was."""
+    stacks, err = native_stacks(p)
+    if err:
+        return finding("info", "native_stack", "the Stacks API could not be read (%s); stk sync links nothing "
+                       "until it can" % err)
+    if stacks is None:
+        return None
+    present, ver = p.extension()
+    ext = ("the gh-stack extension %sis installed: stk sync extends a linked chain's stack with gh stack link"
+           % (ver + " " if ver else "")) if present else \
+        "the gh-stack extension is not installed: stk sync reports each stack link for you to run"
+    mine = [s for s in stacks if not a.stack or s["base"] == a.stack]
+    linked = "; ".join("stack %s%s: %s" % (s["number"], "" if a.stack else " on %s" % (s["base"] or "?"),
+                                           fmt_refs(s["prs"])) for s in mine)
+    scope = " on %s" % a.stack if a.stack else ""
+    return finding("info", "native_stack", "native stacks are enabled; %s; linked%s: %s" % (ext, scope, linked or "none"),
+                   None if present else GH_STACK_INSTALL)
 
 
 def cmd_check(p, a, opts, git):
@@ -1236,12 +1613,14 @@ def emit_text(rep):
                 extra = "  behind %s%s%s" % ("?" if r.get("behind") is None else r["behind"],
                                              ", CONFLICTS" if r.get("conflicts") else "",
                                              ", retarget -> %s" % r["retarget"]["to"] if r.get("retarget") else "")
-            lines.append("  %s%-5s %-8s %s -> %s%s%s" % (sig, r["ref"], r["state"], r["source"], r["target"], extra,
-                                                       "  [%s]" % r["worktree"] if r.get("worktree") else ""))
+            lines.append("  %s%-5s %-8s %s -> %s%s%s%s" % (sig, r["ref"], r["state"], r["source"], r["target"], extra,
+                                                         "  stack %s" % r["native_stack"] if r.get("native_stack") else "",
+                                                         "  [%s]" % r["worktree"] if r.get("worktree") else ""))
         lines.append("  merge order: " + ", ".join(st["merge_order"]) + "; run `stk sync --stack %s` after each merge" % st["branch"])
     for r in rep.get("rows") or []:
-        lines.append("%s%-5s %-8s %s -> %s%s" % (sig, r["ref"], r["state"], r["source"], r["target"],
-                                                "  [%s]" % r["worktree"] if r.get("worktree") else ""))
+        lines.append("%s%-5s %-8s %s -> %s%s%s" % (sig, r["ref"], r["state"], r["source"], r["target"],
+                                                  "  stack %s" % r["native_stack"] if r.get("native_stack") else "",
+                                                  "  [%s]" % r["worktree"] if r.get("worktree") else ""))
     for c in rep.get("cleanup") or []:
         lines.append("cleanup %s%s: %s" % (sig, c["ref"], c["command"]))
     for f in rep.get("findings") or []:

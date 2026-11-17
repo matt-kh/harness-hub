@@ -7,5 +7,7 @@
   "rules": {},
   "protection": {"main": 403, "feat-x": 403},
   "prs": {},
+  "stacks": 404,
+  "extensions": "gh stack\tgithub/gh-stack\tv0.3.0\n",
   "writes": {}
 }

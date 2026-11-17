@@ -1,0 +1,21 @@
+# exit=0
+# stderr:
+# stdout:
+stk plan — github o/r — stack feat-x
+stack feat-x -> main  main #10 (draft)
+  chain  #11 <- #12 <- #13
+  #11    open     feat-x-sub-01-api -> feat-x  behind ?  stack 50  [SANDBOX/r_feat-x-sub-01-api]
+  #12    open     feat-x-sub-02-ui -> feat-x-sub-01-api  behind ?  stack 50  [SANDBOX/r_feat-x-sub-02-ui]
+  #13    open     feat-x-sub-03-docs -> feat-x-sub-02-ui  behind ?  [SANDBOX/r_feat-x-sub-03-docs]
+  merge order: #11, #12, #13, #10 (main, last); run `stk sync --stack feat-x` after each merge
+planned  fetch: refresh the remote-tracking refs first
+      git -C SANDBOX/r fetch origin
+planned  #13 native-stack: chain #11 <- #12 <- #13: native stack 50 lists #11 <- #12; link #13 on top (in the main checkout SANDBOX/r)
+      gh stack link --base feat-x 11 12 13
+# worktrees: unchanged
+# origin branches:
+  feat-x unchanged
+  feat-x-sub-01-api unchanged
+  feat-x-sub-02-ui unchanged
+  feat-x-sub-03-docs unchanged
+  main unchanged
