@@ -1,6 +1,6 @@
 # Principles
 
-principles_version: 4
+principles_version: 5
 
 The ten principles below are the core of harness-hub. Every change to this repository
 serves at least one of them or is neutral to all of them. Read this page before changing the

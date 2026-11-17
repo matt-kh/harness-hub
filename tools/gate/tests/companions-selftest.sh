@@ -276,5 +276,100 @@ has   "15h skip is announced" 'issue: skipped \(no PR body\)' "$out"
 out=$(run --only issue --range main..HEAD); rc=$?
 expect_rc "15i --only issue without a body skips" 0 $rc "$out"
 
+# ---- 16. --base-is-default: the PR into the default branch may close its own issue -----------------
+D=--base-is-default
+for kw in 'Closes #12' 'fixes: #12' 'Resolved #12'; do
+  body "Issue: #12\n\nSummary.\n\n$kw\n"
+  out=$(run --only issue $D --range main..HEAD --markers-file "$T/body.txt"); rc=$?
+  expect_rc "16a $D + '$kw' (own issue) is clean" 0 $rc "$out"
+  out=$(run --only issue --range main..HEAD --markers-file "$T/body.txt"); rc=$?
+  expect_rc "16b no flag + '$kw' still hits" 1 $rc "$out"
+  has   "16b '$kw': message unchanged without the flag" \
+        "^issue: .*closing keyword.*mention the issue as #N instead; it would close the issue as a side effect" "$out"
+done
+for kw in 'Closes #13' 'Closes #123' 'Fixes owner/repo#12' 'Resolves https://github.com/owner/repo/issues/12'; do
+  body "Issue: #12\n\nSummary.\n\n$kw\n"
+  out=$(run --only issue $D --range main..HEAD --markers-file "$T/body.txt"); rc=$?
+  expect_rc "16c $D + '$kw' (not the own bare ref) hits" 1 $rc "$out"
+  has   "16c '$kw': message names the own issue and the alternative" \
+        "^issue: .*closing keyword.*other than this PR's own issue.*only 'Closes #12'.*mention any other issue as #N" "$out"
+done
+body 'Issue: #12\n\nCloses #12 and fixes #14.\n'
+out=$(run --only issue $D --range main..HEAD --markers-file "$T/body.txt"); rc=$?
+expect_rc "16d $D: a second closing ref on the same line still hits" 1 $rc "$out"
+has   "16d the message quotes the other ref" "fixes #14" "$out"
+body 'Summary.\n\nCloses #12\n'
+out=$(run --only issue $D --range main..HEAD --markers-file "$T/body.txt"); rc=$?
+expect_rc "16e $D: a closing keyword without an Issue line hits" 1 $rc "$out"
+has   "16e message asks for the Issue line" "^issue: .*no 'Issue: #N' line.*start the body with 'Issue: #N'" "$out"
+out=$(run --only issue --range main..HEAD --markers-file "$T/body.txt"); rc=$?
+expect_rc "16f no flag: a closing keyword without an Issue line hits" 1 $rc "$out"
+body '```\nIssue: #12\n```\n\nCloses #12\n'
+out=$(run --only issue $D --range main..HEAD --markers-file "$T/body.txt"); rc=$?
+expect_rc "16g $D: an Issue line inside a code fence does not count" 1 $rc "$out"
+body 'Issue: #12\n\n<!-- Closes #13 -->\nUses `fixes #14` in code.\n\nCloses #12\n'
+out=$(run --only issue $D --range main..HEAD --markers-file "$T/body.txt"); rc=$?
+expect_rc "16h $D: keywords in comments and code stay ignored" 0 $rc "$out"
+body 'Issue: #12\n\nDeclares the tracker.\n'
+out=$(run --only issue $D --range main..HEAD --markers-file "$T/body.txt"); rc=$?
+expect_rc "16i $D: a plain mention stays clean" 0 $rc "$out"
+body 'Declares the tracker.\n'
+out=$(run --only issue $D --range main..HEAD --markers-file "$T/body.txt"); rc=$?
+expect_rc "16j $D: a body naming no issue still hits" 1 $rc "$out"
+has   "16j message is the no-issue one" "^issue: pull-request body names no issue" "$out"
+body 'Issue: #12\r\n\r\nCloses #12\r\n'
+out=$(run --only issue $D --range main..HEAD --markers-file "$T/body.txt"); rc=$?
+expect_rc "16k $D: a CRLF body closing its own issue is clean" 0 $rc "$out"
+
+# ---- 17. bodies that used to hide a closing keyword ---------------------------------------------
+# both flag states must fail; $1 label, $2 body
+fails_both() {
+  body "$2"
+  out=$(run --only issue $D --range main..HEAD --markers-file "$T/body.txt"); rc=$?
+  expect_rc "$1 ($D) hits" 1 $rc "$out"
+  out=$(run --only issue --range main..HEAD --markers-file "$T/body.txt"); rc=$?
+  expect_rc "$1 (no flag) hits" 1 $rc "$out"
+}
+fails_both "17a inline code with triple backticks is no fence" 'Issue: #12\n\n```x``` Closes #13\n\nMore text.\n'
+fails_both "17b an opener indented 4 spaces is no fence" 'Issue: #12\n\n    ```\nCloses #13\n'
+fails_both "17c a fence closes only with as many backticks" 'Issue: #12\n\n````\n```\n````\nCloses #13\n'
+fails_both "17d a keyword split across lines" 'Issue: #12\n\nCloses\n#13\n'
+fails_both "17e a keyword and colon split across lines" 'Issue: #12\n\nFixes: \n#13\n'
+fails_both "17f no space after the colon" 'Issue: #12\n\nCloses:#13\n'
+fails_both "17g a keyword inside link text" 'Issue: #12\n\n[Closes #13](https://example.com/x)\n'
+body 'Issue: #12\n\n   ```sh\nCloses #13\n   ```\n'
+out=$(run --only issue $D --range main..HEAD --markers-file "$T/body.txt"); rc=$?
+expect_rc "17h a fence indented 3 spaces still hides code" 0 $rc "$out"
+body 'Issue: #12\n\nCloses\n#12\n'
+out=$(run --only issue $D --range main..HEAD --markers-file "$T/body.txt"); rc=$?
+expect_rc "17i $D: the own issue split across lines is clean" 0 $rc "$out"
+body 'Issue: #12\n\nCloses:#12\n'
+out=$(run --only issue $D --range main..HEAD --markers-file "$T/body.txt"); rc=$?
+expect_rc "17j $D: the own issue with no space after the colon is clean" 0 $rc "$out"
+
+# ---- 18. more --base-is-default shapes ------------------------------------------------------------
+# GitHub needs a keyword per issue: the #13 after a comma is a plain mention, so this passes
+body 'Issue: #12\n\nCloses #12, #13\n'
+out=$(run --only issue $D --range main..HEAD --markers-file "$T/body.txt"); rc=$?
+expect_rc "18a $D: 'Closes #12, #13' passes (a keyword per issue)" 0 $rc "$out"
+body 'Issue: #12\nIssue: #13\n\nCloses #13\n'
+out=$(run --only issue $D --range main..HEAD --markers-file "$T/body.txt"); rc=$?
+expect_rc "18b $D: the first Issue line wins" 1 $rc "$out"
+has   "18b message names the first issue" "only 'Closes #12'" "$out"
+body '<!-- Issue: #12 -->\n\nCloses #12\n'
+out=$(run --only issue $D --range main..HEAD --markers-file "$T/body.txt"); rc=$?
+expect_rc "18c $D: an Issue line inside an HTML comment does not count" 1 $rc "$out"
+has   "18c message asks for the Issue line" "no 'Issue: #N' line" "$out"
+for kw in close closes closed fix fixes fixed resolve resolves resolved; do
+  for sep in ' ' ': '; do
+    body "Issue: #12\n\n$kw$sep#13\n"
+    out=$(run --only issue $D --range main..HEAD --markers-file "$T/body.txt"); rc=$?
+    expect_rc "18d $D: '$kw$sep#13' hits" 1 $rc "$out"
+    body "Issue: #12\n\n$kw$sep#12\n"
+    out=$(run --only issue $D --range main..HEAD --markers-file "$T/body.txt"); rc=$?
+    expect_rc "18e $D: '$kw$sep#12' (own issue) is clean" 0 $rc "$out"
+  done
+done
+
 echo "companions selftest: passed=$pass failed=$fail"
 [ $fail -eq 0 ]

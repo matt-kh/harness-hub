@@ -146,7 +146,8 @@
   "issue": {
     "ref": "https://github.com/owner/repo/issues/7",
     "repo": "owner/repo",
-    "number": 7
+    "number": 7,
+    "close_on_merge": true
   },
   "existing_prs": [
     {

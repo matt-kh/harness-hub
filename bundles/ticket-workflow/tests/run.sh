@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Bundle tests: this bundle's guard rows against a guard built from core + this bundle only
 # (proves the sections do not depend on any other bundle), then every skill suite under
-# skills/*/scripts/tests/run.sh, then the doctor check script lib/check-trackers.sh. Exit 1 on any
-# failure.
+# skills/*/scripts/tests/run.sh, then the doctor check script lib/check-trackers.sh, then the
+# github guard's inlined rf_remote_norm block against repo-facts.sh. Exit 1 on any failure.
 set -uo pipefail
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 bdir=$(cd "$here/.." && pwd); name=$(basename "$bdir")
@@ -37,5 +37,14 @@ ct 1 '^ticket_workflow.trackers\[0\]: project .PROJ. needs tracker = "jira"' '[{
 ct 1 '^ticket_workflow.trackers\[0\]: match is empty' '[{"tracker":"jira"}]'
 ct 1 '^ticket_workflow.trackers is not a list of tables' 'not json'
 echo "check-trackers: $n_ct case(s) passed"
+# the github guard (section 41) inlines rf_remote_id's normalisation: the copy between the
+# rf_remote_norm markers must equal work-ticket/scripts/lib/repo-facts.sh byte for byte
+norm() { sed -n '/^# >>> rf_remote_norm/,/^# <<< rf_remote_norm$/p' "$1"; }
+rf="$bdir/skills/work-ticket/scripts/lib/repo-facts.sh"; g41="$bdir/../github/guard.d/41-github-closing.sh"
+if [ -f "$g41" ]; then
+  if [ -n "$(norm "$rf")" ] && [ "$(norm "$rf")" = "$(norm "$g41")" ]; then echo "rf_remote_norm: the github guard's copy matches repo-facts.sh"
+  else fail=1; echo "FAIL rf_remote_norm: the block in bundles/github/guard.d/41-github-closing.sh differs from $rf (copy it over)"
+    diff <(norm "$rf") <(norm "$g41") | sed 's/^/  /'; fi
+fi
 [ $fail -eq 0 ] && echo "all $name tests passed" || echo "$name tests FAILED"
 exit $fail

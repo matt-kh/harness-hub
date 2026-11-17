@@ -96,7 +96,9 @@ Preview payloads without sending: `JIRA_DRY_RUN=1` (the hook still applies).
   `jira transition <CHILD-1> "<name>" && jira transition <CHILD-2> "<name>"` (hook: allow —
   every key carries an agent-* label; main thread only, a subagent is denied and hands it back). No In-Progress state → skip silently.
 - Never Testing/Done/Closed states on your own initiative — the MR is not merged; humans move parent and children
-  together. Closing keywords stay forbidden everywhere.
+  together. Closing keywords stay forbidden on Jira keys, in commits, titles, sub MRs/PRs and
+  issue text; the one exception is GitHub Issues' main PR to the default branch
+  (`issue.close_on_merge`, `github.md` §6b).
 
 ## Reporting
 - MR: stacked → `## Stack` table in the main MR (absorbs the sub-ticket column); single →

@@ -6,7 +6,13 @@ and the gh guard rules:
 
 - `gh auth token`, `--show-token` and similar token output: **deny**
 - closing keywords (`close|fix|resolve` forms + `#N`, `owner/repo#N`, issue URL) in commits,
-  `gh pr create|edit|merge` and `gh api` payloads: **deny**
+  `gh pr create|edit|merge` and `gh api` payloads: **deny**; one exception: where the
+  repository's tracker is GitHub Issues and `github.close_issue_on_merge` is on (the default),
+  a literal one-line `gh pr create -B <default branch>` (head not a `-sub-` or fork branch) or
+  `gh pr edit N` of such a PR, run from that repository's own checkout (`-R` only for its
+  origin), may close bare `#N` refs of `agent-worked` issues (at most 10) in its `-b` body (a
+  `-F` body is not checked by the guard; work-ticket reads it back), so the issue closes when
+  a human merges that PR ([governance §4](../governance.md#4-closing-keywords-are-denied))
 - `gh pr close|reopen|ready` and `gh issue close|reopen` on a human PR/issue: **ask** (a human
   decision, run only on the user's explicit request); on an agent-labelled one: allow
 - `gh issue create` without a provenance label (`agent-drafted`, `agent-created`): **deny**
@@ -40,7 +46,7 @@ Manual steps: `install-gh`, `gh-auth`, `ssh-key`, `agent-labels` (full text belo
 | Branch protection / rulesets cannot be configured | GitHub Free offers them for **public** repos only | the guard's default-branch deny is then the only protection; consider making the repo public or a paid plan |
 | Stacked PRs: a part PR closed unexpectedly | its head branch was deleted **before** it merged | delete branches only after merge; GitHub auto-retargets PRs whose *base* is deleted after merge |
 | PR workflows do not run on stacked part PRs | `on: pull_request: branches: [main]` filters by base branch | drop the filter, or add `'**'` and gate expensive jobs on `github.base_ref` |
-| An issue closed itself on merge | a closing keyword slipped in through a human edit | mention `#N` instead; reopen the issue |
+| An issue closed itself on merge | expected for the worked issue (and its `agent-worked` sub-issues) when the merged PR targeted the default branch of a GitHub Issues repository; otherwise a closing keyword slipped in through a human edit | expected: nothing to do (set `github.close_issue_on_merge = false` to stop it); otherwise mention `#N` instead and reopen the issue |
 | Every write to someone else's repo asks | fork flow: the agent cannot label upstream PRs/issues | expected; delivery is a single PR from your fork |
 
 Rotating the token: [runbook](../runbooks/rotate-github-token.md).
@@ -51,7 +57,8 @@ Rotating the token: [runbook](../runbooks/rotate-github-token.md).
 GitHub CLI, PR-based workflow, GitHub Issues as the tracker, gh governance rules
 
 Installs `gh` (checksum-verified, no sudo), wires the guard rules for gh (token output deny,
-GitHub closing-keyword deny, merge/review and human PR/issue state ask, subagent deny of
+GitHub closing-keyword deny except the PR to the default branch closing its agent-worked issue
+in a repository whose tracker is GitHub Issues, merge/review and human PR/issue state ask, subagent deny of
 merges and state changes, API writes ask, label gate on PR/issue writes, stacked-PR rules) and adds the GitHub section of the instructions and
 the gh read permissions. The ticket-workflow skills drive GitHub Issues → PRs when this bundle
 is active.
@@ -71,7 +78,7 @@ Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md
 
 **Guard sections**
 
-- `github/guard.d/41-github-closing` — control: sensor · domain: tracker · function: govern · decisions: deny 1 · yields: declaration
+- `github/guard.d/41-github-closing` — control: sensor · domain: tracker · function: govern · decisions: deny 2 · allow 1 · yields: declaration
 - `github/guard.d/60-github` — control: sensor · function: govern · decisions: deny 5 · ask 8 · allow 3 · yields: declaration
 
 **Permission lists**
@@ -99,6 +106,7 @@ Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md
 
 | key | type | required | default | description |
 |---|---|---|---|---|
+| `github.close_issue_on_merge` | boolean | no | `true` | In a repository whose tracker is GitHub Issues (.harness.toml [repo] tracker, else the first matching ticket_workflow.trackers entry, else a github.com origin), let the PR to the default branch carry a closing keyword for its agent-worked issue(s) (#N only) so GitHub closes them when a human merges it; false denies it like every other closing keyword. HARNESS_GITHUB_CLOSE_ISSUE_ON_MERGE. |
 | `github.host` | string | no | `"github.com"` | GitHub host: github.com or your GHES hostname. |
 | `github.login` | string | yes |  | Your GitHub login. Shown in the instructions; repos you own are trusted in the provider's auto-mode trust text. |
 | `github.pr_title_forbid_re` | string | no | `"#[0-9]+"` | ERE a PR title must NOT match (issue refs belong in the body); empty disables. HARNESS_GITHUB_PR_TITLE_FORBID_RE. |
@@ -202,7 +210,7 @@ Guides steer the agent before it acts; sensors detect at or after the action. Pa
 |---|---|---|---|---|
 | guide | rule | `rules/60-github.md` | PR-based delivery, merges and PR/issue state on explicit main-thread request only, -R owner/repo on every call | `guard.d/41-github-closing.sh`, `guard.d/60-github.sh` |
 | guide | permission | `permissions.toml` | read-only gh commands allowed; token printing denied | `guard.d/60-github.sh`, `permissions-vs-guard` |
-| sensor | guard | `guard.d/41-github-closing.sh` | denies closing keywords that would change issue state | `rules/60-github.md` |
+| sensor | guard | `guard.d/41-github-closing.sh` | denies closing keywords that would change issue state; lets only the PR to the default branch close its agent-worked #N in a github-issues repository (github.close_issue_on_merge) | `rules/60-github.md` |
 | sensor | guard | `guard.d/60-github.sh` | token printing, API writes, merges/reviews and PR/issue state (main thread asks, subagent denied), provenance labels, stacked PR targets; PR creates with --fill* or a -t title matching github.pr_title_forbid_re ask | `rules/60-github.md`, `permissions.toml` |
 | sensor | doctor | `doctor_checks` | gh binary, auth, SSH and token file mode | — |
 | sensor | test | `guard.d/tests.sh` | guard rows with a stubbed gh | — |

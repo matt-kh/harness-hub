@@ -71,8 +71,8 @@ make render-check   # render twice into one fresh HOME; diff must be empty
   Only the developer's own credentials never yield: the credential-file denies
   (`core/guard.d/20-credentials`, `core/permissions`) and the `# never-yields:` preludes
   (commands that print a stored credential; the ask on writing `.harness.toml`). Guard
-  sections start with the `repo_owns` line (after shared assignments and an optional
-  prelude); skills carry the Step 0 paragraph; agent descriptions carry the baseline
+  sections start with the `repo_owns` line (after shared assignments, shared multi-line
+  function definitions and an optional prelude); skills carry the Step 0 paragraph; agent descriptions carry the baseline
   sentence; never hard-code one organisation's repository-skill name ([principle 8](principles/08-user-level-by-design.md)).
 - **Guard behaviour changes come with test rows** in `bundles/<b>/guard.d/tests.sh`,
   including bypass attempts. `tools/gate/companions.sh` fails a branch whose guard code
@@ -82,8 +82,10 @@ make render-check   # render twice into one fresh HOME; diff must be empty
   `<!-- generated:end -->`). Change the source (manifest, adapter, CLI help, `# rule:`
   comment) and run `bin/harness docs generate`.
 - **Commit identity is a noreply address**: `git config user.email "<id>+<login>@users.noreply.github.com"`.
-- **No closing keywords** anywhere (`Closes #N`, `Fixes #N`, `Resolves #N`); write "#N" or
-  "see #N". No ticket keys in commit subjects or branch names.
+- **No closing keywords** (`Closes #N`, `Fixes #N`, `Resolves #N`) in commits, titles, sub-PRs
+  or anywhere else; write "#N" or "see #N". The one exception: the body of the PR into the
+  default branch may close its own issue, the bare `#N` of the first `Issue: #N` line (see "Issues are
+  the source of truth"). No ticket keys in commit subjects or branch names.
 - **Never push to `main`.** Work on a branch, open a PR; humans merge.
 - **Secrets never enter the repo or a command line.** Check auth with each tool's own status
   command.
@@ -96,9 +98,14 @@ make render-check   # render twice into one fresh HOME; diff must be empty
   `/create-ticket` drafts it with `agent-drafted`; a human confirms it and labels it
   `agent-worked` before an agent works it.
 - The branch and the PR come from `/work-ticket #N`. The PR body names the issue as `#N`
-  (first line `Issue: #N`), never after a closing keyword: it would close the issue as a side effect.
+  (first line `Issue: #N`). Only the PR into the default branch may close it, with a closing
+  keyword before that same bare `#N` (`Closes #N`), so GitHub closes the issue on merge.
+  Sub-PRs (into a ticket branch), commits and titles stay mention-only, and no PR closes any
+  other issue: it would close it as a side effect.
 - `tools/gate/companions.sh` (check `issue`, CI on the PR body) fails a PR whose body names no
-  issue or closes one; a trivial fix waives it with `no-issue: <reason>`.
+  issue or closes one; for a PR into the default branch CI passes `--base-is-default`, which
+  accepts a closing keyword before the bare `#N` of the first `Issue: #N` line and nothing else. A
+  trivial fix waives the check with `no-issue: <reason>`.
 - The repository declares this itself: `.harness.toml` `[repo] tracker = "github-issues"`, which
   the ticket-workflow skills read before the host or your config.
 

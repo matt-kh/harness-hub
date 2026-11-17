@@ -10,6 +10,19 @@ prints every one between your applied version and the new one.
 
 ### Docs
 
+- Governance text for the GitHub Issues close-on-merge exception (part 04 of #80): every
+  statement that said closing keywords are denied everywhere now names the one exception (the
+  PR to the default branch of a repository whose tracker is GitHub Issues may close its
+  `agent-worked` `#N` when `github.close_issue_on_merge` is on) and keeps the rest
+  mention-only (Jira keys, commits, PR titles, sub PRs, issue text, API payloads, GitLab, the
+  fork flow). [governance §4](docs/governance.md#4-closing-keywords-are-denied) gains the
+  exception bullet; [getting started](docs/getting-started.md),
+  [repository-level harnesses](docs/repo-level.md) (`tracker`), `SECURITY.md` (closing-keyword
+  row), the github and ticket-workflow bundle pages (deny list, troubleshooting row "An issue
+  closed itself on merge") follow. `/create-ticket`: non-negotiable 5 and the `render-ticket.py`
+  docstring say issue text only mentions `#N`. The `Auto` agent's brief, the
+  ticket-workflow rule (`rules/75-ticket-workflow.md`) and the `bootstrap-repo` skill and
+  standard (PR template row) state the exception.
 - [docs/bundles/supply-chain.md](docs/bundles/supply-chain.md): the hand-written body (the
   `supply` verbs and exit codes, skills and agents, guard section 38, the optional tools, a
   `[supply_chain]` example with documentation values) and Troubleshooting rows for audit
@@ -62,6 +75,10 @@ prints every one between your applied version and the new one.
   smoke's elapsed seconds and bootstrap's remaining-minutes line are the time-to-first-useful-
   session proxies. Doc-only: the normative statements are unchanged, so `principles_version`
   stays 1.
+- Principle 6 "How it is checked" (part 05 of #80): the `issue` gate row describes
+  `--base-is-default`. In a PR into the default branch a closing keyword is accepted only
+  before the bare `#N` of the body's first `Issue: #N` line; every other closing reference
+  still fails. A checks-table refinement, so `principles_version` is unchanged.
 
 ### Principles
 
@@ -98,9 +115,23 @@ prints every one between your applied version and the new one.
   Checks: guard sections 50, 60, 70 rows (main ask, subagent deny), landing with the guard
   change; until then the current guard decisions apply. Follow-ups (#67): guard, rules and
   docs, skills.
+- `principles_version: 5`: principle 2, "Closing keywords stay denied" gains its one
+  exception (part 04 of #80): in a repository whose tracker is GitHub Issues, the one PR to the
+  default branch may close its `agent-worked` issue, because the issue then closes only when a
+  human merges that PR. A compliant example, a narrower non-compliant one (commits, PR titles,
+  sub PRs, issue text, Jira keys) and a "How it is checked" row (section 41 rows, the
+  `issue.close_on_merge` goldens) come with it. The summary statement in `PRINCIPLES.md`
+  ("humans decide … issue and ticket state") is unchanged. Principle 9's read-back example
+  now names the `closingIssuesReferences` read-back.
 
 ### Added
 
+- Config key `github.close_issue_on_merge` (boolean, default `true`; env
+  `HARNESS_GITHUB_CLOSE_ISSUE_ON_MERGE`), part of #80: in a repository whose tracker is
+  GitHub Issues (`.harness.toml` `[repo] tracker`, else the first matching
+  `ticket_workflow.trackers` entry, else a github.com origin), the PR to the default branch
+  may carry a GitHub
+  closing keyword for its worked issue(s), so GitHub closes them when a human merges the PR.
 - Guard engine: reads the hook input's `agent_id` (set by Claude Code on calls from a subagent
   or in-process teammate; `agent_type` is never read, since a `--agent` main thread carries it
   too) into `IN_SUBAGENT`, and offers `human_decision` / `human_decision_defer` for sections:
@@ -717,6 +748,93 @@ prints every one between your applied version and the new one.
 
 ### Changed
 
+- `/create-ticket` `render-ticket.py --check` (part 04 of #80), message only: the reason for a
+  GitHub closing keyword in an issue's title or body now says it "belongs only in
+  work-ticket's PR to the default branch" instead of "mention #N instead". The check is
+  unchanged; the `bad-gh-closing` row now asserts the reason.
+- Guard section `41-github-closing` (part of #80): a closing keyword + bare `#N` passes 41
+  (section 60 still decides the create or edit) when `github.close_issue_on_merge` is on (a
+  `false` in `guard.env` is final: the environment cannot switch it back on), the repository
+  declares `[repo] tracker = "github-issues"`, and the command is a narrow, fully parsed form:
+  one line; every clause (cut on unquoted `;` `&` `|` `(` `)` only) a top-level literal
+  `gh pr create|new` with one explicit `-B` or `gh pr edit N`; every closing ref a bare `#N` in
+  that command's `-t`/`-b` text; flags parsed the way gh parses them (short clusters such as
+  `-dB`, attached and `=` values); the repository the cwd checkout's github.com `origin` (a `-R`
+  must name it); the base (`-B`, or the edited PR's base) equal to that repository's
+  `defaultBranchRef`; the head not `-sub-` and not a fork; every `#N` labelled `agent-worked` (at
+  most 10 refs). The default branch, the edited PRs and the issues are read with ONE batched
+  read-only `gh api graphql` query under an overall 15 s deadline. Everything else keeps the
+  deny, with a reason that names the alternative: `git commit`, `gh pr merge`, `gh api`,
+  `owner/repo#N`, issue URLs, quoted or `$VAR` command words, a multi-line command ("pass a long
+  body with -F file"), `cd`/`pushd`/`popd`, `GH_REPO`/`GH_HOST` anywhere in the command,
+  `sh -c`/`bash -c`/`eval`/`xargs`/`env`, `$(…)`, backticks, `<(…)`, heredocs and herestrings,
+  other commands next to the `gh pr` one, a repeated `-B`/`-H`/`-R`/`-t`/`-b`/`-F`, an unknown
+  flag, `--`, a positional argument on create, an unquoted glob or brace, a `-R` other than the
+  checkout's origin, a non-github.com or missing origin, a base that is not the default branch
+  (`-B master` where the default is `main`), a ref outside the `-t`/`-b` text, a lookup failure
+  or overrun, and repositories without the declaration. Jira keys (section 40) are unchanged. The
+  lookups `gh_q`, `fetch_gh_pr` and `fetch_gh_issue` moved from 60 into 41's shared definitions
+  (above its `repo_owns` line), so both sections use them; 60 keeps its own lookups and clause
+  cut, so a body with a quoted `;` that 41 lets through still asks there.
+- Guard section `41-github-closing` (part 02 of #80): a repository without a `.harness.toml`
+  `[repo] tracker` now has its tracker resolved the way `/work-ticket` resolves it
+  (`rf_tracker`): the first `ticket_workflow.trackers` entry whose `match` ERE hits the origin
+  remote id (case-insensitive), else the host (github.com → `github-issues`, any other host →
+  not GitHub Issues). Stricter than `rf_tracker`, and fail closed: an empty or invalid `match`
+  ERE denies (pointing at `harness doctor`) instead of being skipped. A declared tracker always
+  wins (`jira` declared on a github.com repository denies; an invalid declared value denies as
+  before), and a `.harness.toml` that carries a tracker the guard cannot read (dotted
+  `repo.tracker`, a `repo = { … }` inline table, a trailing comment, a quoted key, a multi-line
+  string or array, more than one tracker line, a tracker line outside `[repo]`, or a file the
+  engine ignores as over 16 KiB / 400 lines) denies as unreadable; a `[repo]` table without a
+  tracker still falls through. A matching entry naming any tracker but `github-issues`, a
+  malformed list (not exactly one JSON array of objects, or a NUL inside `match`/`tracker`), no
+  origin remote or a git failure or timeout deny. The list is checked twice, from the
+  environment's `HARNESS_TICKET_TRACKERS` and from `guard.env`'s own value (the engine keeps it
+  in `HN_GENV_TICKET_TRACKERS`, like `HN_GENV_CLOSE_ON_MERGE`): an environment value (a
+  repository's provider env, even `[]`) can add a deny but never undo the user's `jira` entry.
+  The resolution reuses the one origin read the allow path already makes (no extra git call,
+  and no git or gh call at all without a closing keyword); the allow path needs the origin to
+  be exactly `github.com/<owner>/<repo>` (so `…/r.git.git` denies), and an entry naming
+  `github-issues` for another host denies. The ticket-workflow bundle renders
+  `ticket_workflow.trackers` into `guard.env` as `HARNESS_TICKET_TRACKERS` (one line of JSON).
+  Section 41 carries `rf_remote_id`'s normalisation between `rf_remote_norm` markers; both the
+  ticket-workflow suite and the github guard rows fail when that copy and `repo-facts.sh` drift.
+  Test stubs gain `GIT_STUB_LOG`, `GH_STUB_LOG` and `GIT_STUB_REMOTE=hang`.
+- `/work-ticket` on GitHub Issues (part 03 of #80): the github preflight reports
+  `issue.close_on_merge` — `true` when the tracker is `github-issues`,
+  `github.close_issue_on_merge` is on (config, and `HARNESS_GITHUB_CLOSE_ISSUE_ON_MERGE` when
+  set: anything but `true` from either is off), the delivery is not the fork flow (an unknown
+  `fork_flow`, e.g. without auth, counts as fork) and the issue lives in `base_repo`. When it is
+  `true`, the body of the one PR whose base is the default branch (the single PR, or the main PR
+  of a stack, first and second pass) writes the closing keyword for the worked `#N` plus its
+  `agent-worked` sub-issues (at most 10 bare refs), and the handoff says "merging the PR closes
+  #N"; sub PRs, fork PRs, other bases and `close_on_merge: false` keep the mention and today's
+  "close it yourself" text. The Step 6 read-back now checks `gh pr view --json
+  closingIssuesReferences` equals exactly that set (empty otherwise; the guard cannot read `-F`
+  body files, so this is the sensor), keeps the Jira-key and foreign-ref keyword greps, and
+  greps every title and every mention-only body for a `#N` keyword. Commits, titles, Jira keys
+  and issue text never carry a closing keyword, in any mode. The ticket-workflow test stubs now
+  also unset `HARNESS_GITHUB_CLOSE_ISSUE_ON_MERGE`, `HARNESS_TICKET_TRACKERS` and
+  `HARNESS_GUARD_ENV`. Review follow-ups: `issue.close_on_merge` is also `false` when origin is
+  not `base_repo` (a fork with write access on its parent, which the guard denies) and when the
+  guard's own `guard.env` (`HARNESS_GUARD_ENV`, else `<hooks dir>/guard.env`, parsed, never
+  sourced) sets `HARNESS_GITHUB_CLOSE_ISSUE_ON_MERGE` to anything but `true`; the §6a read-back
+  runs as is in both modes (`CLOSE`/`WANT`), re-reads `closingIssuesReferences` once after a few
+  seconds (GitHub fills it asynchronously), greps the PR's commit messages too, and matches issue
+  URLs with `www.` like the guard; at most 10 refs (worked issue + first 9 sub-issues, the rest
+  listed in the handoff); the issue title sits on its own line, never right after a keyword; the
+  handoff and agent notes no longer put a keyword directly before a ref. Rule `60-github` says a
+  `-F` body is not checked by the guard and is read back by work-ticket.
+- Guard section `41-github-closing`: a closing keyword or issue ref written with quotes or
+  escapes inside it (the keyword split by quotes, a backslash before the space or the `#`) on a
+  `git commit`, `gh pr create|edit|merge` or `gh api` line is now denied like the plain form; it
+  used to pass 41 unseen.
+- Lint rule `yields`: multi-line function definitions (a column-0 `name() {` line up to a
+  column-0 `}` line) may precede a guard section's `repo_owns` line like plain shared
+  assignments; defining a function runs nothing, and later sections may call it. One-line
+  definitions stay stray (code could follow the closing brace on the same line), and so does a
+  definition still open at the `repo_owns` line.
 - GitHub and GitLab guard sections adopt "humans decide" (principle 2, part of #67). From a
   subagent (Claude Code's `agent_id`) every merge, approval and PR/MR/issue state change is
   **denied** with "hand the command back to the main thread": `gh pr merge|review`,
@@ -944,6 +1062,35 @@ prints every one between your applied version and the new one.
 
 ### Migration
 
+- New config key `github.close_issue_on_merge` (default `true`) and a guard decision change
+  (part of #80). In a repository whose `.harness.toml` declares `[repo] tracker =
+  "github-issues"`, a closing keyword + bare `#N` of an `agent-worked` issue in
+  `gh pr create -B <default branch>` or `gh pr edit` of the PR to the default branch used to be
+  **denied** and now passes the closing-keyword section (the PR create/edit gates of section 60
+  still apply). Repositories without that declaration, or declaring `jira`, see no change. To
+  keep the old deny everywhere, set `close_issue_on_merge = false` under `[github]` in your
+  `harness.toml` and run `harness apply`.
+- Guard decision change in section `41-github-closing` (part 02 of #80): more repositories now
+  allow the PR to the default branch to close its `agent-worked` `#N`. Besides those declaring
+  `[repo] tracker = "github-issues"`, every github.com repository without a `.harness.toml`
+  tracker does, unless the first `ticket_workflow.trackers` entry matching its origin names
+  `jira`. To keep the deny for such a repository, declare `[repo] tracker = "jira"` in its
+  `.harness.toml`, or add a `[[ticket_workflow.trackers]]` entry (`match`, `tracker = "jira"`)
+  to your `harness.toml`; to keep it everywhere, set `close_issue_on_merge = false` under
+  `[github]`; then run `harness apply`. The `github` bundle only recommends `ticket-workflow`:
+  without that bundle no `ticket_workflow.trackers` entries reach the guard and the host decides,
+  so every undeclared github.com repository allows; keep the deny there with
+  `[repo] tracker = "jira"` in the repository's `.harness.toml` or with
+  `close_issue_on_merge = false`. A `.harness.toml` tracker must be one plain line
+  `tracker = "…"` under `[repo]` without a trailing comment: dotted (`repo.tracker`), inline-table,
+  commented or repeated forms now deny the closing keyword as unreadable.
+- Guard decision change in section `41-github-closing`, nothing to edit in config: a closing
+  keyword or issue ref hidden by quotes or escapes (the keyword split by quotes, a backslash
+  before the space or the `#`) in a `git commit`, `gh pr` or `gh api` command used to pass and is
+  now **denied**. Write the reference plainly as a mention (`part of #N`), or, for the PR to the
+  default branch of a github-issues repository, plainly inside the `-b` text. The test stubs
+  gain `GIT_STUB_REMOTE` (`git remote get-url origin`, default a github.com remote for `o/r`)
+  and `GH_STUB_DEFAULT_BRANCH` (the batched GraphQL lookup, default `main`).
 - Guard decision change (#76), nothing to edit in config. In a repository whose `.harness.toml`
   owns `scm` but not `tracker`, a closing keyword in `gh -Ro/r pr …`, `gh pr new`,
   `glab -R g/p mr …`, `glab mr new`, a repeated repo flag or a quoted / `$VAR` gh or glab

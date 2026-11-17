@@ -101,7 +101,8 @@ portable ERE: no `\b`, `\d` or lookarounds (BSD grep on macOS).
 ## Companion-file gate
 
 `companions.sh` checks a branch (the merge base of `A` and `B`, up to `B`) for files that must
-change together. It is the sensor for three guides in AGENTS.md and CONTRIBUTING.md.
+change together, and (CI) the pull-request body for its issue reference. It is the sensor for
+four guides in AGENTS.md and CONTRIBUTING.md.
 
 | Check | Fires when | Fix |
 |---|---|---|
@@ -109,25 +110,36 @@ change together. It is the sensor for three guides in AGENTS.md and CONTRIBUTING
 | `rows` | a bundle's sections gained more `# rule: … -> D :` lines than they lost, and its `tests.sh` adds no `t\|tc\|g\|r\|tn D` row (for ask/deny: no `tr` row either) | add a row with that decision |
 | `changelog` | the branch touches `bundles/ lib/harness/ providers/ schema/ bin/ profiles/ templates/ bootstrap tools/*.lock.json`, outside `tests/`, `golden(s)/`, `guard.d/tests.sh` and `providers/*/README.md`, and `## [Unreleased]` in `CHANGELOG.md` gained no line | add a bullet under Added, Changed, Fixed or Deprecated (**Migration** when a key, default or decision changed) |
 | `readme` | the branch touches `bootstrap`, `bin/harness`, `lib/harness/cli.py`, `PRINCIPLES.md`, `principles/`, a `bundles/*/bundle.toml` or `providers/*/provider.toml`, adds or deletes a `bundles/<b>/` or `providers/<p>/` directory, or changes `docs/getting-started.md`, `docs/distribution.md`, `docs/governance.md`, `docs/repo-level.md`, `docs/runbooks/`, `SECURITY.md` or `LICENSE`, and `README.md` did not change | update the README section that states it, run `bin/harness docs generate` (a regenerated region counts) |
+| `issue` | the PR body (`--markers-file`), outside code and HTML comments, names no issue (`#N`, `owner/repo#N` or an issues URL), or puts a closing keyword (close/fix/resolve forms) before one | name the issue on the first line as `Issue: #N` and mention it as `#N` |
+| `issue` with `--base-is-default` | as above, except that a closing keyword is accepted before the bare `#N` of the first `Issue: #N` line; a keyword before any other number, an `owner/repo#N`, an issues URL, or in a body without an `Issue: #N` line still fires | close only the PR's own issue (`Closes #N` with the `N` of the first `Issue: #N` line); mention every other issue as `#N` |
+
+The `issue` check reads the body as GitHub renders it: a fence opens with at most three leading
+spaces, a keyword at the end of a line counts with the reference on the next line, and the
+colon may touch the reference (`Closes:#N`). It does not verify the issue's provenance: the
+author's first `Issue: #N` line decides which issue is the PR's own. A keyword covers one
+reference only, so in `Closes #12, #13` the `#13` is a plain mention.
 
 A reworded rule (one removed, one added) needs no new row. Waive a check with a marker and a
 reason, in any commit body of the branch or (CI) the PR description: `no-rows: <reason>`,
-`no-changelog: <reason>`, `no-readme: <reason>`. A marker without a reason is ignored and reported.
+`no-changelog: <reason>`, `no-readme: <reason>`, `no-issue: <reason>`. A marker without a reason is ignored and reported.
 
 ```sh
 tools/gate/companions.sh --range origin/main..HEAD                 # what make gate runs
 tools/gate/companions.sh --range origin/main..HEAD --only rows     # one check
 tools/gate/companions.sh --ci --range "$BASE..$HEAD" --markers-file pr-body.txt   # CI
+tools/gate/companions.sh --ci --range "$BASE..$HEAD" --markers-file pr-body.txt --base-is-default   # CI, PR into the default branch
 tools/gate/tests/companions-selftest.sh -v
 ```
 
 Exit 0 clean, 1 hits, 2 usage error. When the range start is empty, all zeros or not in the
 clone, it prints `no usable base — skipped` and exits 0. CI writes the PR body to a file through
 an environment variable (never interpolated into the script); edits to the PR body take effect on
-the next push.
+the next push. `--base-is-default` is passed only when the PR's base is the repository's default
+branch (`BASE_IS_DEFAULT` from `github.base_ref == github.event.repository.default_branch`, tested
+in the script); a PR into any other branch (a stacked sub-PR) stays mention-only.
 
 | Where | How |
 |---|---|
 | pre-push | `companions` hook, `--range origin/main..<pushed ref>` |
-| CI | `gate` job on pull requests, `--ci` with the PR base and head and the PR body as markers file; `test` job runs the self-test (ubuntu, macOS) |
+| CI | `gate` job on pull requests, `--ci` with the PR base and head and the PR body as markers file (plus `--base-is-default` for a PR into the default branch); `test` job runs the self-test (ubuntu, macOS) |
 | by hand | `make gate` |

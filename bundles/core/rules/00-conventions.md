@@ -43,6 +43,10 @@ draft with `harness repo init` and ask the user to review and commit it.
 - Never write a closing keyword + ticket reference (`Closes KEY`, `Fixes #N`) anywhere, even
   when asked to close the ticket: the SCM integration would change its state as a side effect
   (the guard denies it). Mention the key instead (e.g. `{{ core.ticket_example }} fix parser`).
+  The one exception is GitHub Issues: where a repository's tracker is GitHub Issues (declared in
+  `.harness.toml`, matched by `ticket_workflow.trackers`, or a github.com origin), the PR to
+  the default branch may close its agent-worked `#N` (see the GitHub section); Jira keys are
+  never closed by keyword.
 - Every agent-created ticket carries a provenance label; `/create-ticket` drafts with
   `{{ core.agent_labels.drafted }}` and stops there.
 - Skills never modify the user-level harness (the provider home or the harness hub checkout);
