@@ -75,6 +75,19 @@ t gh-default-from-api    0 -                 "$R/gh-nohead" "$G" 7 feat-x
 YAML=json t gh-unparseable-workflow 0 -      "$R/gh-bad"    "$G" 7 feat-x
 t gh-protection-errors   0 gh-protection-errors "$R/gh-cred" "$G" 7 feat-x
 t gh-tracker-repo-jira   0 -                 "$R/gh-trk"    "$G" 7 feat-x
+# issue.close_on_merge: default true (gh-admin-*); the knob off in the config or the guard's env,
+# a jira tracker (gh-tracker-repo-jira), the fork flow (gh-fork), an origin fork with write access on
+# the parent (gh-set-default: origin != base_repo) and an issue in another repository -> false
+HARNESS_CONFIG_JSON="$FIXT/config-close-off.json" \
+  t gh-close-on-merge-off 0 -                "$R/gh-block"  "$G" '#7' feat-x
+HARNESS_GITHUB_CLOSE_ISSUE_ON_MERGE=false \
+  t gh-close-on-merge-env-off 0 -            "$R/gh-block"  "$G" '#7' feat-x
+t gh-close-other-repo    0 gh-close-other-repo "$R/gh-block"  "$G" other/repo#9 feat-x
+# the guard's own guard.env off switch is final (last line wins, quotes stripped); a quoted true stays on
+HARNESS_GUARD_ENV="$FIXT/guard-env-close-off.env" HARNESS_GITHUB_CLOSE_ISSUE_ON_MERGE=true \
+  t gh-close-guard-env-off 0 -               "$R/gh-block"  "$G" '#7' feat-x
+HARNESS_GUARD_ENV="$FIXT/guard-env-close-on.env" \
+  t gh-close-guard-env-on 0 -                "$R/gh-block"  "$G" '#7' feat-x
 
 # ------------------------------------------------------------------------- gitlab-preflight.sh
 B="$S/gitlab-preflight.sh"

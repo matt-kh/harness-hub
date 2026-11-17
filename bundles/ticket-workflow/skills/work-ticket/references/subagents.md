@@ -38,7 +38,8 @@ delivery: sequential/overlapping work stays on `$BR`.
 ## Subagent brief (Agent tool; default model is {{ core.model_policy.execute }} via CLAUDE_CODE_SUBAGENT_MODEL)
 
 > Work only inside `<worktree path>` on branch `<sub-branch>`. Task: <one task>.
-> Commit as `<imperative summary>` — no ticket key in commit messages; keep commits focused.
+> Commit as `<imperative summary>` — no ticket key and no closing keyword (on a Jira key or
+> `#N`) in commit messages; keep commits focused.
 > Do NOT `git push`, do NOT create or switch branches, do NOT run `jira`, `glab` or `gh` write
 > commands, do NOT merge, approve, close, reopen or transition anything (the guard denies it
 > from a subagent — report the command back instead), do NOT touch files outside your task. Self-check with the narrowest relevant
