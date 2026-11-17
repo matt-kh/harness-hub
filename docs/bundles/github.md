@@ -212,7 +212,7 @@ organisation's default repository labels instead.
 3. Linking also needs native stacks to be available on the repository; the work-ticket
    preflight reports it as `gh_stack.repo_enabled` (false when the Stacks API answers 404).
 
-**Verify:** `gh extension list 2>/dev/null | grep -E '(^gh stack|/gh-stack)[[:space:]]' | grep -qE '[[:space:]]v?{{ github.stack_extension_version }}([[:space:]]|$)'` (exit 0)
+**Verify:** `GH_FORCE_TTY= NO_COLOR=1 GH_PROMPT_DISABLED=1 gh extension list 2>/dev/null | awk -F'\t' '$1 == "gh stack" && $2 == "github/gh-stack" && $3 == "v{{ github.stack_extension_version }}" { f = 1 } END { exit !f }'` (exit 0)
 
 ## Doctor checks
 

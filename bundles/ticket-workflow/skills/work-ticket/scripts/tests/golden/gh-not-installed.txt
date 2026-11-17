@@ -69,9 +69,12 @@
   "stack_detected": false,
   "gh_stack": {
     "installed": false,
+    "repo": null,
     "version": null,
+    "version_raw": null,
     "expected_version": "0.3.0",
-    "pinned_ok": false,
+    "version_ok": false,
+    "pinned": null,
     "repo_enabled": null,
     "stacks": null
   },

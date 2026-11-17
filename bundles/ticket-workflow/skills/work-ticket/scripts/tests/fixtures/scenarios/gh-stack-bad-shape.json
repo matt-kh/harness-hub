@@ -1,0 +1,32 @@
+{
+ "gh": {
+  "api --paginate repos/owner/repo/stacks?per_page=100": {
+   "stacks": [
+    {
+     "id": 906,
+     "number": 6,
+     "node_id": "S_6",
+     "url": "https://api.github.com/repos/owner/repo/stacks/6",
+     "base": {
+      "ref": "feat-x",
+      "sha": "0000000000000000000000000000000000000000"
+     },
+     "open": true,
+     "created_at": "2026-01-01T00:00:00Z",
+     "pull_requests": [
+      {
+       "number": 61,
+       "state": "open",
+       "draft": false,
+       "merged_at": null,
+       "head": {
+        "ref": "feat-x-sub-01",
+        "sha": "1111111111111111111111111111111111111111"
+       }
+      }
+     ]
+    }
+   ]
+  }
+ }
+}

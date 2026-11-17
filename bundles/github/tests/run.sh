@@ -26,7 +26,13 @@ d = loads(open(sys.argv[1], encoding="utf-8").read())
 chk = [c for c in d["doctor_checks"] if c["id"] == "gh-stack-extension"][0]
 step = [s for s in d["manual_steps"] if s["id"] == "gh-stack-extension"][0]
 assert chk["severity"] == "warn" and chk["fix"] == step["id"]
-want = d["requires"]["config"]["github.stack_extension_version"]["default"]
+key = d["requires"]["config"]["github.stack_extension_version"]
+want = key["default"]
+# the key's pattern (schema_lite: re.search) takes the default and a prerelease, never a v
+# prefix or a trailing newline (`$` would match before one)
+import re
+for v, ok in ((want, True), ("1.2.3-rc.1", True), ("v0.3.0", False), (want + "\n", False), ("0.3", False)):
+    assert bool(re.search(key["pattern"], v)) is ok, "pattern %r on %r" % (key["pattern"], v)
 for f, c in (("doc.sh", chk["cmd"]), ("step.sh", step["verify"]["cmd"])):
     open(sys.argv[3] + "/" + f, "w").write(c.replace("{{ github.stack_extension_version }}", want) + "\n")
 PY
@@ -49,6 +55,9 @@ other-version|0|gh stack\tgithub/gh-stack\tv0.2.1\n|1|1
 absent|0|gh dash\towner/gh-dash\tv4.0.0\n|0|1
 no-extensions|0||0|1
 list-fails|1|error: could not read extensions\n|1|1
+third-party|0|gh stack\tother/gh-stack\tv0.3.0\n|1|1
+raw-version|0|gh stack\tgithub/gh-stack\t1a2b3c4d\n|1|1
+other-name|0|gh stacks\tgithub/gh-stack\tv0.3.0\n|0|1
 ROWS
 [ $sxfail -eq 0 ] || fail=1
 echo "doctor gh-stack-extension: $sxn rows $([ $sxfail -eq 0 ] && echo pass || echo FAILED)"

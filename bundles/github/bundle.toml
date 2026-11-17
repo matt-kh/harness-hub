@@ -57,7 +57,7 @@ description = "In a repository whose tracker is GitHub Issues (.harness.toml [re
 [requires.config."github.stack_extension_version"]
 type = "string"
 default = "0.3.0"
-pattern = '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'
+pattern = '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?\Z'
 description = "Version of the github/gh-stack extension the guard and the skills are written against (no leading v). The human installs it with --pin v<this>; doctor and the work-ticket preflight compare the installed one against it. HARNESS_GITHUB_STACK_EXT_VERSION."
 example = "0.3.0"
 
@@ -178,7 +178,7 @@ how = """
    preflight reports it as `gh_stack.repo_enabled` (false when the Stacks API answers 404).
 """
 [manual_steps.verify]
-cmd = "gh extension list 2>/dev/null | grep -E '(^gh stack|/gh-stack)[[:space:]]' | grep -qE '[[:space:]]v?{{ github.stack_extension_version }}([[:space:]]|$)'"
+cmd = '''GH_FORCE_TTY= NO_COLOR=1 GH_PROMPT_DISABLED=1 gh extension list 2>/dev/null | awk -F'\t' '$1 == "gh stack" && $2 == "github/gh-stack" && $3 == "v{{ github.stack_extension_version }}" { f = 1 } END { exit !f }''''
 expect = { exit = 0 }
 unblocks = ["gh-stack-extension"]
 
@@ -226,12 +226,13 @@ title = "gh stack extension absent or at the pinned v{{ github.stack_extension_v
 severity = "warn"
 cmd = '''
 want='{{ github.stack_extension_version }}'
-out=$(GH_PROMPT_DISABLED=1 GH_NO_UPDATE_NOTIFIER=1 NO_COLOR=1 gh extension list 2>&1) || { printf 'gh extension list failed: %s\n' "$out" | head -1; exit 1; }
-line=$(printf '%s\n' "$out" | grep -E '(^gh stack|/gh-stack)[[:space:]]' | head -1)
-if [ -z "$line" ]; then echo "not installed (optional; gh extension install github/gh-stack --pin v$want)"; exit 0; fi
-have=$(printf '%s\n' "$line" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?' | tail -1)
-if [ "$have" = "$want" ]; then echo "v$have"; exit 0; fi
-echo "installed at ${have:-an unknown version}, expected v$want (gh extension remove stack, then install with --pin v$want)"; exit 1
+out=$(GH_FORCE_TTY= NO_COLOR=1 GH_PROMPT_DISABLED=1 GH_NO_UPDATE_NOTIFIER=1 gh extension list 2>&1) || { printf 'gh extension list failed: %s\n' "$out" | head -1; exit 1; }
+repo=$(printf '%s\n' "$out" | awk -F'\t' '$1 == "gh stack" { print $2; exit }')
+have=$(printf '%s\n' "$out" | awk -F'\t' '$1 == "gh stack" { print $3; exit }')
+if [ -z "$repo" ]; then echo "not installed (optional; gh extension install github/gh-stack --pin v$want)"; exit 0; fi
+if [ "$repo" != github/gh-stack ]; then echo "gh stack is $repo, not github/gh-stack (gh extension remove stack, then gh extension install github/gh-stack --pin v$want)"; exit 1; fi
+if [ "$have" = "v$want" ]; then echo "$have"; exit 0; fi
+echo "installed at ${have:-an unknown version}, expected v$want (gh extension remove stack, then gh extension install github/gh-stack --pin v$want)"; exit 1
 '''
 expect = { exit = 0 }
 timeout = 10

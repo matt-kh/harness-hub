@@ -1,6 +1,6 @@
 {
  "gh": {
-  "api repos/owner/repo/stacks?per_page=100": {
+  "api --paginate repos/owner/repo/stacks?per_page=100": {
    "rc": 1,
    "err": "gh: Not Found (HTTP 404)"
   }

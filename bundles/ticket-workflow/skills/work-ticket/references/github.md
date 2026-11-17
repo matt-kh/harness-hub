@@ -73,9 +73,13 @@ Key facts: `base_repo` (where PRs and issues go), `default_branch`, `can_label`,
 repo or not admin — the guard hook is then the only default-branch protection), `mr_template`,
 `pr_templates` (multiple → pick one with `-T NAME` only if the user asks; else fill the default),
 `codeowners`, `contributing`, `labels`, `milestones`, `existing_prs`, `ci.*`,
-`gh_stack` (read-only: `installed`, `version`, `pinned_ok` against `expected_version`,
-`repo_enabled` — false when the Stacks API answers 404 — and the repository's `stacks`; never
-install the extension yourself: it is the user's manual step `gh-stack-extension`),
+`gh_stack` (read-only: `installed` means github/gh-stack — another `gh stack` shows only in
+`repo` —, `version` / `version_raw`, `version_ok` against `expected_version`, `pinned` from
+the extension's manifest, `repo_enabled` and the repository's `stacks`
+`[{number, base, open, pull_requests}]`; never install the extension yourself: it is the
+user's manual step `gh-stack-extension`; `repo_enabled: false` means the Stacks API answered
+404: stacks are not enabled on the repository, or, with a fine-grained PAT, the token lacks
+pull-request read permission there),
 `issue.close_on_merge` (whether the PR to the default branch carries the closing keyword, §6;
 `null` or `false` = mention only). The guard cannot see a `-F` body, so this fact and the §6a
 read-back are what keep a keyword out of every other PR.

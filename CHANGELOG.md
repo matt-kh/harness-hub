@@ -136,15 +136,22 @@ prints every one between your applied version and the new one.
   `github.stack_extension_version` (default `0.3.0`, env `HARNESS_GITHUB_STACK_EXT_VERSION`;
   part 2 of #86). The human installs it with the new optional manual step `gh-stack-extension`
   (`gh extension install github/gh-stack --pin v0.3.0`); agents never install it. Doctor check
-  `gh-stack-extension` (severity warn) passes when the extension is absent or at the pinned
-  version and warns on another version or a failing `gh extension list`. `gh extension list`
-  joins the allowed read permissions. The work-ticket GitHub preflight reports a read-only
-  `gh_stack` object: `installed`, `version`, `expected_version`, `pinned_ok`, `repo_enabled`
-  and `stacks` (`[{number, base, pull_requests}]`) from `gh extension list` and
-  `gh api repos/OWNER/REPO/stacks?per_page=100` (404 → `repo_enabled: false`; other failures
-  → `null`; the response shape is read tolerantly). New preflight goldens cover another
-  version, an absent extension, a 404 and the pin from the environment; the github bundle suite
-  runs the doctor check and the step's verify against a stubbed `gh extension list`.
+  `gh-stack-extension` (severity warn) passes when no `gh stack` extension is installed or
+  github/gh-stack is at the configured version, and warns on another version, a third-party
+  `gh stack` or a failing `gh extension list`; it and the step's verify read the non-TTY TSV
+  of `gh extension list` (`GH_FORCE_TTY=` unset). `gh extension list` joins the allowed read
+  permissions. The work-ticket GitHub preflight reports a read-only `gh_stack` object:
+  `installed` (github/gh-stack only), `repo` (the `gh stack` row's repository, so a
+  third-party one shows), `version`, `version_raw`, `expected_version`, `version_ok`
+  (installed version equals the configured one), `pinned` (`ispinned` from the extension's
+  `manifest.yml` under `GH_DATA_DIR` / `XDG_DATA_HOME` / `~/.local/share/gh`; null when
+  unreadable), `repo_enabled` and `stacks` (`[{number, base, open, pull_requests}]`) from
+  `gh api --paginate repos/OWNER/REPO/stacks?per_page=100` (404 → `repo_enabled: false`; any
+  other failure or response shape → `null`). New preflight goldens cover another version,
+  another extension only, none, a third-party `gh stack`, a non-semver version, unpinned and
+  unreadable manifests, a 404, another response shape and the version from the environment;
+  the github bundle suite runs the doctor check and the step's verify against a stubbed
+  `gh extension list` and checks the key's pattern.
 - Guard engine: reads the hook input's `agent_id` (set by Claude Code on calls from a subagent
   or in-process teammate; `agent_type` is never read, since a `--agent` main thread carries it
   too) into `IN_SUBAGENT`, and offers `human_decision` / `human_decision_defer` for sections:
@@ -1138,7 +1145,7 @@ prints every one between your applied version and the new one.
   environment carries `HARNESS_GITHUB_STACK_EXT_VERSION`. Installing the extension stays
   optional and manual (`harness steps`, step `github#gh-stack-extension`:
   `gh extension install github/gh-stack --pin v0.3.0`); `harness doctor` warns only when
-  another version is installed.
+  another version (or a third-party `gh stack`) is installed or `gh extension list` fails.
 - Guard decision change (#86), nothing to edit in config. `gh stack …` (and
   `gh extension exec stack …`, `gh-stack …`) had no guard decision; `gh stack merge` now
   **asks** on the main thread and is **denied** from a subagent, `gh stack link` and the

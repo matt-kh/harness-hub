@@ -31,6 +31,7 @@ rf_load                                   # root host def dirty precommit repo_s
 
 GH="${WORK_TICKET_GH:-gh}"
 export GH_PROMPT_DISABLED=1 GH_NO_UPDATE_NOTIFIER=1 GH_PAGER=cat NO_COLOR=1
+unset GH_FORCE_TTY   # gh extension list prints TSV only when not on a (forced) TTY
 warnings=()
 gh_installed=false; command -v "$GH" >/dev/null 2>&1 && gh_installed=true
 
@@ -211,36 +212,41 @@ fi
 
 # ---- gh stack extension (github/gh-stack) and native stacks: read-only, never installs ---
 # The human installs the extension (`gh extension install github/gh-stack --pin vX`); this only
-# reads `gh extension list` and GET repos/$base_repo/stacks. 404 = stacks not available on the
-# repository; any other failure is tolerated (null). The response shape is read defensively.
+# reads `gh extension list` (non-TTY TSV `gh <name>\t<owner/repo>\t<version>`), the extension's
+# manifest.yml (`ispinned`) and GET repos/$base_repo/stacks (paginated; a bare array of
+# {number, base:{ref}, open, pull_requests:[{number,…}]}). 404 = stacks not enabled on the
+# repository (with a fine-grained PAT also: no pull-request read); any other failure or shape
+# is tolerated as null.
 stack_expected=${HARNESS_GITHUB_STACK_EXT_VERSION:-0.3.0}; stack_expected=${stack_expected#v}
-stack_installed=null stack_version="" stack_enabled=null stacks=null
+stack_installed=null stack_repo="" stack_raw="" stack_version="" stack_pinned=null
+stack_enabled=null stacks=null
 if [ "$gh_installed" = true ]; then
   ext=$(ghc extension list); rc=$?
   if [ $rc -eq 0 ]; then
     stack_installed=false
-    line=$(printf '%s\n' "$ext" | grep -E '(^gh stack|/gh-stack)[[:space:]]' | head -1)
-    if [ -n "$line" ]; then
+    stack_repo=$(printf '%s\n' "$ext" | awk -F'\t' '$1 == "gh stack" { print $2; exit }')
+    stack_raw=$(printf '%s\n' "$ext" | awk -F'\t' '$1 == "gh stack" { print $3; exit }')
+    if [ "$stack_repo" = github/gh-stack ]; then
       stack_installed=true
-      stack_version=$(printf '%s\n' "$line" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?' | tail -1)
+      if [[ "$stack_raw" =~ ^v?([0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?)$ ]]; then stack_version=${BASH_REMATCH[1]}; fi
+      manifest="${GH_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/gh}/extensions/gh-stack/manifest.yml"
+      if [ -r "$manifest" ]; then
+        stack_pinned=false; grep -qE '^ispinned:[[:space:]]*true[[:space:]]*$' "$manifest" && stack_pinned=true
+      fi
     fi
   fi
 else
   stack_installed=false
 fi
 if [ "$auth_ok" = true ] && [ -n "$base_repo" ]; then
-  out=$(ghc api "repos/$base_repo/stacks?per_page=100"); rc=$?; code=$(http_of)
+  out=$(ghc api --paginate "repos/$base_repo/stacks?per_page=100"); rc=$?; code=$(http_of)
   if [ $rc -eq 0 ]; then
-    stacks=$(jq -c '
-      def num: if type == "number" then . elif type == "string" and test("^[0-9]+$") then tonumber else null end;
-      def ref: if type == "object" then (.ref // .name // null) elif type == "string" then . else null end;
-      (if type == "array" then . elif type == "object" then (.stacks // .items // []) else [] end)
-      | [.[]? | select(type == "object")
-         | {number: ((.number // .id) | num),
-            base: ((.base // .base_ref // .baseRefName // .trunk) | ref),
-            pull_requests: [((.pull_requests // .pullRequests // []) | if type == "array" then .[] else empty end)
-                            | (if type == "object" then (.number // null) else . end) | num | select(. != null)]}]' \
-             <<<"$out" 2>/dev/null)
+    stacks=$(printf '%s' "$out" | jq -cs 'add | if type == "array" then
+               [.[] | select(type == "object" and (.number | type) == "number")
+                | {number, base: (.base.ref? // null), open: (.open | if type == "boolean" then . else null end),
+                   pull_requests: [(.pull_requests // []) | if type == "array" then .[] else empty end
+                                   | .number? | numbers]}]
+             else empty end' 2>/dev/null)
     stacks=$(json_or "$stacks" 'null')
     [ "$stacks" = null ] || stack_enabled=true
   elif [ "$code" = 404 ]; then stack_enabled=false; stacks='[]'; fi
@@ -465,7 +471,8 @@ jq -n --arg root "$root" --arg host "$host" --arg def "$def" --arg tmpl "$tmpl" 
       --argjson ms "$milestones" --argjson prs "$prs" --argjson checks "$ci_checks" --argjson cost "$ci_cost" \
       --argjson precommit "$precommit" --argjson dirty "$dirty" --argjson warn "$warn_json" \
       --argjson tracker "$tracker" --argjson closeom "$close_on_merge" \
-      --argjson sinst "$stack_installed" --arg sver "$stack_version" --arg sexp "$stack_expected" \
+      --argjson sinst "$stack_installed" --arg srepo "$stack_repo" --arg sraw "$stack_raw" \
+      --arg sver "$stack_version" --arg sexp "$stack_expected" --argjson spinned "$stack_pinned" \
       --argjson senabled "$stack_enabled" --argjson stacks "$stacks" '
 def nn: if . == "" then null else . end;
 {provider:"github", repo_root:$root, remote_host:$host, default_branch:($def|nn), dirty_files:$dirty,
@@ -491,9 +498,10 @@ def nn: if . == "" then null else . end;
         close_on_merge:($closeom and (($origin | ascii_downcase) == ($base | ascii_downcase))
                         and ((($irepo|nn) // $base | ascii_downcase) == ($base | ascii_downcase)))} end),
  existing_prs:$prs, stack_detected:([$prs[].headRefName | select(test("-sub-"))] | length > 0),
- gh_stack:{installed:$sinst, version:($sver|nn), expected_version:$sexp,
-           pinned_ok:(if $sinst == true then $sver == $sexp elif $sinst == false then false else null end),
-           repo_enabled:$senabled, stacks:$stacks},
+ gh_stack:{installed:$sinst, repo:($srepo|nn), version:($sver|nn), version_raw:($sraw|nn),
+           expected_version:$sexp,
+           version_ok:(if $sinst == true then $sver == $sexp elif $sinst == false then false else null end),
+           pinned:$spinned, repo_enabled:$senabled, stacks:$stacks},
  ci:({checks:$checks, precommit:$precommit} + $cost),
  repo_skill:($skill|nn), repo_declaration:($rdecl|nn), repo_owns:$rowns, tracker:$tracker,
  warnings:$warn}'
