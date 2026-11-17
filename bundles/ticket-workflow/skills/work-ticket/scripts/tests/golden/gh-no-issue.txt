@@ -136,6 +136,23 @@
   "issue": null,
   "existing_prs": [],
   "stack_detected": false,
+  "gh_stack": {
+    "installed": true,
+    "version": "0.3.0",
+    "expected_version": "0.3.0",
+    "pinned_ok": true,
+    "repo_enabled": true,
+    "stacks": [
+      {
+        "number": 1,
+        "base": "parser-fix",
+        "pull_requests": [
+          22,
+          24
+        ]
+      }
+    ]
+  },
   "ci": {
     "checks": [],
     "precommit": false,
@@ -174,3 +191,5 @@ gh api repos/owner/repo/rulesets/11
 gh api repos/owner/repo/rulesets/13
 gh label list -R owner/repo --limit 300 --json name
 gh api repos/owner/repo/milestones?state=open&per_page=100
+gh extension list
+gh api repos/owner/repo/stacks?per_page=100

@@ -26,6 +26,7 @@ Environment override for any key: `HARNESS_<SECTION>_<KEY>` (e.g. `HARNESS_JIRA_
 | `github.host` | string | `"github.com"` | github | GitHub host: github.com or your GHES hostname. |
 | `github.login` | string |  | github | Your GitHub login. Shown in the instructions; repos you own are trusted in the provider's auto-mode trust text. |
 | `github.pr_title_forbid_re` | string | `"#[0-9]+"` | github | ERE a PR title must NOT match (issue refs belong in the body); empty disables. HARNESS_GITHUB_PR_TITLE_FORBID_RE. |
+| `github.stack_extension_version` | string | `"0.3.0"` | github | Version of the github/gh-stack extension the guard and the skills are written against (no leading v). The human installs it with --pin v<this>; doctor and the work-ticket preflight compare the installed one against it. HARNESS_GITHUB_STACK_EXT_VERSION. |
 | `gitlab.host` | string |  | gitlab | Your GitLab host (self-managed hostname or gitlab.com). Used for auth, the instructions and work-ticket provider detection. |
 | `gitlab.hosts_re` | string | `""` | gitlab | Optional regex of extra GitLab hosts for work-ticket provider detection (HARNESS_GITLAB_HOSTS_RE). Empty = gitlab.host plus any host containing 'gitlab'. |
 | `gitlab.mr_title_re` | string | `"^[A-Z][A-Z0-9_]*-[0-9]+ "` | gitlab | ERE an MR title must match (ticket key first); empty disables the check. HARNESS_GITLAB_MR_TITLE_RE. |

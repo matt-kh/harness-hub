@@ -88,6 +88,13 @@ HARNESS_GUARD_ENV="$FIXT/guard-env-close-off.env" HARNESS_GITHUB_CLOSE_ISSUE_ON_
   t gh-close-guard-env-off 0 -               "$R/gh-block"  "$G" '#7' feat-x
 HARNESS_GUARD_ENV="$FIXT/guard-env-close-on.env" \
   t gh-close-guard-env-on 0 -                "$R/gh-block"  "$G" '#7' feat-x
+# gh_stack: present + pinned is the base fixture; another version (with a tolerated odd response
+# shape), absent, the Stacks API answering 404, the pin from the environment (v prefix dropped)
+t gh-stack-other-version 0 gh-stack-other-version "$R/gh-cred" "$G" 7 feat-x
+t gh-stack-absent        0 gh-stack-absent   "$R/gh-cred"   "$G" 7 feat-x
+t gh-stack-repo-404      0 gh-stack-repo-404 "$R/gh-cred"   "$G" 7 feat-x
+HARNESS_GITHUB_STACK_EXT_VERSION=v0.2.1 \
+  t gh-stack-pin-env     0 gh-stack-other-version "$R/gh-cred" "$G" 7 feat-x
 
 # ------------------------------------------------------------------------- gitlab-preflight.sh
 B="$S/gitlab-preflight.sh"
@@ -218,11 +225,13 @@ bad=$(grep '^gh ' "$A" | grep -v '^gh api graphql -f query=query(' | grep -E -- 
 ck "gh: no write flags (-f/-F/--input/-X) outside the read-only graphql query" [ -z "$bad" ]
 bad=$(grep -E '^gh api graphql' "$A" | grep -iE 'mutation' | head -3)
 ck "gh: the graphql call is never a mutation" [ -z "$bad" ]
+bad=$(grep -E '^gh ext(ension)?s? ' "$A" | grep -vE '^gh extension list$' | head -3)
+ck "gh: never installs, upgrades, removes or runs an extension (only gh extension list)" [ -z "$bad" ]
 bad=$(grep -E '^gh (label|pr|issue) (list|view)( |$)' "$A" | grep -v -- ' -R [^ ]*/' | head -3)
 ck "gh: every label/pr/issue list|view carries -R owner/repo" [ -z "$bad" ]
 bad=$(grep -E '^gh repo view' "$A" | grep -vE '^gh repo view [^ -][^ ]*/[^ ]+ --json ' | head -3)
 ck "gh: every repo view names owner/repo and --json" [ -z "$bad" ]
-bad=$(grep '^gh ' "$A" | grep -vE '^gh (auth status|api |repo view |repo set-default --view$|label list |pr list |issue view )' | head -3)
+bad=$(grep '^gh ' "$A" | grep -vE '^gh (auth status|api |repo view |repo set-default --view$|extension list$|label list|pr list |issue view )' | head -3)
 ck "gh: only read verbs" [ -z "$bad" ]
 bad=$(grep '^glab ' "$A" | grep -vE '^glab api [^ -][^ ]*$' | head -3)
 ck "glab: only plain GETs through glab api" [ -z "$bad" ]

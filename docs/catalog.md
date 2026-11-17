@@ -121,7 +121,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 |---|---|---|---|---|---|
 | `core/permissions` | guide | base | deny 11 · ask 2 · allow 1 | never | denies reads of credential files in the provider's own permission system |
 | `gdoc/permissions` | guide | workspace | ask 1 · allow 12 | config | read commands allowed, writes left to the guard |
-| `github/permissions` | guide | scm | deny 1 · ask 75 · allow 33 | config | read-only gh commands allowed; token printing denied |
+| `github/permissions` | guide | scm | deny 1 · ask 75 · allow 34 | config | read-only gh commands allowed; token printing denied |
 | `gitlab/permissions` | guide | scm | ask 20 · allow 13 | config | read-only glab commands allowed |
 | `jira/permissions` | guide | tracker | allow 12 | config | read commands allowed; writes left to the guard |
 | `k8s/permissions` | guide | kubernetes | deny 12 · ask 45 · allow 42 | config | read-only kubectl/helm allowed |
@@ -181,6 +181,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | [`github/doctor/gh-auth`](bundles/github.md#doctor-checks) | sensor | scm | gh authenticated to {{ github.host }} |
 | [`github/doctor/gh-binary`](bundles/github.md#doctor-checks) | sensor | scm | gh installed |
 | [`github/doctor/gh-ssh`](bundles/github.md#doctor-checks) | sensor | scm | SSH to {{ github.host }} works |
+| [`github/doctor/gh-stack-extension`](bundles/github.md#doctor-checks) | sensor | scm | gh stack extension absent or at the pinned v{{ github.stack_extension_version }} |
 | [`github/doctor/gh-token-mode`](bundles/github.md#doctor-checks) | sensor | scm | gh hosts.yml is private (0600) |
 | [`gitlab/doctor/gitlab-ssh`](bundles/gitlab.md#doctor-checks) | sensor | scm | SSH to {{ gitlab.host }} works |
 | [`gitlab/doctor/glab-auth`](bundles/gitlab.md#doctor-checks) | sensor | scm | glab authenticated to {{ gitlab.host }} |
@@ -233,6 +234,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | [`gdoc/steps/gdoc-login`](bundles/gdoc.md#gdoc-login) | workspace | Sign in |
 | [`github/steps/agent-labels`](bundles/github.md#agent-labels) | scm | Create the agent-* labels in repos you will work in (optional, per repo) |
 | [`github/steps/gh-auth`](bundles/github.md#gh-auth) | scm | Authenticate gh (browser device flow, PAT fallback) |
+| [`github/steps/gh-stack-extension`](bundles/github.md#gh-stack-extension) | scm | Install the gh stack extension at the pinned version (optional) |
 | [`github/steps/install-gh`](bundles/github.md#install-gh) | scm | Install the GitHub CLI |
 | [`github/steps/ssh-key`](bundles/github.md#ssh-key) | scm | Register an SSH key with GitHub |
 | [`gitlab/steps/gitlab-agent-labels`](bundles/gitlab.md#gitlab-agent-labels) | scm | Create the agent-* labels in the groups you work in (optional) |

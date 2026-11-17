@@ -67,6 +67,14 @@
   },
   "existing_prs": [],
   "stack_detected": false,
+  "gh_stack": {
+    "installed": true,
+    "version": "0.3.0",
+    "expected_version": "0.3.0",
+    "pinned_ok": true,
+    "repo_enabled": null,
+    "stacks": null
+  },
   "ci": {
     "checks": [],
     "precommit": false,
@@ -97,3 +105,4 @@
 }
 # calls:
 gh auth status --hostname github.com
+gh extension list

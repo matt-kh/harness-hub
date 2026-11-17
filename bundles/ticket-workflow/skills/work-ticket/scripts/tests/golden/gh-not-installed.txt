@@ -67,6 +67,14 @@
   },
   "existing_prs": [],
   "stack_detected": false,
+  "gh_stack": {
+    "installed": false,
+    "version": null,
+    "expected_version": "0.3.0",
+    "pinned_ok": false,
+    "repo_enabled": null,
+    "stacks": null
+  },
   "ci": {
     "checks": [],
     "precommit": false,

@@ -59,5 +59,9 @@
     {"number": 8, "title": "Lexer part", "state": "open", "labels": [{"name": "agent-created"}, {"name": "agent-worked"}]}
   ],
   "api repos/owner/repo/issues/7/parent": {"rc": 1, "err": "gh: Not Found (HTTP 404)"},
-  "api repos/owner/repo/issues/7": {"number": 7, "title": "Parser rejects empty input", "state": "open"}
+  "api repos/owner/repo/issues/7": {"number": 7, "title": "Parser rejects empty input", "state": "open"},
+  "extension list": "gh dash\towner/gh-dash\tv4.0.0\ngh stack\tgithub/gh-stack\tv0.3.0\n",
+  "api repos/owner/repo/stacks?per_page=100": [
+    {"number": 1, "base": {"ref": "parser-fix"}, "pull_requests": [{"number": 22}, {"number": 24}]}
+  ]
 }

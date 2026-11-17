@@ -1,0 +1,22 @@
+{
+ "gh": {
+  "extension list": "gh stack\tgithub/gh-stack\tv0.2.1\n",
+  "api repos/owner/repo/stacks?per_page=100": {
+   "stacks": [
+    {
+     "id": "3",
+     "base_ref": "feat-x",
+     "pullRequests": [
+      31,
+      "32",
+      {
+       "number": 33
+      },
+      "x"
+     ]
+    },
+    "not-an-object"
+   ]
+  }
+ }
+}
