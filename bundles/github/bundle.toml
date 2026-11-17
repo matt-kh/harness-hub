@@ -53,7 +53,7 @@ example = "#[0-9]+|WIP"
 [requires.config."github.close_issue_on_merge"]
 type = "boolean"
 default = true
-description = "In a repository that declares [repo] tracker = \"github-issues\", let the PR to the default branch carry a closing keyword for its agent-worked issue(s) (#N only) so GitHub closes them when a human merges it; false denies it like every other closing keyword. HARNESS_GITHUB_CLOSE_ISSUE_ON_MERGE."
+description = "In a repository whose tracker is GitHub Issues (.harness.toml [repo] tracker, else the first matching ticket_workflow.trackers entry, else a github.com origin), let the PR to the default branch carry a closing keyword for its agent-worked issue(s) (#N only) so GitHub closes them when a human merges it; false denies it like every other closing keyword. HARNESS_GITHUB_CLOSE_ISSUE_ON_MERGE."
 
 [requires.secrets.gh_token]
 where = "~/.config/gh/hosts.yml"

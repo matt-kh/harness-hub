@@ -138,7 +138,7 @@ Ten principles govern every change to the hub; each links to its document (check
 ## Governance you can audit
 
 - The guard **denies** reading credential files, pushing to a default branch and closing
-  tickets by keyword (one exception: in a repository whose declared tracker is GitHub Issues,
+  tickets by keyword (one exception: in a repository whose tracker is GitHub Issues,
   the PR to the default branch may close its agent-worked issue when a human merges it). It **asks** before cluster mutations, writes to human-owned tickets,
   MRs and PRs, and piping a download into a shell (`curl … | sh`). Every reason names what to
   do instead ([hook policy](docs/reference/hook-policy.md)). With the experimental

@@ -100,7 +100,7 @@ Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md
 
 | key | type | required | default | description |
 |---|---|---|---|---|
-| `github.close_issue_on_merge` | boolean | no | `true` | In a repository that declares [repo] tracker = "github-issues", let the PR to the default branch carry a closing keyword for its agent-worked issue(s) (#N only) so GitHub closes them when a human merges it; false denies it like every other closing keyword. HARNESS_GITHUB_CLOSE_ISSUE_ON_MERGE. |
+| `github.close_issue_on_merge` | boolean | no | `true` | In a repository whose tracker is GitHub Issues (.harness.toml [repo] tracker, else the first matching ticket_workflow.trackers entry, else a github.com origin), let the PR to the default branch carry a closing keyword for its agent-worked issue(s) (#N only) so GitHub closes them when a human merges it; false denies it like every other closing keyword. HARNESS_GITHUB_CLOSE_ISSUE_ON_MERGE. |
 | `github.host` | string | no | `"github.com"` | GitHub host: github.com or your GHES hostname. |
 | `github.login` | string | yes |  | Your GitHub login. Shown in the instructions; repos you own are trusted in the provider's auto-mode trust text. |
 | `github.pr_title_forbid_re` | string | no | `"#[0-9]+"` | ERE a PR title must NOT match (issue refs belong in the body); empty disables. HARNESS_GITHUB_PR_TITLE_FORBID_RE. |

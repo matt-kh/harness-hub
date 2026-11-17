@@ -10,8 +10,9 @@
 - GitHub Issues are the tracker for GitHub repos: `/work-ticket #N`; `/create-ticket` drafts
   issues with `{{ core.agent_labels.drafted }}`. Never write `Closes/Fixes/Resolves #N` (or
   `owner/repo#N`, or an issue URL) — mention `#N` instead (denied). One exception: in a
-  repository that declares `[repo] tracker = "github-issues"` in `.harness.toml`, the body of the
-  PR to the default branch (`gh pr create -R owner/repo -H <ticket branch> -B <default branch>`,
+  repository whose tracker is GitHub Issues (its `.harness.toml` `[repo] tracker`, else the first
+  matching `ticket_workflow.trackers` entry, else a github.com origin; a declared `jira` always
+  wins), the body of the PR to the default branch (`gh pr create -R owner/repo -H <ticket branch> -B <default branch>`,
   `-B` written out, or `gh pr edit N` of such a PR) may say `Closes #N` for issues labelled
   `{{ core.agent_labels.worked }}`, so GitHub closes them when a human merges it. Write it as one
   plain one-line command run from that repository's checkout (no `cd`, `GH_REPO`, `sh -c`,

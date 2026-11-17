@@ -15,6 +15,8 @@
 #     headRefName isCrossRepository} …}}'
 # with the issues and PRs below; the default branch is $GH_STUB_DEFAULT_BRANCH (default main). An
 # unknown issue or PR is null plus an "errors" entry and exit 1, the way gh api reports it.
+# GH_STUB_LOG=FILE appends every call's arguments, one line each.
+[ -z "${GH_STUB_LOG:-}" ] || printf '%s\n' "$*" >> "$GH_STUB_LOG"
 if [ "${1:-}" = api ]; then
   shift
   q=""
