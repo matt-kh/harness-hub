@@ -28,27 +28,14 @@ repo_owns github/guard.d/60-github scm && return 0   # principle 8: the reposito
 # ---- GitHub (gh) ------------------------------------------------------------------
 # Section-local view (gate_writes, called from here, sees it too): the command without fd
 # duplications (2>&1 would cut a clause at its '&'). GHR/GHP come from 41 and match the attached
-# repo-flag forms (-Ro/r, -R=o/r) too.
+# repo-flag forms (-Ro/r, -R=o/r) too; so do the lookups gh_q, fetch_gh_pr and fetch_gh_issue
+# (defined above 41's repo_owns line, so they exist when the repository owns 41 or tracker).
 # shellcheck disable=SC2168  # sections are wrapped in a function by build.sh
 local flat="$flat_split"
 GH_NOUNS='pr|issue|label|release|repo|run|workflow|secret|variable|gist|auth|config|alias|ext(ension)?s?|ssh-key|gpg-key|project|cache'
 # Reads are free (settings.json allow). Order: token denies (prelude, above) → gh api (per clause) → team-visible
 # ask → label create → pr create (per clause) → issue create (per clause) → PR/issue write gates.
 # Asks are deferred so a deny anywhere in the command wins.
-# GitHub lookups: run in the command's cwd (repo resolution), never prompt, never page.
-gh_q() { ( cd "${cwd:-.}" 2>/dev/null && GH_PROMPT_DISABLED=1 GH_NO_UPDATE_NOTIFIER=1 GH_PAGER=cat hn_timeout 8 "$GH" "$@" 2>/dev/null ); }
-# fetch_gh_pr REF [REPO] -> normalised PR JSON (N, #N, URL or head branch); rc 1 on failure
-fetch_gh_pr() {
-  local o; o=$(gh_q pr view "$1" ${2:+-R "$2"} --json labels,headRefName,baseRefName,isCrossRepository) || return 1
-  [ -n "$o" ] || return 1
-  printf '%s' "$o" | jq -ce '{labels, src: .headRefName, tgt: .baseRefName, cross: .isCrossRepository} | '"$NORM_JQ" 2>/dev/null
-}
-# fetch_gh_issue REF [REPO] -> normalised issue JSON; rc 1 on failure
-fetch_gh_issue() {
-  local o; o=$(gh_q issue view "$1" ${2:+-R "$2"} --json labels) || return 1
-  [ -n "$o" ] || return 1
-  printf '%s' "$o" | jq -ce '{labels} | '"$NORM_JQ" 2>/dev/null
-}
 # PR title convention (github.pr_title_forbid_re → HARNESS_GITHUB_PR_TITLE_FORBID_RE). guard.env omits
 # empty values, so an empty key in a guard.env rendered with this bundle (HARNESS_BUNDLES lists
 # github) means "disabled"; without a guard.env (tests, hand-installed hook) the default applies.

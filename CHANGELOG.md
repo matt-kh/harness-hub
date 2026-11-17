@@ -101,6 +101,10 @@ prints every one between your applied version and the new one.
 
 ### Added
 
+- Config key `github.close_issue_on_merge` (boolean, default `true`; env
+  `HARNESS_GITHUB_CLOSE_ISSUE_ON_MERGE`), part of #80: in a repository whose `.harness.toml`
+  declares `[repo] tracker = "github-issues"`, the PR to the default branch may carry a GitHub
+  closing keyword for its worked issue(s), so GitHub closes them when a human merges the PR.
 - Guard engine: reads the hook input's `agent_id` (set by Claude Code on calls from a subagent
   or in-process teammate; `agent_type` is never read, since a `--agent` main thread carries it
   too) into `IN_SUBAGENT`, and offers `human_decision` / `human_decision_defer` for sections:
@@ -717,6 +721,39 @@ prints every one between your applied version and the new one.
 
 ### Changed
 
+- Guard section `41-github-closing` (part of #80): a closing keyword + bare `#N` passes 41
+  (section 60 still decides the create or edit) when `github.close_issue_on_merge` is on (a
+  `false` in `guard.env` is final: the environment cannot switch it back on), the repository
+  declares `[repo] tracker = "github-issues"`, and the command is a narrow, fully parsed form:
+  one line; every clause (cut on unquoted `;` `&` `|` `(` `)` only) a top-level literal
+  `gh pr create|new` with one explicit `-B` or `gh pr edit N`; every closing ref a bare `#N` in
+  that command's `-t`/`-b` text; flags parsed the way gh parses them (short clusters such as
+  `-dB`, attached and `=` values); the repository the cwd checkout's github.com `origin` (a `-R`
+  must name it); the base (`-B`, or the edited PR's base) equal to that repository's
+  `defaultBranchRef`; the head not `-sub-` and not a fork; every `#N` labelled `agent-worked` (at
+  most 10 refs). The default branch, the edited PRs and the issues are read with ONE batched
+  read-only `gh api graphql` query under an overall 15 s deadline. Everything else keeps the
+  deny, with a reason that names the alternative: `git commit`, `gh pr merge`, `gh api`,
+  `owner/repo#N`, issue URLs, quoted or `$VAR` command words, a multi-line command ("pass a long
+  body with -F file"), `cd`/`pushd`/`popd`, `GH_REPO`/`GH_HOST` anywhere in the command,
+  `sh -c`/`bash -c`/`eval`/`xargs`/`env`, `$(…)`, backticks, `<(…)`, heredocs and herestrings,
+  other commands next to the `gh pr` one, a repeated `-B`/`-H`/`-R`/`-t`/`-b`/`-F`, an unknown
+  flag, `--`, a positional argument on create, an unquoted glob or brace, a `-R` other than the
+  checkout's origin, a non-github.com or missing origin, a base that is not the default branch
+  (`-B master` where the default is `main`), a ref outside the `-t`/`-b` text, a lookup failure
+  or overrun, and repositories without the declaration. Jira keys (section 40) are unchanged. The
+  lookups `gh_q`, `fetch_gh_pr` and `fetch_gh_issue` moved from 60 into 41's shared definitions
+  (above its `repo_owns` line), so both sections use them; 60 keeps its own lookups and clause
+  cut, so a body with a quoted `;` that 41 lets through still asks there.
+- Guard section `41-github-closing`: a closing keyword or issue ref written with quotes or
+  escapes inside it (the keyword split by quotes, a backslash before the space or the `#`) on a
+  `git commit`, `gh pr create|edit|merge` or `gh api` line is now denied like the plain form; it
+  used to pass 41 unseen.
+- Lint rule `yields`: multi-line function definitions (a column-0 `name() {` line up to a
+  column-0 `}` line) may precede a guard section's `repo_owns` line like plain shared
+  assignments; defining a function runs nothing, and later sections may call it. One-line
+  definitions stay stray (code could follow the closing brace on the same line), and so does a
+  definition still open at the `repo_owns` line.
 - GitHub and GitLab guard sections adopt "humans decide" (principle 2, part of #67). From a
   subagent (Claude Code's `agent_id`) every merge, approval and PR/MR/issue state change is
   **denied** with "hand the command back to the main thread": `gh pr merge|review`,
@@ -944,6 +981,21 @@ prints every one between your applied version and the new one.
 
 ### Migration
 
+- New config key `github.close_issue_on_merge` (default `true`) and a guard decision change
+  (part of #80). In a repository whose `.harness.toml` declares `[repo] tracker =
+  "github-issues"`, a closing keyword + bare `#N` of an `agent-worked` issue in
+  `gh pr create -B <default branch>` or `gh pr edit` of the PR to the default branch used to be
+  **denied** and now passes the closing-keyword section (the PR create/edit gates of section 60
+  still apply). Repositories without that declaration, or declaring `jira`, see no change. To
+  keep the old deny everywhere, set `close_issue_on_merge = false` under `[github]` in your
+  `harness.toml` and run `harness apply`.
+- Guard decision change in section `41-github-closing`, nothing to edit in config: a closing
+  keyword or issue ref hidden by quotes or escapes (the keyword split by quotes, a backslash
+  before the space or the `#`) in a `git commit`, `gh pr` or `gh api` command used to pass and is
+  now **denied**. Write the reference plainly as a mention (`part of #N`), or, for the PR to the
+  default branch of a github-issues repository, plainly inside the `-b` text. The test stubs
+  gain `GIT_STUB_REMOTE` (`git remote get-url origin`, default a github.com remote for `o/r`)
+  and `GH_STUB_DEFAULT_BRANCH` (the batched GraphQL lookup, default `main`).
 - Guard decision change (#76), nothing to edit in config. In a repository whose `.harness.toml`
   owns `scm` but not `tracker`, a closing keyword in `gh -Ro/r pr …`, `gh pr new`,
   `glab -R g/p mr …`, `glab mr new`, a repeated repo flag or a quoted / `$VAR` gh or glab

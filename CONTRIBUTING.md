@@ -115,7 +115,7 @@ Read [ARCHITECTURE §3](ARCHITECTURE.md#3-bundles-bundlesname) first. Checklist:
 - [ ] Every rule-bearing guard section starts with `repo_owns <id> <domain> && return 0` and
       has a test row showing it passes when the repository owns its domain; override names
       it honours carry a `# repo-override:` comment and start with `WORK_TICKET_`. Only plain
-      shared assignments and a `# never-yields:` prelude (rules for commands that print a
+      shared assignments, multi-line function definitions (they run nothing) and a `# never-yields:` prelude (rules for commands that print a
       stored credential, with their `# rule:` comment inside it and a row proving they still
       deny when the domain is owned) may precede the line
       ([principle 8](principles/08-user-level-by-design.md)).

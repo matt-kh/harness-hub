@@ -140,6 +140,11 @@ REPO_OWNS_LINE_RE = re.compile(r"^\s*repo_owns\s+(?P<id>\S+)\s+(?P<domain>\S+)\s
 NEVER_YIELDS_MARK_RE = re.compile(r"^#\s*never-yields:")
 # a plain assignment (a shared definition later sections use) may also precede the repo_owns line
 SHARED_DEF_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
+# so may a multi-line function definition: a column-0 `name() {` line (nothing after the brace but
+# a comment) up to the first line holding only a column-0 `}`. Defining a function runs nothing, and
+# later sections may call it (41-github-closing's lookups). A one-line definition is stray: code
+# could follow its closing brace on the same line (`f() { :; }; deny x`).
+SHARED_FN_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*\(\)[ \t]*\{[ \t]*(#.*)?$")
 
 # what each kind reaches, by status.MATRIX_ROWS label (guard: the provider tier); REACH_TEXT
 # holds the kinds that do not depend on a provider capability
@@ -478,8 +483,9 @@ def guard_head(text: str) -> Dict[str, Any]:
 
     Returns ``{"owns": line number or None, "prelude": (first, last) line numbers of the
     ``# never-yields:`` block or None, "stray": [(line number, text)] of code lines above the
-    repo_owns line that are neither in the prelude nor plain assignments}``. The prelude starts at
-    the ``# never-yields:`` comment and ends at the repo_owns line.
+    repo_owns line that are neither in the prelude nor plain assignments or multi-line function
+    definitions closed by a column-0 ``}``; a definition still open at the repo_owns line is stray}``.
+    The prelude starts at the ``# never-yields:`` comment and ends at the repo_owns line.
     """
     lines = text.splitlines()
     owns = next((i for i, ln in enumerate(lines, 1) if REPO_OWNS_LINE_RE.match(ln)), None)
@@ -487,14 +493,24 @@ def guard_head(text: str) -> Dict[str, Any]:
     if owns is None:
         return head
     start = None
+    in_fn = None                       # line number of the open function definition
     for i, ln in enumerate(lines[:owns - 1], 1):
         s = ln.strip()
+        if in_fn is not None:          # inside a multi-line function definition: nothing runs
+            if ln.rstrip() == "}":     # only a column-0 `}` ends the body
+                in_fn = None
+            continue
+        if start is None and SHARED_FN_RE.match(ln):
+            in_fn = i
+            continue
         if start is None and NEVER_YIELDS_MARK_RE.match(s):
             start = i
             continue
         if start is not None or not s or s.startswith("#") or SHARED_DEF_RE.match(s):
             continue
         head["stray"].append((i, s))
+    if in_fn is not None:              # still open at the repo_owns line: its "body" may be code
+        head["stray"].append((in_fn, lines[in_fn - 1].strip() + " (not closed by a column-0 } above repo_owns)"))
     if start is not None:
         head["prelude"] = (start, owns - 1)
     return head
