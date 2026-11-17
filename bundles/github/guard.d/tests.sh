@@ -765,3 +765,228 @@ else
   fail=$((fail+1)); echo "FAIL rf_remote_norm: the block in $_g41 differs from $_rf (or one is missing); copy it over from repo-facts.sh"
 fi
 unset _hub _rf _g41
+# ---- gh stack (the gh-stack extension, #86): merge is a human decision, link is label-gated ----
+# merge: main thread asks, a subagent is denied (any spelling)
+t ask   'gh stack merge 42 --yes'
+t ask   'gh stack merge'
+T_AGENT=a1 t deny 'gh stack merge 42 --yes'
+T_AGENT=a1 t deny 'gh stack merge --yes --squash'
+tr 'human decision' 'gh stack merge 42 --yes'
+T_AGENT=a1 tr 'hand the command back to the main thread' 'gh stack merge 42 --yes'
+# reads and navigation pass
+t pass  'gh stack view --json'
+t pass  'gh stack view --short'
+t pass  'gh stack up'
+t pass  'gh stack down 2'
+t pass  'gh stack checkout 7'
+t pass  'gh stack trunk'
+t pass  'gh stack --help'
+T_AGENT=a1 g pass 'gh stack view --json'
+T_AGENT=a1 g pass 'gh stack switch'
+# link: literal numbers of agent-labelled -sub- PRs onto the ticket branch
+g allow 'gh stack link --base feat-x 110 111'
+g allow 'gh stack link --base=feat-x 110'
+g ask   'gh stack link --base feat-x --remote origin --no-atomic 110 111'   # --remote: lookup reads gh's default repo
+g allow 'gh stack link --base feat-x --no-atomic 110 111'
+T_AGENT=a1 g allow 'gh stack link --base feat-x 110 111'
+WORK_TICKET_LABELED_DECISION=ask g ask 'gh stack link --base feat-x 110 111'
+g deny  'gh stack link --base main 110 111'
+g deny  'gh stack link --base master 110'
+g deny  'gh stack link 110 111'                                       # no --base: the default branch
+g deny  'gh stack link --base feat-x-sub-01-schema 111'               # a part is not the base
+g deny  'gh stack link --base feat-x feat-x-sub-01-schema 111'        # branch name: push + unlabelled PR
+g deny  'gh stack link --base feat-x 100 110 111'                     # the main PR stays outside
+g deny  'gh stack link --base feat-y 110 111'                         # another ticket's parts
+g ask   'gh stack link --base feat-x 110 210'                         # unlabelled -sub- PR
+g ask   'gh stack link --base feat-x 120'                             # fork PR: asks before any other check
+g ask   'gh stack link --base feat-x "$N"'
+g ask   'gh stack link --base "$BR" 110 111'
+g ask   'gh stack link --base feat-x https://github.com/o/r/pull/110'
+g ask   'gh stack link --base feat-x 110 999'                         # lookup fails
+g ask   'gh stack link --base feat-x -x 110'                          # unknown flag
+g ask   'gh stack link --base feat-x'                                 # no PR numbers
+g ask   'GH_REPO=o/r gh stack link --base feat-x 110 111'
+g ask   'gh stack link --base feat-x --open 110 111'
+T_AGENT=a1 g deny 'gh stack link --base feat-x --open 110 111'
+T_AGENT=a1 g ask  'gh stack link --base feat-x 110 210'
+# shellcheck disable=SC2154  # ghd: the real gh directory, defined in guard/tests/lib.sh
+T_CWD=$ghd/$T_REPO tr 'gh pr edit 210 --add-label agent-worked' 'gh stack link --base feat-x 110 210'
+tr 'pass --base <ticket branch>' 'gh stack link 110 111'
+T_CWD=$ghd/$T_REPO tr 'main PR stays outside the stack' 'gh stack link --base feat-x 100 110'
+tr 'gh pr create -H BR -B BLOCKER' 'gh stack link --base feat-x feat-x-sub-01-schema'
+tr 'gh pr ready N' 'gh stack link --base feat-x --open 110 111'
+# push|submit|sync|…: deny on the default branch, else ask naming the alternative
+GIT_STUB_BRANCH=main g deny 'gh stack push'
+GIT_STUB_BRANCH=main g deny 'gh stack submit --auto'
+GIT_STUB_BRANCH=master g deny 'gh stack sync'
+GH_STUB_STACK=main g deny 'gh stack push'                             # trunk from gh stack view --json
+GH_STUB_STACK=main GIT_STUB_BRANCH=feat-x-sub-02-ui g deny 'gh stack sync --prune'
+GH_STUB_STACK=main g deny 'gh stack submit'
+GIT_STUB_BRANCH=feat-x-sub-02-ui GH_STUB_STACK=feat-x g ask 'gh stack push'
+GIT_STUB_BRANCH=feat-x-sub-02-ui GH_STUB_STACK=feat-x g ask 'gh stack submit --auto'
+GIT_STUB_BRANCH=feat-x-sub-02-ui GH_STUB_STACK=feat-x g ask 'gh stack sync'
+GIT_STUB_BRANCH=feat-x-sub-02-ui g ask 'gh stack rebase --upstack'    # no stack lookup: ask
+g ask   'gh stack modify'
+g ask   'gh stack unstack 7'
+g ask   'gh stack add -Am "main" feat-x-sub-03-docs'                  # a message is no branch
+g deny  'gh stack init feat-x-sub-01-schema'                          # trunk defaults to the default branch
+g deny  'gh stack init --base main feat-x-sub-01-schema'
+g deny  'gh stack init -b main feat-x-sub-01-schema'
+g ask   'gh stack init --base feat-x feat-x-sub-01-schema'
+g deny  'gh stack rebase main'
+g ask   'gh stack submit --base "$BR"'
+T_AGENT=a1 g deny 'gh stack submit --auto --open'
+GIT_STUB_BRANCH=feat-x-sub-02-ui GH_STUB_STACK=feat-x g ask 'gh stack submit --auto --open'
+GIT_STUB_BRANCH=feat-x-sub-02-ui GH_STUB_STACK=feat-x tr 'stk sync --stack BR' 'gh stack sync'
+GIT_STUB_BRANCH=main tr 'never sit on the default branch' 'gh stack push'
+# alias, unknown verbs, other extensions
+g ask   'gh stack alias'
+g ask   'gh stack alias gst'
+g ask   'gh stack frobnicate'
+g ask   'gh extension exec other-ext run'
+tr 'type gh stack VERB' 'gh stack alias'
+# bypass attempts: hidden or wrapped merges stay human decisions
+g ask   'gh "stack" merge 42'
+T_AGENT=a1 g deny 'gh "stack" merge 42'
+T_AGENT=a1 g deny 'gh stack "merge" 42'
+T_AGENT=a1 g deny 'gh stack $V 42'
+g ask   'gh stack $V 42'
+T_AGENT=a1 g deny 'sh -c "gh stack merge 42"'
+T_AGENT=a1 g deny 'cd sub && gh stack merge --yes'
+T_AGENT=a1 g deny 'echo 42 | xargs gh stack merge --yes'
+T_AGENT=a1 g deny 'gh extension exec stack merge --yes'
+T_AGENT=a1 g deny 'gh ext exec stack merge --yes'
+T_AGENT=a1 g deny 'gh-stack merge --yes'
+T_AGENT=a1 g deny '/home/u/.local/share/gh/extensions/gh-stack/gh-stack merge'
+T_AGENT=a1 g deny 'gh-stack "merge" --yes'
+T_AGENT=a1 g deny 'gh-stack $V'
+T_AGENT=a1 g deny 'gh stack --yes merge'
+g ask   'gh extension exec stack merge'
+g ask   'gh-stack merge'
+g ask   'gh-stack alias'
+g deny  'gh-stack link 110 111'
+g allow 'gh extension exec stack link --base feat-x 110 111'
+g allow 'gh-stack link --base feat-x 110 111'
+GIT_STUB_BRANCH=main g deny 'gh-stack push'
+g deny  'sh -c "gh stack link --base main 110"'
+g pass  'gh-stack view --json'
+g pass  'echo github/gh-stack; git clone https://github.com/github/gh-stack /tmp/x'
+# ---- gh stack, security review of part 1 (#86) ------------------------------------------
+# C1: flags before the verb (value flags skip their value; any other flag is a human decision)
+T_AGENT=a1 g deny 'gh stack -R o/r merge'
+T_AGENT=a1 g deny 'gh stack --remote o/r merge --yes'
+T_AGENT=a1 g deny 'gh stack -x 1 merge'
+T_AGENT=a1 g deny 'gh-stack -R o/r merge'
+T_AGENT=a1 g deny 'gh stack --method squash merge'
+T_AGENT=a1 g deny 'gh stack --merge-method squash merge --yes'
+T_AGENT=a1 g deny 'gh stack -x push'                                   # unknown pre-verb flag
+g ask   'gh stack -R o/r merge'
+g ask   'gh stack --method squash merge'
+g ask   'gh stack -x 1 view'                                           # a flag before the verb asks even on a read
+GIT_STUB_BRANCH=main g deny 'gh stack --remote o/r push'
+g deny  'gh stack -b main push'
+g deny  'gh stack --base main submit'
+g deny  'gh stack --base=main sync'
+GIT_STUB_BRANCH=feat-x-sub-02-ui GH_STUB_STACK=feat-x g ask 'gh stack --remote origin push'
+g pass  'gh stack --help'
+g pass  'gh stack -h'
+g pass  'gh stack --version'
+T_AGENT=a1 g deny 'gh stack "--yes" merge'
+T_AGENT=a1 g deny 'sh -c "gh stack -R o/r merge"'
+T_AGENT=a1 tr 'put the verb first' 'gh stack -x 1 view'
+# C1: a non-word verb asks unless gh-stack is a path/URL argument
+g ask   'gh stack /tmp/x'
+T_AGENT=a1 g deny 'gh-stack ./x'
+g pass  'git clone https://github.com/github/gh-stack /tmp/x'
+g pass  'cp ./bin/gh-stack /tmp/x'
+# W1: gh extension exec with -- or flags; any other extension is a human decision
+T_AGENT=a1 g deny 'gh ext exec -- stack merge'
+T_AGENT=a1 g deny 'gh ext exec -R o/r stack merge'
+T_AGENT=a1 g deny 'gh extension exec other-ext run'
+T_AGENT=a1 g deny 'gh extension exec "stack" merge'
+g ask   'gh extension exec other-ext run'
+g ask   'gh ext exec -- stack merge'
+GIT_STUB_BRANCH=main g deny 'gh ext exec -- stack push'
+GIT_STUB_BRANCH=main g ask  'gh extension exec "stack" push'           # hidden extension name: human decision
+g allow 'gh ext exec -- stack link --base feat-x 110 111'
+T_AGENT=a1 tr 'hand the command back to the main thread' 'gh extension exec other-ext run'
+# W2: unknown verbs (case-sensitive, as cobra) and alias are human decisions; delete = unstack
+T_AGENT=a1 g deny 'gh stack MERGE'
+T_AGENT=a1 g deny 'gh stack frobnicate'
+T_AGENT=a1 g deny 'gh stack alias'
+T_AGENT=a1 g deny 'gh stack alias gst'
+g ask   'gh stack MERGE'
+GIT_STUB_BRANCH=main g deny 'gh stack delete 7'
+GIT_STUB_BRANCH=feat-x-sub-02-ui g ask 'gh stack delete --local'
+# W3: --remote on link asks (the lookup reads gh's default repository)
+g ask   'gh stack link --base feat-x --remote upstream 110 111'
+g ask   'gh stack link --base feat-x --remote=origin 110'
+# W4: the real view --json schema; origin/ and refs/heads/ are stripped
+GH_STUB_STACK=origin/main g deny 'gh stack push'
+GH_STUB_STACK=refs/heads/master g deny 'gh stack sync'
+GH_STUB_STACK=main GIT_STUB_BRANCH=feat-x-sub-02-ui g deny 'gh stack rebase'   # trunk and the bottom layer's base
+g deny  'gh stack link --base origin/main 110'
+g deny  'gh stack link --base refs/heads/main 110'
+g deny  'gh stack init --base refs/remotes/origin/main feat-x-sub-01-schema'
+GH_STUB_STACK=feat-x GIT_STUB_BRANCH=feat-x-sub-02-ui g ask 'gh stack push'
+# W5: an earlier checkout of the default branch, or gh stack trunk|bottom, on the same line
+GIT_STUB_BRANCH=feat-x-sub-02-ui g deny 'git checkout main && gh stack push'
+GIT_STUB_BRANCH=feat-x-sub-02-ui g deny 'git switch master; gh stack sync'
+GIT_STUB_BRANCH=feat-x-sub-02-ui g deny 'git -C . checkout -q main && gh stack submit'
+GIT_STUB_BRANCH=feat-x-sub-02-ui g deny 'gh stack trunk && gh stack push'
+GIT_STUB_BRANCH=feat-x-sub-02-ui g deny 'gh stack bottom; gh stack rebase'
+GIT_STUB_BRANCH=feat-x-sub-02-ui g ask  'git checkout feat-x-sub-02-ui && gh stack push'
+GIT_STUB_BRANCH=feat-x-sub-02-ui g ask  'gh stack push && git checkout main'   # after the clause: not moved yet
+# W6: --open on any verb
+T_AGENT=a1 g deny 'gh stack sync --open'
+T_AGENT=a1 g deny 'gh stack submit --open=true'
+GIT_STUB_BRANCH=feat-x-sub-02-ui GH_STUB_STACK=feat-x T_AGENT=a1 g ask 'gh stack submit --open=false'
+# S1: link with an attached -bBRANCH
+g allow 'gh stack link -bfeat-x 110 111'
+g deny  'gh stack link -bmain 110 111'
+# S2: gh.exe and gh-stack.exe
+T_AGENT=a1 g deny 'gh.exe stack merge'
+T_AGENT=a1 g deny 'gh-stack.exe merge --yes'
+GIT_STUB_BRANCH=main g deny 'gh.exe stack push'
+g allow 'gh-stack.exe link --base feat-x 110 111'
+# S3: the gs wrapper from gh stack alias
+T_AGENT=a1 g deny 'gs merge --yes'
+g ask   'gs merge'
+GIT_STUB_BRANCH=main g deny 'gs push'
+g deny  'gs link 110 111'
+g allow 'gs link --base feat-x 110 111'
+g pass  'gs -sDEVICE=pdfwrite -o out.pdf in.ps'                       # ghostscript
+g pass  'gs -q -o merge.pdf a.pdf'
+# S4: link after cd/pushd, with GH_HOST= or a gh-level -R/--repo
+g ask   'cd ../other && gh stack link --base feat-x 110 111'
+g ask   'pushd ../other; gh stack link --base feat-x 110 111'
+g ask   'GH_HOST=ghe.example.com gh stack link --base feat-x 110 111'
+g ask   'gh -R o/r stack link --base feat-x 110 111'
+g ask   'gh --repo=o/r stack link --base feat-x 110 111'
+g deny  'cd ../other && gh stack link --base main 110'                 # a deny still wins
+# gh-stack counts only at a command-word position, never as an argument of another command
+g ask   'gh extension install github/gh-stack --pin v0.3.0'             # keeps the extension-install ask
+T_AGENT=a1 g ask 'gh extension install github/gh-stack --pin v0.3.0'
+tr 'gh team-visible action' 'gh extension install github/gh-stack --pin v0.3.0'
+T_AGENT=a1 tr 'gh team-visible action' 'gh extension install github/gh-stack --pin v0.3.0'
+T_AGENT=a1 g ask 'gh extension upgrade github/gh-stack --force'
+T_AGENT=a1 g pass 'gh extension browse github/gh-stack --debug'
+g pass  'gh repo clone github/gh-stack /tmp/x'
+T_AGENT=a1 g pass 'gh repo clone github/gh-stack /tmp/x'
+g pass  'gh api repos/github/gh-stack/readme'
+T_AGENT=a1 g pass 'gh api repos/github/gh-stack/readme'
+g pass  'echo gh-stack push'
+g ask   '/home/u/.local/share/gh/extensions/gh-stack/gh-stack push'
+GIT_STUB_BRANCH=main g deny '/home/u/.local/share/gh/extensions/gh-stack/gh-stack push'
+GIT_STUB_BRANCH=main g deny 'sudo -E gh-stack push'
+GIT_STUB_BRANCH=main g deny 'FOO=1 gh-stack sync'
+GIT_STUB_BRANCH=main g deny 'git log -1 | xargs -I{} gh-stack push'
+GIT_STUB_BRANCH=main g deny 'bash -c "gh-stack submit"'
+GIT_STUB_BRANCH=main g deny 'if true; then gh-stack push; fi'
+GIT_STUB_BRANCH=main g deny 'gs push'
+g pass  'echo gs push'
+# a repository that owns scm owns gh stack too
+decl '[owns]' 'domains = ["scm"]'
+r pass  'gh stack merge 42 --yes'
+r pass  'gh stack link 110 111'
+decl

@@ -1,14 +1,18 @@
 #!/usr/bin/env bash
 # Stub gh for guard-bash hook tests (git-stub style; no network). Answers only
 #   gh pr view REF [-R owner/repo] --json …      gh issue view REF [-R owner/repo] --json …
+#   gh stack view --json                         (the gh-stack extension; GH_STUB_STACK=TRUNK)
 # REF: N, #N, a github.com pull/issues URL, or (PRs) the head branch name. Labels are emitted the
 # way gh emits them: [{"id","name","color"}]. Anything else -> stderr + exit 1 (a stray gh call is loud).
 # PRs:    100 feat-x               [agent-worked] -> main
 #         110 feat-x-sub-01-schema [agent-worked] -> feat-x
+#         111 feat-x-sub-02-ui     [agent-worked] -> feat-x-sub-01-schema
 #         200 other                [bug]          -> main
 #         210 feat-x-sub-02-api    [bug]          -> main   (auto-retargeted)
 #         120 fork-fix             [agent-worked] -> main   isCrossRepository:true
 # Issues: 1 [agent-worked]  2 [agent-drafted]  3 [bug]  4 []   others -> "Could not resolve to an Issue"
+# Stack:  GH_STUB_STACK unset -> exit 2 (not in a stack); set -> trunk $GH_STUB_STACK with the layers
+#         feat-x-sub-01-schema (PR 110) and feat-x-sub-02-ui (PR 111)
 # Also answers ONE read-only GraphQL shape (section 41's batched lookup):
 #   gh api [--hostname H] graphql -f query='query{repository(owner:"O",name:"R"){defaultBranchRef{name}
 #     iN:issue(number:N){labels(first:50){nodes{name}}} … pN:pullRequest(number:N){baseRefName
@@ -64,6 +68,12 @@ fi
 noun=$1; verb=$2; shift 2
 case "$noun $verb" in
   "pr view"|"issue view") ;;
+  "stack view")
+    [ "${1:-}" = --json ] || { echo "gh-stub: stack view needs --json" >&2; exit 1; }
+    [ -n "${GH_STUB_STACK:-}" ] || { echo "not in a stack" >&2; exit 2; }
+    # the gh-stack v0.3.0 schema (cmd/view.go); head is a commit, base the layer below
+    printf '{"trunk":"%s","currentBranch":"%s","branches":[{"name":"feat-x-sub-01-schema","head":"0123abc","base":"%s","isCurrent":false,"isMerged":false,"isQueued":false,"needsRebase":false,"pr":{"number":110,"url":"https://github.com/o/r/pull/110","state":"OPEN"}},{"name":"feat-x-sub-02-ui","head":"4567def","base":"feat-x-sub-01-schema","isCurrent":true,"isMerged":false,"isQueued":false,"needsRebase":false,"pr":{"number":111,"url":"https://github.com/o/r/pull/111","state":"OPEN"}}]}\n' "$GH_STUB_STACK" "${GIT_STUB_BRANCH:-feat-x-sub-02-ui}" "$GH_STUB_STACK"
+    exit 0 ;;
   *) echo "gh-stub: unsupported command: $noun $verb" >&2; exit 1 ;;
 esac
 ref=""; json=""
@@ -94,6 +104,7 @@ if [ "$noun" = pr ]; then
   case "$ref" in
     100|feat-x)               pr 100 feat-x main false agent-worked ;;
     110|feat-x-sub-01-schema) pr 110 feat-x-sub-01-schema feat-x false agent-worked ;;
+    111|feat-x-sub-02-ui)     pr 111 feat-x-sub-02-ui feat-x-sub-01-schema false agent-worked ;;
     200|other)                pr 200 other main false bug ;;
     210|feat-x-sub-02-api)    pr 210 feat-x-sub-02-api main false bug ;;
     120|fork-fix)             pr 120 fork-fix main true agent-worked ;;
