@@ -75,6 +75,10 @@ prints every one between your applied version and the new one.
   smoke's elapsed seconds and bootstrap's remaining-minutes line are the time-to-first-useful-
   session proxies. Doc-only: the normative statements are unchanged, so `principles_version`
   stays 1.
+- Principle 6 "How it is checked" (part 05 of #80): the `issue` gate row describes
+  `--base-is-default`. In a PR into the default branch a closing keyword is accepted only
+  before the bare `#N` of the body's first `Issue: #N` line; every other closing reference
+  still fails. A checks-table refinement, so `principles_version` is unchanged.
 
 ### Principles
 
