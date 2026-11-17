@@ -171,7 +171,10 @@ Things to try, to see the harness working:
 - Ask it to push to `main`: denied, with a pointer to the MR/PR workflow.
 - With `ticket-workflow` and a tracker: "work on PROJ-123" (or "#12") runs the governed
   ticket → branch → MR/PR flow; it labels what it touches `agent-worked`, mentions the ticket
-  and never closes it.
+  and never closes it itself. On GitHub Issues the PR to the default branch says `Closes #12`
+  (not in the fork flow; off with `github.close_issue_on_merge = false`), so the issue closes
+  when you merge that PR
+  ([governance §4](governance.md#4-closing-keywords-are-denied)).
 
 **Which tracker a repository uses.** Which tracker a repository uses is declared, not guessed. A repository states it in its
 committed `.harness.toml` (`[repo] tracker = "github-issues"` or `"jira"`); for repositories

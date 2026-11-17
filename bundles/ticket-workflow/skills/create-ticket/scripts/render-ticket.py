@@ -7,8 +7,10 @@ Usage: render-ticket.py --model ticket.json --out-dir DIR [--facts facts.json] [
 --provider github writes body.md (GitHub Markdown, `- [ ]` acceptance), create.sh (ONE
 `gh issue create -R owner/repo -t ... -F DIR/body.md -l agent-drafted[,...] [-a ...] [-m ...]`)
 and preview.md; --check then enforces title <= 80, no GitHub closing keyword + #N /
-owner/repo#N / issues URL in title or body, labels and milestone subset of facts
-(agent-drafted must already exist). Jira-only field checks are skipped.
+owner/repo#N / issues URL in title or body (issue text only ever mentions an issue; a closing
+keyword belongs only in the PR to the default branch that work-ticket opens), labels and
+milestone subset of facts (agent-drafted must already exist). Jira-only field checks are
+skipped.
 
 Writes into DIR:
   description.txt   Jira-wiki body (problem-description.txt instead when the type has no
@@ -455,7 +457,9 @@ def gh_check(m, facts, summary, body, labels):
     for where, text in (("title", summary), ("body", body)):
         hit = GH_CLOSE_RE.search(text)
         if hit:
-            errs.append(f"{where} contains a GitHub closing keyword ('{hit.group(0)}') — mention #N instead")
+            errs.append(f"{where} contains a GitHub closing keyword ('{hit.group(0)}') — issue text "
+                        "only mentions #N; a closing keyword belongs only in work-ticket's PR to the "
+                        "default branch")
     if facts:
         if facts.get("provider") not in (None, "github"):
             errs.append(f"facts are for provider '{facts.get('provider')}', not github")

@@ -58,7 +58,9 @@ artifact), or a script that produces one.
   verbatim" (`work-ticket/references/decomposition.md`); commit subjects, branch names and
   sub-branch names follow a form the ticket-workflow guard section 75 checks with test rows;
   MR descriptions are read back and grepped for closing keywords
-  (`work-ticket/references/mr-description.md`).
+  (`work-ticket/references/mr-description.md`), and a GitHub PR's
+  `closingIssuesReferences` must equal exactly the expected set
+  (`work-ticket/references/github.md`).
 - **Templates take the repository's shape as input.** When preflight finds an MR or PR
   template (`preflight.mr_template`), its headings are the input of the description, never a
   hub house style imposed over them ([principle 8](08-user-level-by-design.md)).

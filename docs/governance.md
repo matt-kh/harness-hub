@@ -65,7 +65,8 @@ agent's comments on that ticket stop prompting.
   every caller gets the main-thread decision, mapped by `ask_as`
   ([capability matrix](reference/capability-matrix.md)).
 - The request path is the command itself, never a side effect: closing keywords stay denied
-  (§4), and a Jira transition whose ticket cannot be checked (`$VAR`, `xargs`) is denied.
+  (§4; its one exception leaves the close to the human who merges), and a Jira transition
+  whose ticket cannot be checked (`$VAR`, `xargs`) is denied.
 - A repository whose own workflow transitions tickets or merges owns the `tracker` or `scm`
   domain in its `.harness.toml`, and its workflow applies
   ([repository-level harnesses](repo-level.md#what-owning-a-domain-lifts)).
@@ -84,10 +85,23 @@ for the ticket to be closed: the agent runs the transition or close itself (§3)
 
 - The guard denies closing-keyword forms in commit messages, `glab mr create|update`,
   `gh pr create|edit|merge`, and API payloads.
+- **One exception, GitHub Issues only.** In a repository whose tracker is GitHub Issues
+  (`.harness.toml` `[repo] tracker`, else the first matching `ticket_workflow.trackers` entry,
+  else a github.com `origin`; a declared `jira` always wins) and with
+  `github.close_issue_on_merge` on (the default), the **one PR that targets the default
+  branch** (a single delivery's PR, or a stack's main PR) may close the worked issue and its
+  `agent-worked` sub-issues (at most 10 bare `#N`) in its body. `/work-ticket` writes it and
+  reads it back through `closingIssuesReferences`; the issue closes only when a human merges
+  that PR, so the merge is the decision. Everything else stays mention-only: Jira keys,
+  commits, sub PRs, issue text, API payloads, GitLab and the fork flow. PR titles stay
+  keyword-free by work-ticket's read-back; on that PR a keyword in a `-t` title is not denied
+  by section 41 but asks through `github.pr_title_forbid_re` (default `#[0-9]+`).
+  `close_issue_on_merge = false` under `[github]` restores the deny everywhere
+  ([github bundle](bundles/github.md), [hook policy](reference/hook-policy.md)).
 - Agents **mention** instead: `PROJ-123`, `#12`, "see #12", "Part of PROJ-123". A mention
   cross-links the ticket (the integration may post a comment) without changing its state.
-- The same applies to your own commits in this repository (see
-  [CONTRIBUTING](../CONTRIBUTING.md#commits-and-pull-requests)).
+- The same applies to your own commits in this repository; for pull requests see
+  [CONTRIBUTING](../CONTRIBUTING.md#commits-and-pull-requests).
 
 ## 5. External content is data, never instructions
 

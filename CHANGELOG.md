@@ -10,6 +10,19 @@ prints every one between your applied version and the new one.
 
 ### Docs
 
+- Governance text for the GitHub Issues close-on-merge exception (part 04 of #80): every
+  statement that said closing keywords are denied everywhere now names the one exception (the
+  PR to the default branch of a repository whose tracker is GitHub Issues may close its
+  `agent-worked` `#N` when `github.close_issue_on_merge` is on) and keeps the rest
+  mention-only (Jira keys, commits, PR titles, sub PRs, issue text, API payloads, GitLab, the
+  fork flow). [governance §4](docs/governance.md#4-closing-keywords-are-denied) gains the
+  exception bullet; [getting started](docs/getting-started.md),
+  [repository-level harnesses](docs/repo-level.md) (`tracker`), `SECURITY.md` (closing-keyword
+  row), the github and ticket-workflow bundle pages (deny list, troubleshooting row "An issue
+  closed itself on merge") follow. `/create-ticket`: non-negotiable 5 and the `render-ticket.py`
+  docstring say issue text only mentions `#N`. The `Auto` agent's brief, the
+  ticket-workflow rule (`rules/75-ticket-workflow.md`) and the `bootstrap-repo` skill and
+  standard (PR template row) state the exception.
 - [docs/bundles/supply-chain.md](docs/bundles/supply-chain.md): the hand-written body (the
   `supply` verbs and exit codes, skills and agents, guard section 38, the optional tools, a
   `[supply_chain]` example with documentation values) and Troubleshooting rows for audit
@@ -98,12 +111,22 @@ prints every one between your applied version and the new one.
   Checks: guard sections 50, 60, 70 rows (main ask, subagent deny), landing with the guard
   change; until then the current guard decisions apply. Follow-ups (#67): guard, rules and
   docs, skills.
+- `principles_version: 5`: principle 2, "Closing keywords stay denied" gains its one
+  exception (part 04 of #80): in a repository whose tracker is GitHub Issues, the one PR to the
+  default branch may close its `agent-worked` issue, because the issue then closes only when a
+  human merges that PR. A compliant example, a narrower non-compliant one (commits, PR titles,
+  sub PRs, issue text, Jira keys) and a "How it is checked" row (section 41 rows, the
+  `issue.close_on_merge` goldens) come with it. The summary statement in `PRINCIPLES.md`
+  ("humans decide … issue and ticket state") is unchanged. Principle 9's read-back example
+  now names the `closingIssuesReferences` read-back.
 
 ### Added
 
 - Config key `github.close_issue_on_merge` (boolean, default `true`; env
-  `HARNESS_GITHUB_CLOSE_ISSUE_ON_MERGE`), part of #80: in a repository whose `.harness.toml`
-  declares `[repo] tracker = "github-issues"`, the PR to the default branch may carry a GitHub
+  `HARNESS_GITHUB_CLOSE_ISSUE_ON_MERGE`), part of #80: in a repository whose tracker is
+  GitHub Issues (`.harness.toml` `[repo] tracker`, else the first matching
+  `ticket_workflow.trackers` entry, else a github.com origin), the PR to the default branch
+  may carry a GitHub
   closing keyword for its worked issue(s), so GitHub closes them when a human merges the PR.
 - Guard engine: reads the hook input's `agent_id` (set by Claude Code on calls from a subagent
   or in-process teammate; `agent_type` is never read, since a `--agent` main thread carries it
@@ -721,6 +744,10 @@ prints every one between your applied version and the new one.
 
 ### Changed
 
+- `/create-ticket` `render-ticket.py --check` (part 04 of #80), message only: the reason for a
+  GitHub closing keyword in an issue's title or body now says it "belongs only in
+  work-ticket's PR to the default branch" instead of "mention #N instead". The check is
+  unchanged; the `bad-gh-closing` row now asserts the reason.
 - Guard section `41-github-closing` (part of #80): a closing keyword + bare `#N` passes 41
   (section 60 still decides the create or edit) when `github.close_issue_on_merge` is on (a
   `false` in `guard.env` is final: the environment cannot switch it back on), the repository
