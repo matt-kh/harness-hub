@@ -1,0 +1,120 @@
+# exit=0
+# stderr:
+# stdout:
+{
+  "verb": "plan",
+  "provider": "github",
+  "repo": "o/r",
+  "selection": {
+    "mode": "stack",
+    "stack": "feat-x",
+    "with_main": false
+  },
+  "stacks": [
+    {
+      "branch": "feat-x",
+      "base": "main",
+      "main": {
+        "ref": 10,
+        "state": "draft"
+      },
+      "chains": [
+        [
+          11,
+          12
+        ],
+        [
+          11,
+          14
+        ]
+      ],
+      "leaves": [],
+      "merged": [],
+      "parts": [
+        {
+          "ref": 11,
+          "source": "feat-x-sub-01-api",
+          "target": "feat-x",
+          "state": "open",
+          "labelled": true,
+          "worktree": "SANDBOX/r_feat-x-sub-01-api",
+          "native_stack": 50,
+          "target_ok": true,
+          "behind": null,
+          "conflicts": false
+        },
+        {
+          "ref": 12,
+          "source": "feat-x-sub-02-ui",
+          "target": "feat-x-sub-01-api",
+          "state": "open",
+          "labelled": true,
+          "worktree": "SANDBOX/r_feat-x-sub-02-ui",
+          "native_stack": 50,
+          "target_ok": true,
+          "behind": null,
+          "conflicts": false
+        },
+        {
+          "ref": 14,
+          "source": "feat-x-sub-03-cli",
+          "target": "feat-x-sub-01-api",
+          "state": "open",
+          "labelled": true,
+          "worktree": "SANDBOX/r_feat-x-sub-03-cli",
+          "native_stack": null,
+          "target_ok": true,
+          "behind": null,
+          "conflicts": false
+        }
+      ],
+      "native_stacks": [
+        {
+          "number": 50,
+          "base": "feat-x",
+          "prs": [
+            11,
+            12
+          ],
+          "open_prs": [
+            11,
+            12
+          ]
+        }
+      ],
+      "merge_order": [
+        "#11",
+        "#12",
+        "#14",
+        "#10 (main, last)"
+      ]
+    }
+  ],
+  "other": [],
+  "sync_would_run": [
+    {
+      "ref": null,
+      "kind": "fetch",
+      "status": "planned",
+      "message": "refresh the remote-tracking refs first",
+      "commands": [
+        "git -C SANDBOX/r fetch origin"
+      ]
+    },
+    {
+      "ref": null,
+      "kind": "native-stack",
+      "status": "info",
+      "message": "the chains branch at #11 (#11 <- #12; #11 <- #14): a native stack is linear, so stk links no branching chain (by design); its parts stay unlinked",
+      "commands": []
+    }
+  ],
+  "exit": 0
+}
+# worktrees: unchanged
+# origin branches:
+  feat-x unchanged
+  feat-x-sub-01-api unchanged
+  feat-x-sub-02-ui unchanged
+  feat-x-sub-03-cli unchanged
+  main unchanged

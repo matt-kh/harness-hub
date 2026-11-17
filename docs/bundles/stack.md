@@ -64,8 +64,10 @@ when a lower part of a stack is merged or amended, `stk sync` retargets its depe
 that has its top branch checked out (`git rebase --update-refs --onto`, aborted cleanly on a
 conflict), pushes the rebased sub branches with `--force-with-lease`, refreshes at most one
 fan-in leaf server-side when the merge method needs an up-to-date source, and marks the main
-MR/PR ready once every part merged. It writes only to agent-labelled MRs/PRs and prints every
-native command before it runs it. `stk plan|status|check` are reads; `plan` prints the
+MR/PR ready once every part merged. On GitHub repositories with native stacks it keeps a
+linked chain's stack consistent, appending new parts with `gh stack link --base BR <PR numbers>`
+(the optional gh-stack extension; never a first stack, never `gh stack sync`). It writes only
+to agent-labelled MRs/PRs and prints every native command before it runs it. `stk plan|status|check` are reads; `plan` prints the
 bottom-up merge order for the human, who decides each merge (usually in the web UI). Stacks are work-ticket's
 `<BR>-sub-NN-<task>` branches (`stk sync --stack BR`).
 
@@ -109,7 +111,7 @@ Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md
 
 | binary | min version | install | optional | why |
 |---|---|---|---|---|
-| `gh` | 2.60.0 | `harness install gh` | yes | GitHub stacks: PR reads, `gh pr edit -B`, `gh pr ready`, `gh pr update-branch`. |
+| `gh` | 2.60.0 | `harness install gh` | yes | GitHub stacks: PR reads, `gh pr edit -B`, `gh pr ready`, `gh pr update-branch`; native stacks are read with `gh api` and extended with the optional gh-stack extension (`gh extension install github/gh-stack`, your decision): without it `stk sync` prints the `gh stack link` command instead. |
 | `git` | 2.38 |  | no | The cascade uses `git rebase --update-refs` (2.38+), worktrees and lease pushes. |
 | `glab` | 1.40.0 |  | yes | GitLab stacks: MR reads (`glab api`), `glab mr update --target-branch\|--ready`, `glab mr rebase`. |
 | `python3` | 3.9 |  | no | The stk CLI is stdlib python. |
@@ -169,7 +171,10 @@ Settings → General → Pull Requests: **Automatically delete head branches** o
 retargets dependents itself; `stk sync` retargets when it is off). Squash or rebase merges
 leave pre-merge commits in dependents; `stk sync` cascades them away. A ruleset or branch
 protection that requires branches to be up to date makes `stk sync` refresh one fan-in leaf
-per run with `gh pr update-branch`. Then run `stk check --stack <BR>` in a checkout.
+per run with `gh pr update-branch`. Optional: where the repository has native stacks, install
+the gh-stack extension (`gh extension install github/gh-stack`) so `stk sync` can append new
+parts to a linked stack itself; without it, it prints the `gh stack link` command for you.
+Then run `stk check --stack <BR>` in a checkout (finding `native_stack`).
 
 **Verify:** `true` (exit 0)
 

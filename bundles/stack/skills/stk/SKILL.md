@@ -42,10 +42,10 @@ Run it from the main checkout: the cascade needs `git worktree list`.
 
 | Verb | What it does | Guard |
 |---|---|---|
-| `stk check [--fix]` | readiness: GitLab merge method, squash option, delete-source default, protected ticket branch, access; GitHub delete-branch-on-merge, strategies, "up to date" rules, permission. `--fix` prints settings commands, never runs them | pass (read) |
+| `stk check [--fix]` | readiness: GitLab merge method, squash option, delete-source default, protected ticket branch, access; GitHub delete-branch-on-merge, strategies, "up to date" rules, permission, native stacks (`native_stack`: enabled, gh-stack extension, linked chains). `--fix` prints settings commands, never runs them | pass (read) |
 | `stk plan` | chains bottom-up, fan-in leaves, main MR; per-MR state; the **merge order** for the human; the exact commands `sync` would run (as of the last fetch) | pass (read) |
 | `stk status` | every member incl. merged parts and their worktrees; `cleanup` lines | pass (read) |
-| `stk sync [--no-push] [--skip-ci]` | retarget → fetch → cascade (`rebase --update-refs --onto`) → `push --force-with-lease` of the sub branches → one leaf refresh → main ready; agent-labelled MRs/PRs only | allow |
+| `stk sync [--no-push] [--skip-ci]` | retarget → fetch → cascade (`rebase --update-refs --onto`) → `push --force-with-lease` of the sub branches → native GitHub stack kept consistent → one leaf refresh → main ready; agent-labelled MRs/PRs only | allow |
 | `stk sync --include-human` | the same without the label filter | ask |
 
 Exit codes: 0 nothing to do or all done, 1 action needed by a human, 2 auth/access.
@@ -70,6 +70,15 @@ Exit codes: 0 nothing to do or all done, 1 action needed by a human, 2 auth/acce
    -R owner/repo`) for the part `stk plan --stack <BR>` names next — the guard asks — then
    `stk sync --stack <BR>`. Never out of order, never the main MR/PR before its parts, never
    from a subagent (the guard denies it there: hand the command back to the main thread).
+
+**Native GitHub stacks.** When the repository has the Stacks API, `plan`/`status` show each
+part's stack number and `sync` keeps every linear chain's stack consistent: it only appends
+the chain's new top parts with `gh stack link --base <BR> <PR numbers>` (the gh-stack
+extension, run in the main checkout) when the stack's PRs are an ordered prefix of the chain.
+Any other mismatch, an unlabelled part or a missing extension is a `todo` whose commands
+(`gh stack unstack S`, `gh stack link …`, `gh extension install github/gh-stack`) are the
+human's: relay them, do not run them. It never creates a first stack and never uses
+`gh stack sync|push|rebase|merge`. Without the Stacks API (404) nothing changes.
 
 How the cascade works and why: `references/sync-algorithm.md`.
 

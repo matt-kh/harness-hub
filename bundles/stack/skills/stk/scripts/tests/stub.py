@@ -12,6 +12,12 @@ Git facts come from the sandbox's real bare origin ($STK_ORIGIN): an open MR/PR 
 `behind_by` (GitHub compare) is `git rev-list --count <sha>..<target>`. Merged MRs/PRs carry
 their head sha at merge in the fixture. Writes (glab mr update|rebase, gh pr edit|ready|
 update-branch) answer `writes["<verb>-<N>"]` = {rc, out, err} (default: rc 0).
+
+Native GitHub stacks: `stacks` is 404 (the default: no Stacks API, `gh api …/stacks` fails with
+HTTP 404) or a list of compact stacks {number, base, prs: [PR numbers bottom-up]}, expanded to
+the REST shape from the PR fixtures (a MERGED PR -> state closed + merged_at). `extensions` is
+the `gh extension list` text. `gh stack link` answers `writes["stack-link"]` and fails unless
+it runs with GH_STACK_NO_UPDATE_NOTIFIER=1 in the main checkout ($STK_MAIN, when set).
 """
 import copy
 import json
@@ -153,6 +159,38 @@ def gh_pr(data, n):
     return pr
 
 
+def gh_stacks(data, query):
+    raw = data.get("stacks", 404)
+    if raw == 404:
+        out(rc=1, err="gh: Not Found (HTTP 404)")
+    rows = []
+    for s in raw:
+        prs = []
+        for n in s.get("prs") or []:
+            pr = gh_pr(data, n)
+            merged = pr["state"] == "MERGED"
+            prs.append({"number": n, "state": "open" if pr["state"] == "OPEN" else "closed", "draft": pr["isDraft"],
+                        "merged_at": "2026-01-01T00:00:00Z" if merged else None,
+                        "head": {"ref": pr["headRefName"], "sha": pr["headRefOid"]}})
+        rows.append({"id": 1000 + s["number"], "number": s["number"], "node_id": "S_%d" % s["number"],
+                     "url": "https://api.github.com/repos/o/r/stacks/%d" % s["number"],
+                     "base": {"ref": s.get("base", "feat-x")}, "open": s.get("open", True),
+                     "created_at": "2026-01-01T00:00:00Z", "pull_requests": prs})
+    if "pull_request" in query:
+        n = int(query["pull_request"])
+        rows = [r for r in rows if n in [x["number"] for x in r["pull_requests"]]]
+    out(sorted(rows, key=lambda r: -r["number"]))
+
+
+def gh_stack_link(data):
+    main = os.environ.get("STK_MAIN")
+    if os.environ.get("GH_STACK_NO_UPDATE_NOTIFIER") != "1":
+        out(rc=1, err="stub: gh stack ran without GH_STACK_NO_UPDATE_NOTIFIER=1")
+    if main and os.path.realpath(os.getcwd()) != os.path.realpath(main):
+        out(rc=1, err="stub: gh stack link ran in %s, not the main checkout" % os.getcwd())
+    write(data, "stack-link")
+
+
 def flag(args, name):
     return args[args.index(name) + 1] if name in args and args.index(name) + 1 < len(args) else None
 
@@ -171,6 +209,10 @@ def gh(data, args):
         write(data, "%s-%s" % (args[1], args[2]))
     if args[:2] == ["pr", "view"]:
         out(gh_pr(data, int(args[2])))
+    if args[:2] == ["extension", "list"]:
+        out(text=data.get("extensions", ""))
+    if args[:2] == ["stack", "link"]:
+        gh_stack_link(data)
     if args[:2] == ["pr", "list"]:
         st = (flag(args, "--state") or "open").upper()
         rows = []
@@ -186,6 +228,8 @@ def gh(data, args):
         path = [a for a in args[1:] if not a.startswith("-")][-1]
         m = re.match(r"^repos/[^/]+/[^/]+/(.*)$", path)
         sub = m.group(1) if m else path
+        if sub == "stacks" or sub.startswith("stacks?"):
+            gh_stacks(data, dict(urllib.parse.parse_qsl(sub.partition("?")[2])))
         if sub.startswith("rules/branches/"):
             out((data.get("rules") or {}).get(urllib.parse.unquote(sub[len("rules/branches/"):]), []))
         m = re.match(r"^branches/(.+)/protection$", sub)

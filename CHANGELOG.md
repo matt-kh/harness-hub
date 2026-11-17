@@ -884,6 +884,27 @@ prints every one between your applied version and the new one.
   gains a stacked-delivery bullet. The guard test gh stub answers `gh stack view --json`
   (`GH_STUB_STACK`) and has a second labelled sub PR (111).
 
+- `stk` keeps a linked native GitHub stack consistent (part 3 of #86). It reads the Stacks API
+  (`gh api --paginate repos/o/r/stacks?per_page=100`); a 404 turns the feature off and every
+  report stays as it was. Otherwise `stk plan|status` map each part to its stack number
+  (`native_stack`, `native_stacks`), `stk check` adds the `info` finding `native_stack`
+  (enabled, the gh-stack extension from `gh extension list`, the stacks on the ticket branch;
+  `--fix` prints `gh extension install github/gh-stack`), and `stk sync` gains a step after the
+  cascade and push: per linear chain of two or more open parts rooted at `BR`, a stack whose PRs
+  are all open and a strict ordered prefix of the chain is extended with
+  `gh stack link --base BR <PR numbers>` (run in the main checkout with
+  `GH_STACK_NO_UPDATE_NOTIFIER=1`; `planned` in `stk plan`) when every part is agent-labelled
+  and the extension is installed. A consistent stack is `info`; an order or membership
+  mismatch, parts in two stacks, a stack on another base, a stack still listing a merged PR, an
+  unlabelled part or a missing extension are `todo` with the commands for the human. stk never
+  creates a first stack, never unstacks and never runs `gh stack sync|push|rebase|merge`; fan-in
+  leaves and branching chains stay unlinked by design. Retargeting is unchanged; a failed
+  retarget of a stacked PR names the stack and the unstack and re-link commands. The stk test
+  stub answers `gh api …/stacks`, `gh extension list` and `gh stack link`; new
+  `gh-native-stack-*` scenarios (bottom merged, tail unlinked, drift, disabled, a branching chain
+  and seven sync variants) and invariants (only `gh stack link --base feat-x <numbers>`, never a default-branch
+  base, plan/status/check never link). No config change.
+
 - GitHub and GitLab guard sections adopt "humans decide" (principle 2, part of #67). From a
   subagent (Claude Code's `agent_id`) every merge, approval and PR/MR/issue state change is
   **denied** with "hand the command back to the main thread": `gh pr merge|review`,
