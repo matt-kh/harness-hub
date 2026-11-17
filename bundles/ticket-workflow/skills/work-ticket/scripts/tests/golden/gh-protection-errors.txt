@@ -117,6 +117,17 @@
     }
   ],
   "stack_detected": true,
+  "gh_stack": {
+    "installed": null,
+    "repo": null,
+    "version": null,
+    "version_raw": null,
+    "expected_version": "0.3.0",
+    "version_ok": null,
+    "pinned": null,
+    "repo_enabled": null,
+    "stacks": null
+  },
   "ci": {
     "checks": [],
     "precommit": false,
@@ -155,3 +166,5 @@ gh api repos/owner/repo/rules/branches/feat-x
 gh label list -R owner/repo --limit 300 --json name
 gh api repos/owner/repo/milestones?state=open&per_page=100
 gh pr list -R owner/repo --state all --limit 50 --search 7 --json number,title,body,headRefName,baseRefName,state,isDraft,isCrossRepository,url,labels
+gh extension list
+gh api --paginate repos/owner/repo/stacks?per_page=100

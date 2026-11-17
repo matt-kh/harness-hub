@@ -43,6 +43,10 @@ mkdir -p "$R/norepo"
 snap() { local d; for d in "$R"/*/; do printf '== %s\n' "$d"; git -C "$d" for-each-ref --format='%(refname) %(objectname)' 2>/dev/null
          git -C "$d" status --porcelain 2>/dev/null; git -C "$d" config --get-regexp '^remote\.' 2>/dev/null | wc -l; done; }
 snap > "$tmp/repos.before"
+# the gh-stack extension manifest gh writes on `gh extension install … --pin` (read for gh_stack.pinned)
+mf="$HOME/.local/share/gh/extensions/gh-stack"; mkdir -p "$mf" "$tmp/xdg-unpinned/gh/extensions/gh-stack" "$tmp/gh-data-empty"
+printf 'owner: github\nname: gh-stack\nhost: github.com\ntag: v0.3.0\nispinned: true\npath: %s\n' "$mf/gh-stack" > "$mf/manifest.yml"
+sed 's/^ispinned: true$/ispinned: false/' "$mf/manifest.yml" > "$tmp/xdg-unpinned/gh/extensions/gh-stack/manifest.yml"
 
 # ------------------------------------------------------------------------- preflight.sh: dispatch
 P="$S/preflight.sh"
@@ -88,6 +92,25 @@ HARNESS_GUARD_ENV="$FIXT/guard-env-close-off.env" HARNESS_GITHUB_CLOSE_ISSUE_ON_
   t gh-close-guard-env-off 0 -               "$R/gh-block"  "$G" '#7' feat-x
 HARNESS_GUARD_ENV="$FIXT/guard-env-close-on.env" \
   t gh-close-guard-env-on 0 -                "$R/gh-block"  "$G" '#7' feat-x
+# gh_stack: github/gh-stack at the configured version with a pinned manifest (ispinned: true in
+# $HOME/.local/share) and two pages of stacks is the base fixture. Then: another version (with
+# malformed stack entries dropped), another extension only, no extension at all, a third-party
+# `gh stack`, a version that is not semver, the Stacks API answering 404 or another shape, the
+# configured version from the environment (v prefix dropped), an unpinned manifest
+# (XDG_DATA_HOME) and an unreadable one (GH_DATA_DIR without a manifest).
+t gh-stack-other-version 0 gh-stack-other-version "$R/gh-cred" "$G" 7 feat-x
+t gh-stack-absent        0 gh-stack-absent   "$R/gh-cred"   "$G" 7 feat-x
+t gh-stack-none          0 gh-stack-none     "$R/gh-cred"   "$G" 7 feat-x
+t gh-stack-third-party   0 gh-stack-third-party "$R/gh-cred" "$G" 7 feat-x
+t gh-stack-raw-version   0 gh-stack-raw-version "$R/gh-cred" "$G" 7 feat-x
+t gh-stack-repo-404      0 gh-stack-repo-404 "$R/gh-cred"   "$G" 7 feat-x
+t gh-stack-bad-shape     0 gh-stack-bad-shape "$R/gh-cred"  "$G" 7 feat-x
+HARNESS_GITHUB_STACK_EXT_VERSION=v0.2.1 \
+  t gh-stack-pin-env     0 gh-stack-other-version "$R/gh-cred" "$G" 7 feat-x
+XDG_DATA_HOME="$tmp/xdg-unpinned" \
+  t gh-stack-unpinned    0 -                 "$R/gh-cred"   "$G" 7 feat-x
+GH_DATA_DIR="$tmp/gh-data-empty" \
+  t gh-stack-no-manifest 0 -                 "$R/gh-cred"   "$G" 7 feat-x
 
 # ------------------------------------------------------------------------- gitlab-preflight.sh
 B="$S/gitlab-preflight.sh"
@@ -218,11 +241,13 @@ bad=$(grep '^gh ' "$A" | grep -v '^gh api graphql -f query=query(' | grep -E -- 
 ck "gh: no write flags (-f/-F/--input/-X) outside the read-only graphql query" [ -z "$bad" ]
 bad=$(grep -E '^gh api graphql' "$A" | grep -iE 'mutation' | head -3)
 ck "gh: the graphql call is never a mutation" [ -z "$bad" ]
+bad=$(grep -E '^gh ext(ension)?s? ' "$A" | grep -vE '^gh extension list$' | head -3)
+ck "gh: never installs, upgrades, removes or runs an extension (only gh extension list)" [ -z "$bad" ]
 bad=$(grep -E '^gh (label|pr|issue) (list|view)( |$)' "$A" | grep -v -- ' -R [^ ]*/' | head -3)
 ck "gh: every label/pr/issue list|view carries -R owner/repo" [ -z "$bad" ]
 bad=$(grep -E '^gh repo view' "$A" | grep -vE '^gh repo view [^ -][^ ]*/[^ ]+ --json ' | head -3)
 ck "gh: every repo view names owner/repo and --json" [ -z "$bad" ]
-bad=$(grep '^gh ' "$A" | grep -vE '^gh (auth status|api |repo view |repo set-default --view$|label list |pr list |issue view )' | head -3)
+bad=$(grep '^gh ' "$A" | grep -vE '^gh (auth status|api |repo view |repo set-default --view$|extension list$|label list|pr list |issue view )' | head -3)
 ck "gh: only read verbs" [ -z "$bad" ]
 bad=$(grep '^glab ' "$A" | grep -vE '^glab api [^ -][^ ]*$' | head -3)
 ck "glab: only plain GETs through glab api" [ -z "$bad" ]

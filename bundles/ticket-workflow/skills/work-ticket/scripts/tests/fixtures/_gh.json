@@ -59,5 +59,7 @@
     {"number": 8, "title": "Lexer part", "state": "open", "labels": [{"name": "agent-created"}, {"name": "agent-worked"}]}
   ],
   "api repos/owner/repo/issues/7/parent": {"rc": 1, "err": "gh: Not Found (HTTP 404)"},
-  "api repos/owner/repo/issues/7": {"number": 7, "title": "Parser rejects empty input", "state": "open"}
+  "api repos/owner/repo/issues/7": {"number": 7, "title": "Parser rejects empty input", "state": "open"},
+  "extension list": "gh dash\towner/gh-dash\tv4.0.0\ngh stack\tgithub/gh-stack\tv0.3.0\n",
+  "api --paginate repos/owner/repo/stacks?per_page=100": {"rc": 0, "out": "[{\"id\": 902, \"number\": 2, \"node_id\": \"S_2\", \"url\": \"https://api.github.com/repos/owner/repo/stacks/2\", \"base\": {\"ref\": \"lexer-fix\", \"sha\": \"0000000000000000000000000000000000000000\"}, \"open\": true, \"created_at\": \"2026-01-01T00:00:00Z\", \"pull_requests\": [{\"number\": 26, \"state\": \"open\", \"draft\": false, \"merged_at\": null, \"head\": {\"ref\": \"lexer-fix-sub-01\", \"sha\": \"1111111111111111111111111111111111111111\"}}]}][{\"id\": 901, \"number\": 1, \"node_id\": \"S_1\", \"url\": \"https://api.github.com/repos/owner/repo/stacks/1\", \"base\": {\"ref\": \"parser-fix\", \"sha\": \"0000000000000000000000000000000000000000\"}, \"open\": false, \"created_at\": \"2026-01-01T00:00:00Z\", \"pull_requests\": [{\"number\": 22, \"state\": \"open\", \"draft\": false, \"merged_at\": null, \"head\": {\"ref\": \"parser-fix-sub-01\", \"sha\": \"1111111111111111111111111111111111111111\"}}, {\"number\": 24, \"state\": \"open\", \"draft\": false, \"merged_at\": null, \"head\": {\"ref\": \"parser-fix-sub-02\", \"sha\": \"1111111111111111111111111111111111111111\"}}]}]\n"}
 }

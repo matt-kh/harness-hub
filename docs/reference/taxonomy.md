@@ -143,7 +143,7 @@ A value exists only while a component uses it. To add one:
 | value | meaning | components using it |
 |---|---|---|
 | `base` | the harness itself: engine, credentials, conventions, core agents | 28 (core, lessons) |
-| `scm` | source hosts, branches, MRs/PRs | 43 (core, github, gitlab, repo-bootstrap, stack) |
+| `scm` | source hosts, branches, MRs/PRs | 45 (core, github, gitlab, repo-bootstrap, stack) |
 | `tracker` | tickets, issues, their state | 15 (github, gitlab, jira) |
 | `delivery` | ticket-to-merge workflow spanning tracker and SCM | 10 (ticket-workflow) |
 | `kubernetes` | clusters, Helm, GitOps, IaC targeting them | 18 (k8s) |
@@ -162,13 +162,13 @@ A value exists only while a component uses it. To add one:
 | `plan` | designs; read-only | 3 (core, k8s, supply-chain) |
 | `execute` | implements autonomously | 1 (core) |
 | `review` | assesses and reports | 3 (core, k8s, supply-chain) |
-| `setup` | installs, verifies or configures once | 84 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, repo-bootstrap, stack, supply-chain, ticket-workflow) |
+| `setup` | installs, verifies or configures once | 86 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, repo-bootstrap, stack, supply-chain, ticket-workflow) |
 
 ### posture
 
 | value | meaning | components using it |
 |---|---|---|
-| `read-only` | reads only | 63 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, repo-bootstrap, stack, supply-chain, ticket-workflow) |
+| `read-only` | reads only | 64 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, repo-bootstrap, stack, supply-chain, ticket-workflow) |
 | `local` | edits the checkout and its own branches; other remote writes pass the guard | 4 (core, lessons, supply-chain) |
 | `label-gated` | writes promptlessly only to agent-* artefacts; human ones ask | 10 (gdoc, jira, repo-bootstrap, stack, ticket-workflow) |
 
@@ -181,7 +181,7 @@ A value exists only while a component uses it. To add one:
 | `text` | concatenated with the repository's instructions, which come last and win | 13 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, repo-bootstrap, stack, supply-chain, ticket-workflow) |
 | `config` | merged by the provider's permission system; a repository can add rules, never lift a deny | 11 (gdoc, github, gitlab, jira, k8s, lessons, obs, repo-bootstrap, stack, supply-chain, ticket-workflow) |
 | `never` | the developer's own credentials: no repository setting lifts it | 2 (core) |
-| `n/a` | no repository-level equivalent | 94 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, repo-bootstrap, stack, supply-chain, ticket-workflow) |
+| `n/a` | no repository-level equivalent | 96 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, repo-bootstrap, stack, supply-chain, ticket-workflow) |
 
 ### Facets by kind
 

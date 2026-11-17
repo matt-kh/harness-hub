@@ -182,6 +182,35 @@
     }
   ],
   "stack_detected": true,
+  "gh_stack": {
+    "installed": true,
+    "repo": "github/gh-stack",
+    "version": "0.3.0",
+    "version_raw": "v0.3.0",
+    "expected_version": "0.3.0",
+    "version_ok": true,
+    "pinned": true,
+    "repo_enabled": true,
+    "stacks": [
+      {
+        "number": 2,
+        "base": "lexer-fix",
+        "open": true,
+        "pull_requests": [
+          26
+        ]
+      },
+      {
+        "number": 1,
+        "base": "parser-fix",
+        "open": false,
+        "pull_requests": [
+          22,
+          24
+        ]
+      }
+    ]
+  },
   "ci": {
     "checks": [
       "pre-commit",
@@ -270,3 +299,5 @@ gh api repos/owner/repo/rules/branches/release/1.0
 gh label list -R owner/repo --limit 300 --json name
 gh api repos/owner/repo/milestones?state=open&per_page=100
 gh pr list -R owner/repo --state all --limit 50 --search 7 --json number,title,body,headRefName,baseRefName,state,isDraft,isCrossRepository,url,labels
+gh extension list
+gh api --paginate repos/owner/repo/stacks?per_page=100

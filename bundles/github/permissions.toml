@@ -7,6 +7,7 @@ allow = [
   "Bash(gh api:*)",
   "Bash(gh auth status:*)",
   "Bash(gh cache list:*)",
+  "Bash(gh extension list:*)",
   "Bash(gh issue list:*)",
   "Bash(gh issue status:*)",
   "Bash(gh issue view:*)",
