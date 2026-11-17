@@ -16,12 +16,8 @@
       "ref": 13,
       "kind": "native-stack",
       "status": "todo",
-      "message": "chain #11 <- #12 <- #13: its parts sit in different native stacks (50: #11 <- #12; 60: #13 <- #99); unstack them and re-link the chain yourself (run it in the main checkout SANDBOX/r)",
-      "commands": [
-        "gh stack unstack 50",
-        "gh stack unstack 60",
-        "gh stack link --base feat-x 11 12 13"
-      ]
+      "message": "chain #11 <- #12 <- #13: its parts sit in different native stacks (50: #11 <- #12; 60: #13 <- #99); #99 (stack 60) is not part of feat-x: foreign PRs \u2014 decide first what happens to them, then re-link the chain (stk names no unstack here)",
+      "commands": []
     }
   ],
   "exit": 1

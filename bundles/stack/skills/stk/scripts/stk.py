@@ -251,32 +251,24 @@ def parse_ref(text):
     return int(m.group(1))
 
 
-def json_pages(text):
-    """Items of `gh api --paginate` output: one JSON array per page, concatenated (or slurped)."""
-    dec, i, items = json.JSONDecoder(), 0, []
-    text = text or ""
-    while True:
-        while i < len(text) and text[i].isspace():
-            i += 1
-        if i >= len(text):
-            return items
-        try:
-            val, i = dec.raw_decode(text, i)
-        except ValueError:
-            raise CliError(["gh", "api", "--paginate"], 0, "unparseable JSON")
-        stack = [val]
-        while stack:
-            v = stack.pop(0)
-            if isinstance(v, list):
-                stack[0:0] = v
-            else:
-                items.append(v)
-
-
 # ------------------------------------------------------------------ native GitHub stacks
 GH_STACK_EXT = "github/gh-stack"
 GH_STACK_ENV = {"GH_STACK_NO_UPDATE_NOTIFIER": "1"}
 GH_STACK_INSTALL = "gh extension install " + GH_STACK_EXT
+STACKS_PER_PAGE, STACKS_MAX_PAGES = 100, 20
+
+
+class StacksUnreadable(CliError):
+    """The Stacks API answered 403: the feature is there but this token cannot read it."""
+
+
+def stack_number(raw):
+    """A stack's (or PR's) number as an int, None when it has no valid one (then ignored)."""
+    try:
+        n = int(raw)
+    except (TypeError, ValueError):
+        return None
+    return n if n > 0 else None
 
 
 def stack_link_cmd(br, refs, default):
@@ -391,12 +383,25 @@ class Git:
         return self._trees
 
     def main_checkout(self):
-        """The main worktree (first `git worktree list` entry), '' outside a checkout."""
+        """The main worktree (first non-bare `git worktree list` entry that is a directory),
+        else the current checkout ('' outside one)."""
         rc, out, _ = self.run(["worktree", "list", "--porcelain"]) if self.top else (1, "", "")
-        for line in (out if rc == 0 else "").splitlines():
-            if line.startswith("worktree "):
-                return line[len("worktree "):]
+        for block in (out if rc == 0 else "").split("\n\n"):
+            lines = block.splitlines()
+            path = next((x[len("worktree "):] for x in lines if x.startswith("worktree ")), "")
+            if path and "bare" not in lines and os.path.isdir(path):
+                return path
         return self.top
+
+    def config_regexp(self, pattern, wt=None):
+        """[(key, value)] of `git config --get-regexp PATTERN` (empty when none match)."""
+        rc, out, _ = self.run(["config", "--get-regexp", pattern], wt=wt)
+        return [tuple((line.split(None, 1) + [""])[:2]) for line in (out if rc == 0 else "").splitlines()
+                if line.strip()]
+
+    def has_branch(self, name, wt=None):
+        rc, _o, _e = self.run(["rev-parse", "--verify", "--quiet", "refs/heads/%s" % name], wt=wt)
+        return rc == 0
 
     def unclean(self, wt):
         """'' when the worktree is clean and not mid-rebase/merge, else the reason."""
@@ -545,25 +550,48 @@ class GitHub:
     def stacks(self, refresh=False):
         """Open native stacks (normalised), or None when the repository has none (HTTP 404).
 
-        `gh api --paginate` GET of repos/o/r/stacks: a bare array per page, newest first. Each
-        stack -> {number, base, prs: [every PR bottom-up], open_prs: [open PRs bottom-up]}.
+        GET repos/o/r/stacks?per_page=100&page=N like gh-stack's ListStacks: a bare array per
+        page, until a page is short (at most STACKS_MAX_PAGES). Each stack -> {number, base,
+        prs: [every PR bottom-up], open_prs: [open PRs bottom-up]}. An auth failure raises
+        AccessError, a 403 StacksUnreadable, anything else CliError.
         """
         if refresh or not self._stacks_read:
-            argv = ["gh", "api"] + self.hflag + ["--paginate", "repos/%s/stacks?per_page=100" % self.repo]
-            rc, out, err = call(argv)
-            if rc != 0:
-                if http_status(err) == 404:
-                    self._stacks, self._stacks_read = None, True
-                    return None
-                raise CliError(argv, rc, err)
+            rows = []
+            for page in range(1, STACKS_MAX_PAGES + 1):
+                argv = ["gh", "api"] + self.hflag + ["repos/%s/stacks?per_page=%d&page=%d"
+                                                     % (self.repo, STACKS_PER_PAGE, page)]
+                rc, out, err = call(argv)
+                if rc != 0:
+                    status = http_status(err)
+                    if status == 404:
+                        self._stacks, self._stacks_read = None, True
+                        return None
+                    if ACCESS_RE.search(err or ""):
+                        raise AccessError("%s: %s — check `gh auth status`" % (fmt_cmd(argv[:3]), first_line(err)))
+                    if status == 403:
+                        raise StacksUnreadable(argv, rc, err)
+                    raise CliError(argv, rc, err)
+                try:
+                    batch = json.loads(out) if out.strip() else []
+                except ValueError:
+                    raise CliError(argv, rc, "unparseable JSON")
+                if not isinstance(batch, list):
+                    raise CliError(argv, rc, "not a JSON array")
+                rows.extend(batch)
+                if len(batch) < STACKS_PER_PAGE:
+                    break
             stacks = []
-            for raw in json_pages(out):
+            for raw in rows:
                 if not isinstance(raw, dict) or raw.get("open") is False:
                     continue
-                prs = [x for x in raw.get("pull_requests") or [] if isinstance(x, dict) and x.get("number")]
-                stacks.append({"number": raw.get("number"), "base": (raw.get("base") or {}).get("ref") or "",
-                               "prs": [x["number"] for x in prs],
-                               "open_prs": [x["number"] for x in prs
+                num = stack_number(raw.get("number"))
+                if num is None:
+                    continue
+                prs = [x for x in raw.get("pull_requests") or []
+                       if isinstance(x, dict) and stack_number(x.get("number"))]
+                stacks.append({"number": num, "base": (raw.get("base") or {}).get("ref") or "",
+                               "prs": [int(x["number"]) for x in prs],
+                               "open_prs": [int(x["number"]) for x in prs
                                             if (x.get("state") or "").lower() == "open" and not x.get("merged_at")]})
             self._stacks, self._stacks_read = stacks, True
         return self._stacks
@@ -875,6 +903,13 @@ def topology(st, git, with_main):
     return out
 
 
+def foreign_prs(st, stacks):
+    """'#99 (stack 60), …' for the PRs in STACKS that are not parts (open or merged) of this
+    ticket; '' when there are none. Such a stack is the human's to sort out: stk names no unstack."""
+    mine = set(m.ref for m in st.parts)
+    return ", ".join("#%s (stack %s)" % (n, s["number"]) for s in stacks for n in s["prs"] if n not in mine)
+
+
 # ---------------------------------------------------------------------------- the sync core
 class Sync:
     """retarget -> cascade -> push -> native stack -> leaf refresh -> ready. dry=True plans without writing."""
@@ -926,11 +961,17 @@ class Sync:
         if num is None:
             return
         s = self.rep.steps[-1]
+        alien = foreign_prs(st, [x for x in stacks if x["number"] == num])
+        if alien:
+            s["message"] += ("; #%s is in native stack %s, which may hold its base and also holds %s, not part of "
+                             "%s: foreign PRs — decide first, in the web UI" % (m.ref, num, alien, st.br))
+            return
         s["message"] += ("; #%s is in native stack %s, which may hold its base: look at the stack in the "
                          "web UI, or unstack and re-link it yourself" % (m.ref, num))
         s["commands"] += ["gh stack unstack %s" % num] + [
             fmt_cmd(c) for c in [stack_link_cmd(st.br, [x.ref for x in path], st.default)
-                                 for path in st.paths() if m in path and len(path) > 1] if c]
+                                 for path in st.paths() if m in path and len(path) > 1
+                                 and not any(len(st.children(x.source)) > 1 for x in path[:-1])] if c]
 
     # 2+3 -- cascade and push
     def tip(self, branch):
@@ -1154,6 +1195,11 @@ class Sync:
             return
         try:
             stacks = self.p.stacks(refresh=not self.dry)
+        except StacksUnreadable as e:
+            self.rep.step("native-stack", "info", "the Stacks API answered 403 (%s): native stacks are unreadable "
+                          "with this token, so stk links nothing; check the token's scopes or link it yourself"
+                          % first_line(e.err))
+            return
         except CliError as e:
             self.rep.step("native-stack", "skipped", "could not read the native stacks (%s); nothing linked, "
                           "re-run stk sync" % e)
@@ -1184,6 +1230,48 @@ class Sync:
             self.rep.step("native-stack", "info", "fan-in leaves %s stay outside native stacks (by design: one part "
                           "on %s is not a stack)" % (", ".join("#%s" % m.ref for m in leaves), st.br))
 
+    def rebuild(self, st, top, chain, nums, by_num, link, why, where):
+        """A stack that must be unstacked and re-linked: the human's commands, or, when it holds PRs
+        that are not parts of this ticket, only their names (the human decides first)."""
+        alien = foreign_prs(st, [by_num[n] for n in nums])
+        if alien:
+            self.rep.step("native-stack", "todo", "chain %s: %s; %s not part of %s: foreign PRs — decide first "
+                          "what happens to them, then re-link the chain (stk names no unstack here)"
+                          % (chain, why, alien + (" is" if alien.count("#") == 1 else " are"), st.br), ref=top)
+            return
+        self.rep.step("native-stack", "todo", "chain %s: %s; unstack and re-link the chain yourself%s"
+                      % (chain, why, where), ref=top,
+                      commands=["gh stack unstack %s" % n for n in nums] + [link])
+
+    def repo_mismatch(self, main):
+        """'' when gh-stack, run in MAIN, resolves this repository, else why it might not.
+
+        gh-stack takes no -R: it resolves the repository like gh itself (GH_REPO, then the
+        checkout's git remotes, preferring a `gh repo set-default` choice, recorded as
+        remote.<name>.gh-resolved, and the upstream/github/origin names). stk only links when
+        that resolution cannot differ from origin: no GH_REPO or GH_HOST, origin is this
+        repository, no gh-resolved default elsewhere, and no other remote on a GitHub host
+        that names another repository."""
+        for var in ("GH_REPO", "GH_HOST"):
+            if os.environ.get(var):
+                return "%s is set, which gh stack would use to pick the repository (unset it for stk)" % var
+        urls = dict((k[len("remote."):-len(".url")], v.strip())
+                    for k, v in self.git.config_regexp(r"^remote\..*\.url$", wt=main))
+        if parse_remote(urls.get("origin", ""))[1] != self.p.repo:
+            return "origin in %s is not %s" % (main, self.p.repo)
+        for key, val in self.git.config_regexp(r"^remote\..*\.gh-resolved$", wt=main):
+            name, val = key[len("remote."):-len(".gh-resolved")], val.strip()
+            target = parse_remote(urls.get(name, ""))[1] if val == "base" else val.split("/", val.count("/") - 1)[-1]
+            if target != self.p.repo:
+                return "the gh default repository (remote.%s.gh-resolved = %s) is %s, not %s" % (
+                    name, val, target or "?", self.p.repo)
+        for name, url in sorted(urls.items()):
+            host, repo = parse_remote(url)
+            if name != "origin" and repo and repo != self.p.repo and detect_provider(host) == "github":
+                return "remote %s points to %s on %s, which gh stack may pick instead of %s" % (
+                    name, repo, host, self.p.repo)
+        return ""
+
     def native_chain(self, st, path, refs, of, by_num):
         top = path[-1].ref
         chain = fmt_refs(refs)
@@ -1201,34 +1289,29 @@ class Sync:
                           commands=[link])
             return
         if len(ids) > 1:
-            self.rep.step("native-stack", "todo", "chain %s: its parts sit in different native stacks (%s); "
-                          "unstack them and re-link the chain yourself%s"
-                          % (chain, "; ".join("%s: %s" % (n, fmt_refs(by_num[n]["prs"])) for n in ids), where),
-                          ref=top, commands=["gh stack unstack %s" % n for n in ids] + [link])
+            self.rebuild(st, top, chain, ids, by_num, link, "its parts sit in different native stacks (%s)" % "; ".join(
+                "%s: %s" % (n, fmt_refs(by_num[n]["prs"])) for n in ids), where)
             return
         s = by_num[ids[0]]
         cur, num = s["open_prs"], s["number"]
         if s["base"] != st.br:
-            self.rep.step("native-stack", "todo", "chain %s: native stack %s sits on %s, not %s; unstack it and "
-                          "re-link the chain yourself%s" % (chain, num, s["base"] or "?", st.br, where), ref=top,
-                          commands=["gh stack unstack %s" % num, link])
+            self.rebuild(st, top, chain, [num], by_num, link, "native stack %s sits on %s, not %s"
+                         % (num, s["base"] or "?", st.br), where)
             return
         if cur == refs:
             self.rep.step("native-stack", "info", "chain %s matches native stack %s" % (chain, num), ref=top)
             return
         prefix = 0 < len(cur) < len(refs) and refs[:len(cur)] == cur
         if not prefix:
-            self.rep.step("native-stack", "todo", "chain %s: native stack %s lists %s (order or membership differs); "
-                          "stk never reorders a stack: unstack it and re-link the chain yourself%s"
-                          % (chain, num, fmt_refs(s["prs"]), where), ref=top,
-                          commands=["gh stack unstack %s" % num, link])
+            self.rebuild(st, top, chain, [num], by_num, link, "native stack %s lists %s (order or membership "
+                         "differs; stk never reorders a stack)" % (num, fmt_refs(s["prs"])), where)
             return
         new = refs[len(cur):]
         if s["prs"] != cur:
             # gh stack link --base needs every member listed and would re-chain the first open PR onto
             # the merged one's branch: append the new parts with the stack number instead
-            self.rep.step("native-stack", "todo", "chain %s: native stack %s still lists merged %s; add %s on top "
-                          "with the stack number yourself%s" % (chain, num, ", ".join(
+            self.rep.step("native-stack", "todo", "chain %s: native stack %s still lists merged or closed %s; add %s "
+                          "on top with the stack number yourself%s" % (chain, num, ", ".join(
                               "#%s" % n for n in s["prs"] if n not in cur), ", ".join("#%s" % n for n in new), where),
                           ref=top, commands=["gh stack link %s %s" % (num, " ".join(str(n) for n in new))])
             return
@@ -1245,11 +1328,16 @@ class Sync:
             self.rep.step("native-stack", "todo", msg + ": the gh-stack extension is not installed; install it "
                           "(your decision) or link it yourself%s" % where, ref=top, commands=[GH_STACK_INSTALL, link])
             return
-        remote = parse_remote(self.git.remote_url())[1] if main else None
-        if not main or remote != self.p.repo:
+        why = self.repo_mismatch(main) if main else "stk does not run in a checkout of %s" % self.p.repo
+        if why:
             self.rep.step("native-stack", "todo", msg + ": gh stack reads the repository from the working "
-                          "directory, and this is not a checkout of %s%s" % (self.p.repo, where), ref=top,
-                          commands=[link])
+                          "directory and %s; link it yourself%s" % (why, where), ref=top, commands=[link])
+            return
+        named = [r for r in refs if self.git.has_branch(str(r), wt=main)]
+        if named:
+            self.rep.step("native-stack", "todo", msg + ": the main checkout has a local branch named %s, which "
+                          "gh stack would read as a branch, not a PR number; rename it, or link it yourself%s"
+                          % (", ".join(str(r) for r in named), where), ref=top, commands=[link])
             return
         late = [m for m in path if m.target != st.want[m.ref]]
         if late and not self.dry:

@@ -43,7 +43,7 @@
       "ref": 13,
       "kind": "native-stack",
       "status": "todo",
-      "message": "chain #12 <- #13: native stack 50 still lists merged #11; add #13 on top with the stack number yourself (run it in the main checkout SANDBOX/r)",
+      "message": "chain #12 <- #13: native stack 50 still lists merged or closed #11; add #13 on top with the stack number yourself (run it in the main checkout SANDBOX/r)",
       "commands": [
         "gh stack link 50 13"
       ]

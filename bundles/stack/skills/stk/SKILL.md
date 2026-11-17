@@ -38,7 +38,8 @@ repository declares and any `.claude/skills|agents` name collisions.
 Selection for every verb: `<refs…>` | `--stack BR [--with-main]` | `--label L` (nothing given
 = `--label <stack.label>`; a ref or label selects the whole stack it belongs to). `-R
 owner/repo` overrides the origin remote. JSON when stdout is not a TTY (`--json` / `--text`).
-Run it from the main checkout: the cascade needs `git worktree list`.
+Run it from the main checkout: the cascade needs `git worktree list`. (For `gh stack link`
+stk finds the main checkout itself and runs it there, wherever you started it.)
 
 | Verb | What it does | Guard |
 |---|---|---|
@@ -75,10 +76,14 @@ Exit codes: 0 nothing to do or all done, 1 action needed by a human, 2 auth/acce
 part's stack number and `sync` keeps every linear chain's stack consistent: it only appends
 the chain's new top parts with `gh stack link --base <BR> <PR numbers>` (the gh-stack
 extension, run in the main checkout) when the stack's PRs are an ordered prefix of the chain.
-Any other mismatch, an unlabelled part or a missing extension is a `todo` whose commands
-(`gh stack unstack S`, `gh stack link …`, `gh extension install github/gh-stack`) are the
-human's: relay them, do not run them. It never creates a first stack and never uses
-`gh stack sync|push|rebase|merge`. Without the Stacks API (404) nothing changes.
+A chain that is not linked yet is `info` (exit 0): stk never creates a first stack. Any
+other mismatch, an unlabelled part, a missing extension or a checkout from which `gh stack`
+could resolve another repository is a `todo` whose commands (`gh stack unstack S`,
+`gh stack link …`, `gh extension install github/gh-stack`) are the human's: relay them, do
+not run them. A stack that also holds PRs outside the ticket gets no unstack command: those
+foreign PRs are named for the human to decide first. It never unstacks and never uses
+`gh stack sync|push|rebase|merge`. Without the Stacks API (404) nothing changes; a 403 is
+`info`, an auth failure exits 2.
 
 How the cascade works and why: `references/sync-algorithm.md`.
 

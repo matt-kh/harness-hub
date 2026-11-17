@@ -66,9 +66,10 @@ conflict), pushes the rebased sub branches with `--force-with-lease`, refreshes 
 fan-in leaf server-side when the merge method needs an up-to-date source, and marks the main
 MR/PR ready once every part merged. On GitHub repositories with native stacks it keeps a
 linked chain's stack consistent, appending new parts with `gh stack link --base BR <PR numbers>`
-(the optional gh-stack extension; never a first stack, never `gh stack sync`). It writes only
-to agent-labelled MRs/PRs and prints every native command before it runs it. `stk plan|status|check` are reads; `plan` prints the
-bottom-up merge order for the human, who decides each merge (usually in the web UI). Stacks are work-ticket's
+(the optional gh-stack extension; never a first stack, never an unstack, never
+`gh stack sync`). It writes only to agent-labelled MRs/PRs and prints every native command
+before it runs it. `stk plan|status|check` are reads; `plan` prints the bottom-up merge order
+for the human, who decides each merge (usually in the web UI). Stacks are work-ticket's
 `<BR>-sub-NN-<task>` branches (`stk sync --stack BR`).
 
 - **Depends on:** `core`

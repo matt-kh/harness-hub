@@ -885,8 +885,9 @@ prints every one between your applied version and the new one.
   (`GH_STUB_STACK`) and has a second labelled sub PR (111).
 
 - `stk` keeps a linked native GitHub stack consistent (part 3 of #86). It reads the Stacks API
-  (`gh api --paginate repos/o/r/stacks?per_page=100`); a 404 turns the feature off and every
-  report stays as it was. Otherwise `stk plan|status` map each part to its stack number
+  like gh-stack (`repos/o/r/stacks?per_page=100&page=N` until a short page, at most 20); a 404
+  turns the feature off and every report stays as it was, a 403 is `info`, an auth failure
+  exits 2, any other error skips the step. Otherwise `stk plan|status` map each part to its stack number
   (`native_stack`, `native_stacks`), `stk check` adds the `info` finding `native_stack`
   (enabled, the gh-stack extension from `gh extension list`, the stacks on the ticket branch;
   `--fix` prints `gh extension install github/gh-stack`), and `stk sync` gains a step after the
@@ -894,15 +895,21 @@ prints every one between your applied version and the new one.
   are all open and a strict ordered prefix of the chain is extended with
   `gh stack link --base BR <PR numbers>` (run in the main checkout with
   `GH_STACK_NO_UPDATE_NOTIFIER=1`; `planned` in `stk plan`) when every part is agent-labelled
-  and the extension is installed. A consistent stack is `info`; an order or membership
-  mismatch, parts in two stacks, a stack on another base, a stack still listing a merged PR, an
-  unlabelled part or a missing extension are `todo` with the commands for the human. stk never
+  and the extension is installed, the main checkout cannot resolve another repository
+  (`GH_REPO`/`GH_HOST` unset, origin is the repository, no `gh-resolved` default or other GitHub
+  remote naming another one) and has no local branch named like a chain PR number. A consistent
+  stack and a chain that was never linked are `info` (exit 0); an order or membership mismatch,
+  parts in two stacks, a stack on another base, a stack still listing a merged or closed PR, an
+  unlabelled part, a missing extension or an ambiguous repository are `todo` with the commands
+  for the human, and a stack holding PRs outside the ticket gets no unstack command (the
+  foreign PRs are named for the human to decide first). stk never
   creates a first stack, never unstacks and never runs `gh stack sync|push|rebase|merge`; fan-in
   leaves and branching chains stay unlinked by design. Retargeting is unchanged; a failed
   retarget of a stacked PR names the stack and the unstack and re-link commands. The stk test
   stub answers `gh api …/stacks`, `gh extension list` and `gh stack link`; new
   `gh-native-stack-*` scenarios (bottom merged, tail unlinked, drift, disabled, a branching chain
-  and seven sync variants) and invariants (only `gh stack link --base feat-x <numbers>`, never a default-branch
+  and sync variants: run from a linked worktree, base not `BR`, closed stack, API 401/403/500,
+  foreign PRs, ambiguous repository, branch named like a PR, pending retarget) and invariants (only `gh stack link --base feat-x <numbers>`, never a default-branch
   base, plan/status/check never link). No config change.
 
 - GitHub and GitLab guard sections adopt "humans decide" (principle 2, part of #67). From a

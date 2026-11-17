@@ -13,11 +13,13 @@ Git facts come from the sandbox's real bare origin ($STK_ORIGIN): an open MR/PR 
 their head sha at merge in the fixture. Writes (glab mr update|rebase, gh pr edit|ready|
 update-branch) answer `writes["<verb>-<N>"]` = {rc, out, err} (default: rc 0).
 
-Native GitHub stacks: `stacks` is 404 (the default: no Stacks API, `gh api …/stacks` fails with
-HTTP 404) or a list of compact stacks {number, base, prs: [PR numbers bottom-up]}, expanded to
-the REST shape from the PR fixtures (a MERGED PR -> state closed + merged_at). `extensions` is
-the `gh extension list` text. `gh stack link` answers `writes["stack-link"]` and fails unless
-it runs with GH_STACK_NO_UPDATE_NOTIFIER=1 in the main checkout ($STK_MAIN, when set).
+Native GitHub stacks: `stacks` is an HTTP status (404, the default: no Stacks API; 401, 403,
+500: the matching gh api failure) or a list of compact stacks {number, base, prs: [PR numbers
+bottom-up], open}, expanded to the REST shape from the PR fixtures (a MERGED PR -> state closed
++ merged_at) and paged by `per_page`/`page`. `extensions` is the `gh extension list` text.
+`gh stack link` answers `writes["stack-link"]`, fails unless it runs with
+GH_STACK_NO_UPDATE_NOTIFIER=1 in the main checkout ($STK_MAIN, when set), and logs its working
+directory to $STUB_LOG as `# gh-stack-cwd <path>`.
 """
 import copy
 import json
@@ -161,8 +163,10 @@ def gh_pr(data, n):
 
 def gh_stacks(data, query):
     raw = data.get("stacks", 404)
-    if raw == 404:
-        out(rc=1, err="gh: Not Found (HTTP 404)")
+    errors = {404: "gh: Not Found (HTTP 404)", 401: "gh: Bad credentials (HTTP 401)",
+              403: "gh: Resource not accessible by integration (HTTP 403)", 500: "gh: Server Error (HTTP 500)"}
+    if isinstance(raw, int):
+        out(rc=1, err=errors.get(raw, "gh: HTTP %d" % raw))
     rows = []
     for s in raw:
         prs = []
@@ -172,20 +176,26 @@ def gh_stacks(data, query):
             prs.append({"number": n, "state": "open" if pr["state"] == "OPEN" else "closed", "draft": pr["isDraft"],
                         "merged_at": "2026-01-01T00:00:00Z" if merged else None,
                         "head": {"ref": pr["headRefName"], "sha": pr["headRefOid"]}})
-        rows.append({"id": 1000 + s["number"], "number": s["number"], "node_id": "S_%d" % s["number"],
-                     "url": "https://api.github.com/repos/o/r/stacks/%d" % s["number"],
+        rows.append({"id": 1000 + len(rows), "number": s["number"], "node_id": "S_%s" % s["number"],
+                     "url": "https://api.github.com/repos/o/r/stacks/%s" % s["number"],
                      "base": {"ref": s.get("base", "feat-x")}, "open": s.get("open", True),
                      "created_at": "2026-01-01T00:00:00Z", "pull_requests": prs})
     if "pull_request" in query:
         n = int(query["pull_request"])
         rows = [r for r in rows if n in [x["number"] for x in r["pull_requests"]]]
-    out(sorted(rows, key=lambda r: -r["number"]))
+    rows = sorted(rows, key=lambda r: -r["number"] if isinstance(r["number"], int) else 0)
+    per, page = int(query.get("per_page", 30)), int(query.get("page", 1))
+    out(rows[(page - 1) * per:page * per])
 
 
 def gh_stack_link(data):
     main = os.environ.get("STK_MAIN")
     if os.environ.get("GH_STACK_NO_UPDATE_NOTIFIER") != "1":
         out(rc=1, err="stub: gh stack ran without GH_STACK_NO_UPDATE_NOTIFIER=1")
+    log = os.environ.get("STUB_LOG")
+    if log:
+        with open(log, "a") as fh:
+            fh.write("# gh-stack-cwd %s\n" % os.path.realpath(os.getcwd()))
     if main and os.path.realpath(os.getcwd()) != os.path.realpath(main):
         out(rc=1, err="stub: gh stack link ran in %s, not the main checkout" % os.getcwd())
     write(data, "stack-link")

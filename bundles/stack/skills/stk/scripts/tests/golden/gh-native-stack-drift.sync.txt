@@ -16,7 +16,7 @@
       "ref": 13,
       "kind": "native-stack",
       "status": "todo",
-      "message": "chain #11 <- #12 <- #13: native stack 50 lists #12 <- #11 (order or membership differs); stk never reorders a stack: unstack it and re-link the chain yourself (run it in the main checkout SANDBOX/r)",
+      "message": "chain #11 <- #12 <- #13: native stack 50 lists #12 <- #11 (order or membership differs; stk never reorders a stack); unstack and re-link the chain yourself (run it in the main checkout SANDBOX/r)",
       "commands": [
         "gh stack unstack 50",
         "gh stack link --base feat-x 11 12 13"
