@@ -153,18 +153,22 @@ prints every one between your applied version and the new one.
   the github bundle suite runs the doctor check and the step's verify against a stubbed
   `gh extension list` and checks the key's pattern.
 - work-ticket (GitHub, part 4 of #86): stacked delivery links each linear chain of ≥ 2 sub PRs
-  rooted at the ticket branch into a native GitHub stack with
-  `GH_STACK_NO_UPDATE_NOTIFIER=1 gh stack link --base <ticket branch> <PR numbers bottom to top>`
+  rooted at the ticket branch (no part with more than one dependent) into a native GitHub stack
+  with `GH_STACK_NO_UPDATE_NOTIFIER=1 gh stack link --base <ticket branch> <PR numbers bottom to top>`
   after the sub PR creates and before the second pass, when preflight `gh_stack` reports the
-  extension installed at the expected version and stacks enabled on the repository, and reads
-  it back from the Stacks API. Fan-in leaves, side branches and the main PR stay unlinked;
-  numbers only, never branch names or `--open`. Without the extension, with another version or
-  without repository stacks, delivery is unchanged and the main PR's Agent notes say why and
-  how to enable it; the agent never installs the extension. The `## Stack` table gains a
-  GitHub-only `Stack` column, linked sub PR headers name their stack, and §6c states that
-  `stk sync` keeps the stack consistent, `gh stack sync` is not used and `gh stack merge` runs
-  only on the user's explicit request (references `github.md`, `mr-description.md`,
-  `decomposition.md`, SKILL.md Steps 6b/6c).
+  extension installed at the expected version and stacks enabled on the repository. Before
+  linking it checks the chain's bases (bottom on the ticket branch, each next on the previous
+  head) and that no PR is already in another stack; it reads the stack back from the Stacks
+  API and re-checks the bases in the second pass. Fan-in leaves, branching chains and the main
+  PR stay unlinked; numbers only, never branch names or `--open`. Without the extension, with
+  another version or a third-party `gh stack`, or without readable repository stacks, delivery
+  is unchanged and, when a linkable chain exists, the main PR's Agent notes give the reason and
+  its fix; the agent never installs the extension. The `## Stack` table gains a GitHub-only
+  `Stack` column, linked sub PR headers name their stack, and §6c states that `stk sync`
+  appends new top parts while every stacked PR is open (otherwise a todo for the human),
+  `gh stack sync` is not used, a failed retarget of a linked PR is reported for the human to
+  unstack and re-link, and `gh stack merge` runs only on the user's explicit request
+  (references `github.md`, `mr-description.md`, `decomposition.md`, SKILL.md Steps 6b/6c).
 - Guard engine: reads the hook input's `agent_id` (set by Claude Code on calls from a subagent
   or in-process teammate; `agent_type` is never read, since a `--agent` main thread carries it
   too) into `IN_SUBAGENT`, and offers `human_decision` / `human_decision_defer` for sections:
