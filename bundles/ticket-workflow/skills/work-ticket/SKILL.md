@@ -258,6 +258,9 @@ append `## Task list`, `## Checks`, `## CI recommendations` (gap only), `## Sub-
 GitHub → github.md §6b for every `glab` line below (sub PRs `-B` the ticket branch; dependents
 retarget only when the merged part's head branch is deleted — tell the human to click "Delete
 branch"; never stacked in fork flow).
+GitHub native stack: after the sub PR creates, link each chain of ≥ 2 parts with
+`gh stack link --base <BR> <PR numbers>` when preflight `gh_stack` allows it, else note why
+not (github.md §6b **Native stack (gh-stack)**; the agent never installs the extension).
 ```bash
 git push -u origin "$BR"                                             # push 1: stack root, from the main checkout
 for s in <sub branches in decomposition order>; do git push -u origin "$s"; done   # one push per sub branch
@@ -295,6 +298,8 @@ steps (a conflict is aborted; every worktree is left as found). The manual comma
 the fallback when `stk` is absent.
 GitHub → github.md §6c (`gh pr list … headRefOid`, rebase onto the merged part's head OID,
 `gh pr edit N -B "$BR"` only when GitHub did not auto-retarget, `gh pr ready`).
+A linked native stack follows `stk sync`; never `gh stack sync`; `gh stack merge` only on the
+user's explicit request in the main thread (hook: ask; a subagent is denied).
 ```bash
 glab mr list --search "KEY" --all -F json > "$SCRATCH/KEY-stack.json"   # → github.md §6c
 # for each MERGED part P: open parts that targeted P's branch (or were auto-retargeted to the default branch)

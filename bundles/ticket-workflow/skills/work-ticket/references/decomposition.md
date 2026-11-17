@@ -18,7 +18,8 @@ pinned to {{ core.model_policy.plan }}, read-only tools) with:
   migrations list, exports index, routes, lockfile, changelog) MUST be in one chain in
   dependency order — fan-in (`depends_on: []`, target `<BR>`) only for parts with zero
   overlap** (fanned-in parts that share files conflict on every MR as the others merge).
-  Typical shape: a short foundation chain, fan-in leaves off its top. `stk sync` keeps chains
+  Typical shape: a short foundation chain, fan-in leaves off its top. On GitHub a linear chain
+  reads as one native stack (`gh stack link`); fan-in parts stay unlinked. `stk sync` keeps chains
   retargeted and rebased after each merge; no part may target the base branch directly;
   respect the precedence rule
   (principle 8: when `repo_skill`/`repo_owns` is set, the repository's branch and MR

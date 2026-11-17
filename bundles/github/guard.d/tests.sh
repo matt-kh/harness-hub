@@ -785,6 +785,18 @@ T_AGENT=a1 g pass 'gh stack view --json'
 T_AGENT=a1 g pass 'gh stack switch'
 # link: literal numbers of agent-labelled -sub- PRs onto the ticket branch
 g allow 'gh stack link --base feat-x 110 111'
+# the exact forms work-ticket documents (github.md §6b "Native stack (gh-stack)", SKILL.md 6b/6c)
+g allow 'GH_STACK_NO_UPDATE_NOTIFIER=1 gh stack link --base feat-x 110 111'
+T_AGENT=a1 g allow 'GH_STACK_NO_UPDATE_NOTIFIER=1 gh stack link --base feat-x 110 111'
+g ask   'GH_STACK_NO_UPDATE_NOTIFIER=1 gh stack link --base "$BR" 110 111'   # why the text says: type the branch literally
+g deny  'GH_STACK_NO_UPDATE_NOTIFIER=1 gh stack link --base feat-x 100 110 111'   # main PR stays outside
+g deny  'GH_STACK_NO_UPDATE_NOTIFIER=1 gh stack link --base feat-x feat-x-sub-01-schema feat-x-sub-02-ui'
+g ask   'GH_STACK_NO_UPDATE_NOTIFIER=1 gh stack link --base feat-x --open 110 111'
+t pass  "gh api \"repos/o/r/stacks?pull_request=110\" --jq 'map({number, base: .base.ref, open, prs: [.pull_requests[].number]})'"
+T_AGENT=a1 t pass "gh api \"repos/o/r/stacks?pull_request=110\" --jq 'map({number, base: .base.ref, open, prs: [.pull_requests[].number]})'"
+t ask   "gh api \"repos/o/r/stacks?pull_request=110\" --jq '.[] | {number}'"   # a | inside --jq is split as a pipe: unbalanced quotes ask (why the text uses map())
+t ask   'gh extension install github/gh-stack --pin v0.3.0'               # the user's manual step, never the agent
+T_AGENT=a1 g deny 'GH_STACK_NO_UPDATE_NOTIFIER=1 gh stack merge'
 g allow 'gh stack link --base=feat-x 110'
 g ask   'gh stack link --base feat-x --remote origin --no-atomic 110 111'   # --remote: lookup reads gh's default repo
 g allow 'gh stack link --base feat-x --no-atomic 110 111'

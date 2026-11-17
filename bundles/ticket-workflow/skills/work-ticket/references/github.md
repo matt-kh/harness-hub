@@ -54,6 +54,8 @@ the host alone.
 | §6 read-back | `glab mr view IID -F json` | `gh pr view "$BR" -R OWNER/REPO --json number,title,body,isDraft,labels,baseRefName,headRefName,milestone,url` + `--json closingIssuesReferences` (§6a) |
 | §6 CI exists | `glab api …/pipelines` | `gh pr checks N -R OWNER/REPO` (exit 8 = pending; "no checks reported" = no CI) |
 | §6b/6c edit | `glab mr update IID …` | `gh pr edit N -R OWNER/REPO -F … / -B "$BR" / -t …`; Draft → `gh pr ready N -R OWNER/REPO` |
+| §6b native stack | none (GitLab CE has no native stack object) | `GH_STACK_NO_UPDATE_NOTIFIER=1 gh stack link --base feat-x 35 37` per chain, PR numbers only (hook: allow); read back with `gh api "repos/OWNER/REPO/stacks?pull_request=35"` — see **Native stack (gh-stack)** |
+| §6c stack merge | `glab mr merge IID` (human decision) | `gh stack merge` — only on the user's explicit request in the main thread (hook: ask; a subagent is denied) |
 | §7 handoff | `jira comment KEY …` | `gh issue comment N -R OWNER/REPO -F "$SCRATCH/N-handoff.md"` ("merging the PR will close issue #N" when CLOSE, else "close it yourself") |
 | never on own initiative | `glab mr merge/approve`, `jira transition KEY` | `gh pr merge`, `gh pr review --approve`, `gh issue close/reopen` on the parent — name the command; run it only on the user's explicit request (hook: ask (main thread) / deny (subagent)) |
 
@@ -261,6 +263,7 @@ gh pr create -R OWNER/REPO -H "$BR" -B "$BASE" --draft -t "<summary>" -F "$SCRAT
 git rev-list --count "$TARGET..$BR-sub-01-<task>"                                 # ≥ 1 before every create
 gh pr create -R OWNER/REPO -H "$BR-sub-01-<task>" -B "$TARGET" -t "[part 1/M] <task>" \
   -F "$SCRATCH/12-sub-01.md" -l agent-worked ${UNFINISHED:+--draft}              # -B = ticket/sub branch; base → denied
+# every chain of ≥ 2 parts → gh stack link + read-back here (Native stack (gh-stack) below)
 # second pass: numbers known → regenerate Stack table + sub headers
 gh pr list -R OWNER/REPO --state all --limit 100 --json number,headRefName,baseRefName,isDraft,state,url \
   | jq --arg br "$BR" '[.[] | select(.headRefName==$br or (.headRefName|startswith($br+"-sub-")))]' > "$SCRATCH/12-stack.json"
@@ -290,7 +293,54 @@ labels and readies), so the main PR's keyword survives every sync.
   "$SCRATCH/12-stk.json"`; its warn/fail findings (permission, `delete_branch_on_merge` off)
   go into `## CI recommendations`.
 
+**Native stack (gh-stack)** — links each chain of sub PRs into one GitHub stack, so reviewers
+see the parts as a stack. It changes no branch, base or merge order.
+- **Precondition**: preflight `gh_stack.installed && gh_stack.version_ok &&
+  gh_stack.repo_enabled`. `pinned: false` → still link, and add an Agent notes line recommending
+  the pin (`gh extension install github/gh-stack --pin v<expected_version>`, after
+  `gh extension remove stack`).
+- **When**: after the sub PR creates and before the second pass, once per **linear chain of
+  ≥ 2 parts rooted at `$BR`** (bottom part targets `$BR`, each next part its blocker's sub
+  branch). Where a part has two dependents, the chain continues with the first in
+  decomposition order; the others are side branches. Fan-in leaves (a single part on `$BR`)
+  and side branches stay **unlinked**; the main PR always stays **outside** the stack. A PR
+  belongs to one stack only, so each chain gets its own stack.
+  ```bash
+  GH_STACK_NO_UPDATE_NOTIFIER=1 gh stack link --base feat-x 35 37      # hook: allow; from the main checkout
+  gh api "repos/OWNER/REPO/stacks?pull_request=35" \
+    --jq 'map({number, base: .base.ref, open, prs: [.pull_requests[].number]})'   # read-back; no `|` inside --jq (the hook asks)
+  ```
+  Arguments: the ticket branch **literally** after `--base` (a `$BR` variable makes the hook
+  ask), then the chain's sub PR **numbers bottom to top** — never branch names (`link` would
+  push them and open unlabelled PRs: denied), never URLs, never the main PR (denied), never
+  `--open` (marks PRs ready: asks; a subagent is denied), never `--remote`, `cd`, `GH_HOST=` or
+  a gh-level `-R` (the PRs cannot be label-checked: asks). Run it from the main checkout of
+  `OWNER/REPO`. `link` needs ≥ 2 PRs, only appends at the top, and rewrites a mismatched base
+  to the chain.
+- **Read-back**: exactly one stack with `base` = `$BR` and `prs` = the chain's numbers in
+  order; anything else → report it, do not retry with other flags. Keep each stack number for
+  the Stack table and the sub PR headers.
+- **Not enabled** (no extension, `version_ok: false`, or `repo_enabled: false` / Stacks API
+  404): delivery is unchanged (plain stacked PRs) and the main PR's `## Agent notes` carry
+  `Native stack linking not enabled: <reason>; to enable: \`gh extension install
+  github/gh-stack --pin v<expected_version>\``. The agent never installs or upgrades an
+  extension (the user's manual step `gh-stack-extension`).
+- **Stack table**: a GitHub-only `Stack` column after `chain` — `[stack 3](https://github.com/OWNER/REPO/stack/3)`
+  on linked parts, `— (fan-in)` on fan-in leaves and side branches, `— (main)` on the main PR
+  row — and under the table: "Chains of ≥ 2 parts are linked as native GitHub stacks on
+  `feat-x`; fan-in parts and the main PR stay outside." Not enabled → omit the column.
+- **Sub PR header** of a linked part: `> **Stack — part N of M** for #12 · main PR #34 ·
+  [stack 3](https://github.com/OWNER/REPO/stack/3) · prev #35 · next #37`.
+- **Later**: `stk sync --stack "$BR"` keeps a linked stack consistent (appends new top parts
+  of an existing chain); `gh stack sync|push|submit|rebase` are not used (hook: ask; deny on
+  the default branch). `gh stack merge` is a human decision: only on the user's explicit
+  request in the main thread (hook: ask; a subagent is denied).
+
 ## §6c Stack sync
+
+A linked native stack (§6b **Native stack (gh-stack)**) needs no extra command here: `stk sync`
+keeps it consistent; never `gh stack sync`, and `gh stack merge` only on the user's explicit request.
+
 
 GitHub retargets a dependent onto the merged PR's base when the head branch is deleted, but
 squash and rebase merges rewrite the part's commits: the dependents still carry the pre-squash
