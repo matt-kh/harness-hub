@@ -20,9 +20,7 @@ prints every one between your applied version and the new one.
   [repository-level harnesses](docs/repo-level.md) (`tracker`), `SECURITY.md` (closing-keyword
   row), the github and ticket-workflow bundle pages (deny list, troubleshooting row "An issue
   closed itself on merge") follow. `/create-ticket`: non-negotiable 5 and the `render-ticket.py`
-  docstring say issue text only mentions `#N`, and the `--check` reason for a GitHub closing
-  keyword now says it "belongs only in work-ticket's PR to the default branch" (the check is
-  unchanged; the `bad-gh-closing` row now asserts the reason). The `Auto` agent's brief, the
+  docstring say issue text only mentions `#N`. The `Auto` agent's brief, the
   ticket-workflow rule (`rules/75-ticket-workflow.md`) and the `bootstrap-repo` skill and
   standard (PR template row) state the exception.
 - [docs/bundles/supply-chain.md](docs/bundles/supply-chain.md): the hand-written body (the
@@ -119,15 +117,16 @@ prints every one between your applied version and the new one.
   human merges that PR. A compliant example, a narrower non-compliant one (commits, PR titles,
   sub PRs, issue text, Jira keys) and a "How it is checked" row (section 41 rows, the
   `issue.close_on_merge` goldens) come with it. The summary statement in `PRINCIPLES.md`
-  ("humans decide … issue and ticket state") is unchanged. Principle 6's `issue` gate row and
-  principle 9's read-back example now describe the default-branch exception and the
-  `closingIssuesReferences` read-back.
+  ("humans decide … issue and ticket state") is unchanged. Principle 9's read-back example
+  now names the `closingIssuesReferences` read-back.
 
 ### Added
 
 - Config key `github.close_issue_on_merge` (boolean, default `true`; env
-  `HARNESS_GITHUB_CLOSE_ISSUE_ON_MERGE`), part of #80: in a repository whose `.harness.toml`
-  declares `[repo] tracker = "github-issues"`, the PR to the default branch may carry a GitHub
+  `HARNESS_GITHUB_CLOSE_ISSUE_ON_MERGE`), part of #80: in a repository whose tracker is
+  GitHub Issues (`.harness.toml` `[repo] tracker`, else the first matching
+  `ticket_workflow.trackers` entry, else a github.com origin), the PR to the default branch
+  may carry a GitHub
   closing keyword for its worked issue(s), so GitHub closes them when a human merges the PR.
 - Guard engine: reads the hook input's `agent_id` (set by Claude Code on calls from a subagent
   or in-process teammate; `agent_type` is never read, since a `--agent` main thread carries it
@@ -745,6 +744,10 @@ prints every one between your applied version and the new one.
 
 ### Changed
 
+- `/create-ticket` `render-ticket.py --check` (part 04 of #80), message only: the reason for a
+  GitHub closing keyword in an issue's title or body now says it "belongs only in
+  work-ticket's PR to the default branch" instead of "mention #N instead". The check is
+  unchanged; the `bad-gh-closing` row now asserts the reason.
 - Guard section `41-github-closing` (part of #80): a closing keyword + bare `#N` passes 41
   (section 60 still decides the create or edit) when `github.close_issue_on_merge` is on (a
   `false` in `guard.env` is final: the environment cannot switch it back on), the repository

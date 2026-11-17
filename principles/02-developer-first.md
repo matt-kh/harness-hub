@@ -40,8 +40,10 @@ manual step or a user-facing message.
   it in the main thread, and the guard confirms every such call (ask). Subagents never do it:
   the guard denies when the hook input identifies a subagent caller, and falls back to ask on
   providers that cannot identify one. Closing keywords stay denied, with one exception: in a
-  repository whose tracker is GitHub Issues, the one PR to the default branch may close its
-  agent-worked issue, because the issue then closes only when a human merges that PR. Without that request the
+  repository whose tracker is GitHub Issues, the body of the one PR to the default branch may
+  close its agent-worked issue, because the issue then closes only when a human merges that
+  PR. Its title stays keyword-free (work-ticket's read-back; a keyword in a `-t` title asks
+  through `github.pr_title_forbid_re`, default `#[0-9]+`). Without that request the
   agent hands the decision back with the exact command instead of stalling. Sending mail stays
   with the human.
 

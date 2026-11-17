@@ -8,9 +8,11 @@ and the gh guard rules:
 - closing keywords (`close|fix|resolve` forms + `#N`, `owner/repo#N`, issue URL) in commits,
   `gh pr create|edit|merge` and `gh api` payloads: **deny**; one exception: where the
   repository's tracker is GitHub Issues and `github.close_issue_on_merge` is on (the default),
-  a literal one-line `gh pr create -B <default branch>` or `gh pr edit` of the PR to the
-  default branch may close bare `#N` refs of `agent-worked` issues (at most 10), so the issue
-  closes when a human merges that PR ([governance §4](../governance.md#4-closing-keywords-are-denied))
+  a literal one-line `gh pr create -B <default branch>` (head not a `-sub-` or fork branch) or
+  `gh pr edit N` of such a PR, run from that repository's own checkout (`-R` only for its
+  origin), may close bare `#N` refs of `agent-worked` issues (at most 10) in its `-b` body (a
+  `-F` body is not checked by the guard; work-ticket reads it back), so the issue closes when
+  a human merges that PR ([governance §4](../governance.md#4-closing-keywords-are-denied))
 - `gh pr close|reopen|ready` and `gh issue close|reopen` on a human PR/issue: **ask** (a human
   decision, run only on the user's explicit request); on an agent-labelled one: allow
 - `gh issue create` without a provenance label (`agent-drafted`, `agent-created`): **deny**
