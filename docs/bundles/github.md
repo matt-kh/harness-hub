@@ -79,11 +79,11 @@ Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md
 **Guard sections**
 
 - `github/guard.d/41-github-closing` — control: sensor · domain: tracker · function: govern · decisions: deny 2 · allow 1 · yields: declaration
-- `github/guard.d/60-github` — control: sensor · function: govern · decisions: deny 5 · ask 8 · allow 3 · yields: declaration
+- `github/guard.d/60-github` — control: sensor · function: govern · decisions: deny 11 · ask 13 · allow 4 · yields: declaration
 
 **Permission lists**
 
-- `github/permissions` — control: guide · function: govern · decisions: deny 1 · ask 74 · allow 32 · yields: config
+- `github/permissions` — control: guide · function: govern · decisions: deny 1 · ask 75 · allow 33 · yields: config
 
 **Installers**
 
@@ -211,13 +211,13 @@ Guides steer the agent before it acts; sensors detect at or after the action. Pa
 | guide | rule | `rules/60-github.md` | PR-based delivery, merges and PR/issue state on explicit main-thread request only, -R owner/repo on every call | `guard.d/41-github-closing.sh`, `guard.d/60-github.sh` |
 | guide | permission | `permissions.toml` | read-only gh commands allowed; token printing denied | `guard.d/60-github.sh`, `permissions-vs-guard` |
 | sensor | guard | `guard.d/41-github-closing.sh` | denies closing keywords that would change issue state; lets only the PR to the default branch close its agent-worked #N in a github-issues repository (github.close_issue_on_merge) | `rules/60-github.md` |
-| sensor | guard | `guard.d/60-github.sh` | token printing, API writes, merges/reviews and PR/issue state (main thread asks, subagent denied), provenance labels, stacked PR targets; PR creates with --fill* or a -t title matching github.pr_title_forbid_re ask | `rules/60-github.md`, `permissions.toml` |
+| sensor | guard | `guard.d/60-github.sh` | token printing, API writes, merges/reviews and PR/issue state (main thread asks, subagent denied), provenance labels, stacked PR targets; gh stack merge (human decision), gh stack link (label-gated -sub- PR numbers onto the ticket branch), gh stack push\|submit\|sync\|... (deny on the default branch, else ask); PR creates with --fill* or a -t title matching github.pr_title_forbid_re ask | `rules/60-github.md`, `permissions.toml` |
 | sensor | doctor | `doctor_checks` | gh binary, auth, SSH and token file mode | — |
 | sensor | test | `guard.d/tests.sh` | guard rows with a stubbed gh | — |
 | sensor | test | `tests/run.sh` | this bundle's rows against core + github only | — |
 | sensor | lint | `permissions-vs-guard` | each Bash allow/deny rule of permissions.toml run through the guard: no allowed command the guard denies or asks, no denied one it allows | `permissions.toml` |
 
-**Not covered:** Forks: the guard cannot read labels on a fork, so edits there ask instead of being label-gated. A PR created without -t (title from the commit or an editor) is not title-checked. The github-closing guard section enforces rule text that lives in rules/60-github.md.
+**Not covered:** Forks: the guard cannot read labels on a fork, so edits there ask instead of being label-gated. A PR created without -t (title from the commit or an editor) is not title-checked. The github-closing guard section enforces rule text that lives in rules/60-github.md. gh stack: the guard sees gh stack, gh extension exec stack and gh-stack, but not a wrapper made by gh stack alias (gs VERB; the alias command itself asks), and it reads the trunk from gh stack view --json with a tolerant key match, since the extension documents no JSON schema.
 
 ## Uninstall
 

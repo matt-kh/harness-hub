@@ -30,6 +30,14 @@
 - `gh pr update-branch N [--rebase]` (server-side update from the base branch) runs promptless
   on agent-labelled PRs and asks on human and fork PRs; refresh the local worktree afterwards
   with `git pull --rebase`.
+- Stacked delivery: sub PRs (`<branch>-sub-NN-<task>`) target the ticket branch or their
+  blocker's sub branch, never the default branch (the guard denies it); humans decide the
+  merges, bottom-up. A chain is linked as a native GitHub stack with
+  `gh stack link --base <ticket branch> N1 N2 …` by PR numbers only (agent-labelled `-sub-` PRs;
+  the main PR stays outside; a branch name would push and open an unlabelled PR, so it is
+  denied). `gh stack merge` is a human decision (asks; denied from a subagent), as is
+  `--open`. `stk sync --stack BR` keeps the stack in sync; `gh stack sync|push|submit|rebase`
+  are not used (they ask, and deny on the default branch).
 - Forks/upstream: the agent cannot label there, so edits ask and delivery is a single PR.
 - Secret: `~/.config/gh/hosts.yml` holds the token — never read or print it; check auth with
   `gh auth status`.
