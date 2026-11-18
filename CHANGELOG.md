@@ -185,6 +185,26 @@ prints every one between your applied version and the new one.
   doctor checks follow in the next part; the guard already lets `lx` pass. ARCHITECTURE §3 lists
   bands `82` and `83`.
 
+- `linux` bundle (#64, part 3: client): the stdlib `lx` CLI
+  (`bundles/linux/skills/linux/scripts/lx.py`, python 3.9+, linked as `lx`) with subcommands
+  `hosts`, `check`, `facts`, `health`, `logs`, `net`, `storage`, `audit` and `redact`. Hosts are
+  ssh-config `Host` aliases only (with `Include`, no wildcards, no `user@ip`; `IdentityFile` is
+  never shown and no key is read); every remote call is
+  `ssh -o BatchMode=yes -o ConnectTimeout=<linux.ssh_timeout> -o LogLevel=ERROR -T -n -- ALIAS`
+  with one fixed read-only script per subcommand, host-key checking left to the user's config,
+  output parsed and redacted locally (the shared redactor, inlined), Markdown by default or
+  `--json`, banner `host=<alias> os=<ID VERSION_ID> [PROD]`, exit codes 0 / 1 findings / 2
+  access. `logs` is always bounded (`--since 1h`, `--limit 200` by default, capped at 2000,
+  arguments validated, never a follow mode). The `linux` skill with runbooks (triage, networking,
+  storage, hardening with a severity rubric, distros: Ubuntu/Debian, RHEL family, NixOS, Proxmox
+  VE, Talos), the read-only `linux-triage` (investigate) and `linux-auditor` (review) agents,
+  manual steps `ssh-aliases` and `ssh-agent-key`, doctor checks `lx-cli`, `ssh-binary`,
+  `ssh-aliases` and `ssh-agent` (exit code of `ssh-add -l` only), new config key
+  `linux.redact_extra_re` (env `LINUX_REDACT_EXTRA_RE`), and a golden suite against a stub `ssh`
+  (Ubuntu 24.04 and Rocky 9 fixtures, every subcommand in both formats, argv invariants:
+  BatchMode and ConnectTimeout on every call, no `-t`, no host-key override, no follow mode, no
+  mutating command in any script).
+
 - Guard engine: reads the hook input's `agent_id` (set by Claude Code on calls from a subagent
   or in-process teammate; `agent_type` is never read, since a `--agent` main thread carries it
   too) into `IN_SUBAGENT`, and offers `human_decision` / `human_decision_defer` for sections:
@@ -1230,7 +1250,9 @@ prints every one between your applied version and the new one.
   `stk sync --stack BR`, and hand `gh stack merge` to the user.
 - `linux` bundle (#64), opt-in: nothing changes until you add `linux` to `[hub].bundles`. Then
   set `[linux] prod_re` if your production host aliases do not carry a `prod`/`production`
-  segment, and optionally `inventory` and `ssh_timeout`; run `harness apply`. Remote commands
+  segment, and optionally `inventory`, `ssh_timeout` and `redact_extra_re` (new in part 3: extra
+  token shapes `lx` masks; empty keeps the built-in list); run `harness apply`, which also links
+  `lx` onto `PATH` and installs the `linux` skill and the `linux-triage` / `linux-auditor` agents. Remote commands
   that are not read-only, `ssh -t`, tunnels and uploads start to ask, and
   `StrictHostKeyChecking=no` / `sshpass` are denied.
 

@@ -1,0 +1,170 @@
+# exit=1
+# stderr:
+host=web1 os=ubuntu 24.04
+# stdout:
+{
+  "host": "web1",
+  "prod": false,
+  "os": "ubuntu 24.04",
+  "command": "health",
+  "findings": [
+    {
+      "severity": "crit",
+      "kind": "disk",
+      "name": "/var/lib/docker",
+      "message": "disk 96% used on /dev/vdb1",
+      "evidence": null
+    },
+    {
+      "severity": "warn",
+      "kind": "disk",
+      "name": "/",
+      "message": "disk 92% used on /dev/vda1",
+      "evidence": null
+    },
+    {
+      "severity": "warn",
+      "kind": "load",
+      "name": "web1",
+      "message": "load1 9.52 on 4 CPUs (2.4 per CPU)",
+      "evidence": null
+    },
+    {
+      "severity": "warn",
+      "kind": "memory",
+      "name": "web1",
+      "message": "memory pressure: tasks stalled 12.50% of the last 10 s",
+      "evidence": null
+    },
+    {
+      "severity": "warn",
+      "kind": "memory",
+      "name": "web1",
+      "message": "only 8.0% memory available",
+      "evidence": null
+    },
+    {
+      "severity": "warn",
+      "kind": "oom",
+      "name": "web1",
+      "message": "2 OOM kill line(s) in the kernel log (24 h)",
+      "evidence": null
+    },
+    {
+      "severity": "warn",
+      "kind": "reboot",
+      "name": "web1",
+      "message": "reboot pending (/var/run/reboot-required): linux-image-6.8.0-48-generic, libc6",
+      "evidence": null
+    },
+    {
+      "severity": "warn",
+      "kind": "swap",
+      "name": "web1",
+      "message": "swap 90% used",
+      "evidence": null
+    },
+    {
+      "severity": "warn",
+      "kind": "unit",
+      "name": "certbot-renew.service",
+      "message": "failed: Certbot renewal",
+      "evidence": null
+    },
+    {
+      "severity": "warn",
+      "kind": "unit",
+      "name": "nginx-exporter.service",
+      "message": "failed: Prometheus nginx exporter",
+      "evidence": null
+    }
+  ],
+  "data": {
+    "load": {
+      "load1": "9.52",
+      "load5": "7.10",
+      "load15": "4.33",
+      "cpus": 4
+    },
+    "failed_units": [
+      {
+        "unit": "certbot-renew.service",
+        "load": "loaded",
+        "active": "failed",
+        "sub": "failed",
+        "description": "Certbot renewal"
+      },
+      {
+        "unit": "nginx-exporter.service",
+        "load": "loaded",
+        "active": "failed",
+        "sub": "failed",
+        "description": "Prometheus nginx exporter"
+      }
+    ],
+    "disks": [
+      {
+        "mount": "/",
+        "fs": "/dev/vda1",
+        "type": "ext4",
+        "size": "38.7G",
+        "used": "35.4G",
+        "avail": "3.3G",
+        "use%": 92
+      },
+      {
+        "mount": "/boot/efi",
+        "fs": "/dev/vda15",
+        "type": "vfat",
+        "size": "104.3M",
+        "used": "6.0M",
+        "avail": "98.3M",
+        "use%": 6
+      },
+      {
+        "mount": "/var/lib/docker",
+        "fs": "/dev/vdb1",
+        "type": "xfs",
+        "size": "100.0G",
+        "used": "95.0G",
+        "avail": "5.0G",
+        "use%": 96
+      }
+    ],
+    "inodes": [
+      {
+        "mount": "/",
+        "inodes": 2580480,
+        "used": 412345,
+        "use%": 16
+      },
+      {
+        "mount": "/var/lib/docker",
+        "inodes": 5242880,
+        "used": 120000,
+        "use%": 3
+      }
+    ],
+    "memory": {
+      "total": "7.8G",
+      "available": "639.0M",
+      "available%": 8.0,
+      "swap_total": "2.0G",
+      "swap_used%": 90.0,
+      "psi_some_avg10": 12.5,
+      "oom_kills_24h": 2
+    },
+    "reboot": {
+      "required": true,
+      "source": "/var/run/reboot-required",
+      "packages": [
+        "linux-image-6.8.0-48-generic",
+        "libc6"
+      ]
+    },
+    "timesync": {
+      "ntp": "yes",
+      "synchronized": "yes"
+    }
+  }
+}

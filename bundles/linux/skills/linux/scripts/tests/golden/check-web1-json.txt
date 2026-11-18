@@ -1,0 +1,22 @@
+# exit=0
+# stderr:
+host=web1 os=ubuntu 24.04
+# stdout:
+{
+  "host": "web1",
+  "prod": false,
+  "os": "ubuntu 24.04",
+  "command": "check",
+  "findings": [],
+  "data": {
+    "check": {
+      "reachable": true,
+      "auth": true,
+      "batch_mode": true,
+      "remote_user": "deploy",
+      "hostname": "web1",
+      "kernel": "Linux 6.8.0-45-generic",
+      "os": "Ubuntu 24.04.1 LTS"
+    }
+  }
+}

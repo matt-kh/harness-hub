@@ -149,7 +149,7 @@ A value exists only while a component uses it. To add one:
 | `kubernetes` | clusters, Helm, GitOps, IaC targeting them | 18 (k8s) |
 | `workspace` | docs, drive, sheets, mail | 15 (gdoc) |
 | `operations` | running systems: signals, incidents, reliability targets | 13 (obs) |
-| `infrastructure` | hosts, operating systems, provisioning, cloud accounts, containers, databases and IaC outside Kubernetes | 4 (linux) |
+| `infrastructure` | hosts, operating systems, provisioning, cloud accounts, containers, databases and IaC outside Kubernetes | 14 (linux) |
 | `security` | security posture of code, dependencies, artefacts and credentials: supply chain, appsec, vulnerabilities | 15 (supply-chain) |
 
 ### function
@@ -157,19 +157,19 @@ A value exists only while a component uses it. To add one:
 | value | meaning | components using it |
 |---|---|---|
 | `govern` | constrains the agent and says what to do instead | 48 (core, gdoc, github, gitlab, jira, k8s, lessons, linux, obs, repo-bootstrap, stack, supply-chain, ticket-workflow) |
-| `client` | thin interface to one system | 14 (gdoc, jira, k8s, obs, repo-bootstrap, stack, supply-chain) |
+| `client` | thin interface to one system | 16 (gdoc, jira, k8s, linux, obs, repo-bootstrap, stack, supply-chain) |
 | `workflow` | multi-step governed procedure | 5 (lessons, supply-chain, ticket-workflow) |
-| `investigate` | diagnoses to a root cause, never applies the fix | 3 (k8s, obs, supply-chain) |
+| `investigate` | diagnoses to a root cause, never applies the fix | 4 (k8s, linux, obs, supply-chain) |
 | `plan` | designs; read-only | 3 (core, k8s, supply-chain) |
 | `execute` | implements autonomously | 1 (core) |
-| `review` | assesses and reports | 3 (core, k8s, supply-chain) |
-| `setup` | installs, verifies or configures once | 86 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, repo-bootstrap, stack, supply-chain, ticket-workflow) |
+| `review` | assesses and reports | 4 (core, k8s, linux, supply-chain) |
+| `setup` | installs, verifies or configures once | 92 (core, gdoc, github, gitlab, jira, k8s, lessons, linux, obs, repo-bootstrap, stack, supply-chain, ticket-workflow) |
 
 ### posture
 
 | value | meaning | components using it |
 |---|---|---|
-| `read-only` | reads only | 64 (core, gdoc, github, gitlab, jira, k8s, lessons, obs, repo-bootstrap, stack, supply-chain, ticket-workflow) |
+| `read-only` | reads only | 72 (core, gdoc, github, gitlab, jira, k8s, lessons, linux, obs, repo-bootstrap, stack, supply-chain, ticket-workflow) |
 | `local` | edits the checkout and its own branches; other remote writes pass the guard | 4 (core, lessons, supply-chain) |
 | `label-gated` | writes promptlessly only to agent-* artefacts; human ones ask | 10 (gdoc, jira, repo-bootstrap, stack, ticket-workflow) |
 
@@ -177,12 +177,12 @@ A value exists only while a component uses it. To add one:
 
 | value | meaning | components using it |
 |---|---|---|
-| `declaration` | returns early when the repository's .harness.toml owns its id or domain | 28 (core, gdoc, github, gitlab, jira, k8s, lessons, linux, obs, repo-bootstrap, stack, supply-chain, ticket-workflow) |
-| `name` | the provider shadows it with a repository component of the same name | 10 (core, k8s, obs, supply-chain) |
+| `declaration` | returns early when the repository's .harness.toml owns its id or domain | 29 (core, gdoc, github, gitlab, jira, k8s, lessons, linux, obs, repo-bootstrap, stack, supply-chain, ticket-workflow) |
+| `name` | the provider shadows it with a repository component of the same name | 12 (core, k8s, linux, obs, supply-chain) |
 | `text` | concatenated with the repository's instructions, which come last and win | 14 (core, gdoc, github, gitlab, jira, k8s, lessons, linux, obs, repo-bootstrap, stack, supply-chain, ticket-workflow) |
 | `config` | merged by the provider's permission system; a repository can add rules, never lift a deny | 12 (gdoc, github, gitlab, jira, k8s, lessons, linux, obs, repo-bootstrap, stack, supply-chain, ticket-workflow) |
 | `never` | the developer's own credentials: no repository setting lifts it | 2 (core) |
-| `n/a` | no repository-level equivalent | 97 (core, gdoc, github, gitlab, jira, k8s, lessons, linux, obs, repo-bootstrap, stack, supply-chain, ticket-workflow) |
+| `n/a` | no repository-level equivalent | 104 (core, gdoc, github, gitlab, jira, k8s, lessons, linux, obs, repo-bootstrap, stack, supply-chain, ticket-workflow) |
 
 ### Facets by kind
 

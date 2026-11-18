@@ -1,7 +1,7 @@
 [bundle]
 name = "linux"
 schema_version = "1"
-summary = "Linux hosts over SSH: read-only by default, guards on remote mutations, interactive sessions, tunnels, uploads, disabled host-key checking, copied private keys and local disk / network changes"
+summary = "Linux hosts over SSH aliases: read-only lx CLI, skill and triage / audit agents; guards on remote mutations, interactive sessions, tunnels, uploads, disabled host-key checking, copied private keys and local disk / network changes"
 description = """
 Governs Linux hosts reached over SSH aliases, and the destructive local storage and network
 tools. Guard sections 82 (definitions: clause lexer, ssh / scp / rsync parsing, the remote
@@ -13,7 +13,11 @@ interactive sessions, `-t`, tunnels and forwarding, uploads, `sftp` and `ssh-cop
 key out of `~/.ssh` denies and never yields. Locally, `dd of=/dev/…`, `mkfs`, `wipefs`, partition,
 LVM, ZFS and RAID changes on block devices, and firewall / network changes (`nft`, `ufw`,
 `netplan`, `nmcli`, `ip … add|del|set`, `iptables -A|-D|-F`) ask; the same tools on image files
-pass. Host fixes go into the infrastructure repository through a merge request.
+pass. Ships the stdlib `lx` CLI (hosts, check, facts, health, logs, net, storage, audit, redact —
+every remote call `ssh -o BatchMode=yes -o ConnectTimeout=… -T` to a `~/.ssh/config` alias with one
+fixed read-only script, output parsed and redacted locally), its skill and runbooks, and the
+read-only linux-triage / linux-auditor agents. Host fixes go into the infrastructure repository
+through a merge request.
 """
 depends_on = ["core"]
 recommends = []
@@ -52,6 +56,12 @@ minimum = 1
 description = "Connect timeout in seconds for every SSH call the bundle's tooling makes (ConnectTimeout). LINUX_SSH_TIMEOUT."
 example = 5
 
+[requires.config."linux.redact_extra_re"]
+type = "string"
+default = ""
+description = "Extra Python regex of token shapes masked on top of the built-in list, applied by `lx redact` and `lx logs`. LINUX_REDACT_EXTRA_RE."
+example = "(?i)x-internal-token=[^ ]+"
+
 [requires.secrets.ssh_keys]
 where = "~/.ssh/* (except *.pub)"
 written_by = "human (ssh-keygen)"
@@ -61,22 +71,96 @@ rotate = "ssh-keygen -t ed25519 a new key, install its .pub on each host yoursel
 
 [provides]
 rules = ["rules/82-linux.md"]
-skills = []
+skills = ["skills/linux"]
 skill_fragments = []
-agents = []
+agents = ["agents/linux-triage.md", "agents/linux-auditor.md"]
 guard_rules = ["guard.d/82-linux.sh", "guard.d/83-linux-rules.sh"]
 permissions = "permissions.toml"
 mcp = ""
-bin = []
+bin = [{ name = "lx", target = "skills/linux/scripts/lx.py" }]
 
 [provides.env]
 LINUX_PROD_RE = "{{ linux.prod_re }}"
 LINUX_INVENTORY = "{{ linux.inventory }}"
 LINUX_SSH_TIMEOUT = "{{ linux.ssh_timeout }}"
+LINUX_REDACT_EXTRA_RE = "{{ linux.redact_extra_re }}"
+
+[[manual_steps]]
+id = "ssh-aliases"
+title = "Give every host an alias in ~/.ssh/config"
+once_per = "machine"
+needs = []
+minutes = 5
+why = "lx and the agents reach hosts only through Host aliases (no user@ip, no wildcards), so each machine needs one; the alias also decides [PROD] through linux.prod_re."
+how = """
+Add one block per host to `~/.ssh/config` (or a file it `Include`s), for example:
+```
+Host web1
+  HostName 192.0.2.10
+  User deploy
+```
+Name production hosts so they match `linux.prod_re` (default: a `prod`/`production` segment, e.g.
+`db-prod-1`). Optionally list role and notes per alias in the file `linux.inventory` points at.
+Then connect once yourself to accept and check the host key (`ssh web1 true`); agents never answer
+host-key prompts. `lx hosts` shows what was picked up.
+"""
+[manual_steps.verify]
+cmd = "lx hosts --json | grep -q '\"alias\"'"
+expect = { exit = 0 }
+unblocks = ["ssh-aliases"]
+
+[[manual_steps]]
+id = "ssh-agent-key"
+title = "Load your SSH key into ssh-agent"
+once_per = "machine"
+needs = []
+minutes = 2
+why = "Every lx call uses BatchMode=yes: no password or passphrase prompts, so the key must already be in an agent (or be passphrase-less, which is not recommended)."
+how = "Start an agent if your desktop does not (`eval \"$(ssh-agent)\"`), then `ssh-add` your key; `ssh-add -l` lists the loaded fingerprints. `lx check <alias>` confirms auth."
+[manual_steps.verify]
+cmd = "ssh-add -l >/dev/null 2>&1"
+expect = { exit = 0 }
+unblocks = ["ssh-agent"]
+
+[[doctor_checks]]
+id = "lx-cli"
+title = "lx CLI on PATH"
+severity = "fail"
+cmd = "command -v lx >/dev/null && lx --version"
+expect = { exit = 0 }
+offline_skip = false
+fix = "harness apply"
+
+[[doctor_checks]]
+id = "ssh-binary"
+title = "OpenSSH client installed"
+severity = "fail"
+cmd = "ssh -V"
+expect = { exit = 0 }
+offline_skip = false
+fix = "install the OpenSSH client with your OS package manager (openssh-client / openssh-clients)"
+
+[[doctor_checks]]
+id = "ssh-aliases"
+title = "~/.ssh/config has at least one Host alias"
+severity = "warn"
+cmd = "lx hosts --json | grep -q '\"alias\"'"
+expect = { exit = 0 }
+offline_skip = false
+fix = "ssh-aliases"
+
+[[doctor_checks]]
+id = "ssh-agent"
+title = "ssh-agent holds a key (exit code only; keys are never printed)"
+severity = "warn"
+cmd = "ssh-add -l >/dev/null 2>&1"
+expect = { exit = 0 }
+offline_skip = false
+fix = "ssh-agent-key"
 
 [uninstall]
 keeps = ["~/.ssh/**"]
-notes = "Your SSH keys, config and known_hosts are yours; uninstall removes only the rendered rule, permissions and guard sections."
+notes = "Your SSH keys, config, known_hosts and inventory file are yours; uninstall removes only the rendered skill, agents, lx link, rule, permissions and guard sections."
 
 # Component taxonomy (docs/reference/taxonomy.md): bundle defaults, then per-component overrides.
 [taxonomy]
@@ -84,17 +168,27 @@ domain = "infrastructure"
 posture = "read-only"
 function = "client"
 
+[taxonomy.components]
+"agents/linux-triage" = { function = "investigate" }
+"agents/linux-auditor" = { function = "review" }
+
 # Guides steer the agent before it acts; sensors detect at or after the action (principle 6).
 [harness]
-coverage_note = "The linux-rules guard section enforces rule text that lives in rules/82-linux.md. The remote allow-list judges the command text ssh sends; what an aliased host's ~/.ssh/config adds (ProxyCommand, RemoteCommand, StrictHostKeyChecking) and commands run through other tools (ansible, pssh, mosh) are not sensed. Device targets are judged by path: a relative path is a device only when the command or cwd is in /dev."
+coverage_note = "The agents' read-only stance is enforced for shell commands by the guard; what lx's fixed remote scripts run is checked by its own test suite (stub ssh), not by the guard. The linux-rules guard section enforces rule text that lives in rules/82-linux.md. The remote allow-list judges the command text ssh sends; what an aliased host's ~/.ssh/config adds (ProxyCommand, RemoteCommand, StrictHostKeyChecking) and commands run through other tools (ansible, pssh, mosh) are not sensed. Device targets are judged by path: a relative path is a device only when the command or cwd is in /dev."
 guides = [
   { kind = "rule", ref = "rules/82-linux.md", checks = ["guard.d/83-linux-rules.sh"], note = "read-only over ssh aliases, prod remediations are suggestions, host fixes through the infra repository" },
+  { kind = "skill", ref = "skills/linux", checks = ["skills/linux/scripts/tests/run.sh", "doctor_checks"], note = "the lx CLI: aliases, triage views, bounded logs, redact; distro-aware runbooks" },
   { kind = "permission", ref = "permissions.toml", checks = ["permissions-vs-guard", "guard.d/83-linux-rules.sh"], note = "local host reads allowed, storage and network changes ask, sshpass and disabled host-key checking denied" },
+  { kind = "agent", ref = "agents/linux-triage.md", checks = ["guard.d/83-linux-rules.sh", "agent-tools"], note = "read-only incident triage that hands remediations to the human" },
+  { kind = "agent", ref = "agents/linux-auditor.md", checks = ["guard.d/83-linux-rules.sh", "agent-tools"], note = "read-only posture review with fixes as infra-repo changes" },
 ]
 sensors = [
   { kind = "guard", ref = "guard.d/82-linux.sh", note = "clause lexer, ssh/scp/rsync parsing, remote allow-list and device targets shared by the rules section" },
   { kind = "guard", ref = "guard.d/83-linux-rules.sh", note = "remote mutations, sessions, tunnels, uploads, host-key checking, sshpass, private keys, local disk and network changes" },
   { kind = "test", ref = "guard.d/tests.sh", note = "guard rows incl. bypasses, the guard.env prod regex and the infrastructure yield" },
+  { kind = "doctor", ref = "doctor_checks", note = "the lx CLI, the ssh client, Host aliases and a key in ssh-agent" },
   { kind = "test", ref = "tests/run.sh", note = "this bundle's rows against core + linux only" },
+  { kind = "test", ref = "skills/linux/scripts/tests/run.sh", note = "the lx CLI against a stub ssh: goldens per subcommand, BatchMode/ConnectTimeout on every call, no tty, no host-key override, bounded logs, redaction" },
   { kind = "lint", ref = "permissions-vs-guard", note = "each Bash allow/deny rule of permissions.toml run through the guard: no allowed command the guard denies or asks, no denied one it allows" },
+  { kind = "lint", ref = "agent-tools", note = "read-only agents set no permissionMode and list no write tools" },
 ]

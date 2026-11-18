@@ -1,0 +1,50 @@
+@@lxcmd storage
+@@lx os
+NAME="Rocky Linux"
+VERSION="9.4 (Blue Onyx)"
+ID="rocky"
+ID_LIKE="rhel centos fedora"
+VERSION_ID="9.4"
+PLATFORM_ID="platform:el9"
+PRETTY_NAME="Rocky Linux 9.4 (Blue Onyx)"
+@@lx lsblk
+NAME="sda" TYPE="disk" SIZE="80G" FSTYPE="" MOUNTPOINT="" RO="0" ROTA="0" MODEL="Virtual disk    "
+NAME="sda1" TYPE="part" SIZE="1G" FSTYPE="xfs" MOUNTPOINT="/boot" RO="0" ROTA="0" MODEL=""
+NAME="sda2" TYPE="part" SIZE="79G" FSTYPE="LVM2_member" MOUNTPOINT="" RO="0" ROTA="0" MODEL=""
+NAME="rl-root" TYPE="lvm" SIZE="70G" FSTYPE="xfs" MOUNTPOINT="/" RO="0" ROTA="0" MODEL=""
+NAME="sdb" TYPE="disk" SIZE="500G" FSTYPE="linux_raid_member" MOUNTPOINT="" RO="0" ROTA="1" MODEL="ST500DM002"
+NAME="sdc" TYPE="disk" SIZE="500G" FSTYPE="linux_raid_member" MOUNTPOINT="" RO="0" ROTA="1" MODEL="ST500DM002"
+NAME="md0" TYPE="raid1" SIZE="500G" FSTYPE="LVM2_member" MOUNTPOINT="" RO="0" ROTA="1" MODEL=""
+NAME="data-pg" TYPE="lvm" SIZE="500G" FSTYPE="xfs" MOUNTPOINT="/var/lib/pgsql" RO="0" ROTA="1" MODEL=""
+@@lx findmnt
+/ /dev/mapper/rl-root xfs rw,relatime,attr2,inode64,logbufs=8,logbsize=32k,noquota
+/boot /dev/sda1 xfs rw,relatime,attr2,inode64
+/var/lib/pgsql /dev/mapper/data-pg xfs rw,noatime,attr2,inode64
+/dev devtmpfs devtmpfs rw,nosuid,size=4096k
+@@lx df
+Filesystem          Type 1024-blocks      Used Available Capacity Mounted on
+/dev/mapper/rl-root xfs     73364480  12345678  61018802      17% /
+/dev/sda1           xfs      1038336    345678    692658      34% /boot
+/dev/mapper/data-pg xfs    524288000 314572800 209715200      60% /var/lib/pgsql
+@@lx lvs
+  root|rl|-wi-ao----|70.00g||
+  swap|rl|-wi-a-----|8.00g||
+  pool|data|twi-aotz--|490.00g|92.40|
+  pg|data|Vwi-aotz--|500.00g|58.10|pool
+@@lx vgs
+  data|1|2|499.98g|9.98g
+  rl|1|2|79.00g|1.00g
+@@lx zpool
+@@lx zstatus
+@@lx mdstat
+Personalities : [raid1]
+md0 : active raid1 sdc[1] sdb[0](F)
+      488254464 blocks super 1.2 [2/1] [_U]
+      [=>...................]  recovery =  8.5% (41502720/488254464) finish=60.1min speed=123904K/sec
+      bitmap: 2/4 pages [8KB], 65536KB chunk
+
+unused devices: <none>
+@@lx smart
+sda smartctl open device: /dev/sda failed: Permission denied
+sdb smartctl open device: /dev/sdb failed: Permission denied
+sdc smartctl open device: /dev/sdc failed: Permission denied

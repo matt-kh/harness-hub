@@ -18,7 +18,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | [`jira`](bundles/jira.md#components) | tracker | label-gated | govern, client, setup | stable | Jira Server client (jira CLI + skill), read-only jira-mcp server, Jira write governance in the guard |
 | [`k8s`](bundles/k8s.md#components) | kubernetes | read-only | govern, client, investigate, plan, review, setup | stable | Read-only Kubernetes client (k8s CLI + skill), triage / audit / architect agents, kubeconfig and Secret guards |
 | [`lessons`](bundles/lessons.md#components) | base | local | govern, workflow, setup | experimental | The lessons loop: a /retro skill that turns a session's journal signals into at most two evidence-backed candidate lessons, a rule that has agents consult them, and hooks that record user corrections and nudge for a retro |
-| [`linux`](bundles/linux.md#components) | infrastructure | read-only | govern | experimental | Linux hosts over SSH: read-only by default, guards on remote mutations, interactive sessions, tunnels, uploads, disabled host-key checking, copied private keys and local disk / network changes |
+| [`linux`](bundles/linux.md#components) | infrastructure | read-only | govern, client, investigate, review, setup | experimental | Linux hosts over SSH aliases: read-only lx CLI, skill and triage / audit agents; guards on remote mutations, interactive sessions, tunnels, uploads, disabled host-key checking, copied private keys and local disk / network changes |
 | [`obs`](bundles/obs.md#components) | operations | read-only | govern, client, investigate, setup | experimental | Read-only observability client (obs CLI + skill) for SigNoz, Prometheus and Grafana, an obs-triage agent, and API-key and raw-backend guards |
 | [`repo-bootstrap`](bundles/repo-bootstrap.md#components) | scm | label-gated | govern, client, setup | experimental | Bootstrap git repositories to a standard, locally and on GitHub or GitLab: a standard intake, architecture packs, and `repoboot` (questions, answer, plan, render, apply, check) |
 | [`stack`](bundles/stack.md#components) | scm | label-gated | govern, client, setup | experimental | Stacked MRs/PRs on free tiers: the `stk` CLI (plan, status, check, sync) keeps a chain of dependent parts retargeted, rebased and pushed |
@@ -35,6 +35,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | `jira/skills/jira` | guide | tracker | client | label-gated | execute | declaration | Interact with the org's self-hosted Jira Server ({{ jira.url }}) — read/search/update tickets, sprints, versions, transitions, attachments, comments. |
 | `k8s/skills/k8s` | guide | kubernetes | client | read-only | execute | declaration | Read-only Kubernetes operator client for every context in the user's kubeconfig via the `k8s` CLI and explicit-context kubectl. |
 | `lessons/skills/retro` | guide | base | workflow | local | execute | declaration | Reflect on the task just finished and record at most two evidence-backed candidate lessons (one invariant, one for the task's domain) in the private lessons li… |
+| `linux/skills/linux` | guide | infrastructure | client | read-only | execute | declaration | Read-only Linux host client over the aliases in ~/.ssh/config via the `lx` CLI and plain read-only `ssh HOST <command>`. |
 | `obs/skills/obs` | guide | operations | client | read-only | execute | declaration | Read-only observability client for SigNoz, Prometheus and Grafana via the `obs` CLI. |
 | `repo-bootstrap/skills/bootstrap-repo` | guide | scm | setup | label-gated | execute | declaration | Bootstrap a git repository to a standard, locally or on GitHub / GitLab, with the `repoboot` CLI. |
 | `stack/skills/stk` | guide | scm | client | label-gated | execute | declaration | Stacked MRs/PRs on free tiers with the `stk` CLI over native glab, gh and git: check a repository's readiness, plan a stack (topology, bottom-up merge order, t… |
@@ -56,6 +57,8 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | `k8s/agents/infra-architect` | guide | kubernetes | plan | read-only | plan | name | Use this agent for expert guidance on infrastructure design, platform architecture, or DevOps strategy — advisory/planning only. |
 | `k8s/agents/k8s-auditor` | guide | kubernetes | review | read-only | execute | name | Read-only Kubernetes posture review of a context or namespace — pod security, PSA labels, RBAC, Secret hygiene, certificate expiry, capacity headroom, deprecat… |
 | `k8s/agents/k8s-triage` | guide | kubernetes | investigate | read-only | execute | name | Read-only Kubernetes incident triage. |
+| `linux/agents/linux-auditor` | guide | infrastructure | review | read-only | execute | name | Read-only Linux host posture review over ssh aliases — sshd settings, network exposure, host firewall, sudoers shape, automatic and pending security updates, p… |
+| `linux/agents/linux-triage` | guide | infrastructure | investigate | read-only | execute | name | Read-only Linux host incident triage over ssh aliases. |
 | `obs/agents/obs-triage` | guide + sensor (inferential) | operations | investigate | read-only | execute | name | Read-only signal triage across observability backends (SigNoz, Prometheus, Grafana). |
 | `supply-chain/agents/supply-architect` | guide | security | plan | read-only | plan | name | Design-only software supply-chain architect. |
 | `supply-chain/agents/supply-auditor` | guide + sensor (inferential) | security | review | read-only | execute | name | Read-only software supply-chain review of a checkout — unpinned actions, images and dependencies, unverified downloads, CI workflow hardening, known vulnerabil… |
@@ -154,6 +157,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | `gdoc/bin/gdoc` | workspace | label-gated | `skills/gdoc/scripts/gdoc.py` |
 | `jira/bin/jira` | tracker | label-gated | `skills/jira/scripts/jira.py` |
 | `k8s/bin/k8s` | kubernetes | read-only | `skills/k8s/scripts/k8s.py` |
+| `linux/bin/lx` | infrastructure | read-only | `skills/linux/scripts/lx.py` |
 | `obs/bin/obs` | operations | read-only | `skills/obs/scripts/obs.py` |
 | `repo-bootstrap/bin/repoboot` | scm | label-gated | `skills/bootstrap-repo/scripts/repoboot.py` |
 | `stack/bin/stk` | scm | label-gated | `skills/stk/scripts/stk.py` |
@@ -204,6 +208,10 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | [`lessons/doctor/lessons-index-fresh`](bundles/lessons.md#doctor-checks) | sensor | base | lessons INDEX.md is not older than the newest lesson record |
 | [`lessons/doctor/lessons-review-keys`](bundles/lessons.md#doctor-checks) | sensor | base | lessons.correction_re and lessons.dissatisfaction_re compile under grep -E |
 | [`lessons/doctor/lessons-stale-candidates`](bundles/lessons.md#doctor-checks) | sensor | base | No stale candidate lessons |
+| [`linux/doctor/lx-cli`](bundles/linux.md#doctor-checks) | sensor | infrastructure | lx CLI on PATH |
+| [`linux/doctor/ssh-agent`](bundles/linux.md#doctor-checks) | sensor | infrastructure | ssh-agent holds a key (exit code only; keys are never printed) |
+| [`linux/doctor/ssh-aliases`](bundles/linux.md#doctor-checks) | sensor | infrastructure | ~/.ssh/config has at least one Host alias |
+| [`linux/doctor/ssh-binary`](bundles/linux.md#doctor-checks) | sensor | infrastructure | OpenSSH client installed |
 | [`obs/doctor/obs-backends`](bundles/obs.md#doctor-checks) | sensor | operations | at least one observability backend configured |
 | [`obs/doctor/obs-cli`](bundles/obs.md#doctor-checks) | sensor | operations | obs CLI on PATH |
 | [`obs/doctor/obs-hosts-re`](bundles/obs.md#doctor-checks) | sensor | operations | obs.hosts_re is a POSIX ERE covering every configured backend |
@@ -255,6 +263,8 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | [`k8s/steps/kubeconfig-contexts`](bundles/k8s.md#kubeconfig-contexts) | kubernetes | Merge your clusters' kubeconfig contexts (human-managed) |
 | [`lessons/steps/enable-journal`](bundles/lessons.md#enable-journal) | base | Turn on the journal and prompt signals (opt-in) |
 | [`lessons/steps/read-the-loop`](bundles/lessons.md#read-the-loop) | base | Read how the lessons loop works (you confirm, retire and propose) |
+| [`linux/steps/ssh-agent-key`](bundles/linux.md#ssh-agent-key) | infrastructure | Load your SSH key into ssh-agent |
+| [`linux/steps/ssh-aliases`](bundles/linux.md#ssh-aliases) | infrastructure | Give every host an alias in ~/.ssh/config |
 | [`obs/steps/configure-backends`](bundles/obs.md#configure-backends) | operations | Describe your observability backends in local/harness.toml |
 | [`obs/steps/obs-api-key`](bundles/obs.md#obs-api-key) | operations | Create a read-only API key per backend |
 | [`repo-bootstrap/steps/repo-bootstrap-packs`](bundles/repo-bootstrap.md#repo-bootstrap-packs) | scm | Optional: point repo_bootstrap.pack_dirs at your architecture packs |
@@ -303,7 +313,7 @@ Skills, agents, CLIs and MCP servers by domain and posture (the strongest effect
 | kubernetes | `k8s/agents/infra-architect`, `k8s/agents/k8s-auditor`, `k8s/agents/k8s-triage`, `k8s/bin/k8s`, `k8s/skills/k8s` | — | — |
 | workspace | — | — | `gdoc/bin/gdoc`, `gdoc/skills/gdoc` |
 | operations | `obs/agents/obs-triage`, `obs/bin/obs`, `obs/skills/obs` | — | — |
-| infrastructure | — | — | — |
+| infrastructure | `linux/agents/linux-auditor`, `linux/agents/linux-triage`, `linux/bin/lx`, `linux/skills/linux` | — | — |
 | security | `supply-chain/agents/supply-architect`, `supply-chain/agents/supply-auditor`, `supply-chain/agents/supply-triage`, `supply-chain/bin/supply`, `supply-chain/skills/supply` | `supply-chain/skills/audit-deps`, `supply-chain/skills/pin-deps` | — |
 <!-- generated:end -->
 

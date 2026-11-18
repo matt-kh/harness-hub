@@ -1,0 +1,5 @@
+Nov 15 09:58:03 web1 certbot[4242]: Renewing https://deploy:hunter2@acme.example.com/directory
+Nov 15 09:58:04 web1 app[812]: connecting with password=s3cr3t-value to db1.example.com
+Nov 15 09:58:05 web1 app[812]: aws key AKIAIOSFODNN7EXAMPLE loaded
+Nov 15 09:58:06 web1 app[812]: Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.c2lnbmF0dXJl
+Nov 15 09:58:07 web1 app[812]: request id 7f3a served in 12 ms

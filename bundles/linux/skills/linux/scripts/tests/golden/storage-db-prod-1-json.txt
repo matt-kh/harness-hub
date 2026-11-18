@@ -1,0 +1,247 @@
+# exit=1
+# stderr:
+host=db-prod-1 os=rocky 9.4 [PROD]
+# stdout:
+{
+  "host": "db-prod-1",
+  "prod": true,
+  "os": "rocky 9.4",
+  "command": "storage",
+  "findings": [
+    {
+      "severity": "crit",
+      "kind": "raid",
+      "name": "md0",
+      "message": "degraded [_U]",
+      "evidence": null
+    },
+    {
+      "severity": "warn",
+      "kind": "lvm",
+      "name": "data/pool",
+      "message": "thin pool 92.4% full",
+      "evidence": null
+    },
+    {
+      "severity": "info",
+      "kind": "raid",
+      "name": "md0",
+      "message": "recovery at 8.5%",
+      "evidence": null
+    },
+    {
+      "severity": "info",
+      "kind": "smart",
+      "name": "sda,sdb,sdc",
+      "message": "SMART needs root (for the human: sudo smartctl -H /dev/sda)",
+      "evidence": null
+    }
+  ],
+  "data": {
+    "devices": [
+      {
+        "name": "sda",
+        "type": "disk",
+        "size": "80G",
+        "fstype": "",
+        "mountpoint": "",
+        "ro": false,
+        "rota": false,
+        "model": "Virtual disk"
+      },
+      {
+        "name": "sda1",
+        "type": "part",
+        "size": "1G",
+        "fstype": "xfs",
+        "mountpoint": "/boot",
+        "ro": false,
+        "rota": false,
+        "model": ""
+      },
+      {
+        "name": "sda2",
+        "type": "part",
+        "size": "79G",
+        "fstype": "LVM2_member",
+        "mountpoint": "",
+        "ro": false,
+        "rota": false,
+        "model": ""
+      },
+      {
+        "name": "rl-root",
+        "type": "lvm",
+        "size": "70G",
+        "fstype": "xfs",
+        "mountpoint": "/",
+        "ro": false,
+        "rota": false,
+        "model": ""
+      },
+      {
+        "name": "sdb",
+        "type": "disk",
+        "size": "500G",
+        "fstype": "linux_raid_member",
+        "mountpoint": "",
+        "ro": false,
+        "rota": true,
+        "model": "ST500DM002"
+      },
+      {
+        "name": "sdc",
+        "type": "disk",
+        "size": "500G",
+        "fstype": "linux_raid_member",
+        "mountpoint": "",
+        "ro": false,
+        "rota": true,
+        "model": "ST500DM002"
+      },
+      {
+        "name": "md0",
+        "type": "raid1",
+        "size": "500G",
+        "fstype": "LVM2_member",
+        "mountpoint": "",
+        "ro": false,
+        "rota": true,
+        "model": ""
+      },
+      {
+        "name": "data-pg",
+        "type": "lvm",
+        "size": "500G",
+        "fstype": "xfs",
+        "mountpoint": "/var/lib/pgsql",
+        "ro": false,
+        "rota": true,
+        "model": ""
+      }
+    ],
+    "mounts": [
+      {
+        "target": "/",
+        "source": "/dev/mapper/rl-root",
+        "fstype": "xfs",
+        "ro": false
+      },
+      {
+        "target": "/boot",
+        "source": "/dev/sda1",
+        "fstype": "xfs",
+        "ro": false
+      },
+      {
+        "target": "/var/lib/pgsql",
+        "source": "/dev/mapper/data-pg",
+        "fstype": "xfs",
+        "ro": false
+      }
+    ],
+    "disks": [
+      {
+        "mount": "/",
+        "fs": "/dev/mapper/rl-root",
+        "type": "xfs",
+        "size": "70.0G",
+        "used": "11.8G",
+        "avail": "58.2G",
+        "use%": 17
+      },
+      {
+        "mount": "/boot",
+        "fs": "/dev/sda1",
+        "type": "xfs",
+        "size": "1014.0M",
+        "used": "337.6M",
+        "avail": "676.4M",
+        "use%": 34
+      },
+      {
+        "mount": "/var/lib/pgsql",
+        "fs": "/dev/mapper/data-pg",
+        "type": "xfs",
+        "size": "500.0G",
+        "used": "300.0G",
+        "avail": "200.0G",
+        "use%": 60
+      }
+    ],
+    "lvm_volumes": [
+      {
+        "lv": "root",
+        "vg": "rl",
+        "attr": "-wi-ao----",
+        "size": "70.00g",
+        "data%": "",
+        "pool": ""
+      },
+      {
+        "lv": "swap",
+        "vg": "rl",
+        "attr": "-wi-a-----",
+        "size": "8.00g",
+        "data%": "",
+        "pool": ""
+      },
+      {
+        "lv": "pool",
+        "vg": "data",
+        "attr": "twi-aotz--",
+        "size": "490.00g",
+        "data%": "92.40",
+        "pool": ""
+      },
+      {
+        "lv": "pg",
+        "vg": "data",
+        "attr": "Vwi-aotz--",
+        "size": "500.00g",
+        "data%": "58.10",
+        "pool": "pool"
+      }
+    ],
+    "lvm_groups": [
+      {
+        "vg": "data",
+        "pvs": 1,
+        "lvs": 2,
+        "size": "499.98g",
+        "free": "9.98g"
+      },
+      {
+        "vg": "rl",
+        "pvs": 1,
+        "lvs": 2,
+        "size": "79.00g",
+        "free": "1.00g"
+      }
+    ],
+    "zfs": [],
+    "md_raid": [
+      {
+        "array": "md0",
+        "state": "active",
+        "level": "raid1",
+        "members": "sdc[1] sdb[0](F)",
+        "status": "_U recovery 8.5%"
+      }
+    ],
+    "smart": [
+      {
+        "device": "sda",
+        "health": "needs root"
+      },
+      {
+        "device": "sdb",
+        "health": "needs root"
+      },
+      {
+        "device": "sdc",
+        "health": "needs root"
+      }
+    ]
+  }
+}

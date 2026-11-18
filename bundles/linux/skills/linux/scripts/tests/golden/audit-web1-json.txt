@@ -1,0 +1,163 @@
+# exit=1
+# stderr:
+host=web1 os=ubuntu 24.04
+# stdout:
+{
+  "host": "web1",
+  "prod": false,
+  "os": "ubuntu 24.04",
+  "command": "audit",
+  "findings": [
+    {
+      "severity": "warn",
+      "kind": "perms",
+      "name": "/etc",
+      "message": "1 world-writable file(s): /etc/app/config.ini",
+      "evidence": null
+    },
+    {
+      "severity": "warn",
+      "kind": "port",
+      "name": "tcp/6379",
+      "message": "redis listening on all interfaces",
+      "evidence": null
+    },
+    {
+      "severity": "warn",
+      "kind": "sshd",
+      "name": "PasswordAuthentication",
+      "message": "password logins enabled \u2014 keys only",
+      "evidence": null
+    },
+    {
+      "severity": "warn",
+      "kind": "updates",
+      "name": "web1",
+      "message": "3 security update(s) pending",
+      "evidence": null
+    },
+    {
+      "severity": "warn",
+      "kind": "updates",
+      "name": "web1",
+      "message": "unattended-upgrades not on (APT::Periodic::Unattended-Upgrade \"1\" in 20auto-upgrades)",
+      "evidence": null
+    },
+    {
+      "severity": "info",
+      "kind": "perms",
+      "name": "/usr",
+      "message": "21 SUID file(s) \u2014 compare with a known-good host of the same release",
+      "evidence": null
+    },
+    {
+      "severity": "info",
+      "kind": "port",
+      "name": "web1",
+      "message": "listening on all interfaces: 80, 443 \u2014 confirm each is meant to be reachable",
+      "evidence": null
+    },
+    {
+      "severity": "info",
+      "kind": "sshd",
+      "name": "PermitRootLogin",
+      "message": "root may log in with a key \u2014 consider `no`",
+      "evidence": null
+    },
+    {
+      "severity": "info",
+      "kind": "sshd",
+      "name": "X11Forwarding",
+      "message": "X11 forwarding enabled on a server",
+      "evidence": null
+    }
+  ],
+  "data": {
+    "sshd": {
+      "passwordauthentication": "yes",
+      "kbdinteractiveauthentication": "no",
+      "permitrootlogin": "prohibit-password",
+      "x11forwarding": "yes",
+      "source": "config files (approximate: first value wins, Match blocks ignored)"
+    },
+    "listening": [
+      {
+        "proto": "tcp",
+        "address": "127.0.0.53",
+        "port": "53",
+        "scope": "loopback"
+      },
+      {
+        "proto": "tcp",
+        "address": "0.0.0.0",
+        "port": "22",
+        "scope": "all"
+      },
+      {
+        "proto": "tcp",
+        "address": "0.0.0.0",
+        "port": "80",
+        "scope": "all"
+      },
+      {
+        "proto": "tcp",
+        "address": "0.0.0.0",
+        "port": "443",
+        "scope": "all"
+      },
+      {
+        "proto": "tcp",
+        "address": "0.0.0.0",
+        "port": "6379",
+        "scope": "all"
+      },
+      {
+        "proto": "tcp",
+        "address": "[::]",
+        "port": "22",
+        "scope": "all"
+      },
+      {
+        "proto": "tcp",
+        "address": "127.0.0.1",
+        "port": "9113",
+        "scope": "loopback"
+      },
+      {
+        "proto": "udp",
+        "address": "127.0.0.53",
+        "port": "53",
+        "scope": "loopback"
+      }
+    ],
+    "sudo": {
+      "login_uid": "1000",
+      "sudoers_mode": "440 root:root",
+      "sudoers_readable": "no",
+      "sudoers_d_entries": "unreadable",
+      "nopasswd_rules": "not readable",
+      "login_admin_groups": [
+        "sudo"
+      ]
+    },
+    "updates": {
+      "package_manager": "apt",
+      "upgradable": 14,
+      "security": 3
+    },
+    "auto_updates": {
+      "enabled_units": [
+        "apt-daily-upgrade.timer",
+        "unattended-upgrades.service"
+      ],
+      "apt_unattended_upgrade": "APT::Periodic::Unattended-Upgrade \"0\";",
+      "on": false
+    },
+    "files": {
+      "suid_in_usr": 21,
+      "world_writable_in_etc": [
+        "/etc/app/config.ini"
+      ]
+    }
+  }
+}

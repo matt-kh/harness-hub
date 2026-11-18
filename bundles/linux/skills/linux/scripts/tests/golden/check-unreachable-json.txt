@@ -1,0 +1,25 @@
+# exit=2
+# stderr:
+host=unreachable os=?
+# stdout:
+{
+  "host": "unreachable",
+  "prod": false,
+  "command": "check",
+  "findings": [
+    {
+      "severity": "crit",
+      "kind": "access",
+      "name": "unreachable",
+      "message": "unreachable: unreachable: ssh: connect to host 192.0.2.99 port 22: Connection timed out",
+      "evidence": null
+    }
+  ],
+  "data": {
+    "check": {
+      "reachable": false,
+      "auth": false,
+      "error": "unreachable: unreachable: ssh: connect to host 192.0.2.99 port 22: Connection timed out"
+    }
+  }
+}

@@ -68,6 +68,7 @@ Environment override for any key: `HARNESS_<SECTION>_<KEY>` (e.g. `HARNESS_JIRA_
 | `lessons.review.dissatisfaction` | integer | `1` | core | `harness lessons review` is due when one session has at least this many dissatisfaction journal lines. 0 disables this criterion. |
 | `linux.inventory` | string | `""` | linux | Optional path to a host inventory file (one host per line: alias, role, notes); aliases themselves come from ~/.ssh/config. Empty = ~/.ssh/config only. LINUX_INVENTORY. |
 | `linux.prod_re` | string | `"(^\|[-_./:])(prod\|production)([-_./:]\|$)"` | linux | Case-insensitive POSIX ERE on host aliases marking production ([PROD] in guard reasons; remediations become suggestions only). LINUX_PROD_RE. |
+| `linux.redact_extra_re` | string | `""` | linux | Extra Python regex of token shapes masked on top of the built-in list, applied by `lx redact` and `lx logs`. LINUX_REDACT_EXTRA_RE. |
 | `linux.ssh_timeout` | integer | `10` | linux | Connect timeout in seconds for every SSH call the bundle's tooling makes (ConnectTimeout). LINUX_SSH_TIMEOUT. |
 | `obs.backends` | array | `[]` | obs | Observability backends, as [[obs.backends]] tables: name, kind (signoz \| prometheus \| grafana), url, auth_file (a key file under ~/.config/obs, mode 0600; optional for prometheus). Never the key itself. |
 | `obs.default` | string | `""` | obs | Backend name `obs` uses without --backend. Empty = the first entry of obs.backends. |

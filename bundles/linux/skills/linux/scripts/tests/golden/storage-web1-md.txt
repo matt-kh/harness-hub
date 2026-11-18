@@ -1,0 +1,68 @@
+# exit=1
+# stderr:
+host=web1 os=ubuntu 24.04
+# stdout:
+# lx storage — web1
+
+os: ubuntu 24.04
+
+## Findings (3)
+
+| sev | kind | name | message |
+|---|---|---|---|
+| crit | disk | /var/lib/docker | disk 96% used on /dev/vdb1 |
+| warn | disk | / | disk 92% used on /dev/vda1 |
+| warn | mount | /srv/backup | /srv/backup (ext4) is mounted read-only — often an error remount; check `lx logs web1 --priority err` |
+
+## devices
+
+| name | type | size | fstype | mountpoint | ro | rota | model |
+|---|---|---|---|---|---|---|---|
+| vda | disk | 40G |  |  | no | yes |  |
+|   vda1 | part | 39.9G | ext4 | / | no | yes |  |
+|   vda15 | part | 105M | vfat | /boot/efi | no | yes |  |
+| vdb | disk | 100G |  |  | no | yes |  |
+|   vdb1 | part | 100G | xfs | /var/lib/docker | no | yes |  |
+| vdc | disk | 20G | ext4 | /srv/backup | no | yes |  |
+
+## mounts
+
+| target | source | fstype | ro |
+|---|---|---|---|
+| / | /dev/vda1 | ext4 | no |
+| /boot/efi | /dev/vda15 | vfat | no |
+| /var/lib/docker | /dev/vdb1 | xfs | no |
+| /srv/backup | /dev/vdc | ext4 | yes |
+
+## disks
+
+| mount | fs | type | size | used | avail | use% |
+|---|---|---|---|---|---|---|
+| / | /dev/vda1 | ext4 | 38.7G | 35.4G | 3.3G | 92 |
+| /boot/efi | /dev/vda15 | vfat | 104.3M | 6.0M | 98.3M | 6 |
+| /var/lib/docker | /dev/vdb1 | xfs | 100.0G | 95.0G | 5.0G | 96 |
+| /srv/backup | /dev/vdc | ext4 | 19.6G | 7.8G | 10.7G | 43 |
+
+## lvm_volumes
+
+_none_
+
+## lvm_groups
+
+_none_
+
+## zfs
+
+_none_
+
+## md_raid
+
+_none_
+
+## smart
+
+| device | health |
+|---|---|
+| vda | unknown |
+| vdb | unknown |
+| vdc | unknown |

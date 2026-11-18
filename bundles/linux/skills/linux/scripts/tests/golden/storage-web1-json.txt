@@ -1,0 +1,179 @@
+# exit=1
+# stderr:
+host=web1 os=ubuntu 24.04
+# stdout:
+{
+  "host": "web1",
+  "prod": false,
+  "os": "ubuntu 24.04",
+  "command": "storage",
+  "findings": [
+    {
+      "severity": "crit",
+      "kind": "disk",
+      "name": "/var/lib/docker",
+      "message": "disk 96% used on /dev/vdb1",
+      "evidence": null
+    },
+    {
+      "severity": "warn",
+      "kind": "disk",
+      "name": "/",
+      "message": "disk 92% used on /dev/vda1",
+      "evidence": null
+    },
+    {
+      "severity": "warn",
+      "kind": "mount",
+      "name": "/srv/backup",
+      "message": "/srv/backup (ext4) is mounted read-only \u2014 often an error remount; check `lx logs web1 --priority err`",
+      "evidence": null
+    }
+  ],
+  "data": {
+    "devices": [
+      {
+        "name": "vda",
+        "type": "disk",
+        "size": "40G",
+        "fstype": "",
+        "mountpoint": "",
+        "ro": false,
+        "rota": true,
+        "model": ""
+      },
+      {
+        "name": "  vda1",
+        "type": "part",
+        "size": "39.9G",
+        "fstype": "ext4",
+        "mountpoint": "/",
+        "ro": false,
+        "rota": true,
+        "model": ""
+      },
+      {
+        "name": "  vda15",
+        "type": "part",
+        "size": "105M",
+        "fstype": "vfat",
+        "mountpoint": "/boot/efi",
+        "ro": false,
+        "rota": true,
+        "model": ""
+      },
+      {
+        "name": "vdb",
+        "type": "disk",
+        "size": "100G",
+        "fstype": "",
+        "mountpoint": "",
+        "ro": false,
+        "rota": true,
+        "model": ""
+      },
+      {
+        "name": "  vdb1",
+        "type": "part",
+        "size": "100G",
+        "fstype": "xfs",
+        "mountpoint": "/var/lib/docker",
+        "ro": false,
+        "rota": true,
+        "model": ""
+      },
+      {
+        "name": "vdc",
+        "type": "disk",
+        "size": "20G",
+        "fstype": "ext4",
+        "mountpoint": "/srv/backup",
+        "ro": false,
+        "rota": true,
+        "model": ""
+      }
+    ],
+    "mounts": [
+      {
+        "target": "/",
+        "source": "/dev/vda1",
+        "fstype": "ext4",
+        "ro": false
+      },
+      {
+        "target": "/boot/efi",
+        "source": "/dev/vda15",
+        "fstype": "vfat",
+        "ro": false
+      },
+      {
+        "target": "/var/lib/docker",
+        "source": "/dev/vdb1",
+        "fstype": "xfs",
+        "ro": false
+      },
+      {
+        "target": "/srv/backup",
+        "source": "/dev/vdc",
+        "fstype": "ext4",
+        "ro": true
+      }
+    ],
+    "disks": [
+      {
+        "mount": "/",
+        "fs": "/dev/vda1",
+        "type": "ext4",
+        "size": "38.7G",
+        "used": "35.4G",
+        "avail": "3.3G",
+        "use%": 92
+      },
+      {
+        "mount": "/boot/efi",
+        "fs": "/dev/vda15",
+        "type": "vfat",
+        "size": "104.3M",
+        "used": "6.0M",
+        "avail": "98.3M",
+        "use%": 6
+      },
+      {
+        "mount": "/var/lib/docker",
+        "fs": "/dev/vdb1",
+        "type": "xfs",
+        "size": "100.0G",
+        "used": "95.0G",
+        "avail": "5.0G",
+        "use%": 96
+      },
+      {
+        "mount": "/srv/backup",
+        "fs": "/dev/vdc",
+        "type": "ext4",
+        "size": "19.6G",
+        "used": "7.8G",
+        "avail": "10.7G",
+        "use%": 43
+      }
+    ],
+    "lvm_volumes": [],
+    "lvm_groups": [],
+    "zfs": [],
+    "md_raid": [],
+    "smart": [
+      {
+        "device": "vda",
+        "health": "unknown"
+      },
+      {
+        "device": "vdb",
+        "health": "unknown"
+      },
+      {
+        "device": "vdc",
+        "health": "unknown"
+      }
+    ]
+  }
+}

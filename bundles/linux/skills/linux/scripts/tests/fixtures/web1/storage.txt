@@ -1,0 +1,52 @@
+@@lxcmd storage
+@@lx os
+PRETTY_NAME="Ubuntu 24.04.1 LTS"
+NAME="Ubuntu"
+VERSION_ID="24.04"
+VERSION="24.04.1 LTS (Noble Numbat)"
+VERSION_CODENAME=noble
+ID=ubuntu
+ID_LIKE=debian
+HOME_URL="https://www.ubuntu.com/"
+@@lx lsblk
+{
+   "blockdevices": [
+      {"name":"vda", "type":"disk", "size":"40G", "fstype":null, "mountpoint":null, "ro":false, "rota":true, "model":null,
+         "children": [
+            {"name":"vda1", "type":"part", "size":"39.9G", "fstype":"ext4", "mountpoint":"/", "ro":false, "rota":true, "model":null},
+            {"name":"vda15", "type":"part", "size":"105M", "fstype":"vfat", "mountpoint":"/boot/efi", "ro":false, "rota":true, "model":null}
+         ]
+      },
+      {"name":"vdb", "type":"disk", "size":"100G", "fstype":null, "mountpoint":null, "ro":false, "rota":true, "model":null,
+         "children": [
+            {"name":"vdb1", "type":"part", "size":"100G", "fstype":"xfs", "mountpoint":"/var/lib/docker", "ro":false, "rota":true, "model":null}
+         ]
+      },
+      {"name":"vdc", "type":"disk", "size":"20G", "fstype":"ext4", "mountpoint":"/srv/backup", "ro":false, "rota":true, "model":null}
+   ]
+}
+@@lx findmnt
+/ /dev/vda1 ext4 rw,relatime,discard,errors=remount-ro
+/proc proc proc rw,nosuid,nodev,noexec,relatime
+/run tmpfs tmpfs rw,nosuid,nodev,noexec,relatime,size=813156k,mode=755
+/boot/efi /dev/vda15 vfat rw,relatime,fmask=0077,dmask=0077
+/var/lib/docker /dev/vdb1 xfs rw,relatime,attr2,inode64
+/srv/backup /dev/vdc ext4 ro,relatime
+/snap/core22/1612 /dev/loop0 squashfs ro,nodev,relatime
+@@lx df
+Filesystem     Type 1024-blocks     Used Available Capacity Mounted on
+/dev/vda1      ext4    40581564 37122920   3442260      92% /
+/dev/vda15     vfat      106832     6186    100646       6% /boot/efi
+/dev/vdb1      xfs    104806400 99566080   5240320      96% /var/lib/docker
+/dev/vdc       ext4    20511312  8204524  11241828      43% /srv/backup
+@@lx lvs
+@@lx vgs
+@@lx zpool
+@@lx zstatus
+@@lx mdstat
+Personalities :
+unused devices: <none>
+@@lx smart
+vda unknown
+vdb unknown
+vdc unknown

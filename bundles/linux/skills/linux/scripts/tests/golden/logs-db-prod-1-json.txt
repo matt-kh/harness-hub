@@ -1,0 +1,27 @@
+# exit=0
+# stderr:
+host=db-prod-1 os=rocky 9.4 [PROD]
+# stdout:
+{
+  "host": "db-prod-1",
+  "prod": true,
+  "os": "rocky 9.4",
+  "command": "logs",
+  "findings": [],
+  "data": {
+    "query": {
+      "source": "journalctl",
+      "since": "1h",
+      "limit": 200,
+      "unit": "",
+      "priority": "",
+      "lines": 4
+    },
+    "lines": [
+      "2026-11-15T09:40:00+00:00 db1 postgres[2201]: LOG:  checkpoint starting: time",
+      "2026-11-15T09:41:12+00:00 db1 postgres[2201]: ERROR:  could not extend file \"base/16384/2619\": No space left on device",
+      "2026-11-15T09:41:13+00:00 db1 postgres[3302]: FATAL:  password authentication failed for user \"app\"",
+      "2026-11-15T09:41:14+00:00 db1 app-sync[910]: DSN postgres://***:***@db1.example.com:5432/app"
+    ]
+  }
+}

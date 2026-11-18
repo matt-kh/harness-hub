@@ -1,0 +1,1 @@
+{"host": "web1", "env": {"DB_PASSWORD": "s3cr3t-value", "API_TOKEN": "hunter2", "LOG_LEVEL": "info"}, "dsn_url": "postgres://app:pgpass123@db1.example.com/app"}

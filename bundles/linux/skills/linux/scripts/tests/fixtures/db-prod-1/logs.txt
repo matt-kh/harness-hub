@@ -1,0 +1,14 @@
+@@lxcmd logs
+@@lx os
+NAME="Rocky Linux"
+VERSION="9.4 (Blue Onyx)"
+ID="rocky"
+ID_LIKE="rhel centos fedora"
+VERSION_ID="9.4"
+PLATFORM_ID="platform:el9"
+PRETTY_NAME="Rocky Linux 9.4 (Blue Onyx)"
+@@lx logs
+2026-11-15T09:40:00+00:00 db1 postgres[2201]: LOG:  checkpoint starting: time
+2026-11-15T09:41:12+00:00 db1 postgres[2201]: ERROR:  could not extend file "base/16384/2619": No space left on device
+2026-11-15T09:41:13+00:00 db1 postgres[3302]: FATAL:  password authentication failed for user "app"
+2026-11-15T09:41:14+00:00 db1 app-sync[910]: DSN postgres://app:pgpass123@db1.example.com:5432/app

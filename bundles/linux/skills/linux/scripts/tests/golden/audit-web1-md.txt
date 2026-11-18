@@ -1,0 +1,78 @@
+# exit=1
+# stderr:
+host=web1 os=ubuntu 24.04
+# stdout:
+# lx audit — web1
+
+os: ubuntu 24.04
+
+## Findings (9)
+
+| sev | kind | name | message |
+|---|---|---|---|
+| warn | perms | /etc | 1 world-writable file(s): /etc/app/config.ini |
+| warn | port | tcp/6379 | redis listening on all interfaces |
+| warn | sshd | PasswordAuthentication | password logins enabled — keys only |
+| warn | updates | web1 | 3 security update(s) pending |
+| warn | updates | web1 | unattended-upgrades not on (APT::Periodic::Unattended-Upgrade "1" in 20auto-upgrades) |
+| info | perms | /usr | 21 SUID file(s) — compare with a known-good host of the same release |
+| info | port | web1 | listening on all interfaces: 80, 443 — confirm each is meant to be reachable |
+| info | sshd | PermitRootLogin | root may log in with a key — consider `no` |
+| info | sshd | X11Forwarding | X11 forwarding enabled on a server |
+
+## sshd
+
+| key | value |
+|---|---|
+| passwordauthentication | yes |
+| kbdinteractiveauthentication | no |
+| permitrootlogin | prohibit-password |
+| x11forwarding | yes |
+| source | config files (approximate: first value wins, Match blocks ignored) |
+
+## listening
+
+| proto | address | port | scope |
+|---|---|---|---|
+| tcp | 127.0.0.53 | 53 | loopback |
+| tcp | 0.0.0.0 | 22 | all |
+| tcp | 0.0.0.0 | 80 | all |
+| tcp | 0.0.0.0 | 443 | all |
+| tcp | 0.0.0.0 | 6379 | all |
+| tcp | [::] | 22 | all |
+| tcp | 127.0.0.1 | 9113 | loopback |
+| udp | 127.0.0.53 | 53 | loopback |
+
+## sudo
+
+| key | value |
+|---|---|
+| login_uid | 1000 |
+| sudoers_mode | 440 root:root |
+| sudoers_readable | no |
+| sudoers_d_entries | unreadable |
+| nopasswd_rules | not readable |
+| login_admin_groups | ["sudo"] |
+
+## updates
+
+| key | value |
+|---|---|
+| package_manager | apt |
+| upgradable | 14 |
+| security | 3 |
+
+## auto_updates
+
+| key | value |
+|---|---|
+| enabled_units | ["apt-daily-upgrade.timer", "unattended-upgrades.service"] |
+| apt_unattended_upgrade | APT::Periodic::Unattended-Upgrade "0"; |
+| on | no |
+
+## files
+
+| key | value |
+|---|---|
+| suid_in_usr | 21 |
+| world_writable_in_etc | ["/etc/app/config.ini"] |

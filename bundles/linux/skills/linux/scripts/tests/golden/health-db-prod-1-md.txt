@@ -1,0 +1,67 @@
+# exit=1
+# stderr:
+host=db-prod-1 os=rocky 9.4 [PROD]
+# stdout:
+# lx health — db-prod-1 [PROD]
+
+os: rocky 9.4
+
+## Findings (3)
+
+| sev | kind | name | message |
+|---|---|---|---|
+| crit | inodes | /var/lib/pgsql | inodes 99% used on /dev/mapper/data-pg |
+| warn | reboot | db-prod-1 | reboot pending (needs-restarting -r) |
+| warn | time | db-prod-1 | clock not NTP-synchronised (NTP=yes) |
+
+## load
+
+| key | value |
+|---|---|
+| load1 | 3.10 |
+| load5 | 2.80 |
+| load15 | 2.50 |
+| cpus | 16 |
+
+## failed_units
+
+_none_
+
+## disks
+
+| mount | fs | type | size | used | avail | use% |
+|---|---|---|---|---|---|---|
+| / | /dev/mapper/rl-root | xfs | 70.0G | 11.8G | 58.2G | 17 |
+| /boot | /dev/sda1 | xfs | 1014.0M | 337.6M | 676.4M | 34 |
+| /var/lib/pgsql | /dev/mapper/data-pg | xfs | 500.0G | 300.0G | 200.0G | 60 |
+
+## inodes
+
+| mount | inodes | used | use% |
+|---|---|---|---|
+| / | 36700160 | 98765 | 1 |
+| /boot | 524288 | 350 | 1 |
+| /var/lib/pgsql | 52428800 | 52000000 | 99 |
+
+## memory
+
+| key | value |
+|---|---|
+| total | 62.5G |
+| available | 38.1G |
+| available% | 61.0 |
+| psi_some_avg10 | 0.0 |
+
+## reboot
+
+| key | value |
+|---|---|
+| required | yes |
+| source | needs-restarting -r |
+
+## timesync
+
+| key | value |
+|---|---|
+| ntp | yes |
+| synchronized | no |

@@ -1,0 +1,69 @@
+# exit=1
+# stderr:
+host=db-prod-1 os=rocky 9.4 [PROD]
+# stdout:
+{
+  "host": "db-prod-1",
+  "prod": true,
+  "os": "rocky 9.4",
+  "command": "net",
+  "findings": [
+    {
+      "severity": "warn",
+      "kind": "route",
+      "name": "db-prod-1",
+      "message": "no IPv4 default route",
+      "evidence": null
+    }
+  ],
+  "data": {
+    "links": [
+      {
+        "name": "lo",
+        "state": "UNKNOWN",
+        "kind": "",
+        "master": "",
+        "parent": "",
+        "detail": "",
+        "addresses": "127.0.0.1/8 ::1/128"
+      },
+      {
+        "name": "ens192",
+        "state": "UP",
+        "kind": "",
+        "master": "",
+        "parent": "",
+        "detail": "",
+        "addresses": "203.0.113.20/24"
+      }
+    ],
+    "routes": [
+      "203.0.113.0/24 dev ens192 proto kernel scope link src 203.0.113.20 metric 100"
+    ],
+    "routes6_default": [],
+    "renderer": {
+      "in_use": "NetworkManager",
+      "netplan_files": [],
+      "active_services": [
+        "NetworkManager"
+      ]
+    },
+    "firewall": {
+      "active_services": [
+        "firewalld"
+      ],
+      "nft_tables": "needs root",
+      "ufw": "",
+      "firewalld": "running"
+    },
+    "dns": {
+      "nameservers": [
+        "203.0.113.53"
+      ],
+      "search": [
+        "example.com"
+      ],
+      "resolved": []
+    }
+  }
+}

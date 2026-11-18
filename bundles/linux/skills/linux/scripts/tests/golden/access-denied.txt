@@ -1,0 +1,4 @@
+# exit=2
+# stderr:
+denied: key auth failed (BatchMode, no password prompts): deploy@192.0.2.98: Permission denied (publickey). — load your key with ssh-add, then `lx check denied`
+# stdout:

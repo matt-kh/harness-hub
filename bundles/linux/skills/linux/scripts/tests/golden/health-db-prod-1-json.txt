@@ -1,0 +1,105 @@
+# exit=1
+# stderr:
+host=db-prod-1 os=rocky 9.4 [PROD]
+# stdout:
+{
+  "host": "db-prod-1",
+  "prod": true,
+  "os": "rocky 9.4",
+  "command": "health",
+  "findings": [
+    {
+      "severity": "crit",
+      "kind": "inodes",
+      "name": "/var/lib/pgsql",
+      "message": "inodes 99% used on /dev/mapper/data-pg",
+      "evidence": null
+    },
+    {
+      "severity": "warn",
+      "kind": "reboot",
+      "name": "db-prod-1",
+      "message": "reboot pending (needs-restarting -r)",
+      "evidence": null
+    },
+    {
+      "severity": "warn",
+      "kind": "time",
+      "name": "db-prod-1",
+      "message": "clock not NTP-synchronised (NTP=yes)",
+      "evidence": null
+    }
+  ],
+  "data": {
+    "load": {
+      "load1": "3.10",
+      "load5": "2.80",
+      "load15": "2.50",
+      "cpus": 16
+    },
+    "failed_units": [],
+    "disks": [
+      {
+        "mount": "/",
+        "fs": "/dev/mapper/rl-root",
+        "type": "xfs",
+        "size": "70.0G",
+        "used": "11.8G",
+        "avail": "58.2G",
+        "use%": 17
+      },
+      {
+        "mount": "/boot",
+        "fs": "/dev/sda1",
+        "type": "xfs",
+        "size": "1014.0M",
+        "used": "337.6M",
+        "avail": "676.4M",
+        "use%": 34
+      },
+      {
+        "mount": "/var/lib/pgsql",
+        "fs": "/dev/mapper/data-pg",
+        "type": "xfs",
+        "size": "500.0G",
+        "used": "300.0G",
+        "avail": "200.0G",
+        "use%": 60
+      }
+    ],
+    "inodes": [
+      {
+        "mount": "/",
+        "inodes": 36700160,
+        "used": 98765,
+        "use%": 1
+      },
+      {
+        "mount": "/boot",
+        "inodes": 524288,
+        "used": 350,
+        "use%": 1
+      },
+      {
+        "mount": "/var/lib/pgsql",
+        "inodes": 52428800,
+        "used": 52000000,
+        "use%": 99
+      }
+    ],
+    "memory": {
+      "total": "62.5G",
+      "available": "38.1G",
+      "available%": 61.0,
+      "psi_some_avg10": 0.0
+    },
+    "reboot": {
+      "required": true,
+      "source": "needs-restarting -r"
+    },
+    "timesync": {
+      "ntp": "yes",
+      "synchronized": "no"
+    }
+  }
+}

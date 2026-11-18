@@ -1,0 +1,4 @@
+# alias	role	notes
+web1	web	nginx frontend
+db-prod-1	db	postgres primary
+ghost	old	decommissioned
