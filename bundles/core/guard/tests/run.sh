@@ -30,14 +30,13 @@ selected() {  # NAME -> rc 0 when the bundle's rows (and sections) are part of t
 }
 
 if [ -n "${HARNESS_TEST_ROWS:-}" ]; then  # an unknown name would pass vacuously
-  _rows_ifs=$IFS; IFS=,
-  for n in $HARNESS_TEST_ROWS; do
-    [ -z "$n" ] && continue
-    [ -f "$bundles_dir/$n/guard.d/tests.sh" ] && continue
-    echo "HARNESS_TEST_ROWS: no guard rows for bundle '$n' (bundles/$n/guard.d/tests.sh missing)" >&2
-    exit 2
-  done
-  IFS=$_rows_ifs
+  ( set -f; IFS=,
+    for n in $HARNESS_TEST_ROWS; do
+      [ -z "$n" ] && continue
+      [ -f "$bundles_dir/$n/guard.d/tests.sh" ] && continue
+      echo "HARNESS_TEST_ROWS: no guard rows for bundle '$n' (bundles/$n/guard.d/tests.sh missing)" >&2
+      exit 2
+    done ) || exit 2
 fi
 
 if [ -z "${GUARD_BASH:-}" ]; then

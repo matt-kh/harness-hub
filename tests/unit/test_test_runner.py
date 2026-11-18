@@ -15,10 +15,11 @@ from harness import test as T
 class SuiteEnvScrubTest(unittest.TestCase):
     def test_inherited_row_knobs_are_dropped(self):
         with mock.patch.dict(os.environ, {"HARNESS_TEST_GUARD_COVERED": "1", "HARNESS_TEST_ROWS": "github",
-                                          "HARNESS_TEST_KEEP_ME": "x"}):
+                                          "HARNESS_TEST_BUNDLES": "jira", "HARNESS_TEST_KEEP_ME": "x"}):
             env = T.suite_env("/hub", "/build")
         self.assertNotIn("HARNESS_TEST_GUARD_COVERED", env)
         self.assertNotIn("HARNESS_TEST_ROWS", env)
+        self.assertNotIn("HARNESS_TEST_BUNDLES", env)
         self.assertEqual(env["HARNESS_TEST_KEEP_ME"], "x")
         self.assertEqual(env["HARNESS_HOME"], "/hub")
         self.assertEqual(env["HARNESS_BUILD_DIR"], "/build")

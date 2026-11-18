@@ -50,7 +50,7 @@ GIT_DISCOVERY_ENV = ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_COMMON_D
                      "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_PREFIX", "GIT_NAMESPACE", "GIT_IMPLICIT_WORK_TREE")
 
 # Row-selection knobs only ``run`` may set: inherited from the user's shell they would skip rows.
-ROW_SKIP_ENV = ("HARNESS_TEST_GUARD_COVERED", "HARNESS_TEST_ROWS")
+ROW_SKIP_ENV = ("HARNESS_TEST_GUARD_COVERED", "HARNESS_TEST_ROWS", "HARNESS_TEST_BUNDLES")
 
 
 def suite_env(home: str, build_dir: str) -> dict:
