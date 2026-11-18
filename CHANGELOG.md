@@ -713,6 +713,14 @@ prints every one between your applied version and the new one.
 
 ### Taxonomy
 
+- New domain value `infrastructure` ("hosts, operating systems, provisioning, cloud accounts,
+  containers, databases and IaC outside Kubernetes"): `schema/bundle.schema.json`,
+  `lib/harness/taxonomy.py` `FACETS`, the `[owns] domains` enum of `schema/repo.schema.json`,
+  the hand-written domain lists in `ARCHITECTURE.md`, `docs/concepts.md` and
+  `docs/repo-level.md`, and the `--domain` choices of `harness catalog` and `harness lessons`.
+  It lands one PR ahead of its first user, the `linux` bundle (#64), followed by `provision`;
+  the vocabulary row reads `0` until that bundle ships. The roadmap's proposed-values table
+  shows it as adopted.
 - New domain value `security` ("security posture of code, dependencies, artefacts and
   credentials: supply chain, appsec, vulnerabilities"): `schema/bundle.schema.json`,
   `lib/harness/taxonomy.py` `FACETS`, the `[owns] domains` enum of `schema/repo.schema.json` and
@@ -929,6 +937,12 @@ prints every one between your applied version and the new one.
   foreign PRs, ambiguous repository, branch named like a PR, pending retarget) and invariants (only `gh stack link --base feat-x <numbers>`, never a default-branch
   base, plan/status/check never link). No config change.
 
+- The guard's `guard.env` parser (core engine) and the `env-provides` lint
+  (`GUARD_ENV_PREFIXES_FALLBACK`) accept the `LINUX_` and `PROVISION_` prefixes, ahead of the
+  `linux` and `provision` bundles (#64); nothing to edit for existing setups.
+  [docs/roadmap.md](docs/roadmap.md): guard band `82` becomes `82-linux` and `83-linux-rules`
+  and `85-provision` are reserved; the planned `hosts` bundle is superseded by `linux` (its
+  keys become `linux.prod_re`, `linux.inventory`, `linux.ssh_timeout`).
 - GitHub and GitLab guard sections adopt "humans decide" (principle 2, part of #67). From a
   subagent (Claude Code's `agent_id`) every merge, approval and PR/MR/issue state change is
   **denied** with "hand the command back to the main thread": `gh pr merge|review`,

@@ -298,6 +298,7 @@ Skills, agents, CLIs and MCP servers by domain and posture (the strongest effect
 | kubernetes | `k8s/agents/infra-architect`, `k8s/agents/k8s-auditor`, `k8s/agents/k8s-triage`, `k8s/bin/k8s`, `k8s/skills/k8s` | — | — |
 | workspace | — | — | `gdoc/bin/gdoc`, `gdoc/skills/gdoc` |
 | operations | `obs/agents/obs-triage`, `obs/bin/obs`, `obs/skills/obs` | — | — |
+| infrastructure | — | — | — |
 | security | `supply-chain/agents/supply-architect`, `supply-chain/agents/supply-auditor`, `supply-chain/agents/supply-triage`, `supply-chain/bin/supply`, `supply-chain/skills/supply` | `supply-chain/skills/audit-deps`, `supply-chain/skills/pin-deps` | — |
 <!-- generated:end -->
 
