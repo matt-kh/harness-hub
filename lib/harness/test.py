@@ -304,7 +304,8 @@ def run(ctx: Any, suite: Union[str, Sequence[str]] = "all", verbose: bool = Fals
                     emit(name, _run_one(home, argv, extra, covered, guard_bash))
         else:
             futures: Dict[int, "concurrent.futures.Future"] = {}
-            with concurrent.futures.ThreadPoolExecutor(max_workers=n_jobs) as pool:
+            pool = concurrent.futures.ThreadPoolExecutor(max_workers=n_jobs)
+            try:
                 for i in _submit_order(entries, bundles_root(home)):
                     name, argv, extra = entries[i]
                     if name in SERIAL or blocked(extra):
@@ -318,6 +319,11 @@ def run(ctx: Any, suite: Union[str, Sequence[str]] = "all", verbose: bool = Fals
                     else:  # SERIAL: alone, once everything submitted has finished
                         pool.shutdown(wait=True)
                         emit(name, _run_one(home, argv, extra, covered, guard_bash))
+            except BaseException:  # Ctrl-C or an error: start no queued suite, wait for the running ones
+                pool.shutdown(wait=True, cancel_futures=True)
+                raise
+            finally:
+                pool.shutdown(wait=True)
     finally:
         if guard_dir:
             shutil.rmtree(guard_dir, ignore_errors=True)
