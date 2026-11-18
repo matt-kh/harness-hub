@@ -788,6 +788,14 @@ prints every one between your applied version and the new one.
 
 ### Changed
 
+- `harness test` runs each guard row once (part 01 of #93): the guard runner
+  (`bundles/core/guard/tests/run.sh`) gains the knob `HARNESS_TEST_ROWS=a,b`, which runs only
+  the named bundles' rows (no implicit core; an unknown name exits 2). The bundle isolation
+  suites run only their own rows against their core + bundle guard instead of re-running the
+  core rows, and the core bundle suite skips its full guard-rows pass when the same run
+  includes the `guard` suite (`harness test` sets `HARNESS_TEST_GUARD_COVERED=1` for the other
+  suites and drops both variables from the inherited environment). `harness test core` alone
+  still runs every row.
 - `/create-ticket` `render-ticket.py --check` (part 04 of #80), message only: the reason for a
   GitHub closing keyword in an issue's title or body now says it "belongs only in
   work-ticket's PR to the default branch" instead of "mention #N instead". The check is

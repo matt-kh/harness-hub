@@ -11,9 +11,9 @@ fail=0
 
 if [ -f "$bdir/guard.d/tests.sh" ]; then
   HARNESS_GUARD_BUNDLES=$name bash "$core/guard/build.sh" "$tmp/hooks/guard-bash.sh" || fail=1
-  GUARD_BASH="$tmp/hooks/guard-bash.sh" HARNESS_TEST_BUNDLES=$name \
+  GUARD_BASH="$tmp/hooks/guard-bash.sh" HARNESS_TEST_ROWS=$name \
     bash "$core/guard/tests/run.sh" > "$tmp/guard.log" 2>&1 || { fail=1; grep -A1 '^FAIL' "$tmp/guard.log"; }
-  echo "guard ($name + core): $(tail -1 "$tmp/guard.log")"
+  echo "guard ($name rows, core + $name guard): $(tail -1 "$tmp/guard.log")"
 fi
 for t in "$bdir"/skills/*/scripts/tests/run.sh; do
   [ -f "$t" ] || continue

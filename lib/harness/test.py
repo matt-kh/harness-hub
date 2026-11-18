@@ -22,6 +22,11 @@ Git's repository-discovery variables (``GIT_DIR``, ``GIT_WORK_TREE``, ``GIT_INDE
 are dropped from every child environment: git exports them to hooks, and a suite run from the
 pre-push hook would otherwise point its throw-away fixture repositories at the real checkout
 (``git add -A`` in a fixture then stages the deletion of the whole hub).
+
+Each guard row runs once per run: when the run includes the ``guard`` suite, every other suite
+gets ``HARNESS_TEST_GUARD_COVERED=1`` (the core bundle suite then skips its full guard-rows
+pass), and the bundle isolation suites run only their own rows (``HARNESS_TEST_ROWS``). Both
+variables are dropped from the inherited environment, so a shell export cannot skip rows.
 """
 from __future__ import annotations
 
@@ -44,10 +49,14 @@ SUITES = ("unit", "guard", "bundles", "skills", "providers", "smoke")
 GIT_DISCOVERY_ENV = ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_COMMON_DIR", "GIT_OBJECT_DIRECTORY",
                      "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_PREFIX", "GIT_NAMESPACE", "GIT_IMPLICIT_WORK_TREE")
 
+# Row-selection knobs only ``run`` may set: inherited from the user's shell they would skip rows.
+ROW_SKIP_ENV = ("HARNESS_TEST_GUARD_COVERED", "HARNESS_TEST_ROWS", "HARNESS_TEST_BUNDLES")
+
 
 def suite_env(home: str, build_dir: str) -> dict:
-    """The environment every child suite runs with: hub + fresh build dir, no git discovery vars."""
-    env = {k: v for k, v in os.environ.items() if k not in GIT_DISCOVERY_ENV}
+    """The environment every child suite runs with: hub + fresh build dir, no git discovery vars
+    and no inherited row-selection knobs."""
+    env = {k: v for k, v in os.environ.items() if k not in GIT_DISCOVERY_ENV and k not in ROW_SKIP_ENV}
     env["HARNESS_HOME"] = home
     env["HARNESS_BUILD_DIR"] = build_dir
     return env
@@ -67,6 +76,11 @@ def build_all_guard(home: str, build_dir: str) -> str:
     out = os.path.join(build_dir, "guard", "guard-bash.sh")
     atomic_write(out, R.build_guard(engine, ordered), mode=0o755)
     return out
+
+
+def guard_covered(suites: List[Tuple[str, List[str], dict]]) -> bool:
+    """True when the discovered suites include the ``guard`` suite (it runs every guard row)."""
+    return any(name == "guard" for name, _a, _e in suites)
 
 
 def discover(home: str, suite: str) -> List[Tuple[str, List[str], dict]]:
@@ -118,11 +132,14 @@ def run(ctx: Any, suite: str = "all", verbose: bool = False) -> int:
     if not suites:
         print("no test suites found for %r" % suite)
         return 1
+    covered = guard_covered(suites)
     failed = 0
     width = max(len(n) for n, _a, _e in suites)
     for name, argv, extra in suites:
         build_dir = tempfile.mkdtemp(prefix="harness-test-build-")
         env = suite_env(home, build_dir)
+        if covered and name != "guard":
+            env["HARNESS_TEST_GUARD_COVERED"] = "1"
         try:
             if extra.pop("__build_guard__", None):
                 try:
