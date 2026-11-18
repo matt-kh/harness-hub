@@ -24,7 +24,8 @@ make render-check   # render twice into one fresh HOME; diff must be empty
 ```
 
 - Work against a throw-away home: `HOME=$(mktemp -d) bin/harness plan --config tests/fixtures/harness.ci.toml`.
-- Faster loops: `bin/harness test unit`, `bin/harness test guard`, `bin/harness test <bundle>`.
+- Faster loops: `bin/harness test unit`, `bin/harness test guard`, `bin/harness test <bundle>`
+  (several names at once work); add `--jobs auto` to run the suites in parallel.
 - Unit tests alone: `python3 -m unittest discover -s tests/unit`.
 
 ## Repository map
