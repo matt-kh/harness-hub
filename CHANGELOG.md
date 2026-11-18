@@ -10,6 +10,16 @@ prints every one between your applied version and the new one.
 
 ### Docs
 
+- `/work-ticket` CI recommendations for GitHub stacks (part 03 of #93): the Actions wording in
+  `references/github.md` §6 gated heavy jobs with a bare `github.base_ref == …default_branch`,
+  which also skips them on `push` and `workflow_dispatch`; it now names the event-aware
+  condition, the `edited` trigger for parts retargeted to the default branch and the separate
+  `concurrency` group that keeps PR-body rewrites from cancelling a full run.
+  `references/mr-description.md` points GitHub repositories there. The hub's own `ci.yml`
+  follows it: the full `test` job runs once per OS (ubuntu with Python 3.12, macOS with 3.9)
+  with `harness test --jobs auto`, only on PRs into `main`, pushes, dispatches and release
+  calls; stack parts run lint, gate and docs. The `smoke` job folds into `test` (its suites
+  already ran there; the entry-point bootstrap step moves over) and `render` into `docs`.
 - Governance text for the GitHub Issues close-on-merge exception (part 04 of #80): every
   statement that said closing keywords are denied everywhere now names the one exception (the
   PR to the default branch of a repository whose tracker is GitHub Issues may close its

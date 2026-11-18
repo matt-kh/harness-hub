@@ -73,6 +73,8 @@ MR pipelines run `<mr_heavy_jobs>` for every MR regardless of target. Recommende
 implemented here**: add `- if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME != $CI_DEFAULT_BRANCH`
 → `when: never` to the heavy jobs so sub MRs targeting a ticket branch run only the checks.
 
+<GitHub Actions (provider = github): use the Actions wording in `github.md` §6 instead.>
+
 ## Sub-tickets
 <ONLY for SINGLE delivery with sub-tickets — otherwise omit. Stacked delivery uses `## Stack` instead.>
 | ticket | scope | status | sub-branch (local, squashed) |
