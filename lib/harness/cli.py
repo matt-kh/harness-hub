@@ -35,7 +35,7 @@ COMMANDS = [
     ("verify", "check a hub bundle or .run file: git bundle verify or sh FILE.run --check, SHA256SUMS beside it"),
     ("release", "maintainers: check a release tag (preflight) | write its release notes"),
     ("uninstall", "remove what the harness wrote (state-listed paths only)"),
-    ("test", "run the engine, guard, bundle, skill and provider test suites"),
+    ("test", "run the engine, guard, bundle, skill and provider test suites (--jobs N|auto: in parallel)"),
     ("lint", "validate manifests, cross-references, templates, private identifiers"),
     ("docs", "generate | check the generated regions under docs/"),
     ("repo", "show what the current repository's .harness.toml declares and which user-level components yield here"),
@@ -222,8 +222,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--purge-tools", action="store_true", help="also remove tools installed by `harness install`")
 
     p = add("test")
-    p.add_argument("suite", nargs="?", default="all",
-                   help="all | unit | guard | bundles | skills | providers | smoke | <bundle name>")
+    p.add_argument("suite", nargs="*", default=[],
+                   help="one or more of: all | unit | guard | bundles | skills | providers | smoke | "
+                   "<bundle name> (default: all)")
+    p.add_argument("-j", "--jobs", metavar="N|auto", default="1",
+                   help="run N suites at once (auto: the CPU count; default 1); N > 1 shards the guard "
+                   "suite per bundle as guard[<bundle>]")
     p.add_argument("-v", "--verbose", action="store_true")
 
     p = add("lint")
@@ -453,7 +457,7 @@ def dispatch(ctx: Ctx, ns: argparse.Namespace, parser: argparse.ArgumentParser) 
     if cmd == "test":
         from . import test as testmod
 
-        return testmod.run(ctx, ns.suite, verbose=ns.verbose)
+        return testmod.run(ctx, ns.suite or ["all"], verbose=ns.verbose, jobs=ns.jobs)
     if cmd == "lint":
         from . import lint
 

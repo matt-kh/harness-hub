@@ -126,6 +126,12 @@ prints every one between your applied version and the new one.
 
 ### Added
 
+- `harness test` takes several suite or bundle names (`harness test unit skills github`; `all`
+  anywhere means all, an entry selected twice runs once) and `-j/--jobs N|auto` (part 02 of
+  #93): N suites run at once on a thread pool, longest first, and print in discovery order with
+  the same PASS/FAIL lines. With N > 1 the guard suite runs as one `guard[<bundle>]` shard per
+  bundle (`HARNESS_TEST_ROWS`); the all-bundles guard is built once per run and shared. The
+  default (`--jobs 1`) output is unchanged.
 - Config key `github.close_issue_on_merge` (boolean, default `true`; env
   `HARNESS_GITHUB_CLOSE_ISSUE_ON_MERGE`), part of #80: in a repository whose tracker is
   GitHub Issues (`.harness.toml` `[repo] tracker`, else the first matching

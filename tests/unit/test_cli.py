@@ -62,6 +62,23 @@ class ParserTest(unittest.TestCase):
                 cli.main(list(argv) + ["--help"])
         return buf.getvalue()
 
+    def test_test_suites_and_jobs(self):
+        p = cli.build_parser()
+        ns = p.parse_args(["test", "unit", "skills", "--jobs", "auto"])
+        self.assertEqual((ns.suite, ns.jobs, ns.verbose), (["unit", "skills"], "auto", False))
+        ns = p.parse_args(["test"])
+        self.assertEqual((ns.suite, ns.jobs), ([], "1"))
+        ns = p.parse_args(["test", "-j", "4", "-v", "guard"])
+        self.assertEqual((ns.suite, ns.jobs, ns.verbose), (["guard"], "4", True))
+        from unittest import mock
+
+        from harness import test as testmod
+
+        with mock.patch.object(testmod, "run", return_value=0) as run:
+            self.assertEqual(cli.main(["test", "-j", "2"]), 0)
+            self.assertEqual(run.call_args[0][1], ["all"])
+            self.assertEqual(run.call_args[1], {"verbose": False, "jobs": "2"})
+
     def test_help_names_the_new_flags(self):
         self.assertIn("--no-remote", self._help("release", "check"))
         self.assertIn("--self-extract", self._help("pack"))
