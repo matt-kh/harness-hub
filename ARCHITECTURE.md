@@ -285,6 +285,7 @@ Rules:
 - Numeric prefixes order rule fragments and guard sections across bundles
   (`10` k8s, `15` lessons, `20` credentials, `25` k8s rules, `30` git, `32` obs, `35` shell hygiene, `38` supply chain, `40`/`41` closing keywords
   (gitlab/github), `50` gitlab, `60` github, `65` stack, `67` repo bootstrap, `70` jira, `75` ticket workflow, `80` gdoc,
+  `82`/`83` linux (definitions / rules),
   `90+` private); a rule and the guard section that enforces it share `NN-<topic>`.
   Bands reserved for planned bundles are listed in [docs/roadmap.md](docs/roadmap.md).
 
