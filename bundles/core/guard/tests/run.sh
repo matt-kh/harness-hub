@@ -5,6 +5,9 @@
 #                                                   "----" and "passed=N failed=M"; exit 1 on failures
 #   HARNESS_TEST_BUNDLES=core,github  run.sh        only these bundles' rows (core is always included)
 #                                                   and a guard built from only these bundles' sections
+#   HARNESS_TEST_ROWS=github  run.sh                only these bundles' rows, with NO implicit core
+#                                                   (the guard build is unchanged); a name without
+#                                                   bundles/<name>/guard.d/tests.sh exits 2
 #   GUARD_BASH=/path/guard-bash.sh run.sh           test an already built guard (no build step)
 #   HARNESS_GUARD_ENV=/path/guard.env run.sh        env file the guard sources (default: an empty
 #                                                   file, so a real build/guard.env never leaks in)
@@ -16,11 +19,26 @@ bundles_dir=$(cd "$here/../../.." && pwd)                 # bundles/
 hub=$(cd "$bundles_dir/.." && pwd)
 
 selected() {  # NAME -> rc 0 when the bundle's rows (and sections) are part of this run
+  if [ -n "${HARNESS_TEST_ROWS:-}" ]; then
+    case ",$HARNESS_TEST_ROWS," in *",$1,"*) return 0 ;; esac
+    return 1
+  fi
   [ "$1" = core ] && return 0
   [ -z "${HARNESS_TEST_BUNDLES:-}" ] && return 0
   case ",$HARNESS_TEST_BUNDLES," in *",$1,"*) return 0 ;; esac
   return 1
 }
+
+if [ -n "${HARNESS_TEST_ROWS:-}" ]; then  # an unknown name would pass vacuously
+  _rows_ifs=$IFS; IFS=,
+  for n in $HARNESS_TEST_ROWS; do
+    [ -z "$n" ] && continue
+    [ -f "$bundles_dir/$n/guard.d/tests.sh" ] && continue
+    echo "HARNESS_TEST_ROWS: no guard rows for bundle '$n' (bundles/$n/guard.d/tests.sh missing)" >&2
+    exit 2
+  done
+  IFS=$_rows_ifs
+fi
 
 if [ -z "${GUARD_BASH:-}" ]; then
   GUARD_BASH="$hub/build/guard-bash.sh"
