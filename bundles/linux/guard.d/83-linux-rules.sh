@@ -217,7 +217,7 @@ EOF
     nft)
       lx_w=""
       for lx_j in "${LW[@]:$((LI+1))}"; do
-        case "$lx_j" in --file|--file=*|--interactive) lx_w=$lx_j ;; --*) ;; -*) linux_sflag fi "$lx_j" && lx_w=$lx_j ;; esac
+        case "$lx_j" in --file|--file=*|--interactive) lx_w=$lx_j ;; --*) ;; -*) linux_sflag 'fi' "$lx_j" && lx_w=$lx_j ;; esac
       done
       linux_pos '-I|--includepath|-D|--define|-T|-f|--file' "${LW[@]:$((LI+1))}"
       case "${LP[0]:-}" in flush|add|delete|insert|replace|create|destroy|reset|rename) lx_w=${LP[0]} ;; esac

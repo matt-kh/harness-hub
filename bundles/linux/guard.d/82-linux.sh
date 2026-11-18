@@ -177,9 +177,9 @@ linux_words() {  # CLAUSE -> LW = its words (quotes removed); rc 1 on unbalanced
   return 0
 }
 linux_cmd0() {  # LW -> LI = index of the command word (past keywords, assignments, wrappers), LC = its basename ("" when none),
-  # LXA = true when xargs appends arguments to it (no -I/-J), LXI = true when xargs replaces a placeholder
+  # LXA = true when xargs appends arguments to it (not with -I/-J, which substitute a placeholder)
   local i=0 n=${#LW[@]} w b wrap="" skip=0 td=0 xi=false xa=false
-  LI=$n; LC=""; LXA=false; LXI=false
+  LI=$n; LC=""; LXA=false
   while [ "$i" -lt "$n" ]; do
     w=${LW[i]}; i=$((i+1))
     if [ "$skip" -gt 0 ]; then skip=$((skip-1)); continue; fi
@@ -210,7 +210,7 @@ linux_cmd0() {  # LW -> LI = index of the command word (past keywords, assignmen
         continue ;;
     esac
     LI=$((i-1)); LC=$b
-    if $xa; then if $xi; then LXI=true; else LXA=true; fi; fi
+    if $xa && ! $xi; then LXA=true; fi
     return 0
   done
   return 0
@@ -549,7 +549,7 @@ linux_ro_cmd() {  # WORD… (the first is the command) -> rc 0 when it is on the
       LR_WHY="'mdadm' without --detail|--examine|--query changes an array"; return 1 ;;
     nft)
       for w in "$@"; do
-        if linux_sflag fi "$w"; then LR_WHY="'nft $w' loads or edits rules"; return 1; fi
+        if linux_sflag 'fi' "$w"; then LR_WHY="'nft $w' loads or edits rules"; return 1; fi
         case "$w" in --file|--file=*|--interactive) LR_WHY="'nft $w' loads or edits rules"; return 1 ;; esac
       done
       linux_pos '-I|--includepath|-D|--define|-T' "$@"
