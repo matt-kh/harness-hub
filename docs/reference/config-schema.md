@@ -78,6 +78,9 @@ Environment override for any key: `HARNESS_<SECTION>_<KEY>` (e.g. `HARNESS_JIRA_
 | `obs.prod_re` | string | `"(^\|[-_./:])(prod\|production)([-_./:]\|$)"` | obs | Case-insensitive ERE on backend names and hosts marking production ([PROD] banner; remediations become suggestions only). OBS_PROD_RE. |
 | `obs.redact_extra_re` | string | `""` | obs | Extra Python regex of token shapes every obs output redacts in addition to the built-in list; compiled on its own, so a leading global flag such as (?i) works. OBS_REDACT_EXTRA_RE. |
 | `providers` | table of object |  |  | Per-provider options, keyed by provider name. |
+| `provision.infra_root` | string | `""` | provision | Path of your private infrastructure repository holding hosts/<host>/host.toml (prov's root). Empty = the skill works in a scratch root and says the result must move into that repository through an MR. PROVISION_INFRA_ROOT. |
+| `provision.pve_host` | string | `""` | provision | ~/.ssh/config alias of a Proxmox VE node, used in printed plans and guard reasons (`ssh <alias> qm …`, every qm write the human's). Empty = plans use <pve-node>. PROVISION_PVE_HOST. |
+| `provision.tool_source` | string | `"uv tool install git+https://github.com/matt-kh/provision-hub@<commit-sha>"` | provision | How to install the prov renderer, shown by the skill and the prov-cli doctor check when prov is missing. Pin a commit or tag you reviewed. PROVISION_TOOL_SOURCE. |
 | `repo_bootstrap.default_license` | string | `"none"` | repo-bootstrap | Default answer to repo.license; other licenses come from a pack. HARNESS_REPO_BOOTSTRAP_DEFAULT_LICENSE. |
 | `repo_bootstrap.default_merge_method` | string | `"squash"` | repo-bootstrap | Default answer to workflow.merge_method. HARNESS_REPO_BOOTSTRAP_DEFAULT_MERGE_METHOD. |
 | `repo_bootstrap.default_visibility` | string | `"private"` | repo-bootstrap | Default answer to repo.visibility. HARNESS_REPO_BOOTSTRAP_DEFAULT_VISIBILITY. |

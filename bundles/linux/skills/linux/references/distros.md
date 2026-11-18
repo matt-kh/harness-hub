@@ -52,9 +52,10 @@ that need root or change the host.
 ## 5. Proxmox VE hosts
 
 - The node is Debian plus Proxmox packages; treat it like Debian for the OS, but guest, storage and
-  cluster state come from Proxmox tools, all of which need root or the API:
-  **for the human** `pvecm status` (quorum), `pvesm status` (storage), `qm list` / `pct list`
-  (guests), `ha-manager status`.
+  cluster state come from Proxmox tools, all of which need root or the API: `pvecm status`
+  (quorum), `pvesm status` (storage), `qm list` / `pct list` (guests), `ha-manager status`,
+  `pvesh get …` pass the guard as `ssh NODE …` reads (they fail without a root login — then they are
+  **for the human**); every `qm` / `pct` / `pvesh` write asks.
 - Read-only for the agent: `lx storage` (ZFS `rpool`, LVM-thin `pve/data` fill — thin-pool fill at
   100 % freezes every guest on it), `lx net` (bridges `vmbr*`, bonds), `lx logs HOST --unit
   pve-cluster --since 1h`, `lx logs HOST --unit corosync --since 1h`.

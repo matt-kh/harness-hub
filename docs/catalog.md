@@ -20,6 +20,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | [`lessons`](bundles/lessons.md#components) | base | local | govern, workflow, setup | experimental | The lessons loop: a /retro skill that turns a session's journal signals into at most two evidence-backed candidate lessons, a rule that has agents consult them, and hooks that record user corrections and nudge for a retro |
 | [`linux`](bundles/linux.md#components) | infrastructure | read-only | govern, client, investigate, review, setup | experimental | Linux hosts over SSH aliases: read-only lx CLI, skill and triage / audit agents; guards on remote mutations, interactive sessions, tunnels, uploads, disabled host-key checking, copied private keys and local disk / network changes |
 | [`obs`](bundles/obs.md#components) | operations | read-only | govern, client, investigate, setup | experimental | Read-only observability client (obs CLI + skill) for SigNoz, Prometheus and Grafana, an obs-triage agent, and API-key and raw-backend guards |
+| [`provision`](bundles/provision.md#components) | infrastructure | local | govern, workflow, plan, setup | experimental | Provisioning Ubuntu, Proxmox VE, NixOS and Talos hosts with the external prov renderer: workflow skill, design-only planner agent, and guards that hand every apply step (VM create, disk write, talosctl apply, nixos-anywhere) to the human |
 | [`repo-bootstrap`](bundles/repo-bootstrap.md#components) | scm | label-gated | govern, client, setup | experimental | Bootstrap git repositories to a standard, locally and on GitHub or GitLab: a standard intake, architecture packs, and `repoboot` (questions, answer, plan, render, apply, check) |
 | [`stack`](bundles/stack.md#components) | scm | label-gated | govern, client, setup | experimental | Stacked MRs/PRs on free tiers: the `stk` CLI (plan, status, check, sync) keeps a chain of dependent parts retargeted, rebased and pushed |
 | [`supply-chain`](bundles/supply-chain.md#components) | security | local | govern, client, workflow, investigate, plan, review, setup | experimental | Software supply chain: pin what you add, install inside the project, never switch verification off (guard 38, the supply CLI, /pin-deps, /audit-deps and three read-only agents) |
@@ -37,6 +38,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | `lessons/skills/retro` | guide | base | workflow | local | execute | declaration | Reflect on the task just finished and record at most two evidence-backed candidate lessons (one invariant, one for the task's domain) in the private lessons li… |
 | `linux/skills/linux` | guide | infrastructure | client | read-only | execute | declaration | Read-only Linux host client over the aliases in ~/.ssh/config via the `lx` CLI and plain read-only `ssh HOST <command>`. |
 | `obs/skills/obs` | guide | operations | client | read-only | execute | declaration | Read-only observability client for SigNoz, Prometheus and Grafana via the `obs` CLI. |
+| `provision/skills/provision` | guide | infrastructure | workflow | local | execute | declaration | Provision or reinstall hosts from one reviewed host definition with the external `prov` renderer: draft `host.toml`, render and validate the install artefacts… |
 | `repo-bootstrap/skills/bootstrap-repo` | guide | scm | setup | label-gated | execute | declaration | Bootstrap a git repository to a standard, locally or on GitHub / GitLab, with the `repoboot` CLI. |
 | `stack/skills/stk` | guide | scm | client | label-gated | execute | declaration | Stacked MRs/PRs on free tiers with the `stk` CLI over native glab, gh and git: check a repository's readiness, plan a stack (topology, bottom-up merge order, t… |
 | `supply-chain/skills/audit-deps` | guide | security | workflow | local | execute | declaration | Fix known-vulnerable dependencies within the same major version, as a diff for review: runs `supply audit`, upgrades each vulnerable package to its fixed versi… |
@@ -60,6 +62,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | `linux/agents/linux-auditor` | guide | infrastructure | review | read-only | execute | name | Read-only Linux host posture review over ssh aliases — sshd settings, network exposure, host firewall, sudoers shape, automatic and pending security updates, p… |
 | `linux/agents/linux-triage` | guide | infrastructure | investigate | read-only | execute | name | Read-only Linux host incident triage over ssh aliases. |
 | `obs/agents/obs-triage` | guide + sensor (inferential) | operations | investigate | read-only | execute | name | Read-only signal triage across observability backends (SigNoz, Prometheus, Grafana). |
+| `provision/agents/provision-planner` | guide | infrastructure | plan | read-only | plan | name | Design-only provisioning planner. |
 | `supply-chain/agents/supply-architect` | guide | security | plan | read-only | plan | name | Design-only software supply-chain architect. |
 | `supply-chain/agents/supply-auditor` | guide + sensor (inferential) | security | review | read-only | execute | name | Read-only software supply-chain review of a checkout — unpinned actions, images and dependencies, unverified downloads, CI workflow hardening, known vulnerabil… |
 | `supply-chain/agents/supply-triage` | guide | security | investigate | read-only | execute | name | Read-only investigation of one software supply-chain problem — a vulnerability id (CVE, GHSA, OSV) reported by `supply audit`, a failed `supply verify` signatu… |
@@ -84,6 +87,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | `ticket-workflow/rules/75-ticket-workflow` | guide | delivery | text | Ticket workflow |
 | `gdoc/rules/80-gdoc` | guide | workspace | text | Google Workspace ({{ google.domain }}) |
 | `linux/rules/82-linux` | guide | infrastructure | text | Linux hosts |
+| `provision/rules/85-provision` | guide | infrastructure | text | Provisioning |
 
 ## Guard sections
 
@@ -110,6 +114,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | [`gdoc/guard.d/80-gdoc`](reference/hook-policy.md) | sensor | workspace | deny 1 · ask 2 · allow 2 | declaration | GET-only api, provenance check before writes, ask on mark and mail send |
 | [`linux/guard.d/82-linux`](reference/hook-policy.md) | sensor | infrastructure | helper (no rules) | n/a | clause lexer, ssh/scp/rsync parsing, remote allow-list and device targets shared by the rules section |
 | [`linux/guard.d/83-linux-rules`](reference/hook-policy.md) | sensor | infrastructure | deny 3 · ask 9 | declaration | remote mutations, sessions, tunnels, uploads, host-key checking, sshpass, private keys, local disk and network changes |
+| [`provision/guard.d/85-provision`](reference/hook-policy.md) | sensor | infrastructure | deny 3 · ask 10 | declaration | Proxmox VE, Talos, NixOS, libvirt and QEMU apply steps ask; kubeconfig and talosconfig writes deny; credential prints never yield |
 
 ## Hook scripts
 
@@ -135,6 +140,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | `lessons/permissions` | guide | base | ask 2 · allow 1 | config | harness lessons allowed; hand edits of the library ask |
 | `linux/permissions` | guide | infrastructure | deny 5 · ask 21 · allow 8 | config | local host reads allowed, storage and network changes ask, sshpass and disabled host-key checking denied |
 | `obs/permissions` | guide | operations | deny 1 · ask 3 · allow 5 | config | obs and read-only rule tooling allowed, alert-state changes ask, key files denied to Read |
+| `provision/permissions` | guide | infrastructure | deny 2 · ask 15 · allow 11 | config | prov and the read forms allowed, apply steps ask, kubeconfig and talosconfig edits denied |
 | `repo-bootstrap/permissions` | guide | scm | allow 5 | config | repoboot questions\|answer\|plan\|render\|check allowed; apply is not (the guard asks); never Bash(repoboot:*) |
 | `stack/permissions` | guide | scm | allow 4 | config | stk plan\|status\|check\|sync allowed; never Bash(stk:*) |
 | `supply-chain/permissions` | guide | security | deny 4 · ask 6 · allow 21 | config | verification and audit tools allowed, cosign signing asks, verification-off config and cosign keys denied |
@@ -217,6 +223,15 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | [`obs/doctor/obs-hosts-re`](bundles/obs.md#doctor-checks) | sensor | operations | obs.hosts_re is a POSIX ERE covering every configured backend |
 | [`obs/doctor/obs-keys`](bundles/obs.md#doctor-checks) | sensor | operations | every backend's key file exists |
 | [`obs/doctor/obs-reach`](bundles/obs.md#doctor-checks) | sensor | operations | every backend reachable and accepts its key |
+| [`provision/doctor/infra-root`](bundles/provision.md#doctor-checks) | sensor | infrastructure | provision.infra_root is set and is a git repository |
+| [`provision/doctor/kvm`](bundles/provision.md#doctor-checks) | sensor | infrastructure | /dev/kvm is writable (fast local VM tests; without it QEMU falls back to slow TCG) |
+| [`provision/doctor/nix`](bundles/provision.md#doctor-checks) | sensor | infrastructure | nix installed (optional: NixOS builds and nixos-anywhere --vm-test) |
+| [`provision/doctor/prov-cli`](bundles/provision.md#doctor-checks) | sensor | infrastructure | prov renderer on PATH (optional; the skill explains the steps without it) |
+| [`provision/doctor/pve-assistant`](bundles/provision.md#doctor-checks) | sensor | infrastructure | proxmox-auto-install-assistant installed (optional: Proxmox VE answer-file ISOs) |
+| [`provision/doctor/qemu`](bundles/provision.md#doctor-checks) | sensor | infrastructure | qemu-system-x86_64 installed (optional: local VM tests) |
+| [`provision/doctor/seed-iso`](bundles/provision.md#doctor-checks) | sensor | infrastructure | xorriso or cloud-localds installed (optional: building NoCloud seed ISOs) |
+| [`provision/doctor/talosctl`](bundles/provision.md#doctor-checks) | sensor | infrastructure | talosctl installed (optional: Talos config generation and validation) |
+| [`provision/doctor/virsh`](bundles/provision.md#doctor-checks) | sensor | infrastructure | virsh installed (optional: libvirt VM tests) |
 | [`repo-bootstrap/doctor/repoboot-cli`](bundles/repo-bootstrap.md#doctor-checks) | sensor | scm | repoboot CLI on PATH and its packs parse |
 | [`repo-bootstrap/doctor/repoboot-scm-cli`](bundles/repo-bootstrap.md#doctor-checks) | sensor | scm | An SCM CLI is on PATH (gh or glab) |
 | [`stack/doctor/stk-cli`](bundles/stack.md#doctor-checks) | sensor | scm | stk CLI on PATH |
@@ -267,6 +282,8 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | [`linux/steps/ssh-aliases`](bundles/linux.md#ssh-aliases) | infrastructure | Give every host an alias in ~/.ssh/config |
 | [`obs/steps/configure-backends`](bundles/obs.md#configure-backends) | operations | Describe your observability backends in local/harness.toml |
 | [`obs/steps/obs-api-key`](bundles/obs.md#obs-api-key) | operations | Create a read-only API key per backend |
+| [`provision/steps/infra-root`](bundles/provision.md#infra-root) | infrastructure | Point provision.infra_root at your infrastructure repository |
+| [`provision/steps/install-prov`](bundles/provision.md#install-prov) | infrastructure | Install the prov renderer (optional) |
 | [`repo-bootstrap/steps/repo-bootstrap-packs`](bundles/repo-bootstrap.md#repo-bootstrap-packs) | scm | Optional: point repo_bootstrap.pack_dirs at your architecture packs |
 | [`stack/steps/stack-github-repo-settings`](bundles/stack.md#stack-github-repo-settings) | scm | GitHub: repository settings for stacked PRs |
 | [`stack/steps/stack-gitlab-project-settings`](bundles/stack.md#stack-gitlab-project-settings) | scm | GitLab: project settings for stacked MRs |
@@ -313,7 +330,7 @@ Skills, agents, CLIs and MCP servers by domain and posture (the strongest effect
 | kubernetes | `k8s/agents/infra-architect`, `k8s/agents/k8s-auditor`, `k8s/agents/k8s-triage`, `k8s/bin/k8s`, `k8s/skills/k8s` | — | — |
 | workspace | — | — | `gdoc/bin/gdoc`, `gdoc/skills/gdoc` |
 | operations | `obs/agents/obs-triage`, `obs/bin/obs`, `obs/skills/obs` | — | — |
-| infrastructure | `linux/agents/linux-auditor`, `linux/agents/linux-triage`, `linux/bin/lx`, `linux/skills/linux` | — | — |
+| infrastructure | `linux/agents/linux-auditor`, `linux/agents/linux-triage`, `linux/bin/lx`, `linux/skills/linux`, `provision/agents/provision-planner` | `provision/skills/provision` | — |
 | security | `supply-chain/agents/supply-architect`, `supply-chain/agents/supply-auditor`, `supply-chain/agents/supply-triage`, `supply-chain/bin/supply`, `supply-chain/skills/supply` | `supply-chain/skills/audit-deps`, `supply-chain/skills/pin-deps` | — |
 <!-- generated:end -->
 

@@ -63,7 +63,7 @@ ARCHITECTURE §3 is updated when a band is first used.
 | `67` | `67-repo-bootstrap` | repo-bootstrap | in use: asks on `repoboot apply` (creates repositories, the first push into an empty remote, remote settings); after `60-github` and `65-stack`, so their asks on hand-typed `gh`/`glab` writes come first |
 | `82` | `82-linux` | linux | in use: definitions for Linux hosts over SSH (supersedes the planned `82-hosts`); miscellaneous band, with `80-gdoc` |
 | `83` | `83-linux-rules` | linux | in use: the `linux` rules: asks on mutating remote commands, interactive sessions, tunnels and uploads, denies on disabled host-key checking and copied private keys; after `82-linux`, which they read |
-| `85` | `85-provision` | provision | distro provisioning governance; after `83-linux-rules`, since `provision` depends on `linux` |
+| `85` | `85-provision` | provision | in use: provisioning governance (Proxmox VE, Talos, NixOS, libvirt and QEMU apply steps ask; kubeconfig and talosconfig writes deny); after `83-linux-rules`, whose definitions it reads (`provision` depends on `linux`) |
 
 Free after this table: `47`–`49`.
 

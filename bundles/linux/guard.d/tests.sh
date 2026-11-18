@@ -50,6 +50,22 @@ t pass  'ssh -V'
 t pass  'ssh -G h'
 t pass  'ssh h uptime > /tmp/up.txt'                                       # a local redirect, read-only remote
 t pass  'ssh -o StrictHostKeyChecking=accept-new h uptime'
+t pass  'ssh pve qm list'                                             # Proxmox VE read forms (linux_pve_ro)
+t pass  'ssh pve qm config 100'
+t pass  'ssh pve pct list'
+t pass  'ssh pve pvesh get /nodes --output-format json'
+t pass  "ssh pve 'pvecm status; pvesm status'"
+t pass  'ssh pve pveum user list'
+t pass  'ssh pve ha-manager status'
+t pass  'ssh pve pveversion -v'
+t ask   'ssh pve qm create 100'
+t ask   'ssh pve qm set 100 --memory 4096'
+t ask   'ssh pve pct destroy 200'
+t ask   'ssh pve pvesh create /nodes/pve/qemu'
+t ask   'ssh pve pvesm add dir x --path /mnt/x'
+t ask   'ssh pve pveum user add ops@pve'
+t ask   "ssh pve 'qm list && qm destroy 100'"
+tr "'qm destroy 100' changes Proxmox VE guests" 'ssh pve qm destroy 100'
 # ---- not read-only, however chained or quoted: ask --------------------------------------------
 t ask   "ssh h 'ls && reboot'"
 t ask   'ssh h "ls; rm -rf /x"'
