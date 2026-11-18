@@ -1,0 +1,160 @@
+# exit=1
+# stderr:
+host=db-prod-1 os=rocky 9.4 [PROD]
+# stdout:
+{
+  "host": "db-prod-1",
+  "prod": true,
+  "os": "rocky 9.4",
+  "command": "audit",
+  "findings": [
+    {
+      "severity": "crit",
+      "kind": "sshd",
+      "name": "PermitRootLogin",
+      "message": "root may log in (any method) \u2014 set `PermitRootLogin no` in the host's sshd config (infra repo)",
+      "evidence": null
+    },
+    {
+      "severity": "warn",
+      "kind": "port",
+      "name": "tcp/111",
+      "message": "rpcbind listening on all interfaces",
+      "evidence": null
+    },
+    {
+      "severity": "warn",
+      "kind": "sshd",
+      "name": "PasswordAuthentication",
+      "message": "password logins enabled \u2014 keys only",
+      "evidence": null
+    },
+    {
+      "severity": "warn",
+      "kind": "sudoers",
+      "name": "/etc/sudoers",
+      "message": "readable by this non-root login (mode 440 root:root; only root should read it)",
+      "evidence": null
+    },
+    {
+      "severity": "warn",
+      "kind": "updates",
+      "name": "db-prod-1",
+      "message": "dnf-automatic timer not enabled",
+      "evidence": null
+    },
+    {
+      "severity": "info",
+      "kind": "perms",
+      "name": "/usr",
+      "message": "28 SUID file(s) \u2014 compare with a known-good host of the same release",
+      "evidence": null
+    },
+    {
+      "severity": "info",
+      "kind": "port",
+      "name": "db-prod-1",
+      "message": "listening on all interfaces: 2222, 5432 \u2014 confirm each is meant to be reachable",
+      "evidence": null
+    },
+    {
+      "severity": "info",
+      "kind": "sshd",
+      "name": "MaxAuthTries",
+      "message": "MaxAuthTries 10 (default 6)",
+      "evidence": null
+    },
+    {
+      "severity": "info",
+      "kind": "sudoers",
+      "name": "db-prod-1",
+      "message": "2 NOPASSWD rule(s)",
+      "evidence": null
+    },
+    {
+      "severity": "info",
+      "kind": "updates",
+      "name": "db-prod-1",
+      "message": "37 update(s) pending",
+      "evidence": null
+    }
+  ],
+  "data": {
+    "sshd": {
+      "port": "2222",
+      "permitrootlogin": "yes",
+      "pubkeyauthentication": "yes",
+      "passwordauthentication": "yes",
+      "kbdinteractiveauthentication": "no",
+      "permitemptypasswords": "no",
+      "x11forwarding": "no",
+      "allowtcpforwarding": "yes",
+      "allowagentforwarding": "yes",
+      "maxauthtries": "10",
+      "authenticationmethods": "any",
+      "source": "sshd -T"
+    },
+    "listening": [
+      {
+        "proto": "tcp",
+        "address": "0.0.0.0",
+        "port": "2222",
+        "scope": "all"
+      },
+      {
+        "proto": "tcp",
+        "address": "0.0.0.0",
+        "port": "5432",
+        "scope": "all"
+      },
+      {
+        "proto": "tcp",
+        "address": "0.0.0.0",
+        "port": "111",
+        "scope": "all"
+      },
+      {
+        "proto": "tcp",
+        "address": "[::]",
+        "port": "2222",
+        "scope": "all"
+      },
+      {
+        "proto": "tcp",
+        "address": "[::]",
+        "port": "5432",
+        "scope": "all"
+      },
+      {
+        "proto": "udp",
+        "address": "127.0.0.1",
+        "port": "323",
+        "scope": "loopback"
+      }
+    ],
+    "sudo": {
+      "login_uid": "1001",
+      "sudoers_mode": "440 root:root",
+      "sudoers_readable": "yes",
+      "sudoers_d_entries": "3",
+      "nopasswd_rules": 2,
+      "login_admin_groups": [
+        "wheel"
+      ]
+    },
+    "updates": {
+      "package_manager": "dnf",
+      "upgradable": 37,
+      "security": 0
+    },
+    "auto_updates": {
+      "enabled_units": [],
+      "dnf_automatic": "apply_updates = no",
+      "on": false
+    },
+    "files": {
+      "suid_in_usr": 28,
+      "world_writable_in_etc": []
+    }
+  }
+}

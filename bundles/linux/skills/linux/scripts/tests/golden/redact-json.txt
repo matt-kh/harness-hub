@@ -1,0 +1,12 @@
+# exit=0
+# stderr:
+# stdout:
+{
+  "host": "web1",
+  "env": {
+    "DB_PASSWORD": "***REDACTED***",
+    "API_TOKEN": "***REDACTED***",
+    "LOG_LEVEL": "info"
+  },
+  "dsn_url": "***REDACTED***"
+}

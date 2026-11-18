@@ -1,0 +1,20 @@
+# exit=0
+# stderr:
+# stdout:
+# lx hosts
+
+## Findings (0)
+
+none
+
+## hosts
+
+| alias | hostname | user | port | role | notes | prod |
+|---|---|---|---|---|---|---|
+| lab-nixos | 203.0.113.5 | u |  |  |  | no |
+| web1 | 192.0.2.10 | deploy |  |  |  | no |
+| db-prod-1 | db1.example.com | admin | 2222 |  |  | yes |
+| db1 | db1.example.com | admin | 2222 |  |  | no |
+| unreachable | 192.0.2.99 |  |  |  |  | no |
+| denied | 192.0.2.98 |  |  |  |  | no |
+| hostkey | 192.0.2.97 |  |  |  |  | no |

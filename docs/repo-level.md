@@ -61,7 +61,7 @@ project = "PROJ"
 
 [owns]
 # Domains this repository's own harness covers: every hub component in them yields here.
-# Values: base, scm, tracker, delivery, kubernetes, workspace, operations, security (docs/reference/taxonomy.md).
+# Values: base, scm, tracker, delivery, kubernetes, workspace, operations, infrastructure, security (docs/reference/taxonomy.md).
 domains = ["delivery"]
 # Single components by id (`harness catalog`) when a whole domain is too much.
 components = ["core/guard.d/30-git"]
@@ -87,7 +87,7 @@ WORK_TICKET_LABELED_DECISION = "allow"
   argument that does not fit (a Jira key in a `github-issues` repository, `#N` in a `jira` one)
   stops the skill, and an unknown value stops it too instead of falling back to the host.
 - **`[owns] domains`** takes the taxonomy domains (`base`, `scm`, `tracker`, `delivery`,
-  `kubernetes`, `workspace`, `operations`, `security`; [taxonomy](reference/taxonomy.md)). Every hub component in an
+  `kubernetes`, `workspace`, `operations`, `infrastructure`, `security`; [taxonomy](reference/taxonomy.md)). Every hub component in an
   owned domain yields here.
 - **`[owns] components`** takes component ids as `harness catalog` prints them
   (`core/guard.d/30-git`, `ticket-workflow/skills/work-ticket`), for when a whole domain is
@@ -250,6 +250,7 @@ Components that yield by declaration: listing a domain in `[owns] domains` cover
 | `kubernetes` | `k8s/guard.d/25-k8s-rules` | `k8s/skills/k8s` |
 | `workspace` | `gdoc/guard.d/80-gdoc` | `gdoc/skills/gdoc` |
 | `operations` | `obs/guard.d/32-obs` | `obs/skills/obs` |
+| `infrastructure` | `linux/guard.d/83-linux-rules`, `provision/guard.d/85-provision` | `linux/skills/linux`, `provision/skills/provision` |
 | `security` | `supply-chain/guard.d/38-supply-chain` | `supply-chain/skills/audit-deps`, `supply-chain/skills/pin-deps`, `supply-chain/skills/supply` |
 
 | id | kind | domain | bundle |
@@ -268,8 +269,12 @@ Components that yield by declaration: listing a domain in `[owns] domains` cover
 | `k8s/skills/k8s` | skill | kubernetes | k8s |
 | `lessons/guard.d/15-lessons` | guard | base | lessons |
 | `lessons/skills/retro` | skill | base | lessons |
+| `linux/guard.d/83-linux-rules` | guard | infrastructure | linux |
+| `linux/skills/linux` | skill | infrastructure | linux |
 | `obs/guard.d/32-obs` | guard | operations | obs |
 | `obs/skills/obs` | skill | operations | obs |
+| `provision/guard.d/85-provision` | guard | infrastructure | provision |
+| `provision/skills/provision` | skill | infrastructure | provision |
 | `repo-bootstrap/guard.d/67-repo-bootstrap` | guard | scm | repo-bootstrap |
 | `repo-bootstrap/skills/bootstrap-repo` | skill | scm | repo-bootstrap |
 | `stack/guard.d/65-stack` | guard | scm | stack |
@@ -282,7 +287,7 @@ Components that yield by declaration: listing a domain in `[owns] domains` cover
 | `ticket-workflow/skills/create-ticket` | skill | delivery | ticket-workflow |
 | `ticket-workflow/skills/work-ticket` | skill | delivery | ticket-workflow |
 
-Never yield, whatever the file says: `core/guard.d/20-credentials`, `core/permissions`, and the `# never-yields:` prelude rules of `core/guard.d/30-git`, `github/guard.d/60-github`, `k8s/guard.d/25-k8s-rules`, `obs/guard.d/32-obs`, `supply-chain/guard.d/38-supply-chain` (marked `never` in the [hook policy](reference/hook-policy.md)). Agents yield by name, rules by text and permission lists by config ([taxonomy](reference/taxonomy.md)).
+Never yield, whatever the file says: `core/guard.d/20-credentials`, `core/permissions`, and the `# never-yields:` prelude rules of `core/guard.d/30-git`, `github/guard.d/60-github`, `k8s/guard.d/25-k8s-rules`, `linux/guard.d/83-linux-rules`, `obs/guard.d/32-obs`, `provision/guard.d/85-provision`, `supply-chain/guard.d/38-supply-chain` (marked `never` in the [hook policy](reference/hook-policy.md)). Agents yield by name, rules by text and permission lists by config ([taxonomy](reference/taxonomy.md)).
 <!-- generated:end -->
 
 Override names and defaults: [hook policy → Repo overrides](reference/hook-policy.md#repo-overrides).

@@ -1,0 +1,30 @@
+# exit=0
+# stderr:
+host=db-prod-1 os=rocky 9.4 [PROD]
+# stdout:
+# lx facts — db-prod-1 [PROD]
+
+os: rocky 9.4
+
+## Findings (0)
+
+none
+
+## facts
+
+| key | value |
+|---|---|
+| os | Rocky Linux 9.4 (Blue Onyx) |
+| id | rocky |
+| id_like | rhel centos fedora |
+| version_id | 9.4 |
+| kernel | Linux 5.14.0-427.13.1.el9_4.x86_64 x86_64 |
+| hostname | db1.example.com |
+| uptime | 1d 0h 2m |
+| cpus | 16 |
+| cpu_model | AMD EPYC 7313 16-Core Processor |
+| mem_total | 62.5G |
+| swap_total | 0K |
+| virt | none |
+| init | systemd |
+| timezone | UTC |

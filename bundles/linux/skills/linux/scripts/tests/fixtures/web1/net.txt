@@ -1,0 +1,58 @@
+@@lxcmd net
+@@lx os
+PRETTY_NAME="Ubuntu 24.04.1 LTS"
+NAME="Ubuntu"
+VERSION_ID="24.04"
+VERSION="24.04.1 LTS (Noble Numbat)"
+VERSION_CODENAME=noble
+ID=ubuntu
+ID_LIKE=debian
+HOME_URL="https://www.ubuntu.com/"
+@@lx addr
+lo               UNKNOWN        127.0.0.1/8 ::1/128
+bond0            UP             192.0.2.10/24 2001:db8::10/64
+bond0.100@bond0  UP             198.51.100.10/24
+eth0             UP
+eth1             DOWN
+docker0          DOWN           198.51.100.129/25
+@@lx link
+lo               UNKNOWN        00:00:00:00:00:00 <LOOPBACK,UP,LOWER_UP>
+eth0             UP             52:54:00:12:34:56 <BROADCAST,MULTICAST,SLAVE,UP,LOWER_UP>
+eth1             DOWN           52:54:00:12:34:56 <NO-CARRIER,BROADCAST,MULTICAST,SLAVE,UP>
+bond0            UP             52:54:00:12:34:56 <BROADCAST,MULTICAST,MASTER,UP,LOWER_UP>
+bond0.100@bond0  UP             52:54:00:12:34:56 <BROADCAST,MULTICAST,UP,LOWER_UP>
+docker0          DOWN           02:42:ac:11:00:01 <NO-CARRIER,BROADCAST,MULTICAST,UP>
+@@lx route
+default via 192.0.2.1 dev bond0 proto static
+192.0.2.0/24 dev bond0 proto kernel scope link src 192.0.2.10
+198.51.100.0/24 dev bond0.100 proto kernel scope link src 198.51.100.10
+198.51.100.128/25 dev docker0 proto kernel scope link src 198.51.100.129 linkdown
+@@lx route6
+default via 2001:db8::1 dev bond0 proto static metric 1024 pref medium
+@@lx detail
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN mode DEFAULT group default qlen 1000\    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00 promiscuity 0
+2: eth0: <BROADCAST,MULTICAST,SLAVE,UP,LOWER_UP> mtu 1500 qdisc fq_codel master bond0 state UP mode DEFAULT group default qlen 1000\    link/ether 52:54:00:12:34:56 brd ff:ff:ff:ff:ff:ff promiscuity 0 \    bond_slave state ACTIVE mii_status UP link_failure_count 0
+3: eth1: <NO-CARRIER,BROADCAST,MULTICAST,SLAVE,UP> mtu 1500 qdisc fq_codel master bond0 state DOWN mode DEFAULT group default qlen 1000\    link/ether 52:54:00:12:34:56 brd ff:ff:ff:ff:ff:ff promiscuity 0 \    bond_slave state BACKUP mii_status DOWN link_failure_count 3
+4: bond0: <BROADCAST,MULTICAST,MASTER,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP mode DEFAULT group default qlen 1000\    link/ether 52:54:00:12:34:56 brd ff:ff:ff:ff:ff:ff promiscuity 0 \    bond mode active-backup active_slave eth0 miimon 100
+5: bond0.100@bond0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP mode DEFAULT group default qlen 1000\    link/ether 52:54:00:12:34:56 brd ff:ff:ff:ff:ff:ff promiscuity 0 \    vlan protocol 802.1Q id 100 <REORDER_HDR>
+6: docker0: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc noqueue state DOWN mode DEFAULT group default\    link/ether 02:42:ac:11:00:01 brd ff:ff:ff:ff:ff:ff promiscuity 0 \    bridge forward_delay 1500 hello_time 200
+@@lx renderer
+netplan-file=50-cloud-init.yaml
+netplan-renderer=networkd
+systemd-networkd=active
+NetworkManager=inactive
+networking=inactive
+network=inactive
+ifupdown-ifaces=0
+@@lx firewall
+unit-firewalld=inactive
+unit-iptables=inactive
+unit-nftables=inactive
+unit-ufw=active
+nft: Error: Operation not permitted (you must be root)
+ufw: ERROR: You need to be root to run this script
+@@lx dns
+nameserver 127.0.0.53
+search example.com
+resolved: Global:
+resolved: Link 2 (bond0): 192.0.2.53 192.0.2.54

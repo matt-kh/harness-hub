@@ -175,7 +175,7 @@ except OSError:
 # file is PARSED, never sourced (no code runs from it). A variable that is already set in the
 # environment WINS over the file, so repo-level `.claude/settings.json` env overrides keep
 # working. Only keys with a known prefix are accepted (WORK_TICKET_ HARNESS_ K8S_ GUARD_ JIRA_
-# GDOC_ CREATE_TICKET_ OBS_ SUPPLY_), so the file can never inject BASH_ENV, LD_*, PATH and the like.
+# GDOC_ CREATE_TICKET_ OBS_ SUPPLY_ LINUX_ PROVISION_), so the file can never inject BASH_ENV, LD_*, PATH and the like.
 # HARNESS_GUARD_ENV overrides the path (tests point it at an empty file). Builtins only here:
 # this runs before the jq check, which must still fail closed on a bare PATH.
 _gs="${BASH_SOURCE[0]:-$0}"
@@ -193,7 +193,7 @@ if [ -r "$_ge" ]; then
     _gk=${_gl%%=*}; _gv=${_gl#*=}
     [ "$_gk" != "$_gl" ] || continue
     case "$_gk" in ''|[0-9]*|*[!A-Za-z0-9_]*) continue ;; esac
-    case "$_gk" in WORK_TICKET_*|HARNESS_*|K8S_*|GUARD_*|JIRA_*|GDOC_*|CREATE_TICKET_*|OBS_*|SUPPLY_*) ;; *) continue ;; esac
+    case "$_gk" in WORK_TICKET_*|HARNESS_*|K8S_*|GUARD_*|JIRA_*|GDOC_*|CREATE_TICKET_*|OBS_*|SUPPLY_*|LINUX_*|PROVISION_*) ;; *) continue ;; esac
     case "$_gv" in
       \'*\') _gv=${_gv#\'}; _gv=${_gv%\'}; _gq="'\\''"; _gv=${_gv//"$_gq"/\'} ;;
       \"*\") _gv=${_gv#\"}; _gv=${_gv%\"} ;;

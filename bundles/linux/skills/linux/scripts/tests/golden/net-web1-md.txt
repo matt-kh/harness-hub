@@ -1,0 +1,60 @@
+# exit=1
+# stderr:
+host=web1 os=ubuntu 24.04
+# stdout:
+# lx net — web1
+
+os: ubuntu 24.04
+
+## Findings (1)
+
+| sev | kind | name | message |
+|---|---|---|---|
+| warn | link | eth1 | administratively up but no carrier (cable, switch port or peer down) |
+
+## links
+
+| name | state | kind | master | parent | detail | addresses |
+|---|---|---|---|---|---|---|
+| lo | UNKNOWN |  |  |  |  | 127.0.0.1/8 ::1/128 |
+| eth0 | UP | bond_slave | bond0 |  |  |  |
+| eth1 | DOWN | bond_slave | bond0 |  |  |  |
+| bond0 | UP | bond |  |  | mode active-backup | 192.0.2.10/24 2001:db8::10/64 |
+| bond0.100 | UP | vlan |  | bond0 | id 100 | 198.51.100.10/24 |
+| docker0 | DOWN | bridge |  |  |  | 198.51.100.129/25 |
+
+## routes
+
+- default via 192.0.2.1 dev bond0 proto static
+- 192.0.2.0/24 dev bond0 proto kernel scope link src 192.0.2.10
+- 198.51.100.0/24 dev bond0.100 proto kernel scope link src 198.51.100.10
+- 198.51.100.128/25 dev docker0 proto kernel scope link src 198.51.100.129 linkdown
+
+## routes6_default
+
+- default via 2001:db8::1 dev bond0 proto static metric 1024 pref medium
+
+## renderer
+
+| key | value |
+|---|---|
+| in_use | netplan -> systemd-networkd |
+| netplan_files | ["50-cloud-init.yaml"] |
+| active_services | ["systemd-networkd"] |
+
+## firewall
+
+| key | value |
+|---|---|
+| active_services | ["ufw"] |
+| nft_tables | needs root |
+| ufw | needs root |
+| firewalld |  |
+
+## dns
+
+| key | value |
+|---|---|
+| nameservers | ["127.0.0.53"] |
+| search | ["example.com"] |
+| resolved | ["Global:", "Link 2 (bond0): 192.0.2.53 192.0.2.54"] |

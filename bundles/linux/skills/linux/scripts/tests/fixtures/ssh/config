@@ -1,0 +1,30 @@
+# ssh config fixture (documentation values only)
+Include config.d/*.conf
+
+Host web1
+  HostName 192.0.2.10
+  User deploy
+  IdentityFile ~/.ssh/id_ed25519_web
+  IdentitiesOnly yes
+
+Host db-prod-1 db1
+  HostName db1.example.com
+  User admin
+  Port 2222
+  IdentityFile ~/.ssh/id_ed25519_db
+
+Host unreachable
+  HostName 192.0.2.99
+Host denied
+  HostName=192.0.2.98
+Host hostkey
+  HostName 192.0.2.97
+
+Host *.example.com !bastion.example.com
+  User ops
+
+Match host bastion
+  User jump
+
+Host *
+  ServerAliveInterval 30

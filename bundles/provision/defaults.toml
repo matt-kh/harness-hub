@@ -1,0 +1,6 @@
+# Defaults for bundle `provision`.
+
+[provision]
+infra_root = ""
+pve_host = ""
+tool_source = "uv tool install git+https://github.com/matt-kh/provision-hub@<commit-sha>"

@@ -169,6 +169,70 @@ prints every one between your applied version and the new one.
   `gh stack sync` is not used, a failed retarget of a linked PR is reported for the human to
   unstack and re-link, and `gh stack merge` runs only on the user's explicit request
   (references `github.md`, `mr-description.md`, `decomposition.md`, SKILL.md Steps 6b/6c).
+- `linux` bundle (#64, part 2: skeleton and governance; experimental, domain `infrastructure`,
+  not in any profile): rule `82-linux` ("Linux hosts"), guard sections `82-linux` (definitions:
+  a quote-aware clause lexer that unwraps `sh -c`, `eval`, `$(…)` and wrappers, ssh / scp /
+  rsync option parsing, a remote-command splitter and its read-only allow-list, block-device
+  targets) and `83-linux-rules`, permissions, rows, `tests/run.sh` and
+  [docs/bundles/linux.md](docs/bundles/linux.md). `ssh HOST <command>` passes only when every
+  clause of the remote command is read-only and asks otherwise (`host=<alias> [PROD]` from
+  `linux.prod_re`); interactive sessions, `-t`, tunnels and forwarding, uploads, `sftp` and
+  `ssh-copy-id` ask; `StrictHostKeyChecking=no|off`, `UserKnownHostsFile=/dev/null` and `sshpass`
+  deny; copying a private key out of `~/.ssh` denies and never yields; `dd of=/dev/…`, `mkfs`,
+  `wipefs`, partitioning, LVM / ZFS / RAID and firewall / network changes ask locally (image
+  files and listing forms pass). Config `linux.prod_re`, `linux.inventory`, `linux.ssh_timeout`
+  (env `LINUX_PROD_RE`, `LINUX_INVENTORY`, `LINUX_SSH_TIMEOUT`). The `lx` CLI, skill, agents and
+  doctor checks follow in the next part; the guard already lets `lx` pass. ARCHITECTURE §3 lists
+  bands `82` and `83`.
+
+- `linux` bundle (#64, part 3: client): the stdlib `lx` CLI
+  (`bundles/linux/skills/linux/scripts/lx.py`, python 3.9+, linked as `lx`) with subcommands
+  `hosts`, `check`, `facts`, `health`, `logs`, `net`, `storage`, `audit` and `redact`. Hosts are
+  ssh-config `Host` aliases only (with `Include`, no wildcards, no `user@ip`; `IdentityFile` is
+  never shown and no key is read); every remote call is
+  `ssh -o BatchMode=yes -o ConnectTimeout=<linux.ssh_timeout> -o LogLevel=ERROR -T -n -- ALIAS`
+  with one fixed read-only script per subcommand, host-key checking left to the user's config,
+  output parsed and redacted locally (the shared redactor, inlined), Markdown by default or
+  `--json`, banner `host=<alias> os=<ID VERSION_ID> [PROD]`, exit codes 0 / 1 findings / 2
+  access. `logs` is always bounded (`--since 1h`, `--limit 200` by default, capped at 2000,
+  arguments validated, never a follow mode). The `linux` skill with runbooks (triage, networking,
+  storage, hardening with a severity rubric, distros: Ubuntu/Debian, RHEL family, NixOS, Proxmox
+  VE, Talos), the read-only `linux-triage` (investigate) and `linux-auditor` (review) agents,
+  manual steps `ssh-aliases` and `ssh-agent-key`, doctor checks `lx-cli`, `ssh-binary`,
+  `ssh-aliases` and `ssh-agent` (exit code of `ssh-add -l` only), new config key
+  `linux.redact_extra_re` (env `LINUX_REDACT_EXTRA_RE`), and a golden suite against a stub `ssh`
+  (Ubuntu 24.04 and Rocky 9 fixtures, every subcommand in both formats, argv invariants:
+  BatchMode and ConnectTimeout on every call, no `-t`, no host-key override, no follow mode, no
+  mutating command in any script).
+
+- `provision` bundle (#64, part 4; experimental, domain `infrastructure`, depends on `linux`,
+  not in any profile): governance and workflow for installing hosts with the external `prov`
+  renderer (the public provision-hub tool; Ubuntu autoinstall today, Proxmox VE, NixOS and
+  Talos planned), which never applies anything. Rule `85-provision` ("Provisioning"), guard
+  section `85-provision` (reads the linux definitions): `prov` and the read forms of `qm`, `pct`,
+  `pvesh`, `pvecm`, `pvesm`, `pveum`, `ha-manager`, `talosctl` (`gen`, `validate`, `get`, `logs`
+  without `-f`, `apply-config --dry-run`), `nixos-rebuild build|build-vm`, `nixos-anywhere
+  --vm-test`, `disko --dry-run`, `virsh` and `virt-install --dry-run --print-xml` pass; every
+  apply step asks (Proxmox VE changes, `talosctl apply-config` incl. `--mode=try`, `reset`,
+  `upgrade`, `bootstrap`, `nixos-rebuild switch` or any `--target-host`, `nixos-anywhere` and
+  `disko` also through `nix run` / `nix shell -c` / `nix-shell --run`, `virsh` changes,
+  `virt-install`, QEMU or `qemu-img` on `/dev/…`, `prov plan | sh`), with `host=<target> [PROD]`
+  from `linux.prod_re`, the Proxmox VE node and the infrastructure repository in the reason;
+  `talosctl kubeconfig` and `talosctl config merge|context|…` deny; reading `~/.talos/*` and
+  `talosctl kubeconfig -` deny in a never-yields prelude. The `provision` workflow skill
+  (`prov init` → render → validate → local VM test → MR → `prov plan` → the human applies →
+  `lx` verifies) with references (workflow, ubuntu, proxmox, nixos, talos, local-vm), the
+  design-only `provision-planner` agent (plan model), permissions, manual steps `install-prov`
+  and `infra-root`, warn-only doctor checks (`prov-cli`, `infra-root`, `kvm`, `talosctl`, `nix`,
+  `qemu`, `virsh`, `seed-iso`, `pve-assistant`), config `provision.infra_root`,
+  `provision.pve_host`, `provision.tool_source` (env `PROVISION_INFRA_ROOT`,
+  `PROVISION_PVE_HOST`, `PROVISION_TOOL_SOURCE`), rows, `tests/run.sh` (core + linux + provision)
+  and [docs/bundles/provision.md](docs/bundles/provision.md). ARCHITECTURE §3 and the roadmap
+  list band `85` as in use. The linux bundle: `linux_scan` takes an optional word list for later
+  sections, and the ssh remote allow-list accepts the Proxmox VE read forms (`qm`/`pct
+  list|config|status`, `pvesh get`, `pvecm status`, `pvesm status`, `pveum … list`, `ha-manager
+  status`, `pveversion`); their writes keep asking.
+
 - Guard engine: reads the hook input's `agent_id` (set by Claude Code on calls from a subagent
   or in-process teammate; `agent_type` is never read, since a `--agent` main thread carries it
   too) into `IN_SUBAGENT`, and offers `human_decision` / `human_decision_defer` for sections:
@@ -713,6 +777,14 @@ prints every one between your applied version and the new one.
 
 ### Taxonomy
 
+- New domain value `infrastructure` ("hosts, operating systems, provisioning, cloud accounts,
+  containers, databases and IaC outside Kubernetes"): `schema/bundle.schema.json`,
+  `lib/harness/taxonomy.py` `FACETS`, the `[owns] domains` enum of `schema/repo.schema.json`,
+  the hand-written domain lists in `ARCHITECTURE.md`, `docs/concepts.md` and
+  `docs/repo-level.md`, and the `--domain` choices of `harness catalog` and `harness lessons`.
+  It lands one PR ahead of its first user, the `linux` bundle (#64), followed by `provision`;
+  the vocabulary row reads `0` until that bundle ships. The roadmap's proposed-values table
+  shows it as adopted.
 - New domain value `security` ("security posture of code, dependencies, artefacts and
   credentials: supply chain, appsec, vulnerabilities"): `schema/bundle.schema.json`,
   `lib/harness/taxonomy.py` `FACETS`, the `[owns] domains` enum of `schema/repo.schema.json` and
@@ -929,6 +1001,12 @@ prints every one between your applied version and the new one.
   foreign PRs, ambiguous repository, branch named like a PR, pending retarget) and invariants (only `gh stack link --base feat-x <numbers>`, never a default-branch
   base, plan/status/check never link). No config change.
 
+- The guard's `guard.env` parser (core engine) and the `env-provides` lint
+  (`GUARD_ENV_PREFIXES_FALLBACK`) accept the `LINUX_` and `PROVISION_` prefixes, ahead of the
+  `linux` and `provision` bundles (#64); nothing to edit for existing setups.
+  [docs/roadmap.md](docs/roadmap.md): guard band `82` becomes `82-linux` and `83-linux-rules`
+  and `85-provision` are reserved; the planned `hosts` bundle is superseded by `linux` (its
+  keys become `linux.prod_re`, `linux.inventory`, `linux.ssh_timeout`).
 - GitHub and GitLab guard sections adopt "humans decide" (principle 2, part of #67). From a
   subagent (Claude Code's `agent_id`) every merge, approval and PR/MR/issue state change is
   **denied** with "hand the command back to the main thread": `gh pr merge|review`,
@@ -1198,6 +1276,24 @@ prints every one between your applied version and the new one.
   `gh extension exec` of another extension **asks** (and is **denied** from a subagent). Link sub PRs by number
   (`gh stack link --base <ticket branch> N1 N2`), keep stacks in sync with
   `stk sync --stack BR`, and hand `gh stack merge` to the user.
+- `linux` bundle (#64), opt-in: nothing changes until you add `linux` to `[hub].bundles`. Then
+  set `[linux] prod_re` if your production host aliases do not carry a `prod`/`production`
+  segment, and optionally `inventory`, `ssh_timeout` and `redact_extra_re` (new in part 3: extra
+  token shapes `lx` masks; empty keeps the built-in list); run `harness apply`, which also links
+  `lx` onto `PATH` and installs the `linux` skill and the `linux-triage` / `linux-auditor` agents. Remote commands
+  that are not read-only, `ssh -t`, tunnels and uploads start to ask, and
+  `StrictHostKeyChecking=no` / `sshpass` are denied.
+
+- `provision` bundle (#64), opt-in: nothing changes until you add `provision` (it pulls in
+  `linux`) to `[hub].bundles`. Then optionally set `[provision] infra_root` (your hosts repository),
+  `pve_host` (the `~/.ssh/config` alias of a Proxmox VE node) and `tool_source` (how to install
+  `prov`, pinned to a commit you reviewed), and run `harness apply`. Provisioning apply steps
+  (`qm` writes, `talosctl apply-config|reset|upgrade|bootstrap`, `nixos-rebuild switch`,
+  `nixos-anywhere`, `disko`, `virsh` changes, QEMU on block devices) start to ask, and
+  `talosctl kubeconfig`, talosconfig edits and reading `~/.talos/*` are denied. With `linux`
+  alone, `ssh NODE qm list|config`, `pvesh get` and the other Proxmox VE reads now pass instead
+  of asking.
+
 - Guard decision change (#76), nothing to edit in config. In a repository whose `.harness.toml`
   owns `scm` but not `tracker`, a closing keyword in `gh -Ro/r pr …`, `gh pr new`,
   `glab -R g/p mr …`, `glab mr new`, a repeated repo flag or a quoted / `$VAR` gh or glab

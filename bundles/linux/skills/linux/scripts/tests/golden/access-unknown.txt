@@ -1,0 +1,4 @@
+# exit=2
+# stderr:
+nosuchhost is not a Host alias in HERE/fixtures/ssh/config — run `lx hosts`; add the alias to your ssh config yourself (lx only reaches aliases)
+# stdout:

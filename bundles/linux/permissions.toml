@@ -1,0 +1,47 @@
+# Claude Code permission rules contributed by bundle `linux` (merged into settings.json
+# `permissions` by the claude provider; other providers translate what they can).
+# Local host reads and the lx CLI allowed, storage / firewall / network changes and host writes
+# ask, sshpass and disabled host-key checking denied (the guard's 83-linux-rules section is the
+# authoritative check: it also judges `ssh HOST <command>` clause by clause, which no prefix rule can).
+
+[permissions]
+allow = [
+  "Bash(findmnt:*)",
+  "Bash(ip -br:*)",
+  "Bash(lsblk:*)",
+  "Bash(lx:*)",
+  "Bash(netplan get:*)",
+  "Bash(netplan status:*)",
+  "Bash(nft list:*)",
+  "Bash(ufw status:*)",
+]
+ask = [
+  "Bash(blkdiscard:*)",
+  "Bash(iptables-restore:*)",
+  "Bash(lvcreate:*)",
+  "Bash(lvremove:*)",
+  "Bash(mdadm --create:*)",
+  "Bash(mdadm --zero-superblock:*)",
+  "Bash(netplan apply:*)",
+  "Bash(netplan try:*)",
+  "Bash(nft flush:*)",
+  "Bash(nmcli connection modify:*)",
+  "Bash(pvcreate:*)",
+  "Bash(pvremove:*)",
+  "Bash(sftp:*)",
+  "Bash(ssh-copy-id:*)",
+  "Bash(ufw disable:*)",
+  "Bash(ufw enable:*)",
+  "Bash(ufw reset:*)",
+  "Bash(vgcreate:*)",
+  "Bash(vgremove:*)",
+  "Bash(zpool create:*)",
+  "Bash(zpool destroy:*)",
+]
+deny = [
+  "Bash(ssh -o StrictHostKeyChecking=no:*)",
+  "Bash(ssh -o UserKnownHostsFile=/dev/null:*)",
+  "Bash(ssh -oStrictHostKeyChecking=no:*)",
+  "Bash(ssh -oUserKnownHostsFile=/dev/null:*)",
+  "Bash(sshpass:*)",
+]

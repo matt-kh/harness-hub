@@ -1,0 +1,41 @@
+@@lxcmd health
+@@lx os
+NAME="Rocky Linux"
+VERSION="9.4 (Blue Onyx)"
+ID="rocky"
+ID_LIKE="rhel centos fedora"
+VERSION_ID="9.4"
+PLATFORM_ID="platform:el9"
+PRETTY_NAME="Rocky Linux 9.4 (Blue Onyx)"
+@@lx nproc
+16
+@@lx loadavg
+3.10 2.80 2.50 2/900 12345
+@@lx failed
+@@lx df
+Filesystem          Type 1024-blocks      Used Available Capacity Mounted on
+devtmpfs            devtmpfs     4096         0      4096       0% /dev
+/dev/mapper/rl-root xfs     73364480  12345678  61018802      17% /
+/dev/sda1           xfs      1038336    345678    692658      34% /boot
+/dev/mapper/data-pg xfs    524288000 314572800 209715200      60% /var/lib/pgsql
+@@lx dfi
+Filesystem          Type    Inodes  IUsed    IFree IUse% Mounted on
+devtmpfs            devtmpfs 8186112    600  8185512    1% /dev
+/dev/mapper/rl-root xfs     36700160 98765 36601395    1% /
+/dev/sda1           xfs       524288    350   523938    1% /boot
+/dev/mapper/data-pg xfs     52428800 52000000  428800   99% /var/lib/pgsql
+@@lx meminfo
+MemTotal:       65536000 kB
+MemAvailable:   40000000 kB
+SwapTotal:             0 kB
+SwapFree:              0 kB
+@@lx psi
+some avg10=0.00 avg60=0.00 avg300=0.00 total=1234
+full avg10=0.00 avg60=0.00 avg300=0.00 total=123
+@@lx reboot
+needs-restarting=1
+@@lx timesync
+NTP=yes
+NTPSynchronized=no
+@@lx oom
+0

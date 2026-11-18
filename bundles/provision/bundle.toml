@@ -1,0 +1,231 @@
+[bundle]
+name = "provision"
+schema_version = "1"
+summary = "Provisioning Ubuntu, Proxmox VE, NixOS and Talos hosts with the external prov renderer: workflow skill, design-only planner agent, and guards that hand every apply step (VM create, disk write, talosctl apply, nixos-anywhere) to the human"
+description = """
+A thin governance and workflow bundle for installing hosts. The renderer is not part of the hub:
+`prov` (the public provision-hub tool) turns one versioned `host.toml` per machine into install
+artefacts (today Ubuntu autoinstall NoCloud seeds; Talos, NixOS and Proxmox VE planned), validates
+them and prints the apply steps for a human; it never applies anything. Real host definitions
+live in a private infrastructure repository (`provision.infra_root`), which may own provisioning
+(principle 8). Guard section 85 (after the linux sections it builds on): `prov` passes; the read
+forms of `qm`, `pct`, `pvesh`, `pvecm`, `pvesm`, `pveum`, `ha-manager`, `talosctl` (gen,
+validate, get, logs without -f, apply-config --dry-run), `nixos-rebuild build|build-vm`,
+`nixos-anywhere --vm-test`, `virsh` reads and `virt-install --dry-run --print-xml` pass; every
+apply step asks (Proxmox VE guest and cluster changes, `talosctl apply-config` incl.
+`--mode=try`, reset, upgrade, bootstrap, `nixos-rebuild switch` or any `--target-host`,
+`nixos-anywhere`, `disko`, `virsh` and `virt-install` changes, QEMU on block devices, `prov plan
+| sh`), with `host=<target> [PROD]` from `linux.prod_re`; `talosctl kubeconfig` and talosconfig
+edits deny; reading the talosconfig and printing a kubeconfig deny and never yield. Ships the
+`provision` workflow skill with distro references and the design-only `provision-planner` agent.
+"""
+depends_on = ["core", "linux"]
+recommends = ["k8s"]
+conflicts_with = []
+any_of = []
+owners = []
+docs = "docs/bundles/provision.md"
+stability = "experimental"
+
+[requires.binaries.python3]
+min_version = "3.10"
+version_cmd = "python3 --version"
+version_regex = 'Python ([0-9]+\.[0-9]+)'
+why = "prov (the external renderer) needs Python 3.10+; everything else in this bundle is optional."
+
+[requires.config."provision.infra_root"]
+type = "string"
+default = ""
+description = "Path of your private infrastructure repository holding hosts/<host>/host.toml (prov's root). Empty = the skill works in a scratch root and says the result must move into that repository through an MR. PROVISION_INFRA_ROOT."
+example = "~/dev/infra"
+
+[requires.config."provision.pve_host"]
+type = "string"
+default = ""
+description = "~/.ssh/config alias of a Proxmox VE node, used in printed plans and guard reasons (`ssh <alias> qm …`, every qm write the human's). Empty = plans use <pve-node>. PROVISION_PVE_HOST."
+example = "pve1"
+
+[requires.config."provision.tool_source"]
+type = "string"
+default = "uv tool install git+https://github.com/matt-kh/provision-hub@<commit-sha>"
+description = "How to install the prov renderer, shown by the skill and the prov-cli doctor check when prov is missing. Pin a commit or tag you reviewed. PROVISION_TOOL_SOURCE."
+example = "uv tool install git+https://github.com/matt-kh/provision-hub@<commit-sha>"
+
+[requires.secrets.talosconfig]
+where = "~/.talos/config (or $TALOSCONFIG)"
+written_by = "human (talosctl gen config, then talosctl config merge)"
+mode = "0600"
+description = "The Talos client config with its client key. Never read by agents: reading it and `talosctl kubeconfig -` are denied by guard section 85 and never yield; `talosctl config merge|context|…` is denied (human-managed)."
+rotate = "talosctl config new on a control-plane node with a fresh role, merge it yourself, then remove the old context"
+
+[requires.secrets.talos_secrets_bundle]
+where = "<provision.infra_root>/…/secrets.yaml (from talosctl gen secrets), sops-encrypted before commit"
+written_by = "human (talosctl gen secrets once per cluster, then sops --encrypt)"
+mode = "0600"
+description = "The Talos cluster secrets bundle (CA keys, tokens). Generated once, encrypted with sops before it enters the infrastructure repository; never plaintext in git, never printed."
+rotate = "talosctl rotate-ca (the human's, per the Talos docs), then regenerate and re-encrypt the bundle"
+
+[provides]
+rules = ["rules/85-provision.md"]
+skills = ["skills/provision"]
+skill_fragments = []
+agents = ["agents/provision-planner.md"]
+guard_rules = ["guard.d/85-provision.sh"]
+permissions = "permissions.toml"
+mcp = ""
+bin = []
+
+[provides.env]
+PROVISION_INFRA_ROOT = "{{ provision.infra_root }}"
+PROVISION_PVE_HOST = "{{ provision.pve_host }}"
+PROVISION_TOOL_SOURCE = "{{ provision.tool_source }}"
+
+[[manual_steps]]
+id = "install-prov"
+title = "Install the prov renderer (optional)"
+once_per = "machine"
+needs = []
+minutes = 3
+why = "The skill renders and validates install artefacts with prov; without it the agent explains the steps but never improvises a renderer."
+how = """
+Install the public provision-hub tool as an isolated uv tool, pinned to a commit you reviewed:
+```
+{{ provision.tool_source }}
+prov distros
+```
+`prov` never applies anything; it writes only below `<root>/hosts/<host>/rendered/`.
+"""
+[manual_steps.verify]
+cmd = "command -v prov >/dev/null && prov distros >/dev/null"
+expect = { exit = 0 }
+unblocks = ["prov-cli"]
+
+[[manual_steps]]
+id = "infra-root"
+title = "Point provision.infra_root at your infrastructure repository"
+once_per = "machine"
+needs = []
+minutes = 2
+why = "Host definitions belong in a reviewed repository; with infra_root set, prov runs with --root there and changes go through an MR."
+how = """
+Clone your infrastructure repository (the one holding `hosts/<host>/host.toml`), then set
+`[provision] infra_root = "~/dev/infra"` in `local/harness.toml` and run `harness apply`. If that
+repository has its own provisioning skills, declare `domains = ["infrastructure"]` in its
+`.harness.toml` and this bundle yields there.
+"""
+[manual_steps.verify]
+cmd = '''r=$(jq -r '.provision.infra_root // ""' "$HARNESS_CONFIG_JSON"); [ -n "$r" ] && git -C "${r/#\~/$HOME}" rev-parse --git-dir >/dev/null 2>&1'''
+expect = { exit = 0 }
+unblocks = ["infra-root"]
+
+[[doctor_checks]]
+id = "prov-cli"
+title = "prov renderer on PATH (optional; the skill explains the steps without it)"
+severity = "warn"
+cmd = "command -v prov >/dev/null && prov distros >/dev/null"
+expect = { exit = 0 }
+offline_skip = false
+fix = "install-prov"
+
+[[doctor_checks]]
+id = "infra-root"
+title = "provision.infra_root is set and is a git repository"
+severity = "warn"
+cmd = '''r=$(jq -r '.provision.infra_root // ""' "$HARNESS_CONFIG_JSON"); [ -n "$r" ] && git -C "${r/#\~/$HOME}" rev-parse --git-dir >/dev/null 2>&1'''
+expect = { exit = 0 }
+offline_skip = false
+fix = "infra-root"
+
+[[doctor_checks]]
+id = "kvm"
+title = "/dev/kvm is writable (fast local VM tests; without it QEMU falls back to slow TCG)"
+severity = "warn"
+cmd = "test -w /dev/kvm"
+expect = { exit = 0 }
+offline_skip = false
+fix = "add yourself to the kvm group (sudo usermod -aG kvm $USER, then log in again); on WSL2 set nestedVirtualization=true under [wsl2] in %UserProfile%\\.wslconfig and run wsl --shutdown"
+
+[[doctor_checks]]
+id = "talosctl"
+title = "talosctl installed (optional: Talos config generation and validation)"
+severity = "warn"
+cmd = "command -v talosctl >/dev/null"
+expect = { exit = 0 }
+offline_skip = false
+fix = "install talosctl from the Talos release page (verify its checksum) or your package manager; needed only for Talos hosts"
+
+[[doctor_checks]]
+id = "nix"
+title = "nix installed (optional: NixOS builds and nixos-anywhere --vm-test)"
+severity = "warn"
+cmd = "command -v nix >/dev/null"
+expect = { exit = 0 }
+offline_skip = false
+fix = "install Nix with your distribution's package or the official installer (download it, check it, then run it); needed only for NixOS hosts"
+
+[[doctor_checks]]
+id = "qemu"
+title = "qemu-system-x86_64 installed (optional: local VM tests)"
+severity = "warn"
+cmd = "command -v qemu-system-x86_64 >/dev/null"
+expect = { exit = 0 }
+offline_skip = false
+fix = "install qemu-system-x86 (Debian/Ubuntu), qemu-kvm (RHEL family) or qemu (Homebrew)"
+
+[[doctor_checks]]
+id = "virsh"
+title = "virsh installed (optional: libvirt VM tests)"
+severity = "warn"
+cmd = "command -v virsh >/dev/null"
+expect = { exit = 0 }
+offline_skip = false
+fix = "install libvirt-clients (Debian/Ubuntu) or libvirt-client (RHEL family); plain QEMU works without it"
+
+[[doctor_checks]]
+id = "seed-iso"
+title = "xorriso or cloud-localds installed (optional: building NoCloud seed ISOs)"
+severity = "warn"
+cmd = "command -v xorriso >/dev/null || command -v cloud-localds >/dev/null"
+expect = { exit = 0 }
+offline_skip = false
+fix = "install xorriso, or cloud-image-utils (cloud-localds)"
+
+[[doctor_checks]]
+id = "pve-assistant"
+title = "proxmox-auto-install-assistant installed (optional: Proxmox VE answer-file ISOs)"
+severity = "warn"
+cmd = "command -v proxmox-auto-install-assistant >/dev/null"
+expect = { exit = 0 }
+offline_skip = false
+fix = "install proxmox-auto-install-assistant from the Proxmox repository (on a Debian-based machine or a PVE node); needed only for Proxmox VE hosts"
+
+[uninstall]
+keeps = ["~/.talos/**"]
+notes = "Your talosconfig, the infrastructure repository and the prov tool are yours; uninstall removes only the rendered skill, agent, rule, permissions and guard section."
+
+# Component taxonomy (docs/reference/taxonomy.md): bundle defaults, then per-component overrides.
+[taxonomy]
+domain = "infrastructure"
+posture = "local"
+function = "workflow"
+
+[taxonomy.components]
+"agents/provision-planner" = { function = "plan", posture = "read-only", note = "design only" }
+
+# Guides steer the agent before it acts; sensors detect at or after the action (principle 6).
+[harness]
+coverage_note = "The renderer (prov) is an external tool with its own test suite; this bundle senses only the shell commands around it. The guard judges command text: an apply step run through another tool (ansible, a Proxmox API client, terraform providers, a script file written first and run later), a plan saved to a file and executed later, and what ~/.ssh/config adds to an alias are not sensed. The provision-rules guard section enforces rule text that lives in rules/85-provision.md; ssh HOST qm … is judged by the linux sections."
+guides = [
+  { kind = "rule", ref = "rules/85-provision.md", checks = ["guard.d/85-provision.sh"], note = "render, validate and plan freely; every apply step is the human's; host definitions change in the infra repo through an MR" },
+  { kind = "skill", ref = "skills/provision", checks = ["guard.d/tests.sh", "doctor_checks"], note = "the prov spine: init, render, validate, local VM test, MR, plan, the human applies, lx verifies; distro references" },
+  { kind = "permission", ref = "permissions.toml", checks = ["permissions-vs-guard", "guard.d/85-provision.sh"], note = "prov and the read forms allowed, apply steps ask, kubeconfig and talosconfig edits denied" },
+  { kind = "agent", ref = "agents/provision-planner.md", checks = ["guard.d/85-provision.sh", "agent-tools"], note = "design only: host.toml drafts and the plan steps, never applies" },
+]
+sensors = [
+  { kind = "guard", ref = "guard.d/85-provision.sh", note = "Proxmox VE, Talos, NixOS, libvirt and QEMU apply steps ask; kubeconfig and talosconfig writes deny; credential prints never yield" },
+  { kind = "test", ref = "guard.d/tests.sh", note = "guard rows incl. wrappers, nix run, ssh to a PVE node, the guard.env PROVISION_* keys and prod regex, and the infrastructure yield" },
+  { kind = "doctor", ref = "doctor_checks", note = "prov, infra_root, /dev/kvm and the optional distro tools (warn only)" },
+  { kind = "test", ref = "tests/run.sh", note = "this bundle's rows against core + linux + provision only" },
+  { kind = "lint", ref = "permissions-vs-guard", note = "each Bash allow/deny rule of permissions.toml run through the guard: no allowed command the guard denies or asks, no denied one it allows" },
+  { kind = "lint", ref = "agent-tools", note = "the planner sets no permissionMode, lists no write tools and names the plan model" },
+]

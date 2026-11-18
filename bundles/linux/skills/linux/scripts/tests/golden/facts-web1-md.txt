@@ -1,0 +1,30 @@
+# exit=0
+# stderr:
+host=web1 os=ubuntu 24.04
+# stdout:
+# lx facts — web1
+
+os: ubuntu 24.04
+
+## Findings (0)
+
+none
+
+## facts
+
+| key | value |
+|---|---|
+| os | Ubuntu 24.04.1 LTS |
+| id | ubuntu |
+| id_like | debian |
+| version_id | 24.04 |
+| kernel | Linux 6.8.0-45-generic x86_64 |
+| hostname | web1.example.com |
+| uptime | 14d 6h 56m |
+| cpus | 4 |
+| cpu_model | Intel(R) Xeon(R) Gold 6338 CPU @ 2.00GHz |
+| mem_total | 7.8G |
+| swap_total | 2.0G |
+| virt | kvm |
+| init | systemd |
+| timezone | Etc/UTC |

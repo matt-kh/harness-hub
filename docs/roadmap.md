@@ -61,19 +61,22 @@ ARCHITECTURE §3 is updated when a band is first used.
 | `46` | `46-compliance` | compliance | reserved ([Security track](#security-track)) |
 | `55` | `55-ci` | ci | between `50-gitlab` and `60-github`; adds only the rows those two lack |
 | `67` | `67-repo-bootstrap` | repo-bootstrap | in use: asks on `repoboot apply` (creates repositories, the first push into an empty remote, remote settings); after `60-github` and `65-stack`, so their asks on hand-typed `gh`/`glab` writes come first |
-| `82` | `82-hosts` | hosts | miscellaneous band, with `80-gdoc` |
+| `82` | `82-linux` | linux | in use: definitions for Linux hosts over SSH (supersedes the planned `82-hosts`); miscellaneous band, with `80-gdoc` |
+| `83` | `83-linux-rules` | linux | in use: the `linux` rules: asks on mutating remote commands, interactive sessions, tunnels and uploads, denies on disabled host-key checking and copied private keys; after `82-linux`, which they read |
+| `85` | `85-provision` | provision | in use: provisioning governance (Proxmox VE, Talos, NixOS, libvirt and QEMU apply steps ask; kubeconfig and talosconfig writes deny); after `83-linux-rules`, whose definitions it reads (`provision` depends on `linux`) |
 
-Free after this table: `47`–`49`, `85`.
+Free after this table: `47`–`49`.
 
 ## Proposed taxonomy values
 
 New `domain` values, added through the procedure in
 [taxonomy](reference/taxonomy.md#adding-a-value) when the first bundle using them lands
-(`operations` and `security` are in the vocabulary already):
+(`operations`, `security` and `infrastructure` are in the vocabulary already;
+`infrastructure` lands one PR ahead of its first user, the `linux` bundle):
 
 | Value | Meaning | Used by |
 |---|---|---|
-| `infrastructure` | cloud accounts, hosts, containers, databases and IaC outside Kubernetes | cloud, iac, containers, db, hosts |
+| `infrastructure` | adopted: hosts, operating systems, provisioning, cloud accounts, containers, databases and IaC outside Kubernetes | linux (first), provision, cloud, iac, containers, db |
 | `operations` | running systems: signals, incidents, reliability targets | obs, incident, slo |
 | `security` | security posture of code, dependencies, artefacts and credentials: supply chain, appsec, vulnerabilities | supply-chain (first), appsec, vuln, iam, privacy, compliance |
 
@@ -142,7 +145,7 @@ extensions to `k8s` and `core`. **Status: in progress.**
 | `ci` (P1 spec + `--json` UTC timestamps + shared contract) | pull-forward | scm / read-only | `55` | S1 |
 | **`incident`** | new bundle | operations / label-gated / workflow | `34` (reserved) | S5 |
 | **`slo`** | new bundle | operations / read-only / client (+ `sre-reviewer`, `dr-auditor` review) | `33` (reserved) | S6 |
-| `iac` (P3 spec + `plan-summary` for `pulumi preview --json`) | pull-forward | infrastructure (first use) | `26` | S7 |
+| `iac` (P3 spec + `plan-summary` for `pulumi preview --json`) | pull-forward | infrastructure | `26` | S7 |
 | `cloud` (P3 spec + `cloud backups`, `cloud eks`) | pull-forward | infrastructure | `27` | S8 |
 | `profiles/sre.toml` | profile | — | — | S9 |
 | `k8s` v2b: `rbac`, `deprecations`, `images`, `diff` | roadmap items (P2, P3) | kubernetes | — | later |
@@ -272,7 +275,7 @@ membership and specifications above are unchanged, the track only adds:
 - **`iac`** (S7): `iac plan-summary` parses `pulumi preview --json` and `terraform show
   -json` (counts, stateful resources via `iac.stateful_types_re`, IAM diff, network widening,
   blast-radius line); `iac-reviewer` is the architect's second reviewer next to
-  `chart-reviewer`. First use of domain `infrastructure`; every k8s `pass` row stays green.
+  `chart-reviewer`. Domain `infrastructure` (first used by `linux`); every k8s `pass` row stays green.
 - **`cloud`** (S8): adds `cloud backups` (database retention and snapshot age, bucket
   versioning and lifecycle, volume snapshot policies) and `cloud eks` (plain reads), the
   sources `dr-auditor` needs outside the cluster.
@@ -461,7 +464,7 @@ free, mutations handed to the human, secret values never printed. **Status: plan
 | **`cloud` bundle** | `bundles/cloud` (`infrastructure`, read-only; guard `27`) | deny credential printing (`aws configure export-credentials`, `gcloud auth print-access-token`, `az account get-access-token`, secret-manager reads not piped through the redactor); deny switching the shared default profile, project or subscription; ask mutating verbs with `[PROD]`; `cloud whoami|accounts|redact|cost`; `aws eks describe-*` is a plain read here (k8s stays Kubernetes-API-only) | M | SRE, platform, data |
 | **`iac` bundle** | `bundles/iac` (`infrastructure`, read-only; guard `26`) | deny `terraform state pull|show` and `output -json` unless redacted, deny reading state files; ask apply, destroy, import, `state rm|mv`, `force-unlock`, `pulumi up|destroy|refresh`, `cdk deploy`, `ansible-playbook` without `--check`; `iac plan-summary|state-ls|redact|drift`; agent `iac-reviewer` (review: blast radius, destroys, IAM changes) | M | infra, platform, data |
 | **`db` bundle** | `bundles/db` (`infrastructure`, read-only; guard `37`) | read-only sessions by construction (`default_transaction_read_only`, `SET SESSION TRANSACTION READ ONLY`, `sqlite3 -readonly`); ask writing SQL and `FLUSHALL`-class commands, interactive prod sessions, dumps to stdout; deny passwords on the command line and reading `~/.pgpass`-class files; `db targets|query|schema|explain|stats|redact`; `db.targets` entries have no password field | M | app, data, QA |
-| **`hosts` bundle** | `bundles/hosts` (`infrastructure`, read-only; guard `82`) | ask `ssh HOST <mutating command>`, interactive sessions, tunnels, uploads, `ssh-copy-id`; deny `StrictHostKeyChecking=no` and copying private keys; `hosts ls|check|facts|logs` reading `~/.ssh/config` internally (aliases, never keys) | S | infra, platform, QA |
+| ~~`hosts` bundle~~ | superseded by the `linux` bundle (#64: `bundles/linux`, `infrastructure`, read-only; guard `82`–`83`), which absorbs this row; the thin `provision` bundle (guard `85`) builds on it | was: ask `ssh HOST <mutating command>`, interactive sessions, tunnels, uploads, `ssh-copy-id`; deny `StrictHostKeyChecking=no` and copying private keys; `hosts ls|check|facts|logs` reading `~/.ssh/config` internally (aliases, never keys) | S | infra, platform, QA |
 | **`digest` bundle** | `bundles/digest` (`delivery`, read-only) | skill and CLI `standup [--since 24h]`: merged MRs/PRs and commits, open MRs/PRs and review requests, assigned tickets, failing pipelines (via `ci`), unread mail subjects (via `gdoc`); degrades per missing CLI; drafts only, never posts or sends | M | everyone with a standup |
 | `/draft-release-notes` | `core/skills/draft-release-notes` | Keep-a-Changelog section from `git log <last tag>..HEAD`, grouped by conventional-commit type or MR/PR title; never tags or creates a release | S/M | maintainers |
 | Status line | `providers/claude`, `core/bin` | opt-in `providers.claude.status_line`; model, branch, guard tier, drift count; never takes over a user's own `statusLine` | S | cosmetic |
@@ -504,8 +507,8 @@ Cross-tranche items that make the hub easier to maintain and to extend.
   `containers.prod_re`, `containers.registries_re`, `release.changelog`, `release.version_file`,
   `release.tag_prefix`, `release.tag_re`, `release.conventional_commits`, `cloud.prod_re`,
   `cloud.accounts`, `iac.prod_re`, `iac.stateful_types_re`, `db.prod_re`, `db.targets`,
-  `db.row_limit`, `hosts.prod_re`, `hosts.inventory`, `hosts.ssh_timeout`, `digest.repos`,
-  `digest.since`, `digest.mail`, `obs.default`, `obs.backends`, `obs.hosts_re`,
+  `db.row_limit`, `linux.prod_re`, `linux.inventory`, `linux.ssh_timeout` (were `hosts.*`,
+  superseded by the `linux` bundle, #64), `digest.repos`, `digest.since`, `digest.mail`, `obs.default`, `obs.backends`, `obs.hosts_re`,
   `obs.prod_re`, `obs.log_tail`, `obs.max_bytes`, `obs.redact_extra_re`,
   `k8s.redact_extra_re`, `incident.runbook_dirs`, `incident.runbook_max_age_days`,
   `incident.postmortem_dir`, `incident.postmortem_folder`, `incident.severity_levels`,
@@ -516,7 +519,7 @@ Cross-tranche items that make the hub easier to maintain and to extend.
   `supply_chain.identities`, `supply_chain.redact_extra_re`, `supply_chain.exclude_re`,
   `supply_chain.osv_offline_db`, `supply_chain.pin_actions`, `supply_chain.timeout`,
   `supply_chain.max_bytes`. Every env name a guard section reads must carry a prefix the guard
-  accepts (`HARNESS_`, `K8S_`, `OBS_`, `INCIDENT_`, `SLO_`, `SUPPLY_`, …; lint `env-provides`
+  accepts (`HARNESS_`, `K8S_`, `OBS_`, `INCIDENT_`, `SLO_`, `SUPPLY_`, `LINUX_`, `PROVISION_`, …; lint `env-provides`
   enforces this).
 
 ## Rejected or deferred

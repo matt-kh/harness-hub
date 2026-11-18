@@ -304,6 +304,9 @@ class ClassifyTest(HubTestCase):
             "k8s/agents/k8s-triage": ("investigate", "read-only", "execute", "guide"),
             "k8s/agents/k8s-auditor": ("review", "read-only", "execute", "guide"),
             "k8s/agents/infra-architect": ("plan", "read-only", "plan", "guide"),
+            "linux/agents/linux-triage": ("investigate", "read-only", "execute", "guide"),
+            "linux/agents/linux-auditor": ("review", "read-only", "execute", "guide"),
+            "provision/agents/provision-planner": ("plan", "read-only", "plan", "guide"),
             "obs/agents/obs-triage": ("investigate", "read-only", "execute", "guide + sensor (inferential)"),
             "supply-chain/agents/supply-architect": ("plan", "read-only", "plan", "guide"),
             "supply-chain/agents/supply-auditor": ("review", "read-only", "execute", "guide + sensor (inferential)"),
@@ -564,7 +567,8 @@ class YieldsTest(HubTestCase):
                 else:
                     self.assertIsNone(head["owns"], c.id)
         self.assertEqual(preludes, {"core/guard.d/30-git": 1, "github/guard.d/60-github": 1,
-                                    "k8s/guard.d/25-k8s-rules": 1, "obs/guard.d/32-obs": 1,
+                                    "k8s/guard.d/25-k8s-rules": 1, "linux/guard.d/83-linux-rules": 1,
+                                    "obs/guard.d/32-obs": 1, "provision/guard.d/85-provision": 2,
                                     "supply-chain/guard.d/38-supply-chain": 1})
 
     def test_conflicting_defaults(self):

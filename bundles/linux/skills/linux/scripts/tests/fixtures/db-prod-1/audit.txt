@@ -1,0 +1,51 @@
+@@lxcmd audit
+@@lx os
+NAME="Rocky Linux"
+VERSION="9.4 (Blue Onyx)"
+ID="rocky"
+ID_LIKE="rhel centos fedora"
+VERSION_ID="9.4"
+PLATFORM_ID="platform:el9"
+PRETTY_NAME="Rocky Linux 9.4 (Blue Onyx)"
+@@lx sshd
+port 2222
+permitrootlogin yes
+pubkeyauthentication yes
+passwordauthentication yes
+kbdinteractiveauthentication no
+permitemptypasswords no
+x11forwarding no
+allowtcpforwarding yes
+allowagentforwarding yes
+maxauthtries 10
+authenticationmethods any
+@@lx sshdcfg
+PermitRootLogin yes
+@@lx ports
+tcp   LISTEN 0      128          0.0.0.0:2222         0.0.0.0:*
+tcp   LISTEN 0      244          0.0.0.0:5432         0.0.0.0:*
+tcp   LISTEN 0      64           0.0.0.0:111          0.0.0.0:*
+tcp   LISTEN 0      128             [::]:2222            [::]:*
+tcp   LISTEN 0      244             [::]:5432            [::]:*
+udp   UNCONN 0      0          127.0.0.1:323          0.0.0.0:*
+@@lx sudo
+uid=1001
+sudoers-mode=440 root:root
+sudoers-readable=yes
+nopasswd=2
+sudoers.d=3
+admin-groups=wheel
+@@lx updates
+pm=dnf
+upgradable=37
+security=0
+@@lx auto
+unattended-upgrades.service=
+apt-daily-upgrade.timer=
+dnf-automatic.timer=disabled
+dnf-automatic-install.timer=
+nixos-upgrade.timer=
+dnf-conf: apply_updates = no
+@@lx suid
+28
+@@lx ww

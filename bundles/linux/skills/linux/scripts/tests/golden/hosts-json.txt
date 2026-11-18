@@ -1,0 +1,76 @@
+# exit=0
+# stderr:
+# stdout:
+{
+  "host": null,
+  "prod": false,
+  "command": "hosts",
+  "findings": [],
+  "data": {
+    "hosts": [
+      {
+        "alias": "lab-nixos",
+        "hostname": "203.0.113.5",
+        "user": "u",
+        "port": "",
+        "role": "",
+        "notes": "",
+        "prod": false
+      },
+      {
+        "alias": "web1",
+        "hostname": "192.0.2.10",
+        "user": "deploy",
+        "port": "",
+        "role": "",
+        "notes": "",
+        "prod": false
+      },
+      {
+        "alias": "db-prod-1",
+        "hostname": "db1.example.com",
+        "user": "admin",
+        "port": "2222",
+        "role": "",
+        "notes": "",
+        "prod": true
+      },
+      {
+        "alias": "db1",
+        "hostname": "db1.example.com",
+        "user": "admin",
+        "port": "2222",
+        "role": "",
+        "notes": "",
+        "prod": false
+      },
+      {
+        "alias": "unreachable",
+        "hostname": "192.0.2.99",
+        "user": "",
+        "port": "",
+        "role": "",
+        "notes": "",
+        "prod": false
+      },
+      {
+        "alias": "denied",
+        "hostname": "192.0.2.98",
+        "user": "",
+        "port": "",
+        "role": "",
+        "notes": "",
+        "prod": false
+      },
+      {
+        "alias": "hostkey",
+        "hostname": "192.0.2.97",
+        "user": "",
+        "port": "",
+        "role": "",
+        "notes": "",
+        "prod": false
+      }
+    ]
+  }
+}
