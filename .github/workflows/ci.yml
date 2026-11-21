@@ -72,17 +72,41 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # one Python per OS: 3.9 is the supported floor (and stock macOS /usr/bin/python3)
+        # The floor (3.9) is tested where it is a real system python, the stock macOS
+        # /usr/bin/python3, not as a setup-python build (none exists for current Ubuntu images,
+        # 3.9 is end-of-life upstream). Ubuntu covers the common distro python and the newest
+        # release.
         include:
           - os: ubuntu-latest
             python: "3.12"
+          - os: ubuntu-latest
+            python: "3.15"
           - os: macos-latest
-            python: "3.9"
+            python: system
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
+        if: matrix.python != 'system'
         with:
           python-version: ${{ matrix.python }}
+      - name: Use the stock python3 (macOS /usr/bin/python3)
+        if: matrix.python == 'system'
+        env:
+          FLOOR: "3.9"   # bundles/core/bundle.toml min_version; keep in step
+        run: |
+          # The runner image puts Homebrew's python3 first on PATH; shim the system one ahead of it.
+          shim="$RUNNER_TEMP/python-shim"
+          mkdir -p "$shim"
+          ln -sf /usr/bin/python3 "$shim/python3"
+          echo "$shim" >> "$GITHUB_PATH"
+          v="$("$shim/python3" -c 'import sys; print("%d.%d" % sys.version_info[:2])')"
+          echo "stock python3: $("$shim/python3" --version 2>&1)"
+          if ! "$shim/python3" -c "import sys; sys.exit(0 if sys.version_info[:2] >= tuple(map(int, '$FLOOR'.split('.'))) else 1)"; then
+            echo "::error::stock python3 $v is below the supported floor $FLOOR"; exit 1
+          fi
+          if [ "$v" != "$FLOOR" ]; then
+            echo "::warning::stock macOS python3 is now $v, the floor is $FLOOR: nothing tests $FLOOR any more; raise the floor (bundles/core/bundle.toml, bin/harness, docs) or add a $FLOOR row"
+          fi
       - name: Install tools (macOS)
         if: runner.os == 'macOS'
         run: brew install bash jq shellcheck
