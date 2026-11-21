@@ -2,6 +2,9 @@
 # Bundle `core` tests: the full guard suite (every bundle's rows), drift of inlined helper
 # copies, `bash -n` of every shell file in bundles/, the compat and config helpers, and build.sh
 # determinism. Exit 1 on any failure.
+# HARNESS_TEST_GUARD_COVERED=1 (set by `harness test` when the same run includes the `guard`
+# suite) replaces the full guard-rows pass of step 1 with core's rows against a core-only guard;
+# the build and every other step still run.
 set -uo pipefail
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 core=$(cd "$here/.." && pwd)
@@ -11,13 +14,24 @@ fail=0; cases=0
 chk() { cases=$((cases + 1)); if [ "$1" = 0 ]; then echo "PASS $2"; else echo "FAIL $2"; fail=1; fi; }
 ck() { local d=$1; shift; "$@"; chk $? "$d"; }  # ck DESC TEST...: run TEST, record it as case DESC
 
-# 1. guard rows (all bundles, built into a private temp dir)
+# 1. guard rows (all bundles, built into a private temp dir; the rows are skipped when the
+#    guard suite of this harness test run covers them)
 GUARD_BASH="$tmp/hooks/guard-bash.sh"
 bash "$core/guard/build.sh" "$GUARD_BASH"; chk $? "build.sh builds the guard"
-GUARD_BASH="$GUARD_BASH" bash "$core/guard/tests/run.sh" > "$tmp/guard.log" 2>&1; rc=$?
-tail -1 "$tmp/guard.log"
-ck "guard rows ($(tail -1 "$tmp/guard.log"))" [ "$rc" = 0 ]
-[ "$rc" = 0 ] || grep -A1 '^FAIL' "$tmp/guard.log" | head -40
+if [ "${HARNESS_TEST_GUARD_COVERED:-}" = 1 ]; then
+  echo "SKIP guard rows (run by the guard suite of this harness test run)"
+  # the guard suite runs core's rows against the all-bundles guard only: run them once against a
+  # core-only guard too, so a core row never passes only because another bundle's section decides
+  HARNESS_GUARD_BUNDLES=none bash "$core/guard/build.sh" "$tmp/core-only-guard.sh"
+  GUARD_BASH="$tmp/core-only-guard.sh" HARNESS_TEST_ROWS=core bash "$core/guard/tests/run.sh" > "$tmp/guard-core.log" 2>&1; rc=$?
+  ck "core rows vs core-only guard ($(tail -1 "$tmp/guard-core.log"))" [ "$rc" = 0 ]
+  [ "$rc" = 0 ] || grep -A1 '^FAIL' "$tmp/guard-core.log" | head -40
+else
+  GUARD_BASH="$GUARD_BASH" bash "$core/guard/tests/run.sh" > "$tmp/guard.log" 2>&1; rc=$?
+  tail -1 "$tmp/guard.log"
+  ck "guard rows ($(tail -1 "$tmp/guard.log"))" [ "$rc" = 0 ]
+  [ "$rc" = 0 ] || grep -A1 '^FAIL' "$tmp/guard.log" | head -40
+fi
 
 # 1b. section 35 (an awk lexer) must run on every POSIX awk: rerun its rows with each other awk
 #     found on PATH (mawk, busybox awk, original-awk / nawk when not gawk) first on PATH as `awk`.
