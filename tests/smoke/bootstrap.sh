@@ -80,7 +80,10 @@ grep -q '^Plan: 0 changes' "$tmp/apply2.log" || { cat "$tmp/apply2.log"; fail "s
 
 step "nothing written outside managed paths"
 (cd "$HOME" && find . -mindepth 1 | LC_ALL=C sort) > "$after"
-bad=$(LC_ALL=C comm -13 "$before" "$after" | grep -vE '^\./(\.claude(/(CLAUDE\.md|settings\.json|\.harness-state\.json|hooks|hooks/.*|skills|skills/.*|agents|agents/.*))?|\.claude\.json|\.local|\.local/(bin|bin/.*|state|state/harness|state/harness/.*|share|share/harness|share/harness/.*))$' || true)
+# Library/Caches/com.apple.python is the stock macOS /usr/bin/python3's own bytecode cache (its
+# install inside Xcode is read-only, so it writes .pyc files under $HOME): the interpreter's, not
+# the harness's.
+bad=$(LC_ALL=C comm -13 "$before" "$after" | grep -vE '^\./(\.claude(/(CLAUDE\.md|settings\.json|\.harness-state\.json|hooks|hooks/.*|skills|skills/.*|agents|agents/.*))?|\.claude\.json|\.local|\.local/(bin|bin/.*|state|state/harness|state/harness/.*|share|share/harness|share/harness/.*)|Library|Library/Caches|Library/Caches/com\.apple\.python|Library/Caches/com\.apple\.python/.*)$' || true)
 [ -z "$bad" ] || fail "unexpected paths written: $(printf '%s' "$bad" | tr '\n' ' ')"
 
 step "live build products untouched"
