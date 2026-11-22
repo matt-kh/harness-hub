@@ -131,7 +131,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 
 | id | control | domain | decisions | yields | note |
 |---|---|---|---|---|---|
-| `core/permissions` | guide | base | deny 11 · ask 2 · allow 1 | never | denies reads of credential files in the provider's own permission system |
+| `core/permissions` | guide | base | deny 11 · ask 2 · allow 2 | never | denies reads of credential files in the provider's own permission system |
 | `gdoc/permissions` | guide | workspace | ask 1 · allow 12 | config | read commands allowed, writes left to the guard |
 | `github/permissions` | guide | scm | deny 1 · ask 75 · allow 34 | config | read-only gh commands allowed; token printing denied |
 | `gitlab/permissions` | guide | scm | ask 20 · allow 13 | config | read-only glab commands allowed |

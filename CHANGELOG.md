@@ -139,6 +139,13 @@ prints every one between your applied version and the new one.
 
 ### Added
 
+- Core permissions allow `Bash(git worktree add:*)` (#104): Claude Code no longer asks before
+  every routine worktree (work-ticket subagents, stacked delivery). The guard runs first and
+  still asks on the risky forms (a ticket key in the branch name, a `-sub-` branch outside
+  `../<repo>_<branch>`). Claude Code's working-directory check covers `cd` and redirect targets,
+  not git's arguments, so the sibling path needs no `additionalDirectories` entry; forms the
+  prefix rule does not match (`git -C DIR worktree add`, `cd DIR && git worktree add`) still
+  ask. Takes effect after `harness apply`.
 - `harness test` takes several suite or bundle names (`harness test unit skills github`; `all`
   anywhere means all, an entry selected twice runs once) and `-j/--jobs N|auto` (part 02 of
   #93): N suites run at once on a thread pool, longest first, and print in discovery order with
