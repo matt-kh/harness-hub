@@ -91,7 +91,7 @@ Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md
 
 **Permission lists**
 
-- `core/permissions` — control: guide · function: govern · decisions: deny 11 · ask 2 · allow 1 · yields: never
+- `core/permissions` — control: guide · function: govern · decisions: deny 11 · ask 2 · allow 2 · yields: never
 
 **Doctor checks** (function: setup · posture: read-only; table below): `core/doctor/bash-version`, `core/doctor/guard-denies-credentials`, `core/doctor/guard-hook`, `core/doctor/jq`, `core/doctor/local-bin-path`, `core/doctor/python3`
 
