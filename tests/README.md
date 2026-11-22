@@ -20,6 +20,9 @@
 
 `bin/harness test` also discovers `bundles/core/guard/tests/run.sh` (with `GUARD_BASH` set to a
 guard concatenated from every bundle), `bundles/*/tests/run.sh`,
-`bundles/*/skills/*/scripts/tests/run.sh` and `providers/*/tests/run.sh`.
+`bundles/*/skills/*/scripts/tests/run.sh` and `providers/*/tests/run.sh`. It takes several suite
+or bundle names (`bin/harness test unit skills github`); `--jobs N|auto` runs N suites at once,
+prints them in discovery order and splits the guard suite into one `guard[<bundle>]` shard per
+bundle.
 Set `HARNESS_TEST_VERBOSE=1` to see command output inside unit tests. Unit and smoke tests set
 `HARNESS_BUILD_DIR` to a temp directory, so a live hub's `build/config.json` is never rewritten.

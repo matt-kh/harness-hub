@@ -39,7 +39,8 @@ positional arguments:
                  SHA256SUMS beside it
     release      maintainers: check a release tag (preflight) | write its release notes
     uninstall    remove what the harness wrote (state-listed paths only)
-    test         run the engine, guard, bundle, skill and provider test suites
+    test         run the engine, guard, bundle, skill and provider test suites (--jobs N|auto: in
+                 parallel)
     lint         validate manifests, cross-references, templates, private identifiers
     docs         generate | check the generated regions under docs/
     repo         show what the current repository's .harness.toml declares and which user-level
@@ -619,22 +620,26 @@ options:
 
 ```text
 usage: harness test [-h] [--config PATH] [--home DIR] [--json] [--offline] [--yes] [--dry-run]
-                    [-v]
-                    [suite]
+                    [-j N|auto] [-v]
+                    [suite ...]
 
-run the engine, guard, bundle, skill and provider test suites
+run the engine, guard, bundle, skill and provider test suites (--jobs N|auto: in parallel)
 
 positional arguments:
-  suite          all | unit | guard | bundles | skills | providers | smoke | <bundle name>
+  suite                 one or more of: all | unit | guard | bundles | skills | providers | smoke
+                        | <bundle name> (default: all)
 
 options:
-  -h, --help     show this help message and exit
-  --config PATH  config file (default: $HARNESS_CONFIG or <hub>/local/harness.toml)
-  --home DIR     hub directory (HARNESS_HOME)
-  --json         machine-readable output
-  --offline      skip network checks (HARNESS_OFFLINE=1)
-  --yes, -y      assume yes; never prompt
-  --dry-run      show what would happen, write nothing
+  -h, --help            show this help message and exit
+  --config PATH         config file (default: $HARNESS_CONFIG or <hub>/local/harness.toml)
+  --home DIR            hub directory (HARNESS_HOME)
+  --json                machine-readable output
+  --offline             skip network checks (HARNESS_OFFLINE=1)
+  --yes, -y             assume yes; never prompt
+  --dry-run             show what would happen, write nothing
+  -j N|auto, --jobs N|auto
+                        run N suites at once (auto: the CPU count; default 1); N > 1 shards the
+                        guard suite per bundle as guard[<bundle>]
   -v, --verbose
 ```
 

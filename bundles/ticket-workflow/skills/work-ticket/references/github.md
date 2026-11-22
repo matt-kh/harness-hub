@@ -192,13 +192,21 @@ ticket refs out of commit subjects; the `## Issue` mention carries the link). Su
 - `ci.pr_ci_on_ticket_base == false` (stacked): "Workflows trigger on `pull_request` only for
   base `<branches>` (`on.pull_request.branches`), so the part PRs targeting `<BR>` run **no
   CI** — their checks ran locally per part. Recommended, **not implemented here**: drop the
-  `branches` filter or add `'**'` to it, and gate expensive jobs with
-  `if: github.base_ref == github.event.repository.default_branch`."
+  `branches` filter or add `'**'` to it, and gate expensive jobs to PRs into the default
+  branch (the `mr_heavy_jobs` wording below)."
 - `ci.per_branch_heavy == true`: "`on.push` has no `branches` filter, so every pushed branch
   runs `<per_branch_heavy_jobs>`; each stacked part pays that. Recommended: `on.push.branches:
   [<default>]` or `branches-ignore: ['**-sub-*']`."
-- `ci.mr_heavy_jobs` non-empty (stacked): "`<jobs>` run on every PR regardless of base.
-  Recommended: `if: github.base_ref == github.event.repository.default_branch` on them."
+- `ci.mr_heavy_jobs` non-empty (stacked): "`<jobs>` run on every PR regardless of base, and
+  every `stk sync` lease push re-runs them on each part. Recommended, **not implemented here**:
+  `if: (github.event_name != 'pull_request' || github.base_ref == github.event.repository.default_branch) && (github.event.action != 'edited' || github.event.changes.base)`
+  on them (`base_ref` is empty on `push` and `workflow_dispatch`, so the bare comparison would
+  skip them on the default branch too), plus `edited` in `on.pull_request.types` so a part
+  retargeted to the default branch runs them without a push. With `edited` as a trigger, give
+  body-only edits their own `concurrency` group (suffix
+  `${{ (github.event.action == 'edited' && !github.event.changes.base) && 'edit' || 'run' }}`),
+  or every PR-body rewrite cancels an in-progress full run. The stack's main PR then tests the
+  integrated branch; `gh workflow run <file> --ref <sub branch>` runs a part on demand."
 - `ci.paths_filters` present: note which parts will skip which workflows.
 Never edit `.github/workflows/*` from this skill.
 

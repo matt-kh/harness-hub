@@ -10,6 +10,19 @@ prints every one between your applied version and the new one.
 
 ### Docs
 
+- `/work-ticket` CI recommendations for GitHub stacks (part 03 of #93): the Actions wording in
+  `references/github.md` §6 gated heavy jobs with a bare `github.base_ref == …default_branch`,
+  which also skips them on `push` and `workflow_dispatch`; it now names the event-aware
+  condition, the `edited` trigger for parts retargeted to the default branch and the separate
+  `concurrency` group that keeps PR-body rewrites from cancelling a full run.
+  `references/mr-description.md` points GitHub repositories there. The hub's own `ci.yml`
+  follows it: the full `test` job runs one Python per row (ubuntu with 3.12 and with the newest
+  release, 3.15; macOS with the stock `/usr/bin/python3`) with `harness test --jobs auto`, only
+  on PRs into `main`, pushes, dispatches and release calls; stack parts run lint, gate and docs.
+  The 3.9 floor is no longer a setup-python build: `ubuntu-latest` moved to 26.04, which has no
+  3.9 (end-of-life upstream), so the floor is tested where it is a real system python, and the
+  macOS row warns when Apple's stock python3 moves past the floor. The `smoke` job folds into `test` (its suites
+  already ran there; the entry-point bootstrap step moves over) and `render` into `docs`.
 - Governance text for the GitHub Issues close-on-merge exception (part 04 of #80): every
   statement that said closing keywords are denied everywhere now names the one exception (the
   PR to the default branch of a repository whose tracker is GitHub Issues may close its
@@ -126,6 +139,12 @@ prints every one between your applied version and the new one.
 
 ### Added
 
+- `harness test` takes several suite or bundle names (`harness test unit skills github`; `all`
+  anywhere means all, an entry selected twice runs once) and `-j/--jobs N|auto` (part 02 of
+  #93): N suites run at once on a thread pool, longest first, and print in discovery order with
+  the same PASS/FAIL lines. With N > 1 the guard suite runs as one `guard[<bundle>]` shard per
+  bundle (`HARNESS_TEST_ROWS`); the all-bundles guard is built once per run and shared. The
+  default (`--jobs 1`) output is unchanged.
 - Config key `github.close_issue_on_merge` (boolean, default `true`; env
   `HARNESS_GITHUB_CLOSE_ISSUE_ON_MERGE`), part of #80: in a repository whose tracker is
   GitHub Issues (`.harness.toml` `[repo] tracker`, else the first matching
@@ -867,6 +886,14 @@ prints every one between your applied version and the new one.
 
 ### Changed
 
+- `harness test` runs each guard row once (part 01 of #93): the guard runner
+  (`bundles/core/guard/tests/run.sh`) gains the knob `HARNESS_TEST_ROWS=a,b`, which runs only
+  the named bundles' rows (no implicit core; an unknown name exits 2). The bundle isolation
+  suites run only their own rows against their core + bundle guard instead of re-running the
+  core rows, and the core bundle suite skips its full guard-rows pass when the same run
+  includes the `guard` suite (`harness test` sets `HARNESS_TEST_GUARD_COVERED=1` for the other
+  suites and drops both variables from the inherited environment). `harness test core` alone
+  still runs every row.
 - `/create-ticket` `render-ticket.py --check` (part 04 of #80), message only: the reason for a
   GitHub closing keyword in an issue's title or body now says it "belongs only in
   work-ticket's PR to the default branch" instead of "mention #N instead". The check is

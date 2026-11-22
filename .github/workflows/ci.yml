@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
   pull_request:
+    # `edited` so a stack part retargeted to the default branch gets its full run without a push
+    # (the test job ignores every other edit)
+    types: [opened, synchronize, reopened, edited]
   workflow_dispatch:
   # called by release.yml (job checks) so a release runs the same suite; secrets: inherit there
   workflow_call:
@@ -12,7 +15,9 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  # Body/title edits (`stk sync` rewrites the main PR's Stack table) get their own group, so they
+  # never cancel an in-progress full run; a base change counts as a run.
+  group: ci-${{ github.workflow }}-${{ github.ref }}-${{ (github.event.action == 'edited' && !github.event.changes.base) && 'edit' || 'run' }}
   cancel-in-progress: true
 
 env:
@@ -56,19 +61,52 @@ jobs:
         run: tools/gate/check-links.sh
 
   test:
+    # The full suites run on PRs to the default branch, pushes, dispatches and release calls
+    # (workflow_call keeps the caller's event) only: stack parts (PRs into a ticket branch or
+    # another part) run the fast jobs, and the main PR tests the integrated stack. A sub branch
+    # gets a full run on demand with `gh workflow run ci.yml --ref <branch>`.
+    if: >-
+      (github.event_name != 'pull_request' || github.base_ref == github.event.repository.default_branch)
+      && (github.event.action != 'edited' || github.event.changes.base)
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        # The floor (3.9) is tested where it is a real system python, the stock macOS
+        # /usr/bin/python3, not as a setup-python build (none exists for current Ubuntu images,
+        # 3.9 is end-of-life upstream). Ubuntu covers the common distro python and the newest
+        # release.
+        include:
+          - os: ubuntu-latest
+            python: "3.12"
+          - os: ubuntu-latest
+            python: "3.15"
+          - os: macos-latest
+            python: system
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
+        if: matrix.python != 'system'
         with:
-          # the last one listed is the default python3; 3.9 is the supported floor
-          python-version: |
-            3.9
-            3.12
+          python-version: ${{ matrix.python }}
+      - name: Use the stock python3 (macOS /usr/bin/python3)
+        if: matrix.python == 'system'
+        env:
+          FLOOR: "3.9"   # bundles/core/bundle.toml min_version; keep in step
+        run: |
+          # The runner image puts Homebrew's python3 first on PATH; shim the system one ahead of it.
+          shim="$RUNNER_TEMP/python-shim"
+          mkdir -p "$shim"
+          ln -sf /usr/bin/python3 "$shim/python3"
+          echo "$shim" >> "$GITHUB_PATH"
+          v="$("$shim/python3" -c 'import sys; print("%d.%d" % sys.version_info[:2])')"
+          echo "stock python3: $("$shim/python3" --version 2>&1)"
+          if ! "$shim/python3" -c "import sys; sys.exit(0 if sys.version_info[:2] >= tuple(map(int, '$FLOOR'.split('.'))) else 1)"; then
+            echo "::error::stock python3 $v is below the supported floor $FLOOR"; exit 1
+          fi
+          if [ "$v" != "$FLOOR" ]; then
+            echo "::warning::stock macOS python3 is now $v, the floor is $FLOOR: nothing tests $FLOOR any more; raise the floor (bundles/core/bundle.toml, bin/harness, docs) or add a $FLOOR row"
+          fi
       - name: Install tools (macOS)
         if: runner.os == 'macOS'
         run: brew install bash jq shellcheck
@@ -84,14 +122,18 @@ jobs:
         run: tools/gate/tests/selftest.sh
       - name: Companion gate self-test
         run: tools/gate/tests/companions-selftest.sh
-      - name: harness test (python 3.12)
-        run: bin/harness test
-      - name: harness test (python 3.9)
+      - name: harness test
         run: |
-          shim=$(mktemp -d)
-          ln -s "$(command -v python3.9)" "$shim/python3"
-          PATH="$shim:$PATH" python3 --version
-          PATH="$shim:$PATH" bin/harness test
+          python3 --version
+          bin/harness test --jobs auto
+      - name: Bootstrap from the entry point (temp HOME, fake CLIs)
+        run: |
+          HOME="$(cd "$(mktemp -d)" && pwd)"; export HOME   # normalised (macOS $TMPDIR ends in /)
+          export PATH="$PWD/tests/fakes/bin:$PATH"
+          ./bootstrap --bundles core --providers claude --yes --offline --config "$CI_CONFIG"
+          bin/harness doctor --offline --config "$CI_CONFIG"
+          bin/harness plan --config "$CI_CONFIG" | tee /tmp/plan.txt
+          grep -q '0 changes' /tmp/plan.txt
 
   gate:
     runs-on: ubuntu-latest
@@ -145,50 +187,6 @@ jobs:
           pip install --quiet detect-secrets==1.5.0
           git ls-files -z | xargs -0 detect-secrets-hook --baseline .secrets.baseline
 
-  render:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Render twice with the same fresh home
-        # Same HOME on purpose: hook commands are absolute paths (hooks do not expand ~), so
-        # determinism means repeatability for one home, not identity across homes.
-        run: |
-          h=$(mktemp -d)
-          HOME="$h" bin/harness render --config "$CI_CONFIG" --out /tmp/r1
-          HOME="$h" bin/harness render --config "$CI_CONFIG" --out /tmp/r2
-      - name: Output is byte-identical
-        run: diff -r /tmp/r1 /tmp/r2
-
-  smoke:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-        script: [tests/smoke/bootstrap.sh, tests/smoke/render-determinism.sh]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Install tools (macOS)
-        if: runner.os == 'macOS'
-        run: command -v jq >/dev/null || brew install jq
-      - name: ${{ matrix.script }}
-        run: bash ${{ matrix.script }}
-      - name: Bootstrap from the entry point (temp HOME, fake CLIs)
-        if: matrix.script == 'tests/smoke/bootstrap.sh'
-        run: |
-          HOME="$(cd "$(mktemp -d)" && pwd)"; export HOME   # normalised (macOS $TMPDIR ends in /)
-          export PATH="$PWD/tests/fakes/bin:$PATH"
-          ./bootstrap --bundles core --providers claude --yes --offline --config "$CI_CONFIG"
-          bin/harness doctor --offline --config "$CI_CONFIG"
-          bin/harness plan --config "$CI_CONFIG" | tee /tmp/plan.txt
-          grep -q '0 changes' /tmp/plan.txt
-
   docs:
     runs-on: ubuntu-latest
     steps:
@@ -198,3 +196,12 @@ jobs:
           python-version: "3.12"
       - name: Generated doc regions are current
         run: bin/harness docs check
+      - name: Render twice with the same fresh home
+        # Same HOME on purpose: hook commands are absolute paths (hooks do not expand ~), so
+        # determinism means repeatability for one home, not identity across homes.
+        run: |
+          h=$(mktemp -d)
+          HOME="$h" bin/harness render --config "$CI_CONFIG" --out /tmp/r1
+          HOME="$h" bin/harness render --config "$CI_CONFIG" --out /tmp/r2
+      - name: Render output is byte-identical
+        run: diff -r /tmp/r1 /tmp/r2

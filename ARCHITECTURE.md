@@ -446,7 +446,9 @@ Test rows live in `bundles/<b>/guard.d/tests.sh` and use the shared helpers from
 `tr EXPECTED 'reason-regex' 'cmd'`, `g` for git-stub state, `tj on|off|unset EXPECTED 'cmd'`
 for the opt-in journal: line shape, and no word of the command in the file). `harness test guard` builds the
 concatenated script for **all** bundles into `build/` and runs every bundle's rows against it
-with stubs from `bundles/core/guard/tests/stubs/` on `PATH`.
+with stubs from `bundles/core/guard/tests/stubs/` on `PATH`. Under `harness test --jobs N`
+(N > 1) the guard is built once and the rows run as one `guard[<bundle>]` shard per bundle
+(`HARNESS_TEST_ROWS=<bundle>`), in parallel with the other suites.
 
 ### 6. Engine commands
 

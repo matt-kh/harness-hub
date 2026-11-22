@@ -59,7 +59,7 @@ installed, upgraded, released or reached over the network.
 
 | Check | Kind | Where |
 |---|---|---|
-| Bootstrap in a fresh home with `--offline` and fake CLIs; `plan` then shows `0 changes` | smoke | `tests/smoke/bootstrap.sh`, CI `smoke` job |
+| Bootstrap in a fresh home with `--offline` and fake CLIs; `plan` then shows `0 changes` | smoke | `tests/smoke/bootstrap.sh`, CI `test` job (entry-point bootstrap step) |
 | Pack → verify → `bootstrap --from` into a temp home → `doctor --offline` | smoke | `tests/smoke/pack.sh` |
 | Every outbound call is listed with its opt-out | review | [SECURITY.md](../SECURITY.md#outbound-network-calls) |
 | Network doctor checks declare `offline_skip = true` | review | add-a-bundle checklist |

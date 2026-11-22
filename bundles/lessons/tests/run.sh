@@ -10,12 +10,12 @@ tmp=$(mktemp -d); trap 'chmod -R u+w "$tmp" 2>/dev/null; rm -rf "$tmp"' EXIT
 fail=0; cases=0
 ok() { cases=$((cases + 1)); if [ "$1" = 0 ]; then echo "PASS $2"; else echo "FAIL $2"; fail=1; fi; }
 
-# guard rows of section 15 against a guard built from core + lessons only
+# the lessons guard rows (section 15) against a guard built from core + lessons only
 core=$(cd "$bdir/../core" && pwd)
 HARNESS_GUARD_BUNDLES=lessons bash "$core/guard/build.sh" "$tmp/g/guard-bash.sh"; ok $? "build the core + lessons guard"
-GUARD_BASH="$tmp/g/guard-bash.sh" HARNESS_TEST_BUNDLES=lessons bash "$core/guard/tests/run.sh" > "$tmp/guard.log" 2>&1; rc=$?
+GUARD_BASH="$tmp/g/guard-bash.sh" HARNESS_TEST_ROWS=lessons bash "$core/guard/tests/run.sh" > "$tmp/guard.log" 2>&1; rc=$?
 [ $rc = 0 ] || grep -A1 '^FAIL' "$tmp/guard.log" | head -20
-ok $rc "guard (lessons + core): $(tail -1 "$tmp/guard.log")"
+ok $rc "guard (lessons rows, core + lessons guard): $(tail -1 "$tmp/guard.log")"
 
 bash "$bdir/hooks/tests/run.sh" > "$tmp/hooks.log" 2>&1; rc=$?
 [ $rc = 0 ] || grep '^FAIL' "$tmp/hooks.log" | head -20
