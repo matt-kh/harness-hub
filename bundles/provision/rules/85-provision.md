@@ -1,6 +1,6 @@
 ## Provisioning
 - **Render, validate and plan freely; never apply.** Use the `prov` renderer (skill `provision`),
-  also when it runs as `uv run prov` from an infrastructure repository that pins it:
+  also when it runs as `uv run --frozen prov` from an infrastructure repository that pins it:
   `prov init|render|validate|diff|plan|list|status|digest|conformance` write at most below
   `<root>/<kind>/<name>/rendered/` and print the apply steps. Never pipe `prov plan` into a
   shell, however prov is launched, and never improvise a renderer when `prov` is missing.

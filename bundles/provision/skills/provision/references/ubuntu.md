@@ -12,7 +12,7 @@ backend is `ubuntu-autoinstall`; nothing else in this flow is hand-written.
 |---|---|
 | `user-data` | `#cloud-config` with the `autoinstall:` section: identity / users and ssh keys, locale, keyboard, timezone, network (netplan v2), storage layout, packages |
 | `meta-data` | `instance-id` and `local-hostname` for NoCloud |
-| `kernel-cmdline` | the kernel arguments the installer needs (`autoinstall`, and the data source when it is not a CIDATA volume) |
+| `kernel-cmdline` | the kernel arguments the installer needs: `autoinstall ds=nocloud` |
 
 Storage layouts (`[storage] disks` + `[ubuntu-autoinstall.storage] layout` in `spec.toml`): `lvm`
 (LVM over the listed disks), `zfs` (ZFS root, single disk, following curtin's example — the least
@@ -81,18 +81,18 @@ The NoCloud seed is a small ISO with volume label `CIDATA` holding `user-data` a
 ```bash
 # hook: pass (writes a local file)
 cloud-localds seed.iso user-data meta-data
-xorriso -as mkisofs -o seed.iso -V CIDATA -J -r user-data meta-data
+xorriso -as genisoimage -output seed.iso -volid cidata -joliet -rock user-data meta-data
 ```
 
 Boot targets:
 
 - **Local VM**: the Ubuntu live-server ISO as cdrom plus `seed.iso` as a second cdrom
-  (`local-vm.md`). The installer finds the CIDATA volume; add `autoinstall` to the kernel command
-  line (or accept the prompt) per `kernel-cmdline`.
+  (`local-vm.md`). The installer finds the CIDATA volume; add `autoinstall ds=nocloud` to the kernel
+  command line (`kernel-cmdline`), or accept the installer's confirmation prompt.
 - **Bare metal**: write the live-server ISO to a USB stick and the seed to a second stick or a
   CIDATA partition — **human**: `dd if=ubuntu-24.04-live-server-amd64.iso of=/dev/sdX bs=4M
-  conv=fsync` (the guard asks; check `/dev/sdX` with `lsblk` first). Or remaster one ISO with the
-  seed inside, as `prov plan` describes.
+  conv=fsync` (the guard asks; check `/dev/sdX` with `lsblk` first). At the GRUB menu press `e`
+  and append `autoinstall ds=nocloud` to the `linux` line (the plan's option B).
 - **PXE / HTTP**: serve the seed over HTTP and pass `ds=nocloud;s=http://192.0.2.5/web1/` on the
   kernel command line. Needs a DHCP/TFTP or iPXE setup the human owns; it does not work from WSL2
   NAT (`local-vm.md`).

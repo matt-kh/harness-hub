@@ -31,7 +31,7 @@
 # never-yields: the developer's Talos client credential (principle 8 exemption; runs even when the repository owns infrastructure)
 # rule: <reader> ~/.talos/* | $TALOSCONFIG -> deny : the talosconfig holds the Talos client key; run 'talosctl config info' instead
 # rule: talosctl kubeconfig - (written to stdout) -> deny : prints cluster credentials; hand 'talosctl kubeconfig' to the user instead
-local pv_i pv_k pv_t pv_c pv_n pv_s
+local pv_i pv_k pv_t pv_c pv_n pv_s pv_g pv_x
 PROV_PRE_RE='(^|[^[:alnum:]_.-])(qm|pct|pvesh|pvecm|pveum|pvesm|pvenode|ha-manager|talosctl|nixos-rebuild(-ng)?|nixos-anywhere|disko(-install)?|virsh|virt-install|qemu-system-[[:alnum:]_]+|qemu-img|prov|nix|nix-shell)([^[:alnum:]_-]|$)'
 PROV_TALOS_RE="(${HOME_RE:-~}/\\.talos(/|[[:space:]\"')]|\$)|\\\$\\{?TALOSCONFIG\\}?)"
 # talosctl flags that take a value (so their value is never read as a subcommand)
@@ -40,23 +40,33 @@ PROV_PVE_HINT=${PROVISION_PVE_HOST:+ (on the Proxmox VE node: ssh $PROVISION_PVE
 PROV_INFRA_HINT=${PROVISION_INFRA_ROOT:+; the host definitions live in $PROVISION_INFRA_ROOT and change through an MR}
 PROV_SCANNED=false
 # uv and uvx options that take a value (so their value is never read as the command uv runs)
-PROV_UV_VF='--project|--directory|-w|--with|--with-editable|--with-requirements|-p|--python|--package|--extra|--group|--only-group|--no-group|--index|--default-index|-i|--index-url|--extra-index-url|-f|--find-links|--env-file|--config-file|--cache-dir|--color|--index-strategy|--keyring-provider|--resolution|--prerelease|--fork-strategy|--exclude-newer|--exclude-newer-package|--link-mode|--refresh-package|--reinstall-package|-P|--upgrade-package|--no-binary-package|--no-build-package|--no-sources-package|-C|--config-setting|--python-platform|--allow-insecure-host|--trusted-host|--from|--build-constraints|-c|--constraints|--overrides|-b'
-prov_uv() {  # uv|uvx WORDS… -> rc 0 and PROV_UV = the number of words before the command that `uv run`, `uv tool run` or `uvx` runs
-  local c=$1 w i=0 skip=false st=sub
+PROV_UV_VF='--project|--directory|-w|--with|--with-editable|--with-requirements|--with-executables-from|-p|--python|--python-preference|--python-platform|--package|--extra|--no-extra|--group|--only-group|--no-group|--upgrade-group|--index|--default-index|-i|--index-url|--extra-index-url|-f|--find-links|--env-file|--config-file|--cache-dir|--color|--index-strategy|--keyring-provider|--resolution|--prerelease|--fork-strategy|--exclude-newer|--exclude-newer-package|--link-mode|--refresh-package|--reinstall-package|-P|--upgrade-package|--no-binary-package|--no-build-package|--no-build-isolation-package|--no-sources-package|-C|--config-setting|--config-settings-package|--torch-backend|--allow-insecure-host|--trusted-host|--from|--build-constraints|-c|--constraints|--overrides|-b'
+prov_uv() {  # uv|uvx WORDS… -> rc 0 and PROV_UV = the number of words before the command that `uv run`, `uv tool run` or
+  # `uvx` runs. An unknown --long option may take a value: the word after it is then tried as the command when it is prov
+  # (fail closed: a new uv option must not hide prov)
+  local c=$1 w i=0 n skip=false unk=false st=sub
   shift
+  local -a a=("$@")
+  n=${#a[@]}
   [ "$c" = uvx ] && st=cmd
-  for w in "$@"; do
-    i=$((i+1))
+  while [ "$i" -lt "$n" ]; do
+    w=${a[i]}; i=$((i+1))
     if $skip; then skip=false; continue; fi
     case "$w" in
-      --|--*=*) continue ;;
-      -?*) [[ $w =~ ^($PROV_UV_VF)$ ]] && skip=true; continue ;;
+      --|--*=*) unk=false; continue ;;
+      --?*) unk=false; if [[ $w =~ ^($PROV_UV_VF)$ ]]; then skip=true; else unk=true; fi; continue ;;
+      -?*) unk=false; [[ $w =~ ^($PROV_UV_VF)$ ]] && skip=true; continue ;;
     esac
     case "$st" in
-      sub) case "$w" in run) st=cmd ;; tool) st=tool ;; *) return 1 ;; esac ;;
-      tool) [ "$w" = run ] || return 1; st=cmd ;;
-      cmd) PROV_UV=$((i-1)); return 0 ;;
+      sub) case "$w" in run) st=cmd ;; tool) st=tool ;; *) $unk || return 1 ;; esac ;;
+      tool) case "$w" in run) st=cmd ;; *) $unk || return 1 ;; esac ;;
+      cmd)
+        if $unk && [ "$i" -lt "$n" ]; then
+          case "${w##*/}" in prov|prov@*) ;; *) case "${a[i]##*/}" in prov|prov@*) PROV_UV=$i; return 0 ;; esac ;; esac
+        fi
+        PROV_UV=$((i-1)); return 0 ;;
     esac
+    unk=false
   done
   return 1
 }
@@ -359,10 +369,19 @@ while [ "$pv_i" -lt "${#LQ[@]}" ]; do   # nix-shell --run appends clauses: the b
   linux_cmd0
   [ -n "$LC" ] || continue
   pv_s=$((LI+1))
-  # uv run|uv tool run|uvx [opts] CMD …: judge the command uv runs (a project-pinned prov runs this way)
-  case "$LC" in
-    uv|uvx) if prov_uv "$LC" "${LW[@]:$pv_s}"; then pv_s=$((pv_s+PROV_UV)); LC=${LW[pv_s]##*/}; pv_s=$((pv_s+1)); fi ;;
-  esac
+  # uv run|uv tool run|uvx [opts] CMD …: judge the command uv runs (a project-pinned prov runs this way); the words after
+  # it go through linux_cmd0 again, so `uv run sudo qm …` and `uvx prov@1.0 …` are seen too
+  pv_g=0
+  while [ "$pv_g" -lt 4 ]; do
+    case "$LC" in uv|uvx) ;; *) break ;; esac
+    prov_uv "$LC" "${LW[@]:$pv_s}" || break
+    pv_x=$LXA
+    LW=("${LW[@]:$((pv_s+PROV_UV))}")
+    linux_cmd0
+    $pv_x && LXA=true
+    LC=${LC%%@*}; pv_s=$((LI+1)); pv_g=$((pv_g+1))
+  done
+  [ -n "$LC" ] || continue
   # prov plan … | sh: the printed apply steps would run
   if [ "$LC" = prov ] && [ "$pv_k" = P ]; then
     linux_pos '--root' "${LW[@]:$pv_s}"

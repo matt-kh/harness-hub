@@ -34,7 +34,7 @@ operating-system install); a **backend** renders it. Both are plugins.
 `kinds`, `backends`, `schema`, `validate`, `plan` and `status` take `--json`. Root: `--root DIR`,
 else `$PROV_ROOT`, else the current directory. Install it either pinned in your infrastructure
 repository (`provision-hub` as a git dependency at a reviewed commit in its `pyproject.toml`; the
-skill then runs `uv run prov` there and the guard judges that form like a bare `prov`) or as an
+skill then runs `uv run --frozen prov` there and the guard judges that form like a bare `prov`) or as an
 isolated, pinned uv tool (`provision.tool_source`, default
 `uv tool install git+https://github.com/matt-kh/provision-hub@<commit-sha>`: pick and review the
 commit). Without `prov` the skill says so, prints that hint and explains the steps, but never
@@ -54,7 +54,8 @@ agent, rule and guard section yield there (principle 8).
 
 Observed state is optional: point `provision.state_dir` at a checkout of the state records that
 host agents write (`<kind>/<name>.json`); the skill then reads `prov status --state-dir` after an
-install (`planned`, `active`, `stale`; `in-sync`, `pending`, `drifted`). Neither prov nor the
+install (`planned`, `active`, `stale`, `decommissioned`; `in-sync`, `pending`, `drifted`,
+`unknown`). Neither prov nor the
 agent writes a record.
 
 ## Workflow
@@ -110,8 +111,8 @@ Config: `provision.infra_root` (env `PROVISION_INFRA_ROOT`), `provision.pve_host
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| The skill says `prov` is missing | provision-hub is neither on PATH nor pinned in `provision.infra_root` | pin it in the infrastructure repository and `uv sync` there, or run the `provision.tool_source` command (manual step `install-prov`), then `prov kinds` |
-| Doctor warns `prov-cli` although the infrastructure repository pins prov | its environment is not synced (the check runs `uv run --no-sync`) | `uv sync` in that repository |
+| The skill says `prov` is missing | provision-hub is neither on PATH nor pinned in `provision.infra_root` | pin it in the infrastructure repository and `uv sync --frozen` there, or run the `provision.tool_source` command (manual step `install-prov`), then `prov kinds` |
+| Doctor warns `prov-cli` although the infrastructure repository pins prov | its `.venv` has no `prov` yet (the check only reads `<infra_root>/.venv/bin/prov`) | `uv sync --frozen` in that repository |
 | Doctor warns `infra-root` | `provision.infra_root` empty or not a git checkout | clone the infrastructure repository and set `[provision] infra_root` in `local/harness.toml`, then `harness apply` |
 | Doctor warns `kvm` | no writable `/dev/kvm`: VM tests fall back to slow TCG | join the `kvm` group; on WSL2 set `nestedVirtualization=true` in `.wslconfig` and `wsl --shutdown` |
 | A PXE or bridged VM test never gets an address | WSL2 networking is NAT | test PXE and bridging on a Proxmox VE node or real hardware |
@@ -196,9 +197,9 @@ Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md
 
 | key | type | required | default | description |
 |---|---|---|---|---|
-| `provision.infra_root` | string | no | `""` | Path of your private infrastructure repository: the repository itself or its subdirectories are prov roots holding <kind>/<name>/spec.toml (its CLAUDE.md or README names them), and a pyproject.toml that pins provision-hub makes the skill run `uv run prov` there. Empty = the skill works in a scratch root and says the result must move into that repository through an MR. PROVISION_INFRA_ROOT. |
+| `provision.infra_root` | string | no | `""` | Path of your private infrastructure repository: the repository itself or its subdirectories are prov roots holding <kind>/<name>/spec.toml (its CLAUDE.md or README names them), and a pyproject.toml that pins provision-hub makes the skill run `uv run --frozen prov` there. Empty = the skill works in a scratch root and says the result must move into that repository through an MR. PROVISION_INFRA_ROOT. |
 | `provision.pve_host` | string | no | `""` | ~/.ssh/config alias of a Proxmox VE node, used in printed plans and guard reasons (`ssh <alias> qm …`, every qm write the human's). Empty = plans use <pve-node>. PROVISION_PVE_HOST. |
-| `provision.state_dir` | string | no | `""` | Optional checkout of the directory of prov state records (<kind>/<name>.json, written by host agents, never by prov or the agent). Set = the skill runs `prov status --state-dir` to report lifecycle and sync (planned, active, stale; in-sync, pending, drifted) after an install; empty = every item is reported planned. PROVISION_STATE_DIR. |
+| `provision.state_dir` | string | no | `""` | Optional checkout of the directory of prov state records (<kind>/<name>.json, written by host agents, never by prov or the agent); an absolute path, or ~/… (the skill expands it). Set = the skill runs `prov status --state-dir` to report lifecycle and sync (planned, active, stale, decommissioned; in-sync, pending, drifted, unknown) after an install; empty = every item is reported planned. PROVISION_STATE_DIR. |
 | `provision.tool_source` | string | no | `"uv tool install git+https://github.com/matt-kh/provision-hub@<commit-sha>"` | How to install the prov renderer globally, shown by the skill and the prov-cli doctor check when prov is missing and the infrastructure repository does not pin it. Pin a commit or tag you reviewed. PROVISION_TOOL_SOURCE. |
 
 ### Secrets (never in harness.toml)
@@ -236,7 +237,7 @@ package = false
 [tool.uv.sources]
 provision-hub = { git = "https://github.com/matt-kh/provision-hub", rev = "<commit-sha>" }
 ```
-then `uv sync` and `uv run prov kinds` in that repository. Or install it as an isolated uv tool,
+then `uv sync --frozen` and `uv run --frozen prov kinds` in that repository. Or install it as an isolated uv tool,
 pinned to a commit you reviewed:
 ```
 {{ provision.tool_source }}
@@ -244,7 +245,7 @@ prov kinds
 ```
 `prov` never applies anything; it writes only below `<root>/<kind>/<name>/rendered/`.
 
-**Verify:** `{ command -v prov >/dev/null && prov kinds >/dev/null; } || { r=$(jq -r '.provision.infra_root // ""' "$HARNESS_CONFIG_JSON"); r=${r/#\~/$HOME}; [ -n "$r" ] && grep -q provision-hub "$r/pyproject.toml" 2>/dev/null && uv run --project "$r" --no-sync prov kinds >/dev/null; }` (exit 0)
+**Verify:** `{ command -v prov >/dev/null && prov kinds >/dev/null; } || { r=$(jq -r '.provision.infra_root // ""' "$HARNESS_CONFIG_JSON"); r=${r/#\~/$HOME}; [ -n "$r" ] && grep -q '"provision-hub' "$r/pyproject.toml" 2>/dev/null && [ -x "$r/.venv/bin/prov" ] && "$r/.venv/bin/prov" kinds >/dev/null; }` (exit 0)
 
 <a id="infra-root"></a>
 
@@ -286,7 +287,7 @@ Guides steer the agent before it acts; sensors detect at or after the action. Pa
 |---|---|---|---|---|
 | guide | rule | `rules/85-provision.md` | render, validate and plan freely; every apply step is the human's; host definitions change in the infra repo through an MR | `guard.d/85-provision.sh` |
 | guide | skill | `skills/provision` | the prov spine: kinds/backends, init <kind>/<name> --backend, render, validate, local VM test, MR, plan with its render digest, the human applies, lx and prov status verify; backend references | `guard.d/tests.sh`, `doctor_checks` |
-| guide | permission | `permissions.toml` | prov, uv run prov and the read forms allowed, apply steps ask, kubeconfig and talosconfig edits denied | `permissions-vs-guard`, `guard.d/85-provision.sh` |
+| guide | permission | `permissions.toml` | prov, uv run --frozen prov and the read forms allowed, apply steps ask, kubeconfig and talosconfig edits denied | `permissions-vs-guard`, `guard.d/85-provision.sh` |
 | guide | agent | `agents/provision-planner.md` | design only: spec.toml drafts and the plan steps, never applies | `guard.d/85-provision.sh`, `agent-tools` |
 | sensor | guard | `guard.d/85-provision.sh` | Proxmox VE, Talos, NixOS, libvirt and QEMU apply steps ask; kubeconfig and talosconfig writes deny; credential prints never yield | `rules/85-provision.md`, `permissions.toml`, `agents/provision-planner.md` |
 | sensor | test | `guard.d/tests.sh` | guard rows incl. wrappers, nix run, uv run / uvx, ssh to a PVE node, the guard.env PROVISION_* keys and prod regex, and the infrastructure yield | `skills/provision` |
@@ -295,7 +296,7 @@ Guides steer the agent before it acts; sensors detect at or after the action. Pa
 | sensor | lint | `permissions-vs-guard` | each Bash allow/deny rule of permissions.toml run through the guard: no allowed command the guard denies or asks, no denied one it allows | `permissions.toml` |
 | sensor | lint | `agent-tools` | the planner sets no permissionMode, lists no write tools and names the plan model | `agents/provision-planner.md` |
 
-**Not covered:** The renderer (prov) is an external tool with its own test suite; this bundle senses only the shell commands around it (prov run directly or through uv run, uv tool run and uvx). The guard judges command text: an apply step run through another tool (ansible, a Proxmox API client, terraform providers, a script file written first and run later), a plan saved to a file and executed later, the nixos-disko `install-<hostname>` command on the installer stick (a host-specific name, run on the target's console), and what ~/.ssh/config adds to an alias are not sensed. The provision-rules guard section enforces rule text that lives in rules/85-provision.md; ssh HOST qm … is judged by the linux sections.
+**Not covered:** The renderer (prov) is an external tool with its own test suite; this bundle senses only the shell commands around it (prov run directly or through uv run, uv tool run and uvx, wrappers after uv included). The guard judges command text: an apply step run through another tool (ansible, a Proxmox API client, terraform providers, a script file written first and run later), a plan saved to a file and executed later, the nixos-disko `install-<hostname>` command on the installer stick (a host-specific name, run on the target's console), and what ~/.ssh/config adds to an alias are not sensed. The provision-rules guard section enforces rule text that lives in rules/85-provision.md; ssh HOST qm … is judged by the linux sections.
 
 ## Uninstall
 

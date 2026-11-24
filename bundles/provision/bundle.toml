@@ -41,7 +41,7 @@ why = "prov (the external renderer) needs Python 3.10+ (uv runs it, globally or 
 [requires.config."provision.infra_root"]
 type = "string"
 default = ""
-description = "Path of your private infrastructure repository: the repository itself or its subdirectories are prov roots holding <kind>/<name>/spec.toml (its CLAUDE.md or README names them), and a pyproject.toml that pins provision-hub makes the skill run `uv run prov` there. Empty = the skill works in a scratch root and says the result must move into that repository through an MR. PROVISION_INFRA_ROOT."
+description = "Path of your private infrastructure repository: the repository itself or its subdirectories are prov roots holding <kind>/<name>/spec.toml (its CLAUDE.md or README names them), and a pyproject.toml that pins provision-hub makes the skill run `uv run --frozen prov` there. Empty = the skill works in a scratch root and says the result must move into that repository through an MR. PROVISION_INFRA_ROOT."
 example = "~/dev/infra"
 
 [requires.config."provision.pve_host"]
@@ -53,7 +53,7 @@ example = "pve1"
 [requires.config."provision.state_dir"]
 type = "string"
 default = ""
-description = "Optional checkout of the directory of prov state records (<kind>/<name>.json, written by host agents, never by prov or the agent). Set = the skill runs `prov status --state-dir` to report lifecycle and sync (planned, active, stale; in-sync, pending, drifted) after an install; empty = every item is reported planned. PROVISION_STATE_DIR."
+description = "Optional checkout of the directory of prov state records (<kind>/<name>.json, written by host agents, never by prov or the agent); an absolute path, or ~/… (the skill expands it). Set = the skill runs `prov status --state-dir` to report lifecycle and sync (planned, active, stale, decommissioned; in-sync, pending, drifted, unknown) after an install; empty = every item is reported planned. PROVISION_STATE_DIR."
 example = "~/dev/infra-state"
 
 [requires.config."provision.tool_source"]
@@ -116,7 +116,7 @@ package = false
 [tool.uv.sources]
 provision-hub = { git = "https://github.com/matt-kh/provision-hub", rev = "<commit-sha>" }
 ```
-then `uv sync` and `uv run prov kinds` in that repository. Or install it as an isolated uv tool,
+then `uv sync --frozen` and `uv run --frozen prov kinds` in that repository. Or install it as an isolated uv tool,
 pinned to a commit you reviewed:
 ```
 {{ provision.tool_source }}
@@ -125,7 +125,7 @@ prov kinds
 `prov` never applies anything; it writes only below `<root>/<kind>/<name>/rendered/`.
 """
 [manual_steps.verify]
-cmd = '''{ command -v prov >/dev/null && prov kinds >/dev/null; } || { r=$(jq -r '.provision.infra_root // ""' "$HARNESS_CONFIG_JSON"); r=${r/#\~/$HOME}; [ -n "$r" ] && grep -q provision-hub "$r/pyproject.toml" 2>/dev/null && uv run --project "$r" --no-sync prov kinds >/dev/null; }'''
+cmd = '''{ command -v prov >/dev/null && prov kinds >/dev/null; } || { r=$(jq -r '.provision.infra_root // ""' "$HARNESS_CONFIG_JSON"); r=${r/#\~/$HOME}; [ -n "$r" ] && grep -q '"provision-hub' "$r/pyproject.toml" 2>/dev/null && [ -x "$r/.venv/bin/prov" ] && "$r/.venv/bin/prov" kinds >/dev/null; }'''
 expect = { exit = 0 }
 unblocks = ["prov-cli"]
 
@@ -152,7 +152,7 @@ unblocks = ["infra-root"]
 id = "prov-cli"
 title = "prov renderer on PATH or pinned in provision.infra_root (optional; the skill explains the steps without it)"
 severity = "warn"
-cmd = '''{ command -v prov >/dev/null && prov kinds >/dev/null; } || { r=$(jq -r '.provision.infra_root // ""' "$HARNESS_CONFIG_JSON"); r=${r/#\~/$HOME}; [ -n "$r" ] && grep -q provision-hub "$r/pyproject.toml" 2>/dev/null && uv run --project "$r" --no-sync prov kinds >/dev/null; }'''
+cmd = '''{ command -v prov >/dev/null && prov kinds >/dev/null; } || { r=$(jq -r '.provision.infra_root // ""' "$HARNESS_CONFIG_JSON"); r=${r/#\~/$HOME}; [ -n "$r" ] && grep -q '"provision-hub' "$r/pyproject.toml" 2>/dev/null && [ -x "$r/.venv/bin/prov" ] && "$r/.venv/bin/prov" kinds >/dev/null; }'''
 expect = { exit = 0 }
 offline_skip = false
 fix = "install-prov"
@@ -244,11 +244,11 @@ function = "workflow"
 
 # Guides steer the agent before it acts; sensors detect at or after the action (principle 6).
 [harness]
-coverage_note = "The renderer (prov) is an external tool with its own test suite; this bundle senses only the shell commands around it (prov run directly or through uv run, uv tool run and uvx). The guard judges command text: an apply step run through another tool (ansible, a Proxmox API client, terraform providers, a script file written first and run later), a plan saved to a file and executed later, the nixos-disko `install-<hostname>` command on the installer stick (a host-specific name, run on the target's console), and what ~/.ssh/config adds to an alias are not sensed. The provision-rules guard section enforces rule text that lives in rules/85-provision.md; ssh HOST qm … is judged by the linux sections."
+coverage_note = "The renderer (prov) is an external tool with its own test suite; this bundle senses only the shell commands around it (prov run directly or through uv run, uv tool run and uvx, wrappers after uv included). The guard judges command text: an apply step run through another tool (ansible, a Proxmox API client, terraform providers, a script file written first and run later), a plan saved to a file and executed later, the nixos-disko `install-<hostname>` command on the installer stick (a host-specific name, run on the target's console), and what ~/.ssh/config adds to an alias are not sensed. The provision-rules guard section enforces rule text that lives in rules/85-provision.md; ssh HOST qm … is judged by the linux sections."
 guides = [
   { kind = "rule", ref = "rules/85-provision.md", checks = ["guard.d/85-provision.sh"], note = "render, validate and plan freely; every apply step is the human's; host definitions change in the infra repo through an MR" },
   { kind = "skill", ref = "skills/provision", checks = ["guard.d/tests.sh", "doctor_checks"], note = "the prov spine: kinds/backends, init <kind>/<name> --backend, render, validate, local VM test, MR, plan with its render digest, the human applies, lx and prov status verify; backend references" },
-  { kind = "permission", ref = "permissions.toml", checks = ["permissions-vs-guard", "guard.d/85-provision.sh"], note = "prov, uv run prov and the read forms allowed, apply steps ask, kubeconfig and talosconfig edits denied" },
+  { kind = "permission", ref = "permissions.toml", checks = ["permissions-vs-guard", "guard.d/85-provision.sh"], note = "prov, uv run --frozen prov and the read forms allowed, apply steps ask, kubeconfig and talosconfig edits denied" },
   { kind = "agent", ref = "agents/provision-planner.md", checks = ["guard.d/85-provision.sh", "agent-tools"], note = "design only: spec.toml drafts and the plan steps, never applies" },
 ]
 sensors = [

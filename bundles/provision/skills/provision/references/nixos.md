@@ -7,8 +7,8 @@ writes the stick, boots the machine from it and runs one confirmed install comma
 builds, writes or installs anything. The backend's own documentation (provision-hub
 `docs/backends/nixos-disko.md`) is authoritative; this page is the agent's summary.
 
-prov's checks are static: the rendered flake has been locked and evaluated in provision-hub's
-tests, not installed on hardware. Never call a layout working before a VM test or an install
+prov's checks are static: provision-hub's example flakes have been locked and `nix eval`-ed,
+never built or installed on hardware. Never call a layout working before a VM test or an install
 says so.
 
 ## The item
@@ -134,7 +134,8 @@ ask and are the human's. They wipe the disks disko names.
 ## After install
 
 `lx check web1`, `lx facts web1` (`nixos-version`), `lx health web1` (booted vs current
-kernel), and `prov status --state-dir "$PROVISION_STATE_DIR"` when state records exist. Drift
+kernel), and `prov status --state-dir "${PROVISION_STATE_DIR/#\~/$HOME}"` when state records
+exist. Drift
 is fixed in the spec and deployed by the human.
 
 ## Pitfalls

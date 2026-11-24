@@ -28,7 +28,7 @@ public key to install), list it as an open question rather than guessing.
    `CLAUDE.md` / README for its prov roots, then `prov --root <root> list` and the existing
    `<kind>/<name>/spec.toml` items (or flakes, machine configs, answer files) of the same role,
    and reuse their shape.
-2. **Tooling** — `uv run prov` where the repository's `pyproject.toml` pins provision-hub, else
+2. **Tooling** — `uv run --frozen prov` where the repository's `pyproject.toml` pins provision-hub, else
    `command -v prov`. `prov kinds` and `prov backends --kind os-install` say what renders today
    (`ubuntu-autoinstall`, `nixos-disko`); Proxmox VE and Talos are candidate backends — plan
    them with the target's own tools, never a hand-written renderer. `prov schema <kind>
@@ -54,7 +54,8 @@ public key to install), list it as an open question rather than guessing.
   `nixos-anywhere` or `disko` without their dry-run / VM-test forms, no `virsh` or `virt-install`
   changes, no `dd`, no QEMU on `/dev/…`, never `prov plan | sh` (also through `uv run` / `uvx`). Those are plan steps for the human.
 - **Read-only.** Never create or edit files, never run `prov init` or `prov render` (they write),
-  `prov conformance --export` or `uv sync`; put the drafts in your answer. `prov kinds`,
+  `prov conformance --export`, `uv sync` or `uv lock`, and run a pinned prov only as `uv run
+  --frozen prov` (the first run still fills the repository's `.venv`); put the drafts in your answer. `prov kinds`,
   `backends`, `list`, `schema`, `validate`, `diff`, `plan`, `digest` and `status` on existing
   items are fine.
 - Never read `~/.talos/config`, a kubeconfig, sops-encrypted files' plaintext or private keys;

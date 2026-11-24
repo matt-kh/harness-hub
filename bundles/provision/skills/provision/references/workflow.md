@@ -1,13 +1,13 @@
 # Provisioning workflow
 
 The flow every backend follows. Steps marked **human** are never run by an agent: the guard asks,
-and the agent hands over the exact command instead. `prov` below is `uv run prov` where the
+and the agent hands over the exact command instead. `prov` below is `uv run --frozen prov` where the
 infrastructure repository pins provision-hub.
 
 | # | Step | Who | Done when |
 |---|---|---|---|
 | 0 | Step 0 check (`harness repo owns provision/skills/provision`) in the cwd and in `provision.infra_root`; read that repository's `CLAUDE.md` / README | agent | not owned, or yield and stop |
-| 1 | Choose the prov command (pinned `uv run prov`, else `prov`) and the root: one of the roots in `$PROVISION_INFRA_ROOT`, on a branch, else a scratch root (`mktemp -d`) | agent | command and root named to the user |
+| 1 | Choose the prov command (pinned `uv run --frozen prov`, else `prov`) and the root: one of the roots in `$PROVISION_INFRA_ROOT`, on a branch, else a scratch root (`mktemp -d`) | agent | command and root named to the user |
 | 2 | `prov backends --kind <kind>`, then `prov init <kind>/<name> --backend <backend>` (or copy an existing item of the same role) | agent | `<kind>/<name>/spec.toml` exists |
 | 3 | Fill in real values: disks (by-id), interfaces (name or MAC), addresses, users and ssh keys, the backend table; host-owned files next to `spec.toml` | agent + user | no synthetic placeholder left |
 | 4 | `prov render <ref>`, `prov validate <ref>`, `prov diff <ref>` | agent | validate exits 0, diff reviewed |
@@ -17,12 +17,12 @@ infrastructure repository pins provision-hub.
 | 8 | `prov plan <ref>` from the merged state | agent | steps handed to the user with the render digest and the wiped disks named |
 | 9 | Write the USB stick / create the VM / boot the installer / `nixos-rebuild switch` | **human** | installer done; digest recorded with what was applied |
 | 10 | Add the host's `~/.ssh/config` alias | **human** | `lx hosts` lists it |
-| 11 | `lx check`, `lx facts`, `lx audit` against `spec.toml`; `prov status --state-dir "$PROVISION_STATE_DIR" <ref>` when state records exist | agent | matches (`in-sync`), or a follow-up MR |
+| 11 | `lx check`, `lx facts`, `lx audit` against `spec.toml`; `prov status --state-dir "${PROVISION_STATE_DIR/#\~/$HOME}" <ref>` when state records exist | agent | matches (`in-sync`), or a follow-up MR |
 
 ## Without `prov`
 
 Say that `prov` is missing and print the `provision.tool_source` hint (or, for a repository that
-pins provision-hub in its `pyproject.toml`, `uv sync` there). Then walk the user through the same
+pins provision-hub in its `pyproject.toml`, `uv sync --frozen` there). Then walk the user through the same
 table by hand: which values `spec.toml` needs (`prov schema` once it is installed), which
 artefacts the backend produces (see its reference), how to test them and what the human will
 run. Do not hand-write the rendered artefacts as a substitute: an unrendered, unvalidated
@@ -66,6 +66,8 @@ prints the digest of `rendered/`. Without a state directory every item is `plann
 | `active` / `stale` | the host reported within `--stale-after` (72h) / stopped reporting | `stale`: check the host with `lx check` |
 | `pending` | the host applied an older render | hand the newest `prov plan` to the human |
 | `drifted` | the host changed outside the spec | adopt the change through a spec MR, or let the human discard it; never overwrite |
+| `decommissioned` | the spec sets `[state] decommissioned = true` | a host still reporting is a warning: tell the human |
+| `unknown` | the record has no render digest, `rendered/` is unreadable, or the host reports no drift verdict | report it; nothing to apply |
 | `invalid` | a spec or record is invalid | fix the spec through an MR; report a broken record |
 
 ## Re-installing an existing host

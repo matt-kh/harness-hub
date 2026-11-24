@@ -140,7 +140,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | `lessons/permissions` | guide | base | ask 2 · allow 1 | config | harness lessons allowed; hand edits of the library ask |
 | `linux/permissions` | guide | infrastructure | deny 5 · ask 21 · allow 8 | config | local host reads allowed, storage and network changes ask, sshpass and disabled host-key checking denied |
 | `obs/permissions` | guide | operations | deny 1 · ask 3 · allow 5 | config | obs and read-only rule tooling allowed, alert-state changes ask, key files denied to Read |
-| `provision/permissions` | guide | infrastructure | deny 2 · ask 15 · allow 12 | config | prov, uv run prov and the read forms allowed, apply steps ask, kubeconfig and talosconfig edits denied |
+| `provision/permissions` | guide | infrastructure | deny 2 · ask 15 · allow 12 | config | prov, uv run --frozen prov and the read forms allowed, apply steps ask, kubeconfig and talosconfig edits denied |
 | `repo-bootstrap/permissions` | guide | scm | allow 5 | config | repoboot questions\|answer\|plan\|render\|check allowed; apply is not (the guard asks); never Bash(repoboot:*) |
 | `stack/permissions` | guide | scm | allow 4 | config | stk plan\|status\|check\|sync allowed; never Bash(stk:*) |
 | `supply-chain/permissions` | guide | security | deny 4 · ask 6 · allow 21 | config | verification and audit tools allowed, cosign signing asks, verification-off config and cosign keys denied |

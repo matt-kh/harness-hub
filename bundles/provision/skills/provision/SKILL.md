@@ -62,8 +62,9 @@ artefacts the target's own tools produce (`talosctl gen config`,
 ## Before you start
 
 1. **Which `prov`?** In the infrastructure repository, a `pyproject.toml` that depends on
-   `provision-hub` pins it: run `uv run prov …` there (the pin wins over any global `prov`; it
-   moves only in its own PR). Otherwise `command -v prov`. If neither works, say so, give the
+   `provision-hub` pins it: run `uv run --frozen prov …` there (the pin wins over any global
+   `prov`; `--frozen` installs exactly `uv.lock` and never re-locks, because the pin moves only
+   in its own PR; the first run fills the repository's `.venv`). Otherwise `command -v prov`. If neither works, say so, give the
    install hint from `provision.tool_source` (env `PROVISION_TOOL_SOURCE`, default
    `uv tool install git+https://github.com/matt-kh/provision-hub@<commit-sha>`: the user picks
    and reviews the commit), and still help: explain the steps below and what each artefact will
@@ -137,13 +138,15 @@ prov --root "$ROOT" diff os-install/web1                         # rendered/ vs 
 
    ```bash
    # hook: pass
-   prov --root "$ROOT" status --state-dir "$PROVISION_STATE_DIR" os-install/web1   # lifecycle + sync; reads files only
+   prov --root "$ROOT" status --state-dir "${PROVISION_STATE_DIR/#\~/$HOME}" os-install/web1   # lifecycle + sync; reads files only
    prov --root "$ROOT" digest os-install/web1                                       # the digest of rendered/
    ```
 
    `planned` = no record yet; `active` / `stale` = the host reported recently / stopped
-   reporting; sync `pending` = a newer render waits to be applied, `drifted` = the host changed
-   outside the spec (adopt it through a spec MR or let the human discard it; never overwrite).
+   reporting; `decommissioned` = the spec says `[state] decommissioned = true`; sync `pending` =
+   a newer render waits to be applied, `drifted` = the host changed outside the spec (adopt it
+   through a spec MR or let the human discard it; never overwrite), `unknown` = the record has no
+   digest or no drift verdict (`references/workflow.md`).
    State records are written by host agents, never by prov or by you.
 
 ## Guard decisions (the guard wins over permissions)

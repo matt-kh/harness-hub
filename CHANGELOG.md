@@ -19,7 +19,8 @@ prints every one between your applied version and the new one.
   are candidate backends. `provision.infra_root` is the repository, which may hold several prov
   roots. The `prov-cli` doctor check and the `install-prov` step verify with `prov kinds`
   (`prov distros` no longer exists) and pass when the infrastructure repository pins
-  provision-hub in its `pyproject.toml` (`uv run --no-sync prov kinds` there).
+  provision-hub in its `pyproject.toml` and its `.venv` holds `prov` (read only; nothing is
+  synced). The skill runs a pinned prov as `uv run --frozen prov`, so it never re-locks the pin.
 - provision: new optional config key `provision.state_dir` (env `PROVISION_STATE_DIR`), a
   checkout of the state records that host agents write. When it is set, the skill reports
   `prov status --state-dir` (lifecycle and sync) after an install. Empty (the default): nothing
@@ -46,9 +47,12 @@ prints every one between your applied version and the new one.
 
 ### Fixed
 
-- provision guard: `prov` run through `uv run [opts]`, `uv tool run` or `uvx` is judged like a
-  bare `prov` (#108). `uv run prov plan … | sh` and `eval "$(uv run prov plan …)"` passed
-  before; they now ask. The permissions allow `uv run prov`.
+- provision guard: a command run through `uv run [opts]`, `uv tool run` or `uvx` (also
+  `prov@<version>` and wrappers after uv) is judged like the bare command (#108).
+  `uv run prov plan … | sh` and `eval "$(uv run prov plan …)"` passed before; they now ask, as do
+  `uv run qm destroy …` and `uvx nixos-anywhere …`. An unknown uv option is assumed to take a
+  value when the next word is `prov`, so a new uv option cannot hide it. The permissions allow
+  `uv run --frozen prov` (a plain `uv run prov` may re-lock the pin, so it still prompts).
 
   **Migration:** run `harness apply` to re-render the skill, agent, rule, permissions and guard.
   If you run prov from an infrastructure repository that pins it, nothing else is needed. To
