@@ -1,12 +1,12 @@
-# Ubuntu (rendered by prov today)
+# Ubuntu (`os-install` / `ubuntu-autoinstall`, rendered by prov)
 
 Ubuntu Server 22.04 and 24.04 install unattended with **autoinstall** (subiquity), read from a
-cloud-init **NoCloud** data source. `prov` renders that seed; nothing else in this flow is
-hand-written.
+cloud-init **NoCloud** data source. `prov` renders that seed from an `os-install` item whose
+backend is `ubuntu-autoinstall`; nothing else in this flow is hand-written.
 
 ## What prov renders
 
-`hosts/<host>/rendered/`:
+`<root>/os-install/<name>/rendered/`:
 
 | File | Purpose |
 |---|---|
@@ -14,28 +14,40 @@ hand-written.
 | `meta-data` | `instance-id` and `local-hostname` for NoCloud |
 | `kernel-cmdline` | the kernel arguments the installer needs (`autoinstall`, and the data source when it is not a CIDATA volume) |
 
-Storage layouts (`[storage]` disks + `[ubuntu.storage] layout` in `host.toml`): `lvm` (LVM over the listed
-disks), `zfs` (ZFS root, single disk, following curtin's example — the least exercised layout; test
-it in a VM), `mdraid` (software RAID across the listed disks). Every disk in `storage.disks` may
-be wiped.
+Storage layouts (`[storage] disks` + `[ubuntu-autoinstall.storage] layout` in `spec.toml`): `lvm`
+(LVM over the listed disks), `zfs` (ZFS root, single disk, following curtin's example — the least
+exercised layout; test it in a VM), `mdraid` (software RAID across the listed disks). Every disk
+in `storage.disks` may be wiped.
 
-`prov validate` checks the schema, cross-field rules (a user with an ssh key, addresses in CIDR,
-gateways and nameservers of the right family), the rendered files and staleness; it runs `cloud-init schema` when
-cloud-init is installed and reports `skipped` otherwise.
+`prov validate` checks the envelope (`api_version`, `kind`, `backend`, the item path), the kind
+and backend schema, cross-field rules (a user with an ssh key, addresses in CIDR, gateways and
+nameservers of the right family), the rendered files and staleness; it runs `cloud-init schema`
+when cloud-init is installed and reports `skipped` otherwise. `--json` prints the findings as one
+document.
 
-## Example host.toml (documentation values)
+## Example spec.toml (documentation values)
+
+`<root>/os-install/web1/spec.toml`:
 
 ```toml
-schema_version = 1
+api_version = "prov/v1alpha1"
+kind = "os-install"
+backend = "ubuntu-autoinstall"
 hostname = "web1"
 domain = "example.com"
-distro = "ubuntu"
+arch = "amd64"
 firmware = "uefi"
+timezone = "Etc/UTC"
+locale = "en_US.UTF-8"
+keyboard = "us"
 
 [[users]]
 name = "ops"
+groups = ["adm", "sudo"]
 sudo = true
-ssh_authorized_keys = ["ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLE ops@example.com"]
+ssh_authorized_keys = [
+  "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLE ops@example.com",
+]
 
 [network.dns]
 nameservers = ["192.0.2.53"]
@@ -49,16 +61,17 @@ gateway4 = "192.0.2.1"
 [storage]
 disks = ["/dev/vda"]
 
-[ubuntu]
+[ubuntu-autoinstall]
 release = "24.04"
 packages = ["qemu-guest-agent"]
 
-[ubuntu.storage]
+[ubuntu-autoinstall.storage]
 layout = "lvm"
 ```
 
-The authoritative schema is `prov schema` (and provision-hub's `schema/host.v1.schema.json`);
-keys above may lag behind it — prefer `prov init ubuntu <host>` as the starting point.
+The authoritative keys are `prov schema os-install --backend ubuntu-autoinstall`; the keys above
+may lag behind it — prefer `prov init os-install/<name> --backend ubuntu-autoinstall` (or a copy
+of an existing item of the same role) as the starting point.
 
 ## The seed
 
@@ -95,5 +108,5 @@ secret beyond the password hash if one was set).
 
 Common failures: the installer stops at an interactive screen (a key missing from `autoinstall`,
 or the seed was not found — check the CIDATA label and `kernel-cmdline`), storage errors (the
-disk path differs on the real machine: use `/dev/disk/by-id/…` in `storage.disks`), no network
+disk path differs on the real machine: use `/dev/disk/by-id/…` in `storage.disks` of `spec.toml`), no network
 (interface name differs: match by MAC).

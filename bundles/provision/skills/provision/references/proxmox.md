@@ -1,8 +1,10 @@
-# Proxmox VE (planned in prov)
+# Proxmox VE (candidate prov backend)
 
 Two different jobs: installing **a Proxmox VE node** itself (bare metal), and creating **guests on
-a node** (VM templates and clones). `prov` does not render either yet; explain the steps and keep
-the artefacts (`answer.toml`, the template script) in the infrastructure repository.
+a node** (VM templates and clones). `prov` has no Proxmox VE backend yet (`prov backends` lists what it renders); explain the steps
+and keep the artefacts (`answer.toml`, the template script) in the infrastructure repository.
+An Ubuntu or NixOS guest can still be an `os-install` item: render its seed or installer with
+prov and attach it to the guest.
 
 Every write to a node — `qm`, `pct`, `pvesh create|set|delete`, `pvesm`, `pvecm` changes — is the
 human's. Agents read (`qm list`, `qm config VMID`, `pvesh get /nodes`, `pvesm status`, locally or

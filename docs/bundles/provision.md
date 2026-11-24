@@ -11,45 +11,62 @@ installed host.
 ## The renderer lives outside the hub
 
 `prov` is a separate public tool, [provision-hub](https://github.com/matt-kh/provision-hub)
-(Python 3.10+, uv). It turns one versioned `host.toml` per machine into the distro's install
-artefacts, checks them and prints the steps a human runs to apply them; it never applies
-anything (no disk writes outside `rendered/`, no ssh, no VM creation, no network calls).
+(Python 3.10+, uv). It turns one versioned `spec.toml` per item, `<root>/<kind>/<name>/`, into
+the artefacts its backend produces, checks them, prints the steps a human runs to apply them and
+reports observed state; it never applies anything (no disk writes outside `rendered/`, no ssh,
+no VM creation, no network calls). A **kind** fixes what an item is (`os-install`: one machine's
+operating-system install); a **backend** renders it. Both are plugins.
 
 | Command | Does |
 |---|---|
-| `prov distros` / `prov schema` | registered distro plugins / the host JSON Schema |
-| `prov init <distro> <host>` | starter `hosts/<host>/host.toml` with synthetic values |
-| `prov render <host>` | `hosts/<host>/rendered/` holds exactly the rendered files |
-| `prov validate <host>` | schema, semantic and rendered-file checks, staleness (exit 1 = findings) |
-| `prov diff <host>` | `rendered/` vs a fresh render |
-| `prov plan <host>` | prints the apply steps for a human; runs nothing |
+| `prov kinds` / `prov backends [--kind K]` | the installed kinds and their api versions / the registered backends |
+| `prov list` | every item under the root (ref, backend) |
+| `prov schema <kind> [--backend B]` | the JSON Schema of a kind for its backends |
+| `prov init <kind>/<name> --backend B` | starter `<kind>/<name>/spec.toml` with synthetic values |
+| `prov render <ref>` | `<kind>/<name>/rendered/` holds exactly the rendered files |
+| `prov validate <ref>` | envelope, schema, semantic and rendered-file checks, staleness (exit 1 = findings) |
+| `prov diff <ref>` | `rendered/` vs a fresh render |
+| `prov plan <ref>` | prints the apply steps for a human, headed by the render digest; runs nothing |
+| `prov digest <ref>` | the sha256 digest of `rendered/` |
+| `prov status [ref…] [--state-dir D]` | lifecycle and sync from the specs, `rendered/` and state records (files only) |
+| `prov conformance <backend>` | renders the kind's fixtures through a backend; static checks only |
 
-Root: `--root DIR`, else `$PROV_ROOT`, else the current directory. Install it as an isolated,
-pinned uv tool (`provision.tool_source`, default
+`kinds`, `backends`, `schema`, `validate`, `plan` and `status` take `--json`. Root: `--root DIR`,
+else `$PROV_ROOT`, else the current directory. Install it either pinned in your infrastructure
+repository (`provision-hub` as a git dependency at a reviewed commit in its `pyproject.toml`; the
+skill then runs `uv run prov` there and the guard judges that form like a bare `prov`) or as an
+isolated, pinned uv tool (`provision.tool_source`, default
 `uv tool install git+https://github.com/matt-kh/provision-hub@<commit-sha>`: pick and review the
 commit). Without `prov` the skill says so, prints that hint and explains the steps, but never
 improvises a renderer.
 
-| Distro | In prov | Reference |
+| Kind / backend | In prov | Reference |
 |---|---|---|
-| Ubuntu 22.04 / 24.04 | **rendered today**: autoinstall NoCloud seed (`user-data`, `meta-data`, `kernel-cmdline`); layouts `lvm`, `zfs`, `mdraid` | [ubuntu.md](../../bundles/provision/skills/provision/references/ubuntu.md) |
-| Proxmox VE | planned (`answer.toml` + `proxmox-auto-install-assistant`; guests via `qm` cloud-init templates) | [proxmox.md](../../bundles/provision/skills/provision/references/proxmox.md) |
-| NixOS | planned (flake + disko + nixos-anywhere) | [nixos.md](../../bundles/provision/skills/provision/references/nixos.md) |
-| Talos | planned (`talosctl gen config` + patches) | [talos.md](../../bundles/provision/skills/provision/references/talos.md) |
+| `os-install` / `ubuntu-autoinstall` (22.04, 24.04) | **rendered today**: autoinstall NoCloud seed (`user-data`, `meta-data`, `kernel-cmdline`); layouts `lvm`, `zfs`, `mdraid` | [ubuntu.md](../../bundles/provision/skills/provision/references/ubuntu.md) |
+| `os-install` / `nixos-disko` | **rendered today**: pinned flake (`flake.nix`, `configuration.nix`, `disko.nix`, `installer.nix`) with an offline USB installer ISO; layouts `ext4`, `ext4-luks`; host-owned `local.nix` | [nixos.md](../../bundles/provision/skills/provision/references/nixos.md) |
+| Proxmox VE | candidate backend (`answer.toml` + `proxmox-auto-install-assistant`; guests via `qm` cloud-init templates) | [proxmox.md](../../bundles/provision/skills/provision/references/proxmox.md) |
+| Talos | candidate backend (`talosctl gen config` + patches) | [talos.md](../../bundles/provision/skills/provision/references/talos.md) |
 
-Host definitions live in your private infrastructure repository (`provision.infra_root`), which
-may own provisioning itself: declare `domains = ["infrastructure"]` in its `.harness.toml` and
-the skill, agent, rule and guard section yield there (principle 8).
+Specs live in your private infrastructure repository (`provision.infra_root`): the repository
+itself or its subdirectories are prov roots, named in its `CLAUDE.md` or README. It may own
+provisioning itself: declare `domains = ["infrastructure"]` in its `.harness.toml` and the skill,
+agent, rule and guard section yield there (principle 8).
+
+Observed state is optional: point `provision.state_dir` at a checkout of the state records that
+host agents write (`<kind>/<name>.json`); the skill then reads `prov status --state-dir` after an
+install (`planned`, `active`, `stale`; `in-sync`, `pending`, `drifted`). Neither prov nor the
+agent writes a record.
 
 ## Workflow
 
 [workflow.md](../../bundles/provision/skills/provision/references/workflow.md):
-`prov init` → edit `host.toml` → `prov render` → `prov validate` → local VM test
+`prov backends` → `prov init <kind>/<name> --backend B` → edit `spec.toml` → `prov render` →
+`prov validate` → local VM test
 ([local-vm.md](../../bundles/provision/skills/provision/references/local-vm.md): KVM, WSL2 nested
 virtualisation, QEMU + qcow2 + seed ISO + OVMF) → MR in the infrastructure repository →
-`prov plan` → **the human** runs the apply steps → verify with `lx check|facts|audit`. Without
-`provision.infra_root` the agent works in a scratch root and says the result must move into the
-infrastructure repository through an MR.
+`prov plan` (with its render digest) → **the human** runs the apply steps → verify with
+`lx check|facts|audit` and `prov status`. Without `provision.infra_root` the agent works in a
+scratch root and says the result must move into the infrastructure repository through an MR.
 
 ## Guard
 
@@ -57,7 +74,7 @@ Section 85 runs after the linux sections `82`/`83` and reads their definitions (
 wrapper unwrapping, block-device targets, the Proxmox VE read forms, `[PROD]` from
 `linux.prod_re`).
 
-- **Pass:** `prov …`; `proxmox-auto-install-assistant`; `qm`/`pct list|config|status|showcmd|
+- **Pass:** `prov …`, also as `uv run [opts] prov …`, `uv tool run prov …` and `uvx prov …`; `proxmox-auto-install-assistant`; `qm`/`pct list|config|status|showcmd|
   pending|listsnapshot`, `pvesh get|ls|usage`, `pvecm status`, `pvesm status|list`, `pveum … list`,
   `ha-manager status`; `talosctl gen|validate|machineconfig|get|version|health|services|disks|
   mounts|logs --tail|dmesg|config info|contexts|images` and `apply-config --dry-run`;
@@ -74,24 +91,27 @@ wrapper unwrapping, block-device targets, the Proxmox VE read forms, `[PROD]` fr
   dry-activate` and any `--target-host`/`--build-host`; `nixos-anywhere` and `disko` (also
   through `nix run`, `nix shell -c` and `nix-shell --run`); `virsh` changes, bare `virsh` and
   `virsh console`; `virt-install`; QEMU with a `/dev/…` disk and `qemu-img convert|dd|create`
-  onto one; `prov plan … | sh` and `eval "$(prov plan …)"`. `ssh <pve-node> qm …` asks in section
+  onto one; `prov plan … | sh` and `eval "$(prov plan …)"`, also when prov runs through
+  `uv run`, `uv tool run` or `uvx`. `ssh <pve-node> qm …` asks in section
   83 unless it is a read form; `dd if=… of=/dev/…` (writing a USB stick) asks there too.
 - **Deny:** `talosctl kubeconfig` and `talosctl config merge|add|remove|context|endpoint|node|new`
   (the kubeconfig and talosconfig are human-managed). Reading `~/.talos/*` or `$TALOSCONFIG` and
   `talosctl kubeconfig -` (prints credentials) are denied in a never-yields prelude: they stay
   denied when a repository owns `infrastructure`.
 - Wrappers do not hide a command: `sudo`, `env`, `timeout`, `xargs`, `cd x && …`, `sh -c`, `eval`
-  and `$(…)` are unwrapped first.
+  and `$(…)` are unwrapped first, and `uv run`, `uv tool run` and `uvx` before prov.
 
 Config: `provision.infra_root` (env `PROVISION_INFRA_ROOT`), `provision.pve_host`
-(`PROVISION_PVE_HOST`), `provision.tool_source` (`PROVISION_TOOL_SOURCE`); prod targets come from
+(`PROVISION_PVE_HOST`), `provision.state_dir` (`PROVISION_STATE_DIR`), `provision.tool_source`
+(`PROVISION_TOOL_SOURCE`); prod targets come from
 `linux.prod_re`.
 
 ## Troubleshooting
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| The skill says `prov` is missing | provision-hub is not installed | run the `provision.tool_source` command (manual step `install-prov`), then `prov distros` |
+| The skill says `prov` is missing | provision-hub is neither on PATH nor pinned in `provision.infra_root` | pin it in the infrastructure repository and `uv sync` there, or run the `provision.tool_source` command (manual step `install-prov`), then `prov kinds` |
+| Doctor warns `prov-cli` although the infrastructure repository pins prov | its environment is not synced (the check runs `uv run --no-sync`) | `uv sync` in that repository |
 | Doctor warns `infra-root` | `provision.infra_root` empty or not a git checkout | clone the infrastructure repository and set `[provision] infra_root` in `local/harness.toml`, then `harness apply` |
 | Doctor warns `kvm` | no writable `/dev/kvm`: VM tests fall back to slow TCG | join the `kvm` group; on WSL2 set `nestedVirtualization=true` in `.wslconfig` and `wsl --shutdown` |
 | A PXE or bridged VM test never gets an address | WSL2 networking is NAT | test PXE and bridging on a Proxmox VE node or real hardware |
@@ -101,29 +121,35 @@ Config: `provision.infra_root` (env `PROVISION_INFRA_ROOT`), `provision.pve_host
 | `talosctl kubeconfig` is denied | the kubeconfig is human-managed (see the k8s bundle) | the human runs it and merges the context |
 | `nix run github:nix-community/nixos-anywhere -- …` asks | it installs and wipes disks | `--vm-test` passes; the real install is the human's |
 | `qemu-system-x86_64 -drive file=$IMG` asks | a `$VAR` target cannot be checked | pass a literal image path |
-| `prov plan … \| sh` asks | it would run the apply steps | hand the plan to the human step by step |
+| `prov plan … \| sh` or `uv run prov plan … \| sh` asks | it would run the apply steps | hand the plan to the human step by step |
+| `prov status` shows every item `planned` | no state directory (`provision.state_dir` empty) or no host agent reports yet | set `[provision] state_dir` to the records checkout, then `harness apply` |
 | Prod targets not flagged `[PROD]` | node or host names do not match `linux.prod_re` | adjust `[linux] prod_re`, then `harness apply` |
 
 <!-- generated:begin source=bundles/provision/bundle.toml -->
 ## Summary
 
-Provisioning Ubuntu, Proxmox VE, NixOS and Talos hosts with the external prov renderer: workflow skill, design-only planner agent, and guards that hand every apply step (VM create, disk write, talosctl apply, nixos-anywhere) to the human
+Provisioning Ubuntu, NixOS, Proxmox VE and Talos hosts with the external prov renderer (kind/backend specs): workflow skill, design-only planner agent, and guards that hand every apply step (VM create, disk or USB write, talosctl apply, nixos-anywhere) to the human
 
 A thin governance and workflow bundle for installing hosts. The renderer is not part of the hub:
-`prov` (the public provision-hub tool) turns one versioned `host.toml` per machine into install
-artefacts (today Ubuntu autoinstall NoCloud seeds; Talos, NixOS and Proxmox VE planned), validates
-them and prints the apply steps for a human; it never applies anything. Real host definitions
-live in a private infrastructure repository (`provision.infra_root`), which may own provisioning
-(principle 8). Guard section 85 (after the linux sections it builds on): `prov` passes; the read
-forms of `qm`, `pct`, `pvesh`, `pvecm`, `pvesm`, `pveum`, `ha-manager`, `talosctl` (gen,
-validate, get, logs without -f, apply-config --dry-run), `nixos-rebuild build|build-vm`,
-`nixos-anywhere --vm-test`, `virsh` reads and `virt-install --dry-run --print-xml` pass; every
-apply step asks (Proxmox VE guest and cluster changes, `talosctl apply-config` incl.
-`--mode=try`, reset, upgrade, bootstrap, `nixos-rebuild switch` or any `--target-host`,
-`nixos-anywhere`, `disko`, `virsh` and `virt-install` changes, QEMU on block devices, `prov plan
-| sh`), with `host=<target> [PROD]` from `linux.prod_re`; `talosctl kubeconfig` and talosconfig
-edits deny; reading the talosconfig and printing a kubeconfig deny and never yield. Ships the
-`provision` workflow skill with distro references and the design-only `provision-planner` agent.
+`prov` (the public provision-hub tool) turns one versioned `spec.toml` per item
+(`<root>/<kind>/<name>/`, a kind such as `os-install` rendered by a backend) into artefacts:
+today Ubuntu autoinstall NoCloud seeds (`ubuntu-autoinstall`) and NixOS flakes with disko and an
+offline USB installer (`nixos-disko`); Proxmox VE and Talos are candidate backends. It validates
+them, prints the apply steps for a human with the render digest, and reports observed state
+(`prov status`); it never applies anything. Real specs live in a private infrastructure
+repository (`provision.infra_root`, one or more prov roots, often with prov pinned in its
+`pyproject.toml` and run as `uv run prov`), which may own provisioning (principle 8). Guard
+section 85 (after the linux sections it builds on): `prov` passes, also through `uv run`,
+`uv tool run` and `uvx`; the read forms of `qm`, `pct`, `pvesh`, `pvecm`, `pvesm`, `pveum`,
+`ha-manager`, `talosctl` (gen, validate, get, logs without -f, apply-config --dry-run),
+`nixos-rebuild build|build-vm`, `nixos-anywhere --vm-test`, `virsh` reads and `virt-install
+--dry-run --print-xml` pass; every apply step asks (Proxmox VE guest and cluster changes,
+`talosctl apply-config` incl. `--mode=try`, reset, upgrade, bootstrap, `nixos-rebuild switch` or
+any `--target-host`, `nixos-anywhere`, `disko`, `virsh` and `virt-install` changes, QEMU on block
+devices, `prov plan | sh` however prov is launched), with `host=<target> [PROD]` from
+`linux.prod_re`; `talosctl kubeconfig` and talosconfig edits deny; reading the talosconfig and
+printing a kubeconfig deny and never yield. Ships the `provision` workflow skill with backend
+references and the design-only `provision-planner` agent.
 
 - **Depends on:** `core`, `linux`
 - **Recommends:** `k8s`
@@ -152,7 +178,7 @@ Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md
 
 **Permission lists**
 
-- `provision/permissions` — control: guide · function: govern · decisions: deny 2 · ask 15 · allow 11 · yields: config
+- `provision/permissions` — control: guide · function: govern · decisions: deny 2 · ask 15 · allow 12 · yields: config
 
 **Doctor checks** (function: setup · posture: read-only; table below): `provision/doctor/infra-root`, `provision/doctor/kvm`, `provision/doctor/nix`, `provision/doctor/prov-cli`, `provision/doctor/pve-assistant`, `provision/doctor/qemu`, `provision/doctor/seed-iso`, `provision/doctor/talosctl`, `provision/doctor/virsh`
 
@@ -164,15 +190,16 @@ Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md
 
 | binary | min version | install | optional | why |
 |---|---|---|---|---|
-| `python3` | 3.10 |  | no | prov (the external renderer) needs Python 3.10+; everything else in this bundle is optional. |
+| `python3` | 3.10 |  | no | prov (the external renderer) needs Python 3.10+ (uv runs it, globally or pinned in the infrastructure repository); everything else in this bundle is optional. |
 
 ### Configuration
 
 | key | type | required | default | description |
 |---|---|---|---|---|
-| `provision.infra_root` | string | no | `""` | Path of your private infrastructure repository holding hosts/<host>/host.toml (prov's root). Empty = the skill works in a scratch root and says the result must move into that repository through an MR. PROVISION_INFRA_ROOT. |
+| `provision.infra_root` | string | no | `""` | Path of your private infrastructure repository: the repository itself or its subdirectories are prov roots holding <kind>/<name>/spec.toml (its CLAUDE.md or README names them), and a pyproject.toml that pins provision-hub makes the skill run `uv run prov` there. Empty = the skill works in a scratch root and says the result must move into that repository through an MR. PROVISION_INFRA_ROOT. |
 | `provision.pve_host` | string | no | `""` | ~/.ssh/config alias of a Proxmox VE node, used in printed plans and guard reasons (`ssh <alias> qm …`, every qm write the human's). Empty = plans use <pve-node>. PROVISION_PVE_HOST. |
-| `provision.tool_source` | string | no | `"uv tool install git+https://github.com/matt-kh/provision-hub@<commit-sha>"` | How to install the prov renderer, shown by the skill and the prov-cli doctor check when prov is missing. Pin a commit or tag you reviewed. PROVISION_TOOL_SOURCE. |
+| `provision.state_dir` | string | no | `""` | Optional checkout of the directory of prov state records (<kind>/<name>.json, written by host agents, never by prov or the agent). Set = the skill runs `prov status --state-dir` to report lifecycle and sync (planned, active, stale; in-sync, pending, drifted) after an install; empty = every item is reported planned. PROVISION_STATE_DIR. |
+| `provision.tool_source` | string | no | `"uv tool install git+https://github.com/matt-kh/provision-hub@<commit-sha>"` | How to install the prov renderer globally, shown by the skill and the prov-cli doctor check when prov is missing and the infrastructure repository does not pin it. Pin a commit or tag you reviewed. PROVISION_TOOL_SOURCE. |
 
 ### Secrets (never in harness.toml)
 
@@ -193,14 +220,31 @@ Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md
 
 **How:**
 
-Install the public provision-hub tool as an isolated uv tool, pinned to a commit you reviewed:
+Either pin provision-hub in your infrastructure repository (preferred: the pin moves through a
+reviewed PR, and the skill runs `uv run prov` there):
+```
+# <provision.infra_root>/pyproject.toml
+[project]
+name = "infra"
+version = "0"
+requires-python = ">=3.10"
+dependencies = ["provision-hub"]
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+provision-hub = { git = "https://github.com/matt-kh/provision-hub", rev = "<commit-sha>" }
+```
+then `uv sync` and `uv run prov kinds` in that repository. Or install it as an isolated uv tool,
+pinned to a commit you reviewed:
 ```
 {{ provision.tool_source }}
-prov distros
+prov kinds
 ```
-`prov` never applies anything; it writes only below `<root>/hosts/<host>/rendered/`.
+`prov` never applies anything; it writes only below `<root>/<kind>/<name>/rendered/`.
 
-**Verify:** `command -v prov >/dev/null && prov distros >/dev/null` (exit 0)
+**Verify:** `{ command -v prov >/dev/null && prov kinds >/dev/null; } || { r=$(jq -r '.provision.infra_root // ""' "$HARNESS_CONFIG_JSON"); r=${r/#\~/$HOME}; [ -n "$r" ] && grep -q provision-hub "$r/pyproject.toml" 2>/dev/null && uv run --project "$r" --no-sync prov kinds >/dev/null; }` (exit 0)
 
 <a id="infra-root"></a>
 
@@ -208,11 +252,12 @@ prov distros
 
 *once per machine · needs nothing but a terminal · ~2 min*
 
-**Why:** Host definitions belong in a reviewed repository; with infra_root set, prov runs with --root there and changes go through an MR.
+**Why:** Specs belong in a reviewed repository; with infra_root set, prov runs with --root on its roots there and changes go through an MR.
 
 **How:**
 
-Clone your infrastructure repository (the one holding `hosts/<host>/host.toml`), then set
+Clone your infrastructure repository (the one holding `<kind>/<name>/spec.toml` items in one or
+more prov roots), then set
 `[provision] infra_root = "~/dev/infra"` in `local/harness.toml` and run `harness apply`. If that
 repository has its own provisioning skills, declare `domains = ["infrastructure"]` in its
 `.harness.toml` and this bundle yields there.
@@ -227,7 +272,7 @@ repository has its own provisioning skills, declare `domains = ["infrastructure"
 | `infra-root` | warn | runs | [infra-root](#infra-root) |
 | `kvm` | warn | runs | `add yourself to the kvm group (sudo usermod -aG kvm $USER, then log in again); on WSL2 set nestedVirtualization=true under [wsl2] in %UserProfile%\.wslconfig and run wsl --shutdown` |
 | `talosctl` | warn | runs | `install talosctl from the Talos release page (verify its checksum) or your package manager; needed only for Talos hosts` |
-| `nix` | warn | runs | `install Nix with your distribution's package or the official installer (download it, check it, then run it); needed only for NixOS hosts` |
+| `nix` | warn | runs | `install Nix with your distribution's package or the official installer (download it, check it, then run it); prov renders NixOS items without it, Nix is needed to lock their flake and build the installer ISO` |
 | `qemu` | warn | runs | `install qemu-system-x86 (Debian/Ubuntu), qemu-kvm (RHEL family) or qemu (Homebrew)` |
 | `virsh` | warn | runs | `install libvirt-clients (Debian/Ubuntu) or libvirt-client (RHEL family); plain QEMU works without it` |
 | `seed-iso` | warn | runs | `install xorriso, or cloud-image-utils (cloud-localds)` |
@@ -240,21 +285,21 @@ Guides steer the agent before it acts; sensors detect at or after the action. Pa
 | side | kind | ref | note | pairs with |
 |---|---|---|---|---|
 | guide | rule | `rules/85-provision.md` | render, validate and plan freely; every apply step is the human's; host definitions change in the infra repo through an MR | `guard.d/85-provision.sh` |
-| guide | skill | `skills/provision` | the prov spine: init, render, validate, local VM test, MR, plan, the human applies, lx verifies; distro references | `guard.d/tests.sh`, `doctor_checks` |
-| guide | permission | `permissions.toml` | prov and the read forms allowed, apply steps ask, kubeconfig and talosconfig edits denied | `permissions-vs-guard`, `guard.d/85-provision.sh` |
-| guide | agent | `agents/provision-planner.md` | design only: host.toml drafts and the plan steps, never applies | `guard.d/85-provision.sh`, `agent-tools` |
+| guide | skill | `skills/provision` | the prov spine: kinds/backends, init <kind>/<name> --backend, render, validate, local VM test, MR, plan with its render digest, the human applies, lx and prov status verify; backend references | `guard.d/tests.sh`, `doctor_checks` |
+| guide | permission | `permissions.toml` | prov, uv run prov and the read forms allowed, apply steps ask, kubeconfig and talosconfig edits denied | `permissions-vs-guard`, `guard.d/85-provision.sh` |
+| guide | agent | `agents/provision-planner.md` | design only: spec.toml drafts and the plan steps, never applies | `guard.d/85-provision.sh`, `agent-tools` |
 | sensor | guard | `guard.d/85-provision.sh` | Proxmox VE, Talos, NixOS, libvirt and QEMU apply steps ask; kubeconfig and talosconfig writes deny; credential prints never yield | `rules/85-provision.md`, `permissions.toml`, `agents/provision-planner.md` |
-| sensor | test | `guard.d/tests.sh` | guard rows incl. wrappers, nix run, ssh to a PVE node, the guard.env PROVISION_* keys and prod regex, and the infrastructure yield | `skills/provision` |
-| sensor | doctor | `doctor_checks` | prov, infra_root, /dev/kvm and the optional distro tools (warn only) | `skills/provision` |
+| sensor | test | `guard.d/tests.sh` | guard rows incl. wrappers, nix run, uv run / uvx, ssh to a PVE node, the guard.env PROVISION_* keys and prod regex, and the infrastructure yield | `skills/provision` |
+| sensor | doctor | `doctor_checks` | prov (on PATH or pinned in infra_root), infra_root, /dev/kvm and the optional distro tools (warn only) | `skills/provision` |
 | sensor | test | `tests/run.sh` | this bundle's rows against core + linux + provision only | — |
 | sensor | lint | `permissions-vs-guard` | each Bash allow/deny rule of permissions.toml run through the guard: no allowed command the guard denies or asks, no denied one it allows | `permissions.toml` |
 | sensor | lint | `agent-tools` | the planner sets no permissionMode, lists no write tools and names the plan model | `agents/provision-planner.md` |
 
-**Not covered:** The renderer (prov) is an external tool with its own test suite; this bundle senses only the shell commands around it. The guard judges command text: an apply step run through another tool (ansible, a Proxmox API client, terraform providers, a script file written first and run later), a plan saved to a file and executed later, and what ~/.ssh/config adds to an alias are not sensed. The provision-rules guard section enforces rule text that lives in rules/85-provision.md; ssh HOST qm … is judged by the linux sections.
+**Not covered:** The renderer (prov) is an external tool with its own test suite; this bundle senses only the shell commands around it (prov run directly or through uv run, uv tool run and uvx). The guard judges command text: an apply step run through another tool (ansible, a Proxmox API client, terraform providers, a script file written first and run later), a plan saved to a file and executed later, the nixos-disko `install-<hostname>` command on the installer stick (a host-specific name, run on the target's console), and what ~/.ssh/config adds to an alias are not sensed. The provision-rules guard section enforces rule text that lives in rules/85-provision.md; ssh HOST qm … is judged by the linux sections.
 
 ## Uninstall
 
 Kept on uninstall: `~/.talos/**`
 
-Your talosconfig, the infrastructure repository and the prov tool are yours; uninstall removes only the rendered skill, agent, rule, permissions and guard section.
+Your talosconfig, the infrastructure repository, the state records and the prov tool are yours; uninstall removes only the rendered skill, agent, rule, permissions and guard section.
 <!-- generated:end -->

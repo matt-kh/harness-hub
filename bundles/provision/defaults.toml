@@ -3,4 +3,5 @@
 [provision]
 infra_root = ""
 pve_host = ""
+state_dir = ""
 tool_source = "uv tool install git+https://github.com/matt-kh/provision-hub@<commit-sha>"

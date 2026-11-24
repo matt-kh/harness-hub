@@ -30,7 +30,7 @@ your LAN do not** — test those on a Proxmox VE node or real hardware.
 ```bash
 # hook: pass (image files only)
 qemu-img create -f qcow2 disk.qcow2 20G
-cloud-localds seed.iso hosts/web1/rendered/user-data hosts/web1/rendered/meta-data
+cloud-localds seed.iso os-install/web1/rendered/user-data os-install/web1/rendered/meta-data
 cp /usr/share/OVMF/OVMF_VARS_4M.fd vars.fd
 qemu-system-x86_64 -enable-kvm -m 4096 -smp 2 -cpu host \
   -drive if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.fd \
@@ -49,8 +49,17 @@ reboot, remove `-cdrom`/seed and check the guest with read-only commands such as
 `ssh -p 2222 -o StrictHostKeyChecking=accept-new ops@127.0.0.1 cat /etc/os-release` (never
 `StrictHostKeyChecking=no`; an interactive login is the human's).
 
-The static addresses in `host.toml` will not match QEMU's user-mode network (its own private DHCP range): for the test,
-either accept that the network check fails, or render a test variant with `dhcp4 = true`.
+The static addresses in `spec.toml` will not match QEMU's user-mode network (its own private DHCP
+range): for the test, either accept that the network check fails, or render a test variant
+(`os-install/web1-test` with `dhcp4 = true`) in a scratch root.
+
+## NixOS installer ISO in QEMU (UEFI)
+
+The `nixos-disko` installer ISO boots in QEMU the same way: build it (the plan's `nix build …
+isoImage` step, a local build), attach it with `-cdrom`, and give QEMU a qcow2 disk. The
+installer refuses a disk that is not the spec's by-id path, so test with a variant whose
+`storage.disks` names the VM's disk (`/dev/disk/by-id/virtio-…` with `-drive …,serial=…`), in a
+scratch root. This path has not been exercised end to end yet; report exactly how far it got.
 
 ## libvirt
 

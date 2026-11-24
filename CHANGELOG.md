@@ -10,6 +10,21 @@ prints every one between your applied version and the new one.
 
 ### Changed
 
+- provision bundle follows provision-hub's kind/backend catalog (#108). Specs are
+  `<root>/<kind>/<name>/spec.toml` items (`prov init os-install/web1 --backend …`) instead of
+  `hosts/<host>/host.toml`. The skill, rule 85, the references and the `provision-planner` agent
+  use `prov kinds|backends|list|schema` and hand over the plan with its render digest. NixOS is
+  now rendered by prov: `references/nixos.md` describes the `nixos-disko` flake, the host-owned
+  `local.nix` and the offline USB installer instead of a hand-written flake. Proxmox VE and Talos
+  are candidate backends. `provision.infra_root` is the repository, which may hold several prov
+  roots. The `prov-cli` doctor check and the `install-prov` step verify with `prov kinds`
+  (`prov distros` no longer exists) and pass when the infrastructure repository pins
+  provision-hub in its `pyproject.toml` (`uv run --no-sync prov kinds` there).
+- provision: new optional config key `provision.state_dir` (env `PROVISION_STATE_DIR`), a
+  checkout of the state records that host agents write. When it is set, the skill reports
+  `prov status --state-dir` (lifecycle and sync) after an install. Empty (the default): nothing
+  changes.
+
 - github guard: `gh stack merge` is label-gated in the main thread (#106). One plain
   `gh stack merge [N] [-y] [--squash|--merge|--rebase|--merge-method M]` line (optionally after
   `GH_STACK_NO_UPDATE_NOTIFIER=1`) is allowed when the range it merges, resolved read-only through
@@ -28,6 +43,16 @@ prints every one between your applied version and the new one.
   label-gated agent writes ask). Without the permissions entry, nothing asks for
   `gh stack merge` where the guard does not run: a repository whose `.harness.toml` owns `scm`
   (or this section) now decides it with its own rules.
+
+### Fixed
+
+- provision guard: `prov` run through `uv run [opts]`, `uv tool run` or `uvx` is judged like a
+  bare `prov` (#108). `uv run prov plan … | sh` and `eval "$(uv run prov plan …)"` passed
+  before; they now ask. The permissions allow `uv run prov`.
+
+  **Migration:** run `harness apply` to re-render the skill, agent, rule, permissions and guard.
+  If you run prov from an infrastructure repository that pins it, nothing else is needed. To
+  have the skill read observed state, set `[provision] state_dir` in `local/harness.toml`.
 
 ### Docs
 
