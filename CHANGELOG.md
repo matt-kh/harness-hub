@@ -8,6 +8,23 @@ prints every one between your applied version and the new one.
 
 ## [Unreleased]
 
+### Changed
+
+- github guard: `gh stack merge` is label-gated in the main thread (#106). One plain
+  `gh stack merge [N] [-y] [--squash|--merge|--rebase|--merge-method M]` line (optionally after
+  `GH_STACK_NO_UPDATE_NOTIFIER=1`) is allowed when the range it merges, resolved read-only through
+  the stacks REST API (a stack number: the whole stack; a PR number: its stack up to that PR; no
+  number: the current branch's stack), sits on a non-default base and every still-open PR in it is
+  a non-fork, agent-labelled `<base>-sub-*` part. So a stack merge the user asked for in the main
+  thread no longer asks a second time. Everything else still asks (human, fork or non `-sub-` PRs,
+  a default-branch base, failed lookups, unknown arguments, compound or wrapped lines, quoted and
+  `gs` / `gh-stack` / `gh extension exec` spellings), and a subagent is still denied. The
+  `Bash(gh stack merge:*)` ask entry leaves the github bundle's permissions; the guard decides.
+
+  **Migration:** run `harness apply` to re-render the permissions and the guard. To keep the old
+  always-ask behaviour, set `WORK_TICKET_LABELED_DECISION=ask` (it also makes the other
+  label-gated agent writes ask).
+
 ### Docs
 
 - `/work-ticket` CI recommendations for GitHub stacks (part 03 of #93): the Actions wording in

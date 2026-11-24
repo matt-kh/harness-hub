@@ -106,7 +106,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 | [`gitlab/guard.d/40-gitlab-closing`](reference/hook-policy.md) | sensor | tracker | deny 1 | declaration | denies closing keywords with a ticket key |
 | [`github/guard.d/41-github-closing`](reference/hook-policy.md) | sensor | tracker | deny 2 · allow 1 | declaration | denies closing keywords that would change issue state; lets only the PR to the default branch close its agent-worked #N in a github-issues repository (github.close_issue_on_merge) |
 | [`gitlab/guard.d/50-gitlab`](reference/hook-policy.md) | sensor | scm | deny 4 · ask 10 · allow 3 | declaration | API writes, merges/approvals and MR/issue state (main thread asks, subagent denied), stacked MR targets, label-gated edits; MR creates with --fill or --related-issue, or a -t title not matching gitlab.mr_title_re, ask |
-| [`github/guard.d/60-github`](reference/hook-policy.md) | sensor | scm | deny 12 · ask 13 · allow 4 | declaration | token printing, API writes, merges/reviews and PR/issue state (main thread asks, subagent denied), provenance labels, stacked PR targets; gh stack merge (human decision), gh stack link (label-gated -sub- PR numbers onto the ticket branch), gh stack push\|submit\|sync\|... (deny on the default branch, else ask); PR creates with --fill* or a -t title matching github.pr_title_forbid_re ask |
+| [`github/guard.d/60-github`](reference/hook-policy.md) | sensor | scm | deny 12 · ask 13 · allow 5 | declaration | token printing, API writes, merges/reviews and PR/issue state (main thread asks, subagent denied), provenance labels, stacked PR targets; gh stack merge (human decision; label-gated allow in the main thread for agent-labelled -sub- parts of a ticket-branch stack), gh stack link (label-gated -sub- PR numbers onto the ticket branch), gh stack push\|submit\|sync\|... (deny on the default branch, else ask); PR creates with --fill* or a -t title matching github.pr_title_forbid_re ask |
 | [`stack/guard.d/65-stack`](reference/hook-policy.md) | sensor | scm | ask 1 · allow 1 | declaration | stk sync --include-human asks; a sole stk sync allows |
 | [`repo-bootstrap/guard.d/67-repo-bootstrap`](reference/hook-policy.md) | sensor | scm | ask 1 | declaration | repoboot apply asks, however it is wrapped |
 | [`jira/guard.d/70-jira`](reference/hook-policy.md) | sensor | tracker | deny 5 · ask 5 · allow 4 | declaration | label-gated writes, provenance label on create, human-ticket transitions ask, subagent transitions denied |
@@ -133,7 +133,7 @@ Every bundle, component, provider and profile this hub ships, with its stable id
 |---|---|---|---|---|---|
 | `core/permissions` | guide | base | deny 11 · ask 2 · allow 2 | never | denies reads of credential files in the provider's own permission system |
 | `gdoc/permissions` | guide | workspace | ask 1 · allow 12 | config | read commands allowed, writes left to the guard |
-| `github/permissions` | guide | scm | deny 1 · ask 75 · allow 34 | config | read-only gh commands allowed; token printing denied |
+| `github/permissions` | guide | scm | deny 1 · ask 74 · allow 34 | config | read-only gh commands allowed; token printing denied |
 | `gitlab/permissions` | guide | scm | ask 20 · allow 13 | config | read-only glab commands allowed |
 | `jira/permissions` | guide | tracker | allow 12 | config | read commands allowed; writes left to the guard |
 | `k8s/permissions` | guide | kubernetes | deny 12 · ask 45 · allow 42 | config | read-only kubectl/helm allowed |

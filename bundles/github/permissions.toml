@@ -109,7 +109,6 @@ ask = [
   "Bash(gh secret set:*)",
   "Bash(gh ssh-key add:*)",
   "Bash(gh ssh-key delete:*)",
-  "Bash(gh stack merge:*)",
   "Bash(gh variable delete:*)",
   "Bash(gh variable set:*)",
   "Bash(gh workflow disable:*)",

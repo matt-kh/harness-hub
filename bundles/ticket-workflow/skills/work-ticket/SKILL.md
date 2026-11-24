@@ -301,7 +301,8 @@ GitHub → github.md §6c (`gh pr list … headRefOid`, rebase onto the merged p
 `gh pr edit N -B "$BR"` only when GitHub did not auto-retarget, `gh pr ready`).
 A linked native stack: `stk sync` appends new top parts while every stacked PR is open,
 otherwise it reports the link command as a todo for the human; never `gh stack sync`; `gh stack merge` only on the
-user's explicit request in the main thread (hook: ask; a subagent is denied).
+user's explicit request in the main thread (hook: allow for agent-labelled `-sub-` parts, else ask;
+a subagent is denied).
 ```bash
 glab mr list --search "KEY" --all -F json > "$SCRATCH/KEY-stack.json"   # → github.md §6c
 # for each MERGED part P: open parts that targeted P's branch (or were auto-retargeted to the default branch)
