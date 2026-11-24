@@ -211,7 +211,7 @@ jobs:
             echo "::error::release $TAG already exists; never move or overwrite a published release: fix forward with a new tag"
             exit 1
           fi
-      - uses: actions/attest-build-provenance@v2
+      - uses: actions/attest-build-provenance@v4
         with:
           subject-path: |
             rel/*.bundle
