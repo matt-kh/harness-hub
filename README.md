@@ -40,8 +40,8 @@ Pick the bundles you need; each one is a capability with its own docs page.
   only what is still open, renders the baseline and your architecture packs, and creates and
   configures the GitHub or GitLab remote; `repoboot check` reports drift on existing ones.
 - Stacked delivery stays human-merged on both forges: sub MRs/PRs never target the default
-  branch, and on GitHub the `gh stack` extension is guarded too (`gh stack merge` asks the
-  user, `gh stack link` is promptless only for agent-labelled sub PRs onto the ticket branch),
+  branch, and on GitHub the `gh stack` extension is guarded too (`gh stack merge`, run on
+  your request, asks again unless every part it merges is an agent-labelled sub PR, `gh stack link` is promptless only for agent-labelled sub PRs onto the ticket branch),
   and `stk sync` keeps a linked native stack consistent after each merge; with the extension
   installed, `/work-ticket` links each chain of sub PRs into a native stack.
 - Every bundle pairs **guides**, which steer the agent before it acts (rules, skills,

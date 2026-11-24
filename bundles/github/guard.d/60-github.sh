@@ -16,7 +16,8 @@
 # rule: gh pr edit|comment|close|reopen|ready|update-branch, gh issue edit|comment|close|reopen on an agent-labelled ref -> allow : human refs ask (label it first, or ask the user); fork PRs ask
 # rule: gh pr close|reopen|ready, gh issue close|reopen on a human ref -> ask : PR/issue state is a human decision; run it only on the user's explicit request (they confirm it), or ask the user instead
 # rule: gh pr close|reopen|ready, gh issue close|reopen from a subagent -> deny : a subagent never changes PR/issue state; hand the command back to the main thread
-# rule: gh stack merge (any merge word in a gh stack / gh extension exec [--] stack / gh-stack[.exe] / gs clause, quoted or after flags) -> ask : merging a stack is a human decision; run it only on the user's explicit request (they confirm it), or ask the user to merge the parts bottom-up
+# rule: gh stack merge [N] [-y|--yes] [--squash|--merge|--rebase|--merge-method M] as the only command on the line (optionally after GH_STACK_NO_UPDATE_NOTIFIER=1), main thread, whose range (stack N whole, else the stack holding PR N up to N, else the current branch's stack whole; read via the stacks REST API) has a non-default base and only open non-fork agent-labelled <base>-sub-* PRs -> allow : the user asked for the merge in the main thread and every part is agent-owned; honours WORK_TICKET_LABELED_DECISION
+# rule: gh stack merge otherwise (a human, fork or non -sub- PR, a default-branch base, a failed or empty lookup, more than 10 open PRs, an unknown argument, a compound or wrapped line, quotes, gs / gh-stack / gh extension exec / -R spellings) -> ask : merging a stack is a human decision; run it only on the user's explicit request (they confirm it), type gh stack merge [N] as a plain one-line command for agent-labelled -sub- parts, or ask the user to merge the parts bottom-up
 # rule: gh stack merge from a subagent -> deny : a subagent never merges; hand the command back to the main thread
 # rule: gh stack view|help|feedback|completion, navigation (up|down|top|bottom|trunk|switch|checkout) -> pass : reads and local navigation; nothing is pushed or linked
 # rule: gh stack link --base TICKET-BRANCH with literal numbers of agent-labelled -sub- PRs of that ticket branch -> allow : links existing PRs only (no push, no PR create); honours WORK_TICKET_LABELED_DECISION
@@ -391,11 +392,96 @@ ghs_link() {
   pending_allow="gh stack link of agent-labelled -sub- PRs onto the ticket branch (no push, no PR create)"
 }
 GHS_MERGE_MSG="gh stack merge — merging a stack is a human decision; run it only on the user's explicit request (they confirm it), or ask the user to merge the parts bottom-up"
+GHS_MERGE_MAX=10
+GHS_NL='
+'
+GHS_CR=$(printf '\r')          # open PRs label-checked per merge (one gh pr view each); more asks
+# ghs_merge: label gate for gh stack merge (toks[], sverb_i as for ghs_local). The user asked for
+# the merge in the main thread; the guard allows it without a second confirmation only when what
+# GitHub would merge is agent-owned work-ticket parts: one plain command line, a range resolved
+# read-only through the stacks REST API ({owner}/{repo} = the cwd checkout, like the extension),
+# a stack base that is not a default branch, and every still-open PR in the range a non-fork,
+# agent-labelled <base>-sub-* PR. Range: a bare number is first a stack number (the whole stack),
+# then a PR number (the PRs up to and including it); no number = the current branch's PR's stack,
+# whole (a non-interactive merge takes every part). Anything else defers the human-decision ask.
+ghs_merge() {
+  local i=0 tok mnum="" mbad="" mline sj sbase n mprs mj msrc cnt=0 why=""
+  [ "$IN_SUBAGENT" != true ] || human_decision_defer "$GHS_MERGE_MSG"     # denies
+  mline=$(printf '%s' "$flat" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')
+  # $flat folds line breaks into spaces: a second line would be a second command, so read $cmd
+  case "$cmd" in *"$GHS_NL"*|*"$GHS_CR"*) why="the command spans more than one line (each line is its own command)" ;; esac
+  case "$mline" in
+    *[\;\&\|\`\$\(\)\<\>\"\'\\]*) why="it is not the only command on the line, or carries quotes, \$VARs or redirections" ;;
+  esac
+  [ -n "$why" ] || printf '%s' "$mline" \
+    | grep -qE '^(GH_STACK_NO_UPDATE_NOTIFIER=1[[:space:]]+)?gh[[:space:]]+stack[[:space:]]+merge([[:space:]]|$)' \
+    || why="only a plain one-line gh stack merge [N] [-y] [--squash|--merge|--rebase|--merge-method M] is label-checked"
+  while [ -z "$why" ] && [ "$i" -lt "${#toks[@]}" ]; do
+    tok=${toks[i]}; i=$((i+1))
+    [ "$i" -ne "$((sverb_i+1))" ] || continue          # the verb itself
+    case "$tok" in
+      -y|--yes|--squash|--merge|--rebase|--merge-method=merge|--merge-method=squash|--merge-method=rebase) ;;
+      --merge-method) case "${toks[i]:-}" in merge|squash|rebase) ;; *) mbad=$tok ;; esac; i=$((i+1)) ;;
+      *[!0-9]*|'') mbad=$tok ;;
+      *) if [ -z "$mnum" ]; then mnum=$tok; else mbad=$tok; fi ;;
+    esac
+    [ -z "$mbad" ] || why="the argument $mbad cannot be checked"
+  done
+  if [ -z "$why" ]; then
+    if [ -z "$mnum" ]; then                               # the current branch's stack, whole
+      n=$(gh_q pr view --json number --jq .number </dev/null) && [ -n "$n" ] \
+        && sj=$(gh_q api "repos/{owner}/{repo}/stacks?pull_request=$n" </dev/null) \
+        && sj=$(jq -ce '.[0] // empty | {base: .base.ref, prs: [.pull_requests[] | select(.state == "open") | .number]}' <<<"$sj" 2>/dev/null) \
+        || why="the current branch's PR or its stack could not be read"
+    elif sj=$(gh_q api "repos/{owner}/{repo}/stacks/$mnum" </dev/null) && [ -n "$sj" ]; then   # a stack number: the whole stack
+      sj=$(jq -ce '{base: .base.ref, prs: [.pull_requests[] | select(.state == "open") | .number]}' <<<"$sj" 2>/dev/null) \
+        || why="stack $mnum could not be read"
+    elif ! jq -e '(.status | tostring) == "404"' <<<"${sj:-null}" >/dev/null 2>&1; then
+      # gh-stack takes a bare number as a stack first: only a definite 404 means "not a stack"
+      why="stack $mnum could not be looked up (timeout, auth or API error) — retry, or ask the user"
+    else                                                  # a PR number: its stack up to and including it
+      sj=$(gh_q api "repos/{owner}/{repo}/stacks?pull_request=$mnum" </dev/null) \
+        && sj=$(jq -ce --argjson n "$mnum" '[.[] | select(any(.pull_requests[]; .number == $n))][0] // empty
+              | .pull_requests as $p | ($p | map(.number) | index($n)) as $k
+              | {base: .base.ref, prs: [$p[0:$k+1][] | select(.state == "open") | .number]}' <<<"$sj" 2>/dev/null) \
+        || why="$mnum is neither a stack nor a PR in a stack the guard could read"
+    fi
+  fi
+  if [ -z "$why" ]; then
+    sbase=$(jq -r '.base // ""' <<<"$sj"); mprs=$(jq -r '.prs[]' <<<"$sj")
+    if [ -z "$sbase" ] || printf '%s' "$sbase" | grep -qE -e "$BASE_BRANCH_RE"; then
+      why="the stack's base ${sbase:-?} is a default branch (work-ticket parts stack on the ticket branch)"
+    elif [ -z "$mprs" ]; then
+      why="no open PR in the range"
+    elif [ "$(printf '%s\n' "$mprs" | wc -l | tr -d ' ')" -gt "$GHS_MERGE_MAX" ]; then
+      why="more than $GHS_MERGE_MAX open PRs in the range"
+    fi
+  fi
+  if [ -z "$why" ]; then
+    local -a marr; marr=()
+    while IFS= read -r n; do [ -z "$n" ] || marr+=("$n"); done <<EOF
+$mprs
+EOF
+    for n in "${marr[@]}"; do
+      mj=$(fetch_gh_pr "$n" </dev/null) || { why="PR #$n could not be read"; break; }
+      msrc=$(jq -r '.src' <<<"$mj")
+      if [ "$(jq -r '.cross' <<<"$mj")" = true ]; then why="PR #$n is a fork PR"; break; fi
+      case "$msrc" in "$sbase"-sub-*) ;; *) why="PR #$n ($msrc) is not a -sub- part of $sbase"; break ;; esac
+      labels_have_write "$(jq -c '.labels' <<<"$mj")" || { why="PR #$n is not agent-labelled"; break; }
+      cnt=$((cnt+1))
+    done
+    [ -n "$why" ] || [ "$cnt" -eq "${#marr[@]}" ] || why="not every PR in the range was checked"
+  fi
+  [ -n "$why" ] || [ "$LABELED_DECISION" = allow ] || why="WORK_TICKET_LABELED_DECISION=$LABELED_DECISION"
+  if [ -n "$why" ]; then human_decision_defer "$GHS_MERGE_MSG ($why)"; return 0; fi
+  pending_allow="gh stack merge of $cnt agent-labelled -sub- PR(s) of the $sbase stack (the user asked for it in the main thread)"
+}
 # a `merge` word anywhere in a gh-stack clause, in any spelling the dequoted command shows
-# (gh "stack" merge, gh-stack "merge", gh stack -R o/r merge, gs merge)
-if printf '%s' "$flat_dq" | grep -qE "${GHS_HEAD_RE}[^;&|]*[[:space:]]merge\\b|\\bgs\\s+merge\\b"; then
-  human_decision_defer "$GHS_MERGE_MSG"
-fi
+# (gh "stack" merge, gh-stack "merge", gh stack -R o/r merge, gs merge): a subagent is denied
+# here; in the main thread it asks unless every such merge reached ghs_merge below (counted)
+ghs_merge_words=$(printf '%s' "$flat_dq" | grep -oE "${GHS_HEAD_RE}[^;&|]*[[:space:]]merge\\b|\\bgs\\s+merge\\b" | wc -l | tr -d ' ')
+ghs_merge_seen=0
+[ "$ghs_merge_words" -eq 0 ] || [ "$IN_SUBAGENT" != true ] || human_decision_defer "$GHS_MERGE_MSG"
 # gh extension exec of anything but stack hides the extension's verb (an unknown extension can merge)
 while IFS= read -r clause; do
   [ -n "$clause" ] || continue
@@ -461,7 +547,7 @@ if printf '%s' "$flat_dq" | grep -qE "${GHS_HEAD_RE}|${GHS_GS_RE}"; then
       esac
     done
     case "$sverb" in
-      merge) human_decision_defer "$GHS_MERGE_MSG"; continue ;;
+      merge) ghs_merge_seen=$((ghs_merge_seen+1)); ghs_merge; continue ;;
       alias) human_decision_defer "gh stack alias installs a wrapper (gs) that hides the verb from the guard — type gh stack VERB instead"; continue ;;
       link) ghs_link; continue ;;
     esac
@@ -476,3 +562,5 @@ if printf '%s' "$flat_dq" | grep -qE "${GHS_HEAD_RE}|${GHS_GS_RE}"; then
 $(printf '%s' "$flat" | grep -oE "[^[:space:];&|]*(${GHS_HEAD_RE}([[:space:]][^;&|]*)?|${GHS_GS_RE}[^;&|]*)")
 EOF
 fi
+# a merge word the clause loop did not label-check (quoted words, gh "stack" merge, …) asks
+[ "$ghs_merge_words" -le "$ghs_merge_seen" ] || human_decision_defer "$GHS_MERGE_MSG (this spelling cannot be label-checked: type gh stack merge [N] as a plain one-line command)"

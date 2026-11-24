@@ -7,6 +7,7 @@
 # PRs:    100 feat-x               [agent-worked] -> main
 #         110 feat-x-sub-01-schema [agent-worked] -> feat-x
 #         111 feat-x-sub-02-ui     [agent-worked] -> feat-x-sub-01-schema
+#         112 feat-x-sub-03-docs   [bug]          -> feat-x-sub-02-ui
 #         200 other                [bug]          -> main
 #         210 feat-x-sub-02-api    [bug]          -> main   (auto-retargeted)
 #         120 fork-fix             [agent-worked] -> main   isCrossRepository:true
@@ -19,9 +20,52 @@
 #     headRefName isCrossRepository} …}}'
 # with the issues and PRs below; the default branch is $GH_STUB_DEFAULT_BRANCH (default main). An
 # unknown issue or PR is null plus an "errors" entry and exit 1, the way gh api reports it.
+# Stacks REST API (gh-stack's native stacks; {owner}/{repo} or o/r):
+#   gh api repos/O/R/stacks/N                  30: feat-x [110 merged, 111]   31: feat-x [110, 111, 112]
+#                                              32: main [210]   33: feat-x [110, 120]   34: feat-x [110, 100]
+#                                              others -> 404, exit 1
+#                                              GH_STUB_STACKS_FAIL=1: exit 1 with a 500 body (not a 404)
+#   gh api repos/O/R/stacks?pull_request=N     110 -> [30]  111|112 -> [31]  120 -> [33]  100 -> [34]  others -> []
+# The shape follows a recorded github.com response: pull_requests run bottom to top (part 1 first).
+# `gh pr view` without a REF reads the current branch ($GIT_STUB_BRANCH, default feat-x-sub-02-ui);
+# --jq/-q filters the output through jq -r.
 # GH_STUB_LOG=FILE appends every call's arguments, one line each.
 [ -z "${GH_STUB_LOG:-}" ] || printf '%s\n' "$*" >> "$GH_STUB_LOG"
+stk_pr() {  # NUM STATE -> one stacks-API pull_requests entry
+  printf '{"number":%s,"state":"%s","draft":false,"merged_at":%s,"head":{"ref":"x","sha":"0"}}' "$1" "$2" \
+    "$( [ "$2" = closed ] && echo '"2026-01-01T00:00:00Z"' || echo null )"
+}
+stk() {  # NUM BASE PR[:closed]… -> one stack object
+  local n=$1 b=$2 out="" p st; shift 2
+  for p in "$@"; do st=open; case "$p" in *:closed) st=closed; p=${p%:closed} ;; esac; out="$out${out:+,}$(stk_pr "$p" "$st")"; done
+  printf '{"number":%s,"base":{"ref":"%s"},"open":true,"pull_requests":[%s]}' "$n" "$b" "$out"
+}
+stk_by_num() {
+  case "$1" in
+    30) stk 30 feat-x 110:closed 111 ;;
+    31) stk 31 feat-x 110 111 112 ;;
+    32) stk 32 main 210 ;;
+    33) stk 33 feat-x 110 120 ;;
+    34) stk 34 feat-x 110 100 ;;
+    *) return 1 ;;
+  esac
+}
 if [ "${1:-}" = api ]; then
+  case "${2:-}" in
+    repos/*/*/stacks\?pull_request=*)
+      case "${2#*pull_request=}" in
+        110) printf '[%s]\n' "$(stk_by_num 30)" ;;
+        111|112) printf '[%s]\n' "$(stk_by_num 31)" ;;
+        120) printf '[%s]\n' "$(stk_by_num 33)" ;;
+        100) printf '[%s]\n' "$(stk_by_num 34)" ;;
+        *) echo '[]' ;;
+      esac
+      exit 0 ;;
+    repos/*/*/stacks/*)
+      if [ -n "${GH_STUB_STACKS_FAIL:-}" ]; then echo '{"message":"Server Error","status":"500"}'; exit 1; fi
+      stk_by_num "${2##*/}" && { echo; exit 0; }
+      echo '{"message":"Not Found","status":"404"}'; echo "gh: Not Found (HTTP 404)" >&2; exit 1 ;;
+  esac
   shift
   q=""
   while [ $# -gt 0 ]; do
@@ -76,18 +120,21 @@ case "$noun $verb" in
     exit 0 ;;
   *) echo "gh-stub: unsupported command: $noun $verb" >&2; exit 1 ;;
 esac
-ref=""; json=""
+ref=""; json=""; jqx=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --json) json=${2:-}; shift 2 ;;
     --json=*) json=${1#*=}; shift ;;
-    -R|--repo|-q|--jq) shift 2 ;;
+    -q|--jq) jqx=${2:-}; shift 2 ;;
+    -R|--repo) shift 2 ;;
     -*) shift ;;
     *) [ -n "$ref" ] || ref=$1; shift ;;
   esac
 done
 [ -n "$json" ] || { echo "gh-stub: --json is required" >&2; exit 1; }
 ref=${ref#\#}
+[ -n "$ref" ] || [ "$noun" != pr ] || ref=${GIT_STUB_BRANCH:-feat-x-sub-02-ui}
+if [ -n "$jqx" ]; then GH_STUB_LOG="" "$0" "$noun" "$verb" "$ref" --json "$json" | jq -r "$jqx"; exit "${PIPESTATUS[0]}"; fi
 case "$ref" in
   http*://github.com/*/pull/*|http*://github.com/*/issues/*) ref=${ref##*/} ;;
 esac
@@ -105,6 +152,7 @@ if [ "$noun" = pr ]; then
     100|feat-x)               pr 100 feat-x main false agent-worked ;;
     110|feat-x-sub-01-schema) pr 110 feat-x-sub-01-schema feat-x false agent-worked ;;
     111|feat-x-sub-02-ui)     pr 111 feat-x-sub-02-ui feat-x-sub-01-schema false agent-worked ;;
+    112|feat-x-sub-03-docs)   pr 112 feat-x-sub-03-docs feat-x-sub-02-ui false bug ;;
     200|other)                pr 200 other main false bug ;;
     210|feat-x-sub-02-api)    pr 210 feat-x-sub-02-api main false bug ;;
     120|fork-fix)             pr 120 fork-fix main true agent-worked ;;
