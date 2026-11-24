@@ -392,7 +392,10 @@ ghs_link() {
   pending_allow="gh stack link of agent-labelled -sub- PRs onto the ticket branch (no push, no PR create)"
 }
 GHS_MERGE_MSG="gh stack merge — merging a stack is a human decision; run it only on the user's explicit request (they confirm it), or ask the user to merge the parts bottom-up"
-GHS_MERGE_MAX=10          # open PRs label-checked per merge (one gh pr view each); more asks
+GHS_MERGE_MAX=10
+GHS_NL='
+'
+GHS_CR=$(printf '\r')          # open PRs label-checked per merge (one gh pr view each); more asks
 # ghs_merge: label gate for gh stack merge (toks[], sverb_i as for ghs_local). The user asked for
 # the merge in the main thread; the guard allows it without a second confirmation only when what
 # GitHub would merge is agent-owned work-ticket parts: one plain command line, a range resolved
@@ -405,9 +408,10 @@ ghs_merge() {
   local i=0 tok mnum="" mbad="" mline sj sbase n mprs mj msrc cnt=0 why=""
   [ "$IN_SUBAGENT" != true ] || human_decision_defer "$GHS_MERGE_MSG"     # denies
   mline=$(printf '%s' "$flat" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')
+  # $flat folds line breaks into spaces: a second line would be a second command, so read $cmd
+  case "$cmd" in *"$GHS_NL"*|*"$GHS_CR"*) why="the command spans more than one line (each line is its own command)" ;; esac
   case "$mline" in
-    *[\;\&\|\`\$\(\)\<\>\"\'\\]*|*"
-"*) why="it is not the only command on the line, or carries quotes, \$VARs or redirections" ;;
+    *[\;\&\|\`\$\(\)\<\>\"\'\\]*) why="it is not the only command on the line, or carries quotes, \$VARs or redirections" ;;
   esac
   [ -n "$why" ] || printf '%s' "$mline" \
     | grep -qE '^(GH_STACK_NO_UPDATE_NOTIFIER=1[[:space:]]+)?gh[[:space:]]+stack[[:space:]]+merge([[:space:]]|$)' \
@@ -425,15 +429,18 @@ ghs_merge() {
   done
   if [ -z "$why" ]; then
     if [ -z "$mnum" ]; then                               # the current branch's stack, whole
-      n=$(gh_q pr view --json number --jq .number) && [ -n "$n" ] \
-        && sj=$(gh_q api "repos/{owner}/{repo}/stacks?pull_request=$n") \
+      n=$(gh_q pr view --json number --jq .number </dev/null) && [ -n "$n" ] \
+        && sj=$(gh_q api "repos/{owner}/{repo}/stacks?pull_request=$n" </dev/null) \
         && sj=$(jq -ce '.[0] // empty | {base: .base.ref, prs: [.pull_requests[] | select(.state == "open") | .number]}' <<<"$sj" 2>/dev/null) \
         || why="the current branch's PR or its stack could not be read"
-    elif sj=$(gh_q api "repos/{owner}/{repo}/stacks/$mnum") && [ -n "$sj" ]; then   # a stack number: the whole stack
+    elif sj=$(gh_q api "repos/{owner}/{repo}/stacks/$mnum" </dev/null) && [ -n "$sj" ]; then   # a stack number: the whole stack
       sj=$(jq -ce '{base: .base.ref, prs: [.pull_requests[] | select(.state == "open") | .number]}' <<<"$sj" 2>/dev/null) \
         || why="stack $mnum could not be read"
+    elif ! jq -e '(.status | tostring) == "404"' <<<"${sj:-null}" >/dev/null 2>&1; then
+      # gh-stack takes a bare number as a stack first: only a definite 404 means "not a stack"
+      why="stack $mnum could not be looked up (timeout, auth or API error) — retry, or ask the user"
     else                                                  # a PR number: its stack up to and including it
-      sj=$(gh_q api "repos/{owner}/{repo}/stacks?pull_request=$mnum") \
+      sj=$(gh_q api "repos/{owner}/{repo}/stacks?pull_request=$mnum" </dev/null) \
         && sj=$(jq -ce --argjson n "$mnum" '[.[] | select(any(.pull_requests[]; .number == $n))][0] // empty
               | .pull_requests as $p | ($p | map(.number) | index($n)) as $k
               | {base: .base.ref, prs: [$p[0:$k+1][] | select(.state == "open") | .number]}' <<<"$sj" 2>/dev/null) \
@@ -451,17 +458,19 @@ ghs_merge() {
     fi
   fi
   if [ -z "$why" ]; then
-    while IFS= read -r n; do
-      [ -n "$n" ] || continue
-      mj=$(fetch_gh_pr "$n") || { why="PR #$n could not be read"; break; }
+    local -a marr; marr=()
+    while IFS= read -r n; do [ -z "$n" ] || marr+=("$n"); done <<EOF
+$mprs
+EOF
+    for n in "${marr[@]}"; do
+      mj=$(fetch_gh_pr "$n" </dev/null) || { why="PR #$n could not be read"; break; }
       msrc=$(jq -r '.src' <<<"$mj")
       if [ "$(jq -r '.cross' <<<"$mj")" = true ]; then why="PR #$n is a fork PR"; break; fi
       case "$msrc" in "$sbase"-sub-*) ;; *) why="PR #$n ($msrc) is not a -sub- part of $sbase"; break ;; esac
       labels_have_write "$(jq -c '.labels' <<<"$mj")" || { why="PR #$n is not agent-labelled"; break; }
       cnt=$((cnt+1))
-    done <<EOF
-$mprs
-EOF
+    done
+    [ -n "$why" ] || [ "$cnt" -eq "${#marr[@]}" ] || why="not every PR in the range was checked"
   fi
   [ -n "$why" ] || [ "$LABELED_DECISION" = allow ] || why="WORK_TICKET_LABELED_DECISION=$LABELED_DECISION"
   if [ -n "$why" ]; then human_decision_defer "$GHS_MERGE_MSG ($why)"; return 0; fi

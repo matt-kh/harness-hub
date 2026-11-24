@@ -24,7 +24,9 @@
 #   gh api repos/O/R/stacks/N                  30: feat-x [110 merged, 111]   31: feat-x [110, 111, 112]
 #                                              32: main [210]   33: feat-x [110, 120]   34: feat-x [110, 100]
 #                                              others -> 404, exit 1
+#                                              GH_STUB_STACKS_FAIL=1: exit 1 with a 500 body (not a 404)
 #   gh api repos/O/R/stacks?pull_request=N     110 -> [30]  111|112 -> [31]  120 -> [33]  100 -> [34]  others -> []
+# The shape follows a recorded github.com response: pull_requests run bottom to top (part 1 first).
 # `gh pr view` without a REF reads the current branch ($GIT_STUB_BRANCH, default feat-x-sub-02-ui);
 # --jq/-q filters the output through jq -r.
 # GH_STUB_LOG=FILE appends every call's arguments, one line each.
@@ -60,6 +62,7 @@ if [ "${1:-}" = api ]; then
       esac
       exit 0 ;;
     repos/*/*/stacks/*)
+      if [ -n "${GH_STUB_STACKS_FAIL:-}" ]; then echo '{"message":"Server Error","status":"500"}'; exit 1; fi
       stk_by_num "${2##*/}" && { echo; exit 0; }
       echo '{"message":"Not Found","status":"404"}'; echo "gh: Not Found (HTTP 404)" >&2; exit 1 ;;
   esac

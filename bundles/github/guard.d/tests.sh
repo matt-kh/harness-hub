@@ -823,6 +823,18 @@ g ask   'gh extension exec stack merge 30'
 g ask   'gh-stack merge 30'
 g ask   'gs merge 30'
 g ask   'gh stack merge 30 > /tmp/x'
+g ask   $'gh stack merge\n30'                                       # review C1: line 1 merges the current stack
+g ask   $'gh stack merge --yes\n30'
+g ask   $'gh stack merge\n111'
+g ask   $'GH_STACK_NO_UPDATE_NOTIFIER=1 gh stack merge\n30'
+g ask   $'gh stack merge 30\r'
+gtr 'more than one line' $'gh stack merge\n30'
+GH_STUB_STACKS_FAIL=1 g ask 'gh stack merge 111'                     # only a definite 404 means "not a stack"
+GH_STUB_STACKS_FAIL=1 gtr 'could not be looked up' 'gh stack merge 111'
+g allow 'gh stack merge 30 # 31'                                     # bash drops the comment too
+g ask   'gh stack merge feat-x-sub-02-ui'                            # a branch name
+g ask   'gh stack merge https://github.com/o/r/pull/111'             # a PR URL
+g ask   'gh stack merge 030'
 T_AGENT=a1 g deny 'gh stack merge 30 --yes'
 T_AGENT=a1 g deny 'gh stack merge 111'
 WORK_TICKET_LABELED_DECISION=ask g ask 'gh stack merge 30 --yes'

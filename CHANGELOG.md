@@ -21,9 +21,13 @@ prints every one between your applied version and the new one.
   `gs` / `gh-stack` / `gh extension exec` spellings), and a subagent is still denied. The
   `Bash(gh stack merge:*)` ask entry leaves the github bundle's permissions; the guard decides.
 
+  The check reads the stack just before the merge runs: a part added in between is not checked.
+
   **Migration:** run `harness apply` to re-render the permissions and the guard. To keep the old
   always-ask behaviour, set `WORK_TICKET_LABELED_DECISION=ask` (it also makes the other
-  label-gated agent writes ask).
+  label-gated agent writes ask). Without the permissions entry, nothing asks for
+  `gh stack merge` where the guard does not run: a repository whose `.harness.toml` owns `scm`
+  (or this section) now decides it with its own rules.
 
 ### Docs
 
