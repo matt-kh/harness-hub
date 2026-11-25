@@ -82,13 +82,13 @@ jobs:
     env:
       TAG: ${{ needs.gate.outputs.tag }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           ref: refs/tags/${{ needs.gate.outputs.tag }}
       - name: Fetch tags (keep annotated tag objects)
         run: git fetch --tags --force
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
       - name: The selected ref is the tagged commit (workflow_dispatch)
@@ -132,13 +132,13 @@ jobs:
     env:
       TAG: ${{ needs.gate.outputs.tag }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           ref: ${{ needs.gate.outputs.tag && format('refs/tags/{0}', needs.gate.outputs.tag) || '' }}
       - name: Fetch tags (keep annotated tag objects)
         run: git fetch --tags --force
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
       - name: harness pack --self-extract
@@ -171,7 +171,7 @@ jobs:
       - name: Release notes
         if: needs.gate.outputs.tag != ''
         run: bin/harness release notes "$TAG" --dir "$RUNNER_TEMP/rel" --out "$RUNNER_TEMP/rel/NOTES.md"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: rel
           path: ${{ runner.temp }}/rel
@@ -194,7 +194,7 @@ jobs:
       PRERELEASE: ${{ needs.preflight.outputs.prerelease }}
       GH_TOKEN: ${{ github.token }}
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: rel
           path: rel
@@ -211,7 +211,7 @@ jobs:
             echo "::error::release $TAG already exists; never move or overwrite a published release: fix forward with a new tag"
             exit 1
           fi
-      - uses: actions/attest-build-provenance@v2
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: |
             rel/*.bundle

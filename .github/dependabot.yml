@@ -1,9 +1,17 @@
 # The engine is python stdlib only and vendors what it needs; only Actions are updated.
+# Actions are pinned by commit sha with the version as a comment; Dependabot bumps both.
 version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    # Wait a week before proposing a new release (a compromised tag is usually caught by then).
+    cooldown:
+      default-days: 7
+    # One PR per week for every Actions update, so they are reviewed and CI-checked together.
+    groups:
+      actions:
+        patterns: ["*"]
     commit-message:
       prefix: ci
