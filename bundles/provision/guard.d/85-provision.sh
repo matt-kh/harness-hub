@@ -10,9 +10,9 @@
 # first reason wins, a later deny still wins); denies exit. Reasons carry host=<target> [PROD]
 # when a node, endpoint, context, --target-host or libvirt URI matches LINUX_PROD_RE, name the
 # Proxmox VE node from PROVISION_PVE_HOST and the hosts repository from PROVISION_INFRA_ROOT.
-# rule: prov … -> pass : renders, validates and plans only (never applies); use it first
+# rule: prov … | uv run [opts] prov … | uv tool run|uvx [opts] prov … -> pass : renders, validates and plans only (never applies); use it first
 # rule: proxmox-auto-install-assistant … | nix build|eval|flake check|flake show|path-info -> pass : write local files or read; use them to prepare and check artefacts
-# rule: prov plan … | sh|bash | eval|source|sh -c "$(prov plan …)" -> ask : runs the printed apply steps; hand them to the user instead
+# rule: [uv run|uv tool run|uvx [opts]] prov plan … | sh|bash | eval|source|sh -c "$([uv run] prov plan …)" -> ask : runs the printed apply steps; hand them to the user instead
 # rule: qm|pct list|config|status|showcmd|pending|listsnapshot|help | pvesh get|ls|usage | pvecm status|nodes | pvesm status|list|path | pveum … list | ha-manager status|config -> pass : Proxmox VE reads; use them before planning a change
 # rule: qm|pct create|destroy|clone|set|start|stop|shutdown|reboot|template|importdisk|disk import|migrate|rollback|snapshot|delsnapshot|resize|unlock|… | pvesh set|create|delete | pvecm|pveum|pvesm|pvenode|ha-manager changes -> ask : changes Proxmox VE guests, storage, users or the cluster; read with 'qm list' / 'pvesh get' instead, and hand the command to the user
 # rule: talosctl gen …|validate|machineconfig …|get|version|health|dmesg|logs (no -f)|config info|contexts|images|services|disks|mounts|… | talosctl apply-config --dry-run -> pass : local generation, validation and node reads; use them first
@@ -31,7 +31,7 @@
 # never-yields: the developer's Talos client credential (principle 8 exemption; runs even when the repository owns infrastructure)
 # rule: <reader> ~/.talos/* | $TALOSCONFIG -> deny : the talosconfig holds the Talos client key; run 'talosctl config info' instead
 # rule: talosctl kubeconfig - (written to stdout) -> deny : prints cluster credentials; hand 'talosctl kubeconfig' to the user instead
-local pv_i pv_k pv_t pv_c pv_n
+local pv_i pv_k pv_t pv_c pv_n pv_s pv_g pv_x
 PROV_PRE_RE='(^|[^[:alnum:]_.-])(qm|pct|pvesh|pvecm|pveum|pvesm|pvenode|ha-manager|talosctl|nixos-rebuild(-ng)?|nixos-anywhere|disko(-install)?|virsh|virt-install|qemu-system-[[:alnum:]_]+|qemu-img|prov|nix|nix-shell)([^[:alnum:]_-]|$)'
 PROV_TALOS_RE="(${HOME_RE:-~}/\\.talos(/|[[:space:]\"')]|\$)|\\\$\\{?TALOSCONFIG\\}?)"
 # talosctl flags that take a value (so their value is never read as a subcommand)
@@ -39,6 +39,37 @@ PROV_TALOS_VF='-n|--nodes|-e|--endpoints|--context|--cluster|--talosconfig|-f|--
 PROV_PVE_HINT=${PROVISION_PVE_HOST:+ (on the Proxmox VE node: ssh $PROVISION_PVE_HOST …)}
 PROV_INFRA_HINT=${PROVISION_INFRA_ROOT:+; the host definitions live in $PROVISION_INFRA_ROOT and change through an MR}
 PROV_SCANNED=false
+# uv and uvx options that take a value (so their value is never read as the command uv runs)
+PROV_UV_VF='--project|--directory|-w|--with|--with-editable|--with-requirements|--with-executables-from|-p|--python|--python-preference|--python-platform|--package|--extra|--no-extra|--group|--only-group|--no-group|--upgrade-group|--index|--default-index|-i|--index-url|--extra-index-url|-f|--find-links|--env-file|--config-file|--cache-dir|--color|--index-strategy|--keyring-provider|--resolution|--prerelease|--fork-strategy|--exclude-newer|--exclude-newer-package|--link-mode|--refresh-package|--reinstall-package|-P|--upgrade-package|--no-binary-package|--no-build-package|--no-build-isolation-package|--no-sources-package|-C|--config-setting|--config-settings-package|--torch-backend|--allow-insecure-host|--trusted-host|--from|--build-constraints|-c|--constraints|--overrides|-b'
+prov_uv() {  # uv|uvx WORDS… -> rc 0 and PROV_UV = the number of words before the command that `uv run`, `uv tool run` or
+  # `uvx` runs. An unknown --long option may take a value: the word after it is then tried as the command when it is prov
+  # (fail closed: a new uv option must not hide prov)
+  local c=$1 w i=0 n skip=false unk=false st=sub
+  shift
+  local -a a=("$@")
+  n=${#a[@]}
+  [ "$c" = uvx ] && st=cmd
+  while [ "$i" -lt "$n" ]; do
+    w=${a[i]}; i=$((i+1))
+    if $skip; then skip=false; continue; fi
+    case "$w" in
+      --|--*=*) unk=false; continue ;;
+      --?*) unk=false; if [[ $w =~ ^($PROV_UV_VF)$ ]]; then skip=true; else unk=true; fi; continue ;;
+      -?*) unk=false; [[ $w =~ ^($PROV_UV_VF)$ ]] && skip=true; continue ;;
+    esac
+    case "$st" in
+      sub) case "$w" in run) st=cmd ;; tool) st=tool ;; *) $unk || return 1 ;; esac ;;
+      tool) case "$w" in run) st=cmd ;; *) $unk || return 1 ;; esac ;;
+      cmd)
+        if $unk && [ "$i" -lt "$n" ]; then
+          case "${w##*/}" in prov|prov@*) ;; *) case "${a[i]##*/}" in prov|prov@*) PROV_UV=$i; return 0 ;; esac ;; esac
+        fi
+        PROV_UV=$((i-1)); return 0 ;;
+    esac
+    unk=false
+  done
+  return 1
+}
 prov_tgt() {  # VALUE… (comma lists, user@host, URIs) -> PROV_TGT = " (host=a,b [PROD])", or "" for no value
   local v h list="" prod=false
   local -a parts
@@ -337,9 +368,23 @@ while [ "$pv_i" -lt "${#LQ[@]}" ]; do   # nix-shell --run appends clauses: the b
   linux_words "$pv_t" || continue
   linux_cmd0
   [ -n "$LC" ] || continue
+  pv_s=$((LI+1))
+  # uv run|uv tool run|uvx [opts] CMD …: judge the command uv runs (a project-pinned prov runs this way); the words after
+  # it go through linux_cmd0 again, so `uv run sudo qm …` and `uvx prov@1.0 …` are seen too
+  pv_g=0
+  while [ "$pv_g" -lt 4 ]; do
+    case "$LC" in uv|uvx) ;; *) break ;; esac
+    prov_uv "$LC" "${LW[@]:$pv_s}" || break
+    pv_x=$LXA
+    LW=("${LW[@]:$((pv_s+PROV_UV))}")
+    linux_cmd0
+    $pv_x && LXA=true
+    LC=${LC%%@*}; pv_s=$((LI+1)); pv_g=$((pv_g+1))
+  done
+  [ -n "$LC" ] || continue
   # prov plan … | sh: the printed apply steps would run
   if [ "$LC" = prov ] && [ "$pv_k" = P ]; then
-    linux_pos '--root' "${LW[@]:$((LI+1))}"
+    linux_pos '--root' "${LW[@]:$pv_s}"
     if [ "${LP[0]:-}" = plan ] && [ "$pv_i" -lt "${#LQ[@]}" ]; then
       pv_c=${LQ[pv_i]#*"$LINUX_TABC"}
       if linux_words "$pv_c"; then
@@ -351,8 +396,8 @@ while [ "$pv_i" -lt "${#LQ[@]}" ]; do   # nix-shell --run appends clauses: the b
       continue
     fi
   fi
-  prov_judge "$LC" "${LW[@]:$((LI+1))}"
+  prov_judge "$LC" "${LW[@]:$pv_s}"
 done
-printf '%s' "$flat" | grep -qE '(^|[;&|(`[:space:]])(eval|source|\.|(ba|z|da|k|mk)?sh)[[:space:]]+([^;&|]*[[:space:]])?["'"'"']?(\$\(|<\(|`)[[:space:]]*prov[[:space:]]([^)`]*[[:space:]])?plan([[:space:])`]|$)' \
+printf '%s' "$flat" | grep -qE '(^|[;&|(`[:space:]])(eval|source|\.|(ba|z|da|k|mk)?sh)[[:space:]]+([^;&|]*[[:space:]])?["'"'"']?(\$\(|<\(|`)[[:space:]]*((uvx|uv)[[:space:]]([^)`]*[[:space:]])?)?prov[[:space:]]([^)`]*[[:space:]])?plan([[:space:])`]|$)' \
   && defer "running the output of prov plan executes the printed apply steps — hand the plan to the user to run step by step instead"
 return 0

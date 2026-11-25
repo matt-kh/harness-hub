@@ -1,8 +1,8 @@
-# Talos Linux (planned in prov)
+# Talos Linux (candidate prov backend)
 
 Talos has no ssh and no shell: a node is configured entirely by its **machine config**, pushed
-over the Talos API. `prov` does not render Talos yet; `talosctl gen config` plus patches in the
-infrastructure repository are the source of truth.
+over the Talos API. `prov` has no Talos backend yet (`prov backends` lists what it renders); `talosctl gen config`
+plus patches in the infrastructure repository are the source of truth.
 
 ## Secrets, once per cluster
 
@@ -25,7 +25,7 @@ talosctl gen config demo https://192.0.2.10:6443 \
   --config-patch-control-plane @patches/controlplane.yaml \
   --config-patch-worker @patches/worker.yaml \
   --output-dir rendered/ --output-types controlplane,worker
-talosctl machineconfig patch rendered/controlplane.yaml --patch @hosts/cp1.yaml -o rendered/cp1.yaml
+talosctl machineconfig patch rendered/controlplane.yaml --patch @patches/cp1.yaml -o rendered/cp1.yaml
 talosctl validate --config rendered/cp1.yaml --mode metal
 ```
 

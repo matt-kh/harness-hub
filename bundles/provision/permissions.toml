@@ -1,8 +1,9 @@
 # Claude Code permission rules contributed by bundle `provision` (merged into settings.json
 # `permissions` by the claude provider; other providers translate what they can).
-# prov and the read forms of the provisioning tools allowed, apply steps ask, the human-managed
-# kubeconfig and talosconfig denied (the guard's 85-provision section is the authoritative check:
-# it also unwraps sudo, sh -c, xargs and nix run, and judges flags such as --dry-run and
+# prov (also `uv run --frozen prov`, a project-pinned prov that never re-locks) and the read
+# forms of the provisioning tools allowed, apply steps ask, the human-managed kubeconfig and
+# talosconfig denied (the guard's 85-provision section is the authoritative check: it also
+# unwraps sudo, sh -c, xargs, nix run and uv run / uvx, and judges flags such as --dry-run and
 # --target-host, which no prefix rule can).
 
 [permissions]
@@ -16,6 +17,7 @@ allow = [
   "Bash(talosctl config info:*)",
   "Bash(talosctl validate:*)",
   "Bash(talosctl version:*)",
+  "Bash(uv run --frozen prov:*)",
   "Bash(virsh dominfo:*)",
   "Bash(virsh list:*)",
 ]
