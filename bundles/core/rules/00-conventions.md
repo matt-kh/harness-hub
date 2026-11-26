@@ -37,7 +37,9 @@ draft with `harness repo init` and ask the user to review and commit it.
 - **Humans decide merges, approvals and state.** Merging, approving or reviewing an MR/PR,
   closing, reopening or readying an MR/PR, closing or reopening an issue and transitioning a
   ticket are the user's decisions. Run one only when the user explicitly asks for it in the
-  main thread; the guard asks them to confirm the call. Never on your own initiative, and never
+  main thread; the guard asks them to confirm the call, except for a merge of an
+  `{{ core.agent_labels.worked }}` MR/PR (or stack of parts) into a branch that is not the
+  default branch, which the request alone authorises. Never on your own initiative, and never
   from a subagent (the guard denies it there): otherwise hand the decision back with the exact
   command.
 - Never write a closing keyword + ticket reference (`Closes KEY`, `Fixes #N`) anywhere, even

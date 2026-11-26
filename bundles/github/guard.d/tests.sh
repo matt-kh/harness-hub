@@ -773,10 +773,8 @@ T_AGENT=a1 t deny 'gh stack merge 42 --yes'
 T_AGENT=a1 t deny 'gh stack merge --yes --squash'
 tr 'human decision' 'gh stack merge 42 --yes'
 T_AGENT=a1 tr 'hand the command back to the main thread' 'gh stack merge 42 --yes'
-# gtr: tr in the real gh directory of `g` (the stacks and PR lookups cd into the cwd)
-# shellcheck disable=SC2154  # ghd is set by lib.sh
-gtr() { T_CWD="$ghd/$T_REPO" tr "$@"; }
-# merge label gate (#106): the main thread merges agent-labelled -sub- parts of a ticket-branch stack
+# gtr (lib.sh): tr in the real gh directory of `g` (the stacks and PR lookups cd into the cwd)
+# merge label gate (#106, agent-worked since #112): the main thread merges agent-worked -sub- parts of a ticket-branch stack
 # without a second confirmation (stub stacks: 30 feat-x [110 merged, 111], 31 feat-x [110 111 112(bug)],
 # 32 main [210], 33 feat-x [110 120(fork)], 34 feat-x [110 100(main PR)])
 g allow 'gh stack merge 30 --yes'                                    # stack number, merged part skipped
@@ -787,8 +785,8 @@ g allow 'GH_STACK_NO_UPDATE_NOTIFIER=1 gh stack merge 30 --yes'
 g allow 'gh stack merge 111 --yes'                                   # PR number: range up to 111 skips 112
 g ask   'gh stack merge 110'                                       # 110 already merged: nothing open in the range
 GIT_STUB_BRANCH=feat-x-sub-01-schema g allow 'gh stack merge --yes'  # current branch's stack (30)
-gtr 'agent-labelled' 'gh stack merge 30 --yes'
-g ask   'gh stack merge 31 --yes'                                    # 112 is not agent-labelled
+gtr 'agent-worked' 'gh stack merge 30 --yes'
+g ask   'gh stack merge 31 --yes'                                    # 112 is not agent-worked
 g ask   'gh stack merge 112 --yes'
 g ask   'gh stack merge --yes'                                       # current branch 111 -> stack 31, whole
 g ask   'gh stack merge 32 --yes'                                    # default-branch base
@@ -796,7 +794,7 @@ g ask   'gh stack merge 33 --yes'                                    # fork PR
 g ask   'gh stack merge 34 --yes'                                    # main PR is not a -sub- part
 g ask   'gh stack merge 120'
 g ask   'gh stack merge 42 --yes'                                    # neither stack nor PR in a stack
-gtr 'is not agent-labelled' 'gh stack merge 31 --yes'
+gtr 'not labelled agent-worked' 'gh stack merge 31 --yes'
 gtr 'default branch' 'gh stack merge 32 --yes'
 gtr 'no open PR' 'gh stack merge 110'
 gtr 'human decision' 'gh stack merge 31 --yes'
@@ -838,6 +836,89 @@ g ask   'gh stack merge 030'
 T_AGENT=a1 g deny 'gh stack merge 30 --yes'
 T_AGENT=a1 g deny 'gh stack merge 111'
 WORK_TICKET_LABELED_DECISION=ask g ask 'gh stack merge 30 --yes'
+# agent-worked only: a part labelled with another agent-* label keeps the ask (stub stack 35: feat-x [110, 113 agent-created])
+g ask   'gh stack merge 35 --yes'
+g ask   'gh stack merge 113 --yes'
+gtr 'not labelled agent-worked' 'gh stack merge 35 --yes'
+# gh pr merge label gate: the main thread merges an open agent-worked PR into a branch that is not the
+# default branch without a second confirmation (stub: 110 -> feat-x, 111 -> feat-x-sub-01-schema,
+# 115 -> release, 116 -> trunk; 100/200/210/120 -> main; 113 agent-created; 114 merged; 112 bug)
+g allow 'gh pr merge 110'
+g allow 'gh pr merge 110 --squash'
+g allow 'gh pr merge 111 -s'
+g allow 'gh pr merge 115 --merge'
+g allow 'gh pr merge 115 -r'
+g allow 'gh pr merge 110 -R o/r --squash'
+g allow 'gh pr merge -R o/r 110'
+g allow 'gh pr merge 110 --repo=o/r'
+g allow 'gh -R o/r pr merge 110 --squash'
+g allow 'gh pr -R o/r merge 110'
+gtr 'agent-worked PR #110 into feat-x' 'gh pr merge 110 --squash'
+# into the default branch: asks, whatever the labels
+g ask   'gh pr merge 100 --squash'
+gtr 'merges into the default branch main' 'gh pr merge 100 --squash'
+GH_STUB_DEFAULT_BRANCH=trunk g ask 'gh pr merge 116 --squash'                  # the repository's own default branch
+GH_STUB_DEFAULT_BRANCH=trunk gtr 'default branch trunk' 'gh pr merge 116'
+GH_STUB_DEFAULT_BRANCH=trunk g allow 'gh pr merge 110'
+WORK_TICKET_BASE_BRANCH_RE='^(release)$' g ask 'gh pr merge 115'                # a declared base branch
+# not agent-worked, fork, closed, unreadable
+g ask   'gh pr merge 112'
+gtr 'not labelled agent-worked' 'gh pr merge 113'
+g ask   'gh pr merge 120'
+gtr 'not open' 'gh pr merge 114'
+g ask   'gh pr merge 999'
+GH_STUB_REPO_FAIL=1 g ask 'gh pr merge 110'
+GH_STUB_REPO_FAIL=1 gtr 'default branch could not be read' 'gh pr merge 110'
+# bypass attempts and unchecked flags keep the ask (subagents stay denied)
+g ask   'gh pr merge 110 --admin'
+g ask   'gh pr merge 110 --auto'
+g ask   'gh pr merge 110 -d'
+g ask   'gh pr merge 110 --delete-branch'
+g ask   'gh pr merge 110 -t subject'
+g ask   'gh pr merge 110 -b body'
+g ask   'gh pr merge 110 -F body.md'
+g ask   'gh pr merge 110 --match-head-commit abc'
+g ask   'gh pr merge 110 111'
+g ask   'gh pr merge'                                                         # no number: the current branch
+g ask   'gh pr merge feat-x-sub-01-schema'
+g ask   'gh pr merge https://github.com/o/r/pull/110'
+g ask   'gh pr merge #110'
+g ask   'gh pr merge 110 -R o/r -R x/y'
+g ask   'gh pr merge 110 -R github.com/o/r'
+g ask   'gh pr merge "110"'
+g ask   'gh "pr" merge 110'
+g ask   'GH_REPO=o/r gh pr merge 110'
+g ask   'cd sub && gh pr merge 110'
+g ask   'gh pr merge 110 && gh pr merge 100'
+g ask   'gh pr view 110; gh pr merge 110'
+g ask   'sh -c "gh pr merge 110"'
+g ask   'echo 110 | xargs gh pr merge'
+g ask   'gh pr merge $N'
+g ask   'gh pr merge $(echo 110)'
+g ask   'gh pr merge 110 > /tmp/x'
+g ask   $'gh pr merge\n110'
+g ask   $'gh pr merge 110\r'
+gtr 'more than one line' $'gh pr merge\n110'
+g ask   'gh pr merge 110 --squash # comment'
+T_AGENT=a1 g deny 'gh pr merge 110'
+T_AGENT=a1 g deny 'gh pr merge 115 --squash'
+WORK_TICKET_LABELED_DECISION=ask g ask 'gh pr merge 110'
+g ask   'gh pr review 110 --approve'                                         # review stays a human decision
+# review C1: the guard reads the raw line; $flat would drop `2>&1` with the digits before it (o/r2 -> o/r)
+g ask   'gh pr merge 110 --repo=o/r2>&1'
+g ask   'gh pr merge 110 -R o/r2>&-'
+g ask   'gh pr merge 110 -R o/r2<&0'
+g ask   'gh pr merge 110 2>&1'
+g ask   'gh stack merge 30 --yes 2>&1'
+g ask   'gh pr merge 110 -R x/y'                                              # another repository: its PR is looked up there
+# review W4: -R must be a plain owner/repo
+g ask   'gh pr merge 110 -R o/r*'
+g ask   'gh pr merge 110 -R o/{r,x}'
+g ask   'gh pr merge 110 -R ~x/r'
+g ask   'gh pr merge 110 -R o/../r'
+g ask   'gh pr merge 110 -R o'
+g allow $'gh\tpr\tmerge\t110'                                               # tabs: same words for bash and the guard
+WORK_TICKET_LABEL=agent-done g ask 'gh pr merge 110'                          # the governance label override applies
 # reads and navigation pass
 t pass  'gh stack view --json'
 t pass  'gh stack view --short'

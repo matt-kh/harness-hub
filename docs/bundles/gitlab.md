@@ -70,11 +70,11 @@ Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md
 **Guard sections**
 
 - `gitlab/guard.d/40-gitlab-closing` — control: sensor · domain: tracker · function: govern · decisions: deny 1 · yields: declaration
-- `gitlab/guard.d/50-gitlab` — control: sensor · function: govern · decisions: deny 4 · ask 10 · allow 3 · yields: declaration
+- `gitlab/guard.d/50-gitlab` — control: sensor · function: govern · decisions: deny 4 · ask 11 · allow 4 · yields: declaration
 
 **Permission lists**
 
-- `gitlab/permissions` — control: guide · function: govern · decisions: ask 20 · allow 13 · yields: config
+- `gitlab/permissions` — control: guide · function: govern · decisions: ask 19 · allow 13 · yields: config
 
 **Doctor checks** (function: setup · posture: read-only; table below): `gitlab/doctor/gitlab-ssh`, `gitlab/doctor/glab-auth`, `gitlab/doctor/glab-binary`, `gitlab/doctor/glab-token-mode`
 
@@ -193,7 +193,7 @@ Guides steer the agent before it acts; sensors detect at or after the action. Pa
 | guide | rule | `rules/50-gitlab.md` | MR-based delivery, merges and MR/issue state on explicit main-thread request only, ticket keys mentioned never closed, stacked sub MRs | `guard.d/40-gitlab-closing.sh`, `guard.d/50-gitlab.sh` |
 | guide | permission | `permissions.toml` | read-only glab commands allowed | `permissions-vs-guard` |
 | sensor | guard | `guard.d/40-gitlab-closing.sh` | denies closing keywords with a ticket key | `rules/50-gitlab.md` |
-| sensor | guard | `guard.d/50-gitlab.sh` | API writes, merges/approvals and MR/issue state (main thread asks, subagent denied), stacked MR targets, label-gated edits; MR creates with --fill or --related-issue, or a -t title not matching gitlab.mr_title_re, ask | `rules/50-gitlab.md` |
+| sensor | guard | `guard.d/50-gitlab.sh` | API writes, merges/approvals and MR/issue state (main thread asks, subagent denied; a plain glab mr merge of an agent-worked MR into a branch other than the default branch is allowed), stacked MR targets, label-gated edits; MR creates with --fill or --related-issue, or a -t title not matching gitlab.mr_title_re, ask | `rules/50-gitlab.md` |
 | sensor | doctor | `doctor_checks` | glab binary, auth, SSH and token file mode | — |
 | sensor | test | `guard.d/tests.sh` | guard rows with a stubbed glab | — |
 | sensor | test | `tests/run.sh` | this bundle's rows against core + gitlab only | — |

@@ -10,6 +10,24 @@ prints every one between your applied version and the new one.
 
 ### Changed
 
+- Merges you ask for run without a second prompt when they stay off the default branch (#112).
+  In the main thread, one plain line `gh pr merge N [--squash|--merge|--rebase] [-R owner/repo]`
+  or `glab mr merge N [--squash|--rebase] [-y] [-R group/project]` is allowed when the PR/MR is
+  open, not a fork, labelled `agent-worked` and its base is neither the repository's default
+  branch (read with `gh repo view` / `glab repo view`) nor matches `WORK_TICKET_BASE_BRANCH_RE`.
+  Merges into the default branch, of human PRs/MRs, and with `--admin`, `--auto`, `-d`,
+  `--sha`, `--auto-merge` or commit text still ask; a subagent is still denied. The
+  `gh stack merge` gate (#106) now requires `agent-worked` on every part too, instead of any
+  `agent-*` label. As with #106, the labels are read when the guard runs, a few seconds before
+  the merge.
+
+  **Migration:** after `harness apply`, a main-thread `gh pr merge` or `glab mr merge` of an
+  `agent-worked` PR/MR into a ticket or sub branch no longer asks, and the `Bash(gh pr merge:*)`
+  and `Bash(glab mr merge:*)` permissions asks are gone, so the guard decides. A stack whose
+  parts carry only `agent-created` or `agent-drafted` now asks: label them `agent-worked`. Set
+  `WORK_TICKET_LABELED_DECISION=ask` to keep every merge asking. A repository that owns `scm`
+  loses the permissions asks along with the guard section.
+
 - provision bundle follows provision-hub's kind/backend catalog (#108). Specs are
   `<root>/<kind>/<name>/spec.toml` items (`prov init os-install/web1 --backend …`) instead of
   `hosts/<host>/host.toml`. The skill, rule 85, the references and the `provision-planner` agent

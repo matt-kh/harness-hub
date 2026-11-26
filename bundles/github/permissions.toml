@@ -69,7 +69,6 @@ ask = [
   "Bash(gh label delete:*)",
   "Bash(gh label edit:*)",
   "Bash(gh pr lock:*)",
-  "Bash(gh pr merge:*)",
   "Bash(gh pr review:*)",
   "Bash(gh pr unlock:*)",
   "Bash(gh project close:*)",

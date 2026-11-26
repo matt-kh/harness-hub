@@ -89,6 +89,8 @@ tr() {  # reason-regex command  -- asserts the hook reason matches (decision mus
 # real directories for rows whose lookups cd into the cwd (gh); removed by run.sh on exit
 ghd=$(mktemp -d); mkdir -p "$ghd/$T_REPO" "$ghd/${T_REPO}_feat-x-sub-01-schema"
 g() { tc "$1" "$ghd/$T_REPO" "$2"; }
+# gtr: tr in the same real directory as g (gh/glab lookups cd into the cwd)
+gtr() { T_CWD="$ghd/$T_REPO" tr "$@"; }
 # a real fixture repository for .harness.toml rows (principle 8); removed by run.sh on exit
 rpd=$(mktemp -d); mkdir -p "$rpd/.git" "$rpd/sub"
 decl() { if [ $# -eq 0 ]; then rm -f "$rpd/.harness.toml"; else printf '%s\n' "$@" > "$rpd/.harness.toml"; fi; }

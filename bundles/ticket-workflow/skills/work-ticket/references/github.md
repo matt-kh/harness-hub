@@ -55,9 +55,9 @@ the host alone.
 | §6 CI exists | `glab api …/pipelines` | `gh pr checks N -R OWNER/REPO` (exit 8 = pending; "no checks reported" = no CI) |
 | §6b/6c edit | `glab mr update IID …` | `gh pr edit N -R OWNER/REPO -F … / -B "$BR" / -t …`; Draft → `gh pr ready N -R OWNER/REPO` |
 | §6b native stack | none (GitLab CE has no native stack object) | `GH_STACK_NO_UPDATE_NOTIFIER=1 gh stack link --base feat-x 35 36 37` per linear chain, PR numbers only (hook: allow); read back with `gh api "repos/OWNER/REPO/stacks?pull_request=35"` — see **Native stack (gh-stack)** |
-| §6c stack merge | `glab mr merge IID` (human decision) | `gh stack merge [N]` — only on the user's explicit request in the main thread, as a plain one-line command (hook: allow when every open PR in the range is an agent-labelled `-sub-` part of a ticket-branch stack, else ask; a subagent is denied) |
+| §6c stack merge | `glab mr merge IID` (human decision) | `gh stack merge [N]` — only on the user's explicit request in the main thread, as a plain one-line command (hook: allow when every open PR in the range is an `agent-worked` `-sub-` part of a ticket-branch stack, else ask; a subagent is denied); one part: `gh pr merge N --squash` (hook: allow for an `agent-worked` PR whose base is not the default branch, else ask) |
 | §7 handoff | `jira comment KEY …` | `gh issue comment N -R OWNER/REPO -F "$SCRATCH/N-handoff.md"` ("merging the PR will close issue #N" when CLOSE, else "close it yourself") |
-| never on own initiative | `glab mr merge/approve`, `jira transition KEY` | `gh pr merge`, `gh pr review --approve`, `gh issue close/reopen` on the parent — name the command; run it only on the user's explicit request (hook: ask (main thread) / deny (subagent)) |
+| never on own initiative | `glab mr merge/approve`, `jira transition KEY` | `gh pr merge`, `gh pr review --approve`, `gh issue close/reopen` on the parent — name the command; run it only on the user's explicit request (hook: ask (main thread) / deny (subagent); a plain-line merge of an `agent-worked` MR/PR into a branch other than the default branch: allow) |
 
 Milestone: the issue's own milestone if it is still open (`preflight.milestones`), else none.
 Never create milestones or labels other than the `agent-*` ones.
@@ -360,7 +360,7 @@ reviewers see the parts as a stack. It changes no branch, base or merge order.
   stacked PR is open; otherwise it reports the link command as a todo for the human.
   `gh stack sync|push|submit|rebase` are not used (hook: ask; deny on the default branch).
   `gh stack merge [N]` is a human decision: only on the user's explicit request in the main
-  thread (hook: allow for agent-labelled `-sub-` parts of a ticket-branch stack, else ask; a
+  thread (hook: allow for `agent-worked` `-sub-` parts of a ticket-branch stack, else ask; a
   subagent is denied).
 
 ## §6c Stack sync

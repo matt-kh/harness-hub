@@ -12,7 +12,12 @@
   confirmation; writes prompt (denied from a subagent).
 - `glab mr create` and edits to agent-labelled MRs run promptless; edits to un-labelled MRs
   prompt.
-- Humans decide: `glab mr merge|approve|revoke|delete` and `glab issue close|reopen|delete`
+- Humans decide merges: run `glab mr merge` only on the user's explicit request in the main
+  thread, as one plain line `glab mr merge N [--squash|--rebase] [-y] [-R group/project]`. The
+  guard lets it through without a second prompt only when the MR is opened, not a fork,
+  labelled `agent-worked` and targets a branch that is not the default branch; every merge into
+  the default branch, of a human MR, or with `-d`, `--sha`, `--auto-merge` or commit text asks.
+- Humans decide: `glab mr approve|revoke|delete` and `glab issue close|reopen|delete`
   always ask; `glab mr close|reopen` and `glab mr update --ready|--draft` ask on a human MR and
   run promptless on an agent-labelled one. Run them only on the user's explicit request in the
   main thread; from a subagent the guard denies them — hand the command back. GitLab quick
@@ -22,7 +27,8 @@
   agent-labelled MRs and asks on human ones; refresh the local worktree afterwards with
   `git pull --rebase`.
 - Stacked delivery: sub MRs (`<branch>-sub-NN-<task>`) target the ticket branch, never the
-  default branch (the guard denies it); humans decide the merges, bottom-up.
+  default branch (the guard denies it); humans decide the merges, bottom-up (on request, the
+  agent merges `agent-worked` parts into the ticket branch without a second prompt).
 - Closing keywords + a ticket key (`Closes KEY`, `Fixes KEY`, `Resolves KEY`, `Implements KEY`)
   in commits, MR text or API payloads are denied: GitLab's Jira integration would transition
   the ticket. Mention the key instead.

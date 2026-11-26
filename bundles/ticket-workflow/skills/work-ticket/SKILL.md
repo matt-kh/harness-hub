@@ -69,8 +69,9 @@ github-issues). "KEY" means the Jira key or `#N`; "MR" means PR on GitHub.
    branched off the base chosen in Q3 and its MR targets it back. **Humans decide every merge**,
    stacked parts bottom-up (usually in the web UI); the agent never merges or approves on its
    own initiative — it names the command (`glab mr merge N`, `gh pr merge N`) for the user. It
-   runs one only on the user's explicit request in the main thread (the guard asks; never from a
-   subagent, never out of `stk plan` order). The key lives only in MR titles/
+   runs one only on the user's explicit request in the main thread, as one plain line (the guard
+   lets an `agent-worked` MR into a branch other than the default branch through and asks for
+   everything else; never from a subagent, never out of `stk plan` order). The key lives only in MR titles/
    descriptions and Jira — never in branch names or commits.
 5. **Subagents = local worktree sub-branches** (`<short>-sub-NN-<task>`). Subagents never push,
    never run jira/glab writes, never merge, approve, close/reopen or transition (the guard
@@ -301,7 +302,7 @@ GitHub → github.md §6c (`gh pr list … headRefOid`, rebase onto the merged p
 `gh pr edit N -B "$BR"` only when GitHub did not auto-retarget, `gh pr ready`).
 A linked native stack: `stk sync` appends new top parts while every stacked PR is open,
 otherwise it reports the link command as a todo for the human; never `gh stack sync`; `gh stack merge` only on the
-user's explicit request in the main thread (hook: allow for agent-labelled `-sub-` parts, else ask;
+user's explicit request in the main thread (hook: allow for `agent-worked` `-sub-` parts, else ask;
 a subagent is denied).
 ```bash
 glab mr list --search "KEY" --all -F json > "$SCRATCH/KEY-stack.json"   # → github.md §6c
@@ -316,7 +317,9 @@ Review fixes: commit in the part's worktree, plain `git push origin <sub>`; noth
 Worktrees of merged parts → `subagents.md` lifecycle cleanup. Never `glab mr merge`/`approve`
 (GitHub: `gh pr merge` / `gh pr review --approve`) on your own initiative: name the part
 `stk plan --stack <BR>` puts next. Only on the user's explicit request in the main thread run
-the merge of that part (the guard asks), then `stk sync --stack <BR>`.
+the merge of that part as one plain line (`glab mr merge N -y` / `gh pr merge N --squash`; hook:
+allow for an `agent-worked` part, ask for the main MR into the default branch), then
+`stk sync --stack <BR>`.
 
 ### Step 7 — Handoff
 ```bash

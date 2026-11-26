@@ -15,9 +15,11 @@ The exact decision for every command pattern is generated in the
   `^(master|main)$`) (a repository can make it ask instead with the
   `WORK_TICKET_ALLOW_DEFAULT_PUSH_RE` override in its `.harness.toml` or provider `env`; see
   [repository-level harnesses](repo-level.md)).
-- **Humans decide merges and approvals.** `glab mr merge|approve`, `gh pr merge` and
-  `gh pr review` ask, always. The agent runs one only when you explicitly ask for it in the
-  main thread, and you confirm the call; otherwise its hand-off tells you what is ready and
+- **Humans decide merges and approvals.** The agent merges only when you explicitly ask for
+  it in the main thread. A merge of an `agent-worked` MR/PR (or stack of parts) into a branch
+  that is not the default branch then runs without a second prompt; a merge into the default
+  branch, of a human MR/PR, and every approval (`glab mr approve`, `gh pr review`) asks you to
+  confirm the call; otherwise its hand-off tells you what is ready and
   names the command. A subagent never merges or approves: the guard denies it there (§3).
 - Commit subjects and branch names carry **no ticket keys** by default; the key lives in the
   MR/PR title or body, and the guard asks on key-named branches and key-prefixed subjects.
@@ -54,7 +56,8 @@ agent's comments on that ticket stop prompting.
   *In Progress*, *Done* or *Closed* is yours too.
 - An agent carries one out **only when you explicitly ask for it in the main thread** ("merge
   PR 12", "move PROJ-123 to Done"). The guard confirms every such call on a human artefact,
-  and every merge and approval (ask); state changes of agent-labelled tickets, issues and
+  every merge into the default branch and every approval (ask); a merge of `agent-worked`
+  work into a ticket or sub branch runs on your request alone; state changes of agent-labelled tickets, issues and
   MRs/PRs stay promptless. Without your request the agent hands the decision back with the
   exact command instead of stalling.
 - **Subagents never do it.** A subagent (a reviewer, a work-ticket step) that tries is
