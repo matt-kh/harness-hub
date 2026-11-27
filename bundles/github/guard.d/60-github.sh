@@ -92,8 +92,8 @@ gh_pr_merge() {
     case "$tok" in
       -R|--repo) [ -z "$mrepo" ] && [ "$k" -lt "${#mt[@]}" ] || { mbad=$tok; break; }; mrepo=${mt[k]}; k=$((k+1)) ;;
       --repo=*)  [ -z "$mrepo" ] || { mbad=$tok; break; }; mrepo=${tok#*=} ;;
-      pr)        [ -z "$seen" ] || { mbad=$tok; break; }; seen=pr ;;
-      merge)     [ "$seen" = pr ] || { mbad=$tok; break; }; seen=merge ;;
+      pr)        [ -z "$seen" ] || { mbad=$tok; break; }; seen="pr" ;;
+      merge)     [ "$seen" = pr ] || { mbad=$tok; break; }; seen="merge" ;;
       -s|--squash|-m|--merge|-r|--rebase) [ "$seen" = merge ] || { mbad=$tok; break; } ;;
       *[!0-9]*)  mbad=$tok; break ;;
       *)         [ "$seen" = merge ] && [ -z "$mnum" ] || { mbad=$tok; break; }; mnum=$tok ;;

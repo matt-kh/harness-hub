@@ -66,8 +66,8 @@ gl_mr_merge() {
     case "$tok" in
       -R|--repo) [ -z "$mrepo" ] && [ "$k" -lt "${#mt[@]}" ] || { mbad=$tok; break; }; mrepo=${mt[k]}; k=$((k+1)) ;;
       --repo=*)  [ -z "$mrepo" ] || { mbad=$tok; break; }; mrepo=${tok#*=} ;;
-      mr)        [ -z "$seen" ] || { mbad=$tok; break; }; seen=mr ;;
-      merge)     [ "$seen" = mr ] || { mbad=$tok; break; }; seen=merge ;;
+      mr)        [ -z "$seen" ] || { mbad=$tok; break; }; seen="mr" ;;
+      merge)     [ "$seen" = mr ] || { mbad=$tok; break; }; seen="merge" ;;
       -s|--squash|-r|--rebase|-y|--yes|--auto-merge=false) [ "$seen" = merge ] || { mbad=$tok; break; } ;;
       *[!0-9]*)  mbad=$tok; break ;;
       *)         [ "$seen" = merge ] && [ -z "$mnum" ] || { mbad=$tok; break; }; mnum=$tok ;;
