@@ -3,7 +3,9 @@
 # Section 60 (bundle github): gh governance.
 # rule: gh api -X non-GET | --input | fields without a method | graphql mutation -> ask : API write; ask the user, or use the matching gh subcommand
 # rule: gh api write (as above) from a subagent -> deny : a raw API write can merge or change state; hand the command back to the main thread
-# rule: gh pr merge|review, gh issue delete|transfer -> ask : merging, reviewing and deleting/transferring issues are human decisions; run it only on the user's explicit request (they confirm it), or ask the user instead
+# rule: gh pr merge N [-s|--squash|-m|--merge|-r|--rebase] [-R owner/repo] as the only command on the line, main thread, of an open non-fork PR labelled agent-worked whose base is not the repository's default branch (nor matches WORK_TICKET_BASE_BRANCH_RE) -> allow : the user asked for the merge in the main thread and the PR is agent-worked work that does not land on the default branch; honours WORK_TICKET_LABELED_DECISION
+# rule: gh pr merge otherwise (into the default branch, a PR without agent-worked, a fork, closed or unreadable PR, --admin, --auto, -d, -b/-t/-F text, any other flag, a compound or wrapped line, quotes, GH_REPO=) -> ask : merging into the default branch or merging human work is a human decision; run it only on the user's explicit request (they confirm it), or ask the user instead
+# rule: gh pr review, gh issue delete|transfer -> ask : reviewing and deleting/transferring issues are human decisions; run it only on the user's explicit request (they confirm it), or ask the user instead
 # rule: gh pr merge|review, gh issue delete|transfer from a subagent -> deny : a subagent never merges, reviews or deletes; hand the command back to the main thread
 # rule: gh with quoted/escaped command words or a $VAR/$(…) subcommand -> ask : the subcommand cannot be checked; write it literally and unquoted instead (a subagent is denied)
 # rule: gh release/repo/workflow/secret/auth/gist/... mutations -> ask : team-visible; ask the user (releases are human-only)
@@ -16,8 +18,8 @@
 # rule: gh pr edit|comment|close|reopen|ready|update-branch, gh issue edit|comment|close|reopen on an agent-labelled ref -> allow : human refs ask (label it first, or ask the user); fork PRs ask
 # rule: gh pr close|reopen|ready, gh issue close|reopen on a human ref -> ask : PR/issue state is a human decision; run it only on the user's explicit request (they confirm it), or ask the user instead
 # rule: gh pr close|reopen|ready, gh issue close|reopen from a subagent -> deny : a subagent never changes PR/issue state; hand the command back to the main thread
-# rule: gh stack merge [N] [-y|--yes] [--squash|--merge|--rebase|--merge-method M] as the only command on the line (optionally after GH_STACK_NO_UPDATE_NOTIFIER=1), main thread, whose range (stack N whole, else the stack holding PR N up to N, else the current branch's stack whole; read via the stacks REST API) has a non-default base and only open non-fork agent-labelled <base>-sub-* PRs -> allow : the user asked for the merge in the main thread and every part is agent-owned; honours WORK_TICKET_LABELED_DECISION
-# rule: gh stack merge otherwise (a human, fork or non -sub- PR, a default-branch base, a failed or empty lookup, more than 10 open PRs, an unknown argument, a compound or wrapped line, quotes, gs / gh-stack / gh extension exec / -R spellings) -> ask : merging a stack is a human decision; run it only on the user's explicit request (they confirm it), type gh stack merge [N] as a plain one-line command for agent-labelled -sub- parts, or ask the user to merge the parts bottom-up
+# rule: gh stack merge [N] [-y|--yes] [--squash|--merge|--rebase|--merge-method M] as the only command on the line (optionally after GH_STACK_NO_UPDATE_NOTIFIER=1), main thread, whose range (stack N whole, else the stack holding PR N up to N, else the current branch's stack whole; read via the stacks REST API) has a non-default base and only open non-fork <base>-sub-* PRs labelled agent-worked -> allow : the user asked for the merge in the main thread and every part is agent-owned; honours WORK_TICKET_LABELED_DECISION
+# rule: gh stack merge otherwise (a PR without agent-worked, a fork or non -sub- PR, a default-branch base, a failed or empty lookup, more than 10 open PRs, an unknown argument, a compound or wrapped line, quotes, gs / gh-stack / gh extension exec / -R spellings) -> ask : merging a stack is a human decision; run it only on the user's explicit request (they confirm it), type gh stack merge [N] as a plain one-line command for agent-worked -sub- parts, or ask the user to merge the parts bottom-up
 # rule: gh stack merge from a subagent -> deny : a subagent never merges; hand the command back to the main thread
 # rule: gh stack view|help|feedback|completion, navigation (up|down|top|bottom|trunk|switch|checkout) -> pass : reads and local navigation; nothing is pushed or linked
 # rule: gh stack link --base TICKET-BRANCH with literal numbers of agent-labelled -sub- PRs of that ticket branch -> allow : links existing PRs only (no push, no PR create); honours WORK_TICKET_LABELED_DECISION
@@ -56,7 +58,77 @@ GH_NOUNS='pr|issue|label|release|repo|run|workflow|secret|variable|gist|auth|con
 # github) means "disabled"; without a guard.env (tests, hand-installed hook) the default applies.
 if [ -n "${HARNESS_GITHUB_PR_TITLE_FORBID_RE+x}" ]; then GH_TITLE_FORBID_RE=$HARNESS_GITHUB_PR_TITLE_FORBID_RE
 else case " ${HARNESS_BUNDLES:-} " in *" github "*) GH_TITLE_FORBID_RE="" ;; *) GH_TITLE_FORBID_RE='#[0-9]+' ;; esac; fi
-GH_HUMAN_RE="${GHP}(pr\s+${GHR}(merge|review)|issue\s+${GHR}(delete|transfer))\b"
+GH_HUMAN_RE="${GHP}(pr\s+${GHR}review|issue\s+${GHR}(delete|transfer))\b"
+GH_MERGE_RE="${GHP}pr\s+${GHR}merge\b"
+GH_MERGE_MSG="gh pr merge — merging is a human decision; run it only on the user's explicit request (they confirm it), or ask the user instead"
+GH_NL='
+'
+GH_CR=$(printf '\r')
+# gh_pr_merge: the merge label gate. The user asked for the merge in the main thread; the guard
+# allows it without a second confirmation only for one plain command line that merges an open,
+# non-fork PR labelled agent-worked into a branch that is not the repository's default branch
+# (read with gh repo view) and does not match WORK_TICKET_BASE_BRANCH_RE. Flags: the merge
+# method and -R owner/repo only (no --admin, --auto, --delete-branch or commit text). Anything
+# else, and any failed lookup, defers the human-decision ask; a subagent is denied.
+gh_pr_merge() {
+  local mline tok mnum="" mrepo="" mbad="" seen="" why="" pj mbase dflt
+  local -a mt
+  [ "$IN_SUBAGENT" != true ] || { human_decision_defer "$GH_MERGE_MSG"; return 0; }
+  # the raw command: $flat drops fd duplications with the digits before them (o/r2>&1 -> o/r)
+  mline=$(printf '%s' "$cmd" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')
+  # $flat folds line breaks into spaces: a second line would be a second command, so read $cmd
+  case "$cmd" in *"$GH_NL"*|*"$GH_CR"*) why="the command spans more than one line (each line is its own command)" ;; esac
+  case "$mline" in
+    *[\;\&\|\`\$\(\)\<\>\"\'\\]*) [ -n "$why" ] || why="it is not the only command on the line, or carries quotes, \$VARs or redirections" ;;
+  esac
+  if [ -z "$why" ]; then
+    read -r -a mt <<<"$mline"
+    [ "${mt[0]:-}" = gh ] || why="only a plain one-line gh pr merge N [-s|-m|-r] [-R owner/repo] is label-checked"
+  fi
+  # words in order: gh [-R o/r] pr [-R o/r] merge N [method] [-R o/r]
+  local k=1
+  while [ -z "$why" ] && [ "$k" -lt "${#mt[@]}" ]; do
+    tok=${mt[k]}; k=$((k+1))
+    case "$tok" in
+      -R|--repo) [ -z "$mrepo" ] && [ "$k" -lt "${#mt[@]}" ] || { mbad=$tok; break; }; mrepo=${mt[k]}; k=$((k+1)) ;;
+      --repo=*)  [ -z "$mrepo" ] || { mbad=$tok; break; }; mrepo=${tok#*=} ;;
+      pr)        [ -z "$seen" ] || { mbad=$tok; break; }; seen="pr" ;;
+      merge)     [ "$seen" = pr ] || { mbad=$tok; break; }; seen="merge" ;;
+      -s|--squash|-m|--merge|-r|--rebase) [ "$seen" = merge ] || { mbad=$tok; break; } ;;
+      *[!0-9]*)  mbad=$tok; break ;;
+      *)         [ "$seen" = merge ] && [ -z "$mnum" ] || { mbad=$tok; break; }; mnum=$tok ;;
+    esac
+  done
+  [ -n "$why" ] || [ -z "$mbad" ] || why="the argument $mbad cannot be checked"
+  [ -n "$why" ] || [ "$seen" = merge ] || why="only a plain one-line gh pr merge N [-s|-m|-r] [-R owner/repo] is label-checked"
+  [ -n "$why" ] || [ -n "$mnum" ] || why="no literal PR number (pass gh pr merge N)"
+  case "$mrepo" in
+    '') ;;
+    *[!A-Za-z0-9_./-]*|/*|*/|*/*/*|.*|*/.*) [ -n "$why" ] || why="-R $mrepo is not a plain owner/repo" ;;
+    */*) ;;
+    *) [ -n "$why" ] || why="-R $mrepo is not a plain owner/repo" ;;
+  esac
+  if [ -z "$why" ]; then
+    pj=$(gh_q pr view "$mnum" ${mrepo:+-R "$mrepo"} --json state,labels,baseRefName,isCrossRepository </dev/null) && [ -n "$pj" ] \
+      || why="PR #$mnum could not be read"
+  fi
+  if [ -z "$why" ]; then
+    dflt=$(gh_q repo view ${mrepo:+"$mrepo"} --json defaultBranchRef --jq .defaultBranchRef.name </dev/null) && [ -n "$dflt" ] \
+      || why="the repository's default branch could not be read"
+  fi
+  if [ -z "$why" ]; then
+    mbase=$(jq -r '.baseRefName // ""' <<<"$pj" 2>/dev/null)
+    if [ "$(jq -r '.state // ""' <<<"$pj" 2>/dev/null)" != OPEN ]; then why="PR #$mnum is not open"
+    elif [ "$(jq -r '.isCrossRepository' <<<"$pj" 2>/dev/null)" != false ]; then why="PR #$mnum is a fork PR"
+    elif ! labels_have "$(jq -c '[.labels[]?.name]' <<<"$pj" 2>/dev/null)" "$GOV_LABEL"; then why="PR #$mnum is not labelled $GOV_LABEL"
+    elif [ -z "$mbase" ] || [ "$mbase" = "$dflt" ] || printf '%s' "$mbase" | grep -qE -e "$BASE_BRANCH_RE"; then
+      why="PR #$mnum merges into the default branch ${mbase:-?}"
+    fi
+  fi
+  [ -n "$why" ] || [ "$LABELED_DECISION" = allow ] || why="WORK_TICKET_LABELED_DECISION=$LABELED_DECISION"
+  if [ -n "$why" ]; then human_decision_defer "$GH_MERGE_MSG ($why)"; return 0; fi
+  pending_allow="gh pr merge of $GOV_LABEL PR #$mnum into $mbase (not the default branch; the user asked for it in the main thread)"
+}
 GH_TEAM_RE="${GHP}(pr\s+${GHR}(lock|unlock)|issue\s+${GHR}(pin|unpin|lock|unlock|develop)|release\s+${GHR}(create|edit|delete|delete-asset|upload)|repo\s+${GHR}(delete|archive|unarchive|fork|create|rename|edit|sync|deploy-key|autolink)|label\s+${GHR}(edit|delete|clone)|workflow\s+${GHR}(run|enable|disable)|run\s+${GHR}(cancel|rerun|delete)|(secret|variable)\s+${GHR}(set|delete)|gist\s+(create|edit|delete|rename)|auth\s+(login|logout|refresh|setup-git|switch)|(ssh-key|gpg-key)\s+(add|delete)|alias\s+(set|import|delete)|ext(ension)?s?\s+(install|upgrade|remove)|project\s+(close|copy|create|delete|edit|field-create|field-delete|item-add|item-archive|item-create|item-delete|item-edit|link|unlink|mark-template)|cache\s+${GHR}delete)\b"
 GH_PR_BOOL_RE='^--?(d|draft|undo|edit-last|create-if-none|delete-last|y|yes|w|web|delete-branch|remove-milestone|dry-run|e|editor|rebase)$'
 GH_ISSUE_BOOL_RE='^--?(e|editor|w|web|edit-last|create-if-none|delete-last|y|yes|remove-milestone|remove-parent)$'
@@ -127,7 +199,8 @@ EOF
   # -- 3. humans merge/review and delete/transfer issues (a human decision: main thread asks, a
   #       subagent is denied); team-visible actions — releases, repos, workflows, secrets, auth … — ask
   printf '%s' "$flat" | grep -qE "$GH_HUMAN_RE" \
-    && human_decision_defer "gh pr merge/review or gh issue delete/transfer — merging, reviewing and deleting are human decisions; run it only on the user's explicit request (they confirm it), or ask the user instead"
+    && human_decision_defer "gh pr review or gh issue delete/transfer — reviewing and deleting are human decisions; run it only on the user's explicit request (they confirm it), or ask the user instead"
+  printf '%s' "$flat" | grep -qE "$GH_MERGE_RE" && gh_pr_merge
   printf '%s' "$flat" | grep -qE "$GH_TEAM_RE" \
     && defer "gh team-visible action (releases/repos/workflows/secrets/auth/gists are not governed) — ask the user instead"
 
@@ -407,7 +480,8 @@ GHS_CR=$(printf '\r')          # open PRs label-checked per merge (one gh pr vie
 ghs_merge() {
   local i=0 tok mnum="" mbad="" mline sj sbase n mprs mj msrc cnt=0 why=""
   [ "$IN_SUBAGENT" != true ] || human_decision_defer "$GHS_MERGE_MSG"     # denies
-  mline=$(printf '%s' "$flat" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')
+  # the raw command: $flat drops fd duplications with the digits before them (o/r2>&1 -> o/r)
+  mline=$(printf '%s' "$cmd" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')
   # $flat folds line breaks into spaces: a second line would be a second command, so read $cmd
   case "$cmd" in *"$GHS_NL"*|*"$GHS_CR"*) why="the command spans more than one line (each line is its own command)" ;; esac
   case "$mline" in
@@ -467,14 +541,14 @@ EOF
       msrc=$(jq -r '.src' <<<"$mj")
       if [ "$(jq -r '.cross' <<<"$mj")" = true ]; then why="PR #$n is a fork PR"; break; fi
       case "$msrc" in "$sbase"-sub-*) ;; *) why="PR #$n ($msrc) is not a -sub- part of $sbase"; break ;; esac
-      labels_have_write "$(jq -c '.labels' <<<"$mj")" || { why="PR #$n is not agent-labelled"; break; }
+      labels_have "$(jq -c '.labels' <<<"$mj")" "$GOV_LABEL" || { why="PR #$n is not labelled $GOV_LABEL"; break; }
       cnt=$((cnt+1))
     done
     [ -n "$why" ] || [ "$cnt" -eq "${#marr[@]}" ] || why="not every PR in the range was checked"
   fi
   [ -n "$why" ] || [ "$LABELED_DECISION" = allow ] || why="WORK_TICKET_LABELED_DECISION=$LABELED_DECISION"
   if [ -n "$why" ]; then human_decision_defer "$GHS_MERGE_MSG ($why)"; return 0; fi
-  pending_allow="gh stack merge of $cnt agent-labelled -sub- PR(s) of the $sbase stack (the user asked for it in the main thread)"
+  pending_allow="gh stack merge of $cnt $GOV_LABEL -sub- PR(s) of the $sbase stack (the user asked for it in the main thread)"
 }
 # a `merge` word anywhere in a gh-stack clause, in any spelling the dequoted command shows
 # (gh "stack" merge, gh-stack "merge", gh stack -R o/r merge, gs merge): a subagent is denied

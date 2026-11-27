@@ -11,6 +11,14 @@
 #         200 other                [bug]          -> main
 #         210 feat-x-sub-02-api    [bug]          -> main   (auto-retargeted)
 #         120 fork-fix             [agent-worked] -> main   isCrossRepository:true
+#         113 feat-x-sub-04-misc   [agent-created] -> feat-x
+#         114 feat-y-sub-01-done   [agent-worked] -> feat-y  (MERGED)
+#         115 release-fix          [agent-worked] -> release
+#         116 trunk-fix            [agent-worked] -> trunk
+#         every PR is OPEN unless marked; `gh repo view [o/r] --json defaultBranchRef` answers
+#         $GH_STUB_DEFAULT_BRANCH (default main); GH_STUB_REPO_FAIL=1 makes it fail
+#         `pr view` / `repo view` know one repository: -R / --repo / a repo argument other than
+#         o/r fails the way gh reports an unknown repository (rows can catch a repo mismatch)
 # Issues: 1 [agent-worked]  2 [agent-drafted]  3 [bug]  4 []   others -> "Could not resolve to an Issue"
 # Stack:  GH_STUB_STACK unset -> exit 2 (not in a stack); set -> trunk $GH_STUB_STACK with the layers
 #         feat-x-sub-01-schema (PR 110) and feat-x-sub-02-ui (PR 111)
@@ -23,9 +31,10 @@
 # Stacks REST API (gh-stack's native stacks; {owner}/{repo} or o/r):
 #   gh api repos/O/R/stacks/N                  30: feat-x [110 merged, 111]   31: feat-x [110, 111, 112]
 #                                              32: main [210]   33: feat-x [110, 120]   34: feat-x [110, 100]
+#                                              35: feat-x [110, 113]
 #                                              others -> 404, exit 1
 #                                              GH_STUB_STACKS_FAIL=1: exit 1 with a 500 body (not a 404)
-#   gh api repos/O/R/stacks?pull_request=N     110 -> [30]  111|112 -> [31]  120 -> [33]  100 -> [34]  others -> []
+#   gh api repos/O/R/stacks?pull_request=N     110 -> [30]  111|112 -> [31]  120 -> [33]  100 -> [34]  113 -> [35]  others -> []
 # The shape follows a recorded github.com response: pull_requests run bottom to top (part 1 first).
 # `gh pr view` without a REF reads the current branch ($GIT_STUB_BRANCH, default feat-x-sub-02-ui);
 # --jq/-q filters the output through jq -r.
@@ -47,6 +56,7 @@ stk_by_num() {
     32) stk 32 main 210 ;;
     33) stk 33 feat-x 110 120 ;;
     34) stk 34 feat-x 110 100 ;;
+    35) stk 35 feat-x 110 113 ;;
     *) return 1 ;;
   esac
 }
@@ -58,6 +68,7 @@ if [ "${1:-}" = api ]; then
         111|112) printf '[%s]\n' "$(stk_by_num 31)" ;;
         120) printf '[%s]\n' "$(stk_by_num 33)" ;;
         100) printf '[%s]\n' "$(stk_by_num 34)" ;;
+        113) printf '[%s]\n' "$(stk_by_num 35)" ;;
         *) echo '[]' ;;
       esac
       exit 0 ;;
@@ -112,6 +123,20 @@ fi
 noun=$1; verb=$2; shift 2
 case "$noun $verb" in
   "pr view"|"issue view") ;;
+  "repo view")
+    [ -z "${GH_STUB_REPO_FAIL:-}" ] || { echo "gh-stub: repo view failed" >&2; exit 1; }
+    jqx=""
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        -q|--jq) jqx=${2:-}; shift 2 ;;
+        --json) shift 2 ;;
+        -*) shift ;;
+        *) [ "$1" = o/r ] || { echo "GraphQL: Could not resolve to a Repository with the name '$1'." >&2; exit 1; }; shift ;;
+      esac
+    done
+    o=$(printf '{"defaultBranchRef":{"name":"%s"}}' "${GH_STUB_DEFAULT_BRANCH:-main}")
+    if [ -n "$jqx" ]; then printf '%s\n' "$o" | jq -r "$jqx"; else printf '%s\n' "$o"; fi
+    exit 0 ;;
   "stack view")
     [ "${1:-}" = --json ] || { echo "gh-stub: stack view needs --json" >&2; exit 1; }
     [ -n "${GH_STUB_STACK:-}" ] || { echo "not in a stack" >&2; exit 2; }
@@ -126,7 +151,8 @@ while [ $# -gt 0 ]; do
     --json) json=${2:-}; shift 2 ;;
     --json=*) json=${1#*=}; shift ;;
     -q|--jq) jqx=${2:-}; shift 2 ;;
-    -R|--repo) shift 2 ;;
+    -R|--repo) [ "${2:-}" = o/r ] || { echo "GraphQL: Could not resolve to a Repository with the name '${2:-}'." >&2; exit 1; }; shift 2 ;;
+    --repo=*) [ "${1#*=}" = o/r ] || { echo "GraphQL: Could not resolve to a Repository with the name '${1#*=}'." >&2; exit 1; }; shift ;;
     -*) shift ;;
     *) [ -n "$ref" ] || ref=$1; shift ;;
   esac
@@ -143,9 +169,9 @@ lbl() {  # NAME… -> gh-style label objects
   for n in "$@"; do out="$out${out:+,}{\"id\":\"LA_$n\",\"name\":\"$n\",\"color\":\"7057ff\"}"; done
   printf '[%s]' "$out"
 }
-pr() {  # NUM HEAD BASE CROSS LABEL…
+pr() {  # NUM HEAD BASE CROSS LABEL…  (state: $PR_STATE, default OPEN)
   local num=$1 h=$2 b=$3 x=$4; shift 4
-  printf '{"number":%s,"labels":%s,"headRefName":"%s","baseRefName":"%s","isCrossRepository":%s}\n' "$num" "$(lbl "$@")" "$h" "$b" "$x"
+  printf '{"number":%s,"state":"%s","labels":%s,"headRefName":"%s","baseRefName":"%s","isCrossRepository":%s}\n' "$num" "${PR_STATE:-OPEN}" "$(lbl "$@")" "$h" "$b" "$x"
 }
 if [ "$noun" = pr ]; then
   case "$ref" in
@@ -156,6 +182,10 @@ if [ "$noun" = pr ]; then
     200|other)                pr 200 other main false bug ;;
     210|feat-x-sub-02-api)    pr 210 feat-x-sub-02-api main false bug ;;
     120|fork-fix)             pr 120 fork-fix main true agent-worked ;;
+    113|feat-x-sub-04-misc)   pr 113 feat-x-sub-04-misc feat-x false agent-created ;;
+    114|feat-y-sub-01-done)   PR_STATE=MERGED pr 114 feat-y-sub-01-done feat-y false agent-worked ;;
+    115|release-fix)          pr 115 release-fix release false agent-worked ;;
+    116|trunk-fix)            pr 116 trunk-fix trunk false agent-worked ;;
     *) echo "GraphQL: Could not resolve to a PullRequest with the number of $ref." >&2; exit 1 ;;
   esac
 else

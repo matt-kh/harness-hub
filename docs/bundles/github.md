@@ -79,11 +79,11 @@ Stable ids derived from the path, with their [taxonomy](../reference/taxonomy.md
 **Guard sections**
 
 - `github/guard.d/41-github-closing` — control: sensor · domain: tracker · function: govern · decisions: deny 2 · allow 1 · yields: declaration
-- `github/guard.d/60-github` — control: sensor · function: govern · decisions: deny 12 · ask 13 · allow 5 · yields: declaration
+- `github/guard.d/60-github` — control: sensor · function: govern · decisions: deny 12 · ask 14 · allow 6 · yields: declaration
 
 **Permission lists**
 
-- `github/permissions` — control: guide · function: govern · decisions: deny 1 · ask 74 · allow 34 · yields: config
+- `github/permissions` — control: guide · function: govern · decisions: deny 1 · ask 73 · allow 34 · yields: config
 
 **Installers**
 
@@ -233,7 +233,7 @@ Guides steer the agent before it acts; sensors detect at or after the action. Pa
 | guide | rule | `rules/60-github.md` | PR-based delivery, merges and PR/issue state on explicit main-thread request only, -R owner/repo on every call | `guard.d/41-github-closing.sh`, `guard.d/60-github.sh` |
 | guide | permission | `permissions.toml` | read-only gh commands allowed; token printing denied | `guard.d/60-github.sh`, `permissions-vs-guard` |
 | sensor | guard | `guard.d/41-github-closing.sh` | denies closing keywords that would change issue state; lets only the PR to the default branch close its agent-worked #N in a github-issues repository (github.close_issue_on_merge) | `rules/60-github.md` |
-| sensor | guard | `guard.d/60-github.sh` | token printing, API writes, merges/reviews and PR/issue state (main thread asks, subagent denied), provenance labels, stacked PR targets; gh stack merge (human decision; label-gated allow in the main thread for agent-labelled -sub- parts of a ticket-branch stack), gh stack link (label-gated -sub- PR numbers onto the ticket branch), gh stack push\|submit\|sync\|... (deny on the default branch, else ask); PR creates with --fill* or a -t title matching github.pr_title_forbid_re ask | `rules/60-github.md`, `permissions.toml` |
+| sensor | guard | `guard.d/60-github.sh` | token printing, API writes, merges/reviews and PR/issue state (main thread asks, subagent denied), provenance labels, stacked PR targets; gh pr merge and gh stack merge (human decisions; label-gated allow in the main thread for agent-worked PRs whose base is not the default branch), gh stack link (label-gated -sub- PR numbers onto the ticket branch), gh stack push\|submit\|sync\|... (deny on the default branch, else ask); PR creates with --fill* or a -t title matching github.pr_title_forbid_re ask | `rules/60-github.md`, `permissions.toml` |
 | sensor | doctor | `doctor_checks` | gh binary, auth, SSH, token file mode and the gh stack extension version (absent passes, another version warns) | — |
 | sensor | test | `guard.d/tests.sh` | guard rows with a stubbed gh | — |
 | sensor | test | `tests/run.sh` | this bundle's rows against core + github only | — |

@@ -185,7 +185,7 @@ Then run `stk check --stack <BR>` in a checkout (finding `native_stack`).
 
 *once per machine · needs nothing but a terminal · ~2 min*
 
-**Why:** Merging is your decision: stk keeps the stack mergeable and has no merge verb; you merge it, or ask the agent to in the main thread (GitLab: the guard asks; GitHub `gh stack merge` of agent-labelled -sub- parts runs without a second prompt).
+**Why:** Merging is your decision: stk keeps the stack mergeable and has no merge verb; you merge it, or ask the agent to in the main thread (merges of agent-worked parts into the ticket branch run without a second prompt; the main MR/PR into the default branch asks).
 
 **How:**
 

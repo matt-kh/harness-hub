@@ -41,7 +41,7 @@ Pick the bundles you need; each one is a capability with its own docs page.
   configures the GitHub or GitLab remote; `repoboot check` reports drift on existing ones.
 - Stacked delivery stays human-merged on both forges: sub MRs/PRs never target the default
   branch, and on GitHub the `gh stack` extension is guarded too (`gh stack merge`, run on
-  your request, asks again unless every part it merges is an agent-labelled sub PR, `gh stack link` is promptless only for agent-labelled sub PRs onto the ticket branch),
+  your request, asks again unless every part it merges is an `agent-worked` sub PR, `gh stack link` is promptless only for agent-labelled sub PRs onto the ticket branch),
   and `stk sync` keeps a linked native stack consistent after each merge; with the extension
   installed, `/work-ticket` links each chain of sub PRs into a native stack.
 - Every bundle pairs **guides**, which steer the agent before it acts (rules, skills,
@@ -158,7 +158,8 @@ Ten principles govern every change to the hub; each links to its document (check
 - **Humans decide merges, approvals and state.** An agent merges, approves, closes, reopens
   or readies a PR/MR, closes an issue or transitions a ticket only when you explicitly ask for
   it in the main thread, and the guard asks you to confirm the call (state changes of
-  agent-labelled artefacts stay promptless). A subagent that tries is denied and hands the
+  agent-labelled artefacts, and merges of `agent-worked` MRs/PRs into a branch other than the
+  default branch, stay promptless). A subagent that tries is denied and hands the
   command back ([governance](docs/governance.md#3-humans-decide-merges-approvals-and-state)).
 - Agents write without a prompt only to artefacts they own, marked by an `agent-*` label
   ([governance](docs/governance.md)).

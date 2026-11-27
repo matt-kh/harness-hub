@@ -34,7 +34,6 @@ ask = [
   "Bash(glab mr approve:*)",
   "Bash(glab mr del:*)",
   "Bash(glab mr delete:*)",
-  "Bash(glab mr merge:*)",
   "Bash(glab mr revoke:*)",
   "Bash(glab mr unapprove:*)",
   "Bash(glab release create:*)",

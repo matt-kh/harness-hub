@@ -147,7 +147,7 @@ title = "Read how a stack is merged (you merge it)"
 once_per = "machine"
 needs = []
 minutes = 2
-why = "Merging is your decision: stk keeps the stack mergeable and has no merge verb; you merge it, or ask the agent to in the main thread (GitLab: the guard asks; GitHub `gh stack merge` of agent-labelled -sub- parts runs without a second prompt)."
+why = "Merging is your decision: stk keeps the stack mergeable and has no merge verb; you merge it, or ask the agent to in the main thread (merges of agent-worked parts into the ticket branch run without a second prompt; the main MR/PR into the default branch asks)."
 how = """
 - `stk plan --stack <BR>` prints the merge order: parts bottom-up, the main MR/PR last.
 - Merge the first part in the web UI, then run `stk sync --stack <BR>` (or ask the agent to):

@@ -3,7 +3,9 @@
 # Section 50 (bundle gitlab): glab governance.
 # rule: glab api -X non-GET (any case, quoted, attached, $VAR) | payload flag (-f/-F/--field/--raw-field/--form/--input) -> ask : API write; ask the user, or use the matching glab subcommand
 # rule: glab api write (as above) from a subagent -> deny : a raw API write can merge or change state; hand the command back to the main thread
-# rule: glab mr merge|accept|approve|revoke|unapprove|delete, glab issue close|reopen|open|delete -> ask : merging, approving, deleting and issue state are human decisions; run it only on the user's explicit request (they confirm it), or ask the user instead
+# rule: glab mr merge N [-s|--squash|-r|--rebase|-y|--yes|--auto-merge=false] [-R group/project] as the only command on the line, main thread, of an opened non-fork MR labelled agent-worked whose target is not the project's default branch (nor matches WORK_TICKET_BASE_BRANCH_RE) -> allow : the user asked for the merge in the main thread and the MR is agent-worked work that does not land on the default branch; honours WORK_TICKET_LABELED_DECISION
+# rule: glab mr merge otherwise (into the default branch, an MR without agent-worked, a fork, closed or unreadable MR, -d, -m/--squash-message text, --sha, --auto-merge=true, any other flag, the accept alias, a compound or wrapped line, quotes) -> ask : merging into the default branch or merging human work is a human decision; run it only on the user's explicit request (they confirm it), or ask the user instead
+# rule: glab mr approve|revoke|unapprove|delete, glab issue close|reopen|open|delete -> ask : approving, deleting and issue state are human decisions; run it only on the user's explicit request (they confirm it), or ask the user instead
 # rule: glab mr merge|accept|approve|revoke|unapprove|delete, glab issue close|reopen|open|delete from a subagent -> deny : a subagent never merges, approves, deletes or changes issue state; hand the command back to the main thread
 # rule: glab quick action (/merge /approve /close /reopen /ready /draft …) in a note, description or title -> ask : it carries out a human decision; drop it from the text, or run the matching glab command on the user's explicit request
 # rule: glab quick action, or note/description text the guard cannot read, from a subagent -> deny : a subagent never merges or changes state; pass the text inline and hand state changes back to the main thread
@@ -33,6 +35,72 @@ fetch_glab_mr() {
   local o; o=$(hn_timeout 8 "$GLAB" mr view "$1" ${2:+-R "$2"} -F json 2>/dev/null) || return 1
   [ -n "$o" ] || return 1
   printf '%s' "$o" | jq -ce '{labels, src: .source_branch, tgt: .target_branch, cross: false} | '"$NORM_JQ" 2>/dev/null
+}
+GL_MERGE_MSG="glab mr merge — merging is a human decision; run it only on the user's explicit request (they confirm it), or ask the user instead"
+GL_NL='
+'
+GL_CR=$(printf '\r')
+# gl_q ARGS… -> glab in the command's cwd (project resolution), bounded; rc 1 on failure
+gl_q() { ( cd "${cwd:-.}" 2>/dev/null && hn_timeout 8 "$GLAB" "$@" 2>/dev/null ); }
+# gl_mr_merge: the merge label gate, as gh_pr_merge in 60-github. One plain command line that
+# merges an opened, non-fork MR labelled agent-worked into a branch that is not the project's
+# default branch (glab repo view) and does not match WORK_TICKET_BASE_BRANCH_RE. Flags: the merge
+# method, -y, --auto-merge=false and -R group/project only (no -d, commit text or --sha). Anything else,
+# and any failed lookup, defers the human-decision ask; a subagent is denied.
+gl_mr_merge() {
+  local mline tok mnum="" mrepo="" mbad="" seen="" why="" mj mtgt dflt k=1
+  local -a mt
+  [ "$IN_SUBAGENT" != true ] || { human_decision_defer "$GL_MERGE_MSG"; return 0; }
+  # the raw command: $flat drops fd duplications with the digits before them (o/r2>&1 -> o/r)
+  mline=$(printf '%s' "$cmd" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')
+  case "$cmd" in *"$GL_NL"*|*"$GL_CR"*) why="the command spans more than one line (each line is its own command)" ;; esac
+  case "$mline" in
+    *[\;\&\|\`\$\(\)\<\>\"\'\\]*) [ -n "$why" ] || why="it is not the only command on the line, or carries quotes, \$VARs or redirections" ;;
+  esac
+  if [ -z "$why" ]; then
+    read -r -a mt <<<"$mline"
+    [ "${mt[0]:-}" = glab ] || why="only a plain one-line glab mr merge N [-s|-r] [-y] [-R group/project] is label-checked"
+  fi
+  while [ -z "$why" ] && [ "$k" -lt "${#mt[@]}" ]; do
+    tok=${mt[k]}; k=$((k+1))
+    case "$tok" in
+      -R|--repo) [ -z "$mrepo" ] && [ "$k" -lt "${#mt[@]}" ] || { mbad=$tok; break; }; mrepo=${mt[k]}; k=$((k+1)) ;;
+      --repo=*)  [ -z "$mrepo" ] || { mbad=$tok; break; }; mrepo=${tok#*=} ;;
+      mr)        [ -z "$seen" ] || { mbad=$tok; break; }; seen="mr" ;;
+      merge)     [ "$seen" = mr ] || { mbad=$tok; break; }; seen="merge" ;;
+      -s|--squash|-r|--rebase|-y|--yes|--auto-merge=false) [ "$seen" = merge ] || { mbad=$tok; break; } ;;
+      *[!0-9]*)  mbad=$tok; break ;;
+      *)         [ "$seen" = merge ] && [ -z "$mnum" ] || { mbad=$tok; break; }; mnum=$tok ;;
+    esac
+  done
+  [ -n "$why" ] || [ -z "$mbad" ] || why="the argument $mbad cannot be checked"
+  [ -n "$why" ] || [ "$seen" = merge ] || why="only a plain one-line glab mr merge N [-s|-r] [-y] [-R group/project] is label-checked"
+  [ -n "$why" ] || [ -n "$mnum" ] || why="no literal MR number (pass glab mr merge N)"
+  case "$mrepo" in
+    '') ;;
+    *[!A-Za-z0-9_./-]*|/*|*/|*//*|.*|*/.*) [ -n "$why" ] || why="-R $mrepo is not a plain group/project" ;;
+    */*) ;;
+    *) [ -n "$why" ] || why="-R $mrepo is not a plain group/project" ;;
+  esac
+  if [ -z "$why" ]; then
+    mj=$(gl_q mr view "$mnum" ${mrepo:+-R "$mrepo"} -F json </dev/null) && [ -n "$mj" ] || why="MR !$mnum could not be read"
+  fi
+  if [ -z "$why" ]; then
+    dflt=$(gl_q repo view ${mrepo:+"$mrepo"} -F json </dev/null | jq -r '.default_branch // empty' 2>/dev/null) && [ -n "$dflt" ] \
+      || why="the project's default branch could not be read"
+  fi
+  if [ -z "$why" ]; then
+    mtgt=$(jq -r '.target_branch // ""' <<<"$mj" 2>/dev/null)
+    if [ "$(jq -r '.state // ""' <<<"$mj" 2>/dev/null)" != opened ]; then why="MR !$mnum is not open"
+    elif ! jq -e '(.source_project_id // 0) == (.target_project_id // 1)' <<<"$mj" >/dev/null 2>&1; then why="MR !$mnum is a fork MR"
+    elif ! labels_have "$(jq -c '[(.labels // [])[] | if type == "object" then .name else . end]' <<<"$mj" 2>/dev/null)" "$GOV_LABEL"; then why="MR !$mnum is not labelled $GOV_LABEL"
+    elif [ -z "$mtgt" ] || [ "$mtgt" = "$dflt" ] || printf '%s' "$mtgt" | grep -qE -e "$BASE_BRANCH_RE"; then
+      why="MR !$mnum merges into the default branch ${mtgt:-?}"
+    fi
+  fi
+  [ -n "$why" ] || [ "$LABELED_DECISION" = allow ] || why="WORK_TICKET_LABELED_DECISION=$LABELED_DECISION"
+  if [ -n "$why" ]; then human_decision_defer "$GL_MERGE_MSG ($why)"; return 0; fi
+  pending_allow="glab mr merge of $GOV_LABEL MR !$mnum into $mtgt (not the default branch; the user asked for it in the main thread)"
 }
 # Section-local views (gate_writes, called from here, sees them too): the command without fd
 # duplications (2>&1 would cut a clause at its '&'), and an optional repo flag between glab words
@@ -87,8 +155,9 @@ if printf '%s' "$flat" | grep -qE "${GLP}(${GL_NOUNS}|api)\b"; then
   done <<EOF
 $(printf '%s' "$flat" | grep -oE "${GLP}api\b[^;&|]*")
 EOF
-  printf '%s' "$flat" | grep -qE "${GLP}(mr\s+${GLR}(merge|accept|approve|revoke|unapprove|delete|del)|issue\s+${GLR}(close|reopen|open|delete|del))\b" \
+  printf '%s' "$flat" | grep -qE "${GLP}(mr\s+${GLR}(accept|approve|revoke|unapprove|delete|del)|issue\s+${GLR}(close|reopen|open|delete|del))\b" \
     && human_decision_defer "glab MR merge/approve/revoke/delete or issue close/reopen/delete (a human decision) — run it only on the user's explicit request (they confirm it), or ask the user instead"
+  printf '%s' "$flat" | grep -qE "${GLP}mr\s+${GLR}merge\b" && gl_mr_merge
   printf '%s' "$flat" | grep -qE "${GLP}(issue\s+${GLR}(create|new)|release\s+${GLR}(create|delete|upload)|repo\s+${GLR}(delete|archive|fork|create)|label\s+${GLR}(edit|delete))\b" \
     && defer "glab team-visible mutation (issues/releases/repos are not governed) — ask the user instead"
 

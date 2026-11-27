@@ -21,7 +21,13 @@
   reads it back (`closingIssuesReferences`). Never in commits, sub PRs, fork PRs, `gh pr merge` or
   `gh api`; `github.close_issue_on_merge = false` turns the exception off.
 - `gh pr create` and edits to agent-labelled PRs/issues run promptless, human ones prompt.
-- Humans decide: `gh pr merge|review` and `gh issue delete|transfer` always ask;
+- Humans decide merges: run `gh pr merge` only on the user's explicit request in the main
+  thread, as one plain line `gh pr merge N [--squash|--merge|--rebase] [-R owner/repo]`. The
+  guard lets it through without a second prompt only when the PR is open, not a fork, labelled
+  `agent-worked` and its base is not the default branch (merges into a ticket branch or a
+  blocker's sub branch); every merge into the default branch, of a human PR, or with `--admin`,
+  `--auto`, `-d` or commit text asks.
+- Humans decide: `gh pr review` and `gh issue delete|transfer` always ask;
   `gh pr close|reopen|ready` and `gh issue close|reopen` ask on a human PR/issue and run
   promptless on an agent-labelled one. Run them only on the user's explicit request in the main
   thread; from a subagent the guard denies them — hand the command back.
@@ -37,7 +43,7 @@
   the main PR stays outside; a branch name would push and open an unlabelled PR, so it is
   denied). `gh stack merge` is a human decision: run it only on the user's explicit request in
   the main thread, as one plain `gh stack merge [N]` line; the guard lets it through without a
-  second prompt only when every open PR it merges is an agent-labelled `-sub-` part of a
+  second prompt only when every open PR it merges is an `agent-worked` `-sub-` part of a
   ticket-branch stack (else it asks; denied from a subagent). Also human decisions:
   `--open`, `gh stack alias`, unknown verbs and flags before the verb: put the verb first. `stk sync --stack BR` keeps the stack in sync; `gh stack sync|push|submit|rebase`
   are not used (they ask, and deny on the default branch).
